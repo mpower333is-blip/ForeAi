@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, TextField } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
@@ -33,25 +33,60 @@ export default function EventsScreen() {
 // ---------------------------------------------------------------------------
 
 function EventList({ onOpen }: { onOpen: (id: string) => void }) {
-  const { events, createEvent } = useTournament();
+  const { events, createEvent, createSharedEvent, joinByCode } = useTournament();
   const [creating, setCreating] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [courseId, setCourseId] = useState(COURSES[0].id);
   const [format, setFormat] = useState<EventFormat>("stroke");
   const [firstTee, setFirstTee] = useState(8 * 60);
   const [interval, setInterval] = useState(10);
+  const [shared, setShared] = useState(true);
+  const [joinCode, setJoinCode] = useState("");
 
-  const create = () => {
-    const ev = createEvent({
+  const create = async () => {
+    setError("");
+    const input = {
       name: name.trim() || "Golf Day",
       courseId,
       format,
       firstTeeMin: firstTee,
       intervalMin: interval,
       date: "",
-    });
+    };
+    if (shared) {
+      setBusy(true);
+      const ev = await createSharedEvent(input);
+      setBusy(false);
+      if (!ev) {
+        setError("Couldn't reach the server. Check the connection or create a local event instead.");
+        return;
+      }
+      finishCreate(ev.id);
+    } else {
+      finishCreate(createEvent(input).id);
+    }
+  };
+
+  const finishCreate = (id: string) => {
     setCreating(false);
     setName("");
+    onOpen(id);
+  };
+
+  const join = async () => {
+    setError("");
+    setBusy(true);
+    const ev = await joinByCode(joinCode);
+    setBusy(false);
+    if (!ev) {
+      setError("No event found for that code (or the server is unreachable).");
+      return;
+    }
+    setJoining(false);
+    setJoinCode("");
     onOpen(ev.id);
   };
 
@@ -59,7 +94,35 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
     <Screen>
       <ScreenHeader title="Events" subtitle="Run a tournament or a golf day — players, tee times, live scoring." />
 
-      {!creating && <Button label="+ New event" onPress={() => setCreating(true)} />}
+      {!creating && !joining && (
+        <View style={styles.formRow}>
+          <Button label="+ New event" onPress={() => setCreating(true)} style={{ flex: 1 }} />
+          <Button label="Join by code" variant="ghost" onPress={() => setJoining(true)} style={{ flex: 1 }} />
+        </View>
+      )}
+
+      {error !== "" && (
+        <Card>
+          <Text style={styles.errorText}>{error}</Text>
+        </Card>
+      )}
+
+      {joining && (
+        <Card>
+          <Text style={styles.formTitle}>Join an event</Text>
+          <Text style={styles.hint}>Enter the code the organizer shared with you.</Text>
+          <TextField
+            label="Join code"
+            value={joinCode}
+            onChangeText={(v) => setJoinCode(v.toUpperCase())}
+            placeholder="ABC123"
+          />
+          <View style={styles.formRow}>
+            <Button label={busy ? "Joining…" : "Join"} onPress={join} style={{ flex: 1 }} />
+            <Button label="Cancel" variant="ghost" onPress={() => setJoining(false)} style={{ flex: 1 }} />
+          </View>
+        </Card>
+      )}
 
       {creating && (
         <Card>
@@ -92,8 +155,23 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
           <Stepper label={`First tee — ${hhmm(firstTee)}`} value={firstTee} onChange={setFirstTee} step={5} min={5 * 60} max={18 * 60} unit="" />
           <Stepper label="Tee interval" value={interval} onChange={setInterval} step={1} min={6} max={15} unit="min" />
 
+          <Segmented
+            label="Type"
+            options={[
+              { key: "shared", label: "Shared (multi-device)" },
+              { key: "local", label: "Local only" },
+            ]}
+            value={shared ? "shared" : "local"}
+            onChange={(v) => setShared(v === "shared")}
+          />
+          <Text style={styles.hint}>
+            {shared
+              ? "Players join from their own phones with a code and scores sync live."
+              : "Everything stays on this device — good with no signal."}
+          </Text>
+
           <View style={styles.formRow}>
-            <Button label="Create" onPress={create} style={{ flex: 1 }} />
+            <Button label={busy ? "Creating…" : "Create"} onPress={create} style={{ flex: 1 }} />
             <Button label="Cancel" variant="ghost" onPress={() => setCreating(false)} style={{ flex: 1 }} />
           </View>
         </Card>
@@ -113,7 +191,18 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
         return (
           <TouchableOpacity key={e.id} activeOpacity={0.85} onPress={() => onOpen(e.id)}>
             <Card>
-              <Text style={styles.eventName}>{e.name}</Text>
+              <View style={styles.cardTitleRow}>
+                <Text style={styles.eventName}>{e.name}</Text>
+                {e.remote ? (
+                  <View style={styles.codeBadge}>
+                    <Text style={styles.codeBadgeText}>{e.code}</Text>
+                  </View>
+                ) : (
+                  <View style={styles.localBadge}>
+                    <Text style={styles.localBadgeText}>local</Text>
+                  </View>
+                )}
+              </View>
               <Text style={styles.eventMeta}>
                 {course.name} • {e.format === "stroke" ? "Stroke play" : "Stableford"}
               </Text>
@@ -138,6 +227,16 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
   const t = useTournament();
   const event = t.getEvent(eventId);
   const [tab, setTab] = useState<Tab>("players");
+  const isRemote = !!event?.remote;
+
+  // Poll the server so every device sees live changes.
+  useEffect(() => {
+    if (!isRemote) return;
+    const iv = setInterval(() => {
+      t.refreshEvent(eventId);
+    }, 6000);
+    return () => clearInterval(iv);
+  }, [isRemote, eventId]);
 
   if (!event) {
     return (
@@ -159,6 +258,22 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
       <Text style={styles.detailMeta}>
         {course.name} • Par {course.par} • {event.format === "stroke" ? "Stroke play" : "Stableford"}
       </Text>
+
+      {event.remote && (
+        <Card accent>
+          <View style={styles.codeRow}>
+            <View>
+              <Text style={styles.codeLabel}>JOIN CODE</Text>
+              <Text style={styles.codeBig}>{event.code}</Text>
+            </View>
+            <View style={styles.liveRow}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveLabel}>Live sync</Text>
+            </View>
+          </View>
+          <Text style={styles.hint}>Share this code — players join from their own phones.</Text>
+        </Card>
+      )}
 
       <View style={styles.tabs}>
         {(["players", "tees", "live"] as Tab[]).map((k) => (
@@ -182,9 +297,14 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
 }
 
 function PlayersTab({ event }: { event: TEvent }) {
-  const { addPlayer, removePlayer } = useTournament();
+  const { addPlayer, removePlayer, registerSelf, myPlayerId } = useTournament();
   const [name, setName] = useState("");
   const [hcp, setHcp] = useState(18);
+  const [meName, setMeName] = useState("");
+  const [meHcp, setMeHcp] = useState(18);
+  const [busy, setBusy] = useState(false);
+
+  const meId = myPlayerId(event.id);
 
   const add = () => {
     if (!name.trim()) return;
@@ -193,10 +313,28 @@ function PlayersTab({ event }: { event: TEvent }) {
     setHcp(18);
   };
 
+  const joinAsSelf = async () => {
+    if (!meName.trim()) return;
+    setBusy(true);
+    await registerSelf(event.id, meName.trim(), meHcp);
+    setBusy(false);
+    setMeName("");
+  };
+
   return (
     <>
+      {event.remote && !meId && (
+        <Card accent>
+          <Text style={styles.formTitle}>Join as a player</Text>
+          <Text style={styles.hint}>Add yourself to this event from your phone.</Text>
+          <TextField label="Your name" value={meName} onChangeText={setMeName} placeholder="You" />
+          <Stepper label="Your handicap" value={meHcp} onChange={setMeHcp} step={1} min={0} max={54} unit="" />
+          <Button label={busy ? "Joining…" : "Register me"} onPress={joinAsSelf} />
+        </Card>
+      )}
+
       <Card>
-        <Text style={styles.formTitle}>Register player</Text>
+        <Text style={styles.formTitle}>{event.remote ? "Add another player" : "Register player"}</Text>
         <TextField label="Name" value={name} onChangeText={setName} placeholder="Player name" />
         <Stepper label="Handicap" value={hcp} onChange={setHcp} step={1} min={0} max={54} unit="" />
         <Button label="Add player" onPress={add} />
@@ -207,7 +345,10 @@ function PlayersTab({ event }: { event: TEvent }) {
         {event.players.length === 0 && <Text style={styles.empty}>No players yet.</Text>}
         {event.players.map((p) => (
           <View key={p.id} style={styles.playerRow}>
-            <Text style={styles.playerName}>{p.name}</Text>
+            <Text style={styles.playerName}>
+              {p.name}
+              {p.id === meId ? <Text style={styles.youTag}>  you</Text> : null}
+            </Text>
             <View style={styles.playerRight}>
               <Text style={styles.playerHcp}>HCP {p.handicap}</Text>
               <TouchableOpacity onPress={() => removePlayer(event.id, p.id)}>
@@ -561,4 +702,30 @@ const styles = StyleSheet.create({
   lbHcp: { color: colors.textFaint, fontSize: 12 },
   lbMuted: { color: colors.textFaint },
   lbScore: { color: colors.accent, fontWeight: "800", fontSize: 16 },
+
+  cardTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
+  codeBadge: {
+    backgroundColor: colors.accent,
+    borderRadius: radius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  codeBadgeText: { color: "#062012", fontWeight: "800", letterSpacing: 2 },
+  localBadge: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  localBadgeText: { color: colors.textFaint, fontSize: 12, fontWeight: "600" },
+  errorText: { color: colors.negative, fontSize: 15, lineHeight: 22 },
+
+  codeRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  codeLabel: { color: colors.textFaint, fontSize: 12, letterSpacing: 2 },
+  codeBig: { color: colors.accent, fontSize: 34, fontWeight: "800", letterSpacing: 4 },
+  liveRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.positive },
+  liveLabel: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
+  youTag: { color: colors.accent, fontSize: 13, fontWeight: "700" },
 });

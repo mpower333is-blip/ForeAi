@@ -69,3 +69,72 @@ model Club {
 
   createdAt    DateTime @default(now())
 }
+// ---------------------------------------------------------------------------
+// Tournaments / golf days — the shared "system" that lets many devices join
+// one event, self-register, and see live scores.
+// ---------------------------------------------------------------------------
+
+model Tournament {
+  id          String   @id @default(uuid())
+  code        String   @unique // short human-friendly join code
+  name        String
+  courseId    String            // id from the app's course catalog
+  format      String   @default("stroke") // "stroke" | "stableford"
+  firstTeeMin Int      @default(480)
+  intervalMin Int      @default(10)
+
+  players     TournamentPlayer[]
+  groups      TournamentGroup[]
+  scores      TournamentScore[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TournamentGroup {
+  id           String @id @default(uuid())
+
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  order        Int // position on the tee sheet (drives the tee time)
+
+  players      TournamentPlayer[]
+
+  createdAt    DateTime @default(now())
+}
+
+model TournamentPlayer {
+  id           String @id @default(uuid())
+
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  groupId      String?
+  group        TournamentGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  name         String
+  handicap     Float  @default(0)
+  deviceId     String? // the phone that registered this player (for "me")
+
+  scores       TournamentScore[]
+
+  createdAt    DateTime @default(now())
+}
+
+model TournamentScore {
+  id           String @id @default(uuid())
+
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  playerId     String
+  player       TournamentPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  hole         Int
+  strokes      Int
+
+  updatedAt    DateTime @updatedAt
+
+  @@unique([playerId, hole])
+}

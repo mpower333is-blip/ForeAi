@@ -7,6 +7,7 @@ import shotRoutes from "./routes/shots";
 import caddieRoutes from "./routes/caddie";
 import clubRoutes from "./routes/clubs";
 import strategyRoutes from "./routes/strategy";
+import tournamentRoutes from "./routes/tournaments";
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use("/shots", shotRoutes);
 app.use("/caddie", caddieRoutes);
 app.use("/clubs", clubRoutes);
 app.use("/strategy", strategyRoutes);
+app.use("/tournaments", tournamentRoutes);
 
 const PORT = Number(process.env.PORT) || 5000;
 app.listen(PORT, () => {

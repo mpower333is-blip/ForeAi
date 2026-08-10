@@ -49,8 +49,15 @@ The Events tab is a self-contained golf-day manager:
   and a live leaderboard ranks everyone (stroke play or Stableford, handicap-aware).
 
 The scoring/standings logic is pure and tested (`mobile/src/lib/tournament.ts`).
-It runs on one device today (the organizer's phone/tablet); multi-device
-self-registration and live sync is the natural next step via the backend.
+
+**Multi-device (live sync).** When you create an event as **Shared**, it's hosted
+on the backend and gets a short **join code**. Other players open the Events tab,
+tap **Join by code**, enter the code, and **register themselves** from their own
+phones. Every device polls the server, so tee-sheet changes and scores show up
+live for everyone — the leaderboard and each group's current hole update as
+scores come in. Any device in a group can post scores (the `[player, hole]`
+unique key keeps it idempotent). Choosing **Local only** keeps everything on one
+device for when there's no signal.
 
 ### AI Caddie (Arccos-style)
 
@@ -132,7 +139,8 @@ Express API with a Prisma/PostgreSQL data model (users, rounds, shots, clubs).
 cd backend
 npm install
 cp .env.example .env      # fill in your DATABASE_URL
-npx prisma migrate deploy # or: npx prisma generate
+npx prisma db push        # creates all tables, incl. tournaments (dev)
+                          # for prod, use: npx prisma migrate deploy
 npm run dev               # http://localhost:5000
 ```
 
@@ -149,6 +157,11 @@ npm run dev               # http://localhost:5000
 | POST   | `/caddie/recommend`   | Club recommendation              |
 | POST   | `/strategy/plan`      | Hole strategy                    |
 | GET/POST| `/clubs/:userId`     | Read / add clubs                 |
+| POST   | `/tournaments`        | Create a shared event (join code)|
+| GET    | `/tournaments/code/:code` | Resolve an event by join code |
+| GET    | `/tournaments/:id`    | Full event state (live polling)  |
+| POST   | `/tournaments/:id/players` | Register / self-register    |
+| PUT    | `/tournaments/:id/scores`  | Submit a score (upsert)     |
 
 ## Security note
 

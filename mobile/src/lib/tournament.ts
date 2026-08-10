@@ -10,6 +10,8 @@ export type TPlayer = {
   id: string;
   name: string;
   handicap: number;
+  deviceId?: string | null; // set when a player self-registers from their phone
+  groupId?: string | null;
 };
 
 export type TGroup = {
@@ -31,6 +33,9 @@ export type TEvent = {
   groups: TGroup[];
   // scores[playerId][holeNumber] = strokes
   scores: Record<string, Record<number, number>>;
+  // Multi-device fields — present only for events hosted on the backend.
+  code?: string; // join code shared with other devices
+  remote?: boolean; // true when this event is synced with the server
 };
 
 // ---- tee times -----------------------------------------------------------
