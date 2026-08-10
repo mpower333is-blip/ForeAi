@@ -1,7 +1,12 @@
 {
-  "name": "backend",
+  "name": "foreai",
   "version": "1.0.0",
+  "private": true,
+  "description": "ForeAi — AI golf performance app for iOS & Android",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/server.ts"
+    "backend": "npm --prefix backend run dev",
+    "mobile": "npm --prefix mobile start",
+    "mobile:android": "npm --prefix mobile start -- --android",
+    "mobile:ios": "npm --prefix mobile start -- --ios"
   }
 }

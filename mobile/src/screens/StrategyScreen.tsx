@@ -1,101 +1,84 @@
-import React,{useState} from "react";
-import {
-View,
-Text,
-TouchableOpacity,
-StyleSheet
-} from "react-native";
+import React, { useMemo, useState } from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { Screen, ScreenHeader, Card, Segmented, Stepper } from "../components/ui";
+import { colors, spacing } from "../theme";
+import { courseStrategy, StrategyInput } from "../lib/golfEngine";
 
-import {getStrategy}
-from "../services/api";
+const HAZARDS: { key: NonNullable<StrategyInput["hazard"]>; label: string }[] = [
+  { key: "none", label: "None" },
+  { key: "water-left", label: "Water L" },
+  { key: "water-right", label: "Water R" },
+  { key: "bunker-front", label: "Bunker F" },
+  { key: "ob-left", label: "OB L" },
+  { key: "ob-right", label: "OB R" },
+];
 
-export default function StrategyScreen(){
+const PINS: { key: NonNullable<StrategyInput["pin"]>; label: string }[] = [
+  { key: "front", label: "Front" },
+  { key: "middle", label: "Middle" },
+  { key: "back-left", label: "Back L" },
+  { key: "back-right", label: "Back R" },
+  { key: "tucked", label: "Tucked" },
+];
 
-const[
-strategy,
-setStrategy
-]=useState("");
+const MISSES: { key: NonNullable<StrategyInput["miss"]>; label: string }[] = [
+  { key: "none", label: "Straight" },
+  { key: "left", label: "Left" },
+  { key: "right", label: "Right" },
+];
 
-const loadStrategy=async()=>{
+export default function StrategyScreen() {
+  const [parYards, setParYards] = useState(410);
+  const [hazard, setHazard] = useState<NonNullable<StrategyInput["hazard"]>>("water-right");
+  const [pin, setPin] = useState<NonNullable<StrategyInput["pin"]>>("back-right");
+  const [miss, setMiss] = useState<NonNullable<StrategyInput["miss"]>>("right");
 
-const data=await getStrategy();
+  const plan = useMemo(
+    () => courseStrategy({ parYards, hazard, pin, miss }),
+    [parYards, hazard, pin, miss]
+  );
 
-setStrategy(
-data.strategy
-);
+  const tone =
+    plan.aggression === "aggressive"
+      ? colors.positive
+      : plan.aggression === "conservative"
+      ? colors.warning
+      : colors.text;
 
+  return (
+    <Screen>
+      <ScreenHeader title="Course Strategy" subtitle="Plan the smart play for the hole in front of you." />
+
+      <Card accent>
+        <View style={[styles.aggPill, { borderColor: tone }]}>
+          <Text style={[styles.aggText, { color: tone }]}>{plan.aggression}</Text>
+        </View>
+        <Text style={styles.headline}>{plan.headline}</Text>
+        <Text style={styles.target}>🎯 {plan.target}</Text>
+        <Text style={styles.reason}>{plan.reasoning}</Text>
+      </Card>
+
+      <Card>
+        <Stepper label="Hole length" value={parYards} onChange={setParYards} step={5} min={100} max={620} unit="yds" />
+        <Segmented label="Hazard" options={HAZARDS} value={hazard} onChange={setHazard} />
+        <Segmented label="Pin position" options={PINS} value={pin} onChange={setPin} />
+        <Segmented label="Your typical miss" options={MISSES} value={miss} onChange={setMiss} />
+      </Card>
+    </Screen>
+  );
 }
 
-return(
-
-<View style={styles.container}>
-
-<Text style={styles.title}>
-AI Course Strategy
-</Text>
-
-<TouchableOpacity
-style={styles.button}
-onPress={loadStrategy}
->
-<Text style={styles.buttonText}>
-Analyze Hole
-</Text>
-</TouchableOpacity>
-
-{strategy!==""&&(
-<View style={styles.resultCard}>
-<Text style={styles.result}>
-{strategy}
-</Text>
-</View>
-)}
-
-</View>
-
-)
-
-}
-
-const styles=StyleSheet.create({
-
-container:{
-flex:1,
-justifyContent:"center",
-alignItems:"center",
-backgroundColor:"#071b13"
-},
-
-title:{
-fontSize:36,
-fontWeight:"700",
-color:"white"
-},
-
-button:{
-backgroundColor:"#7CFF57",
-paddingHorizontal:30,
-paddingVertical:18,
-borderRadius:20,
-marginTop:25
-},
-
-buttonText:{
-fontWeight:"700"
-},
-
-resultCard:{
-backgroundColor:"#10261c",
-padding:30,
-borderRadius:24,
-marginTop:40,
-width:"80%"
-},
-
-result:{
-color:"white",
-fontSize:22,
-textAlign:"center"
-}
-
+const styles = StyleSheet.create({
+  aggPill: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    marginBottom: spacing.sm,
+  },
+  aggText: { fontWeight: "700", fontSize: 13, textTransform: "uppercase", letterSpacing: 1 },
+  headline: { color: colors.text, fontSize: 24, fontWeight: "800" },
+  target: { color: colors.accent, fontSize: 17, fontWeight: "700", marginTop: spacing.sm },
+  reason: { color: colors.textMuted, fontSize: 15, lineHeight: 23, marginTop: spacing.sm },
 });
