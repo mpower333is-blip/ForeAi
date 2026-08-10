@@ -12,6 +12,7 @@ import { colors } from "./src/theme";
 import HomeScreen from "./src/screens/HomeScreen";
 import PlayScreen from "./src/screens/PlayScreen";
 import CaddieScreen from "./src/screens/CaddieScreen";
+import SwingScreen from "./src/screens/SwingScreen";
 import StrategyScreen from "./src/screens/StrategyScreen";
 import StatsScreen from "./src/screens/StatsScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
@@ -22,6 +23,7 @@ const ICONS: Record<string, string> = {
   Home: "⛳",
   Play: "🏌️",
   Caddie: "🎒",
+  Coach: "🎥",
   Strategy: "🧭",
   Stats: "📊",
   Profile: "👤",
@@ -66,6 +68,7 @@ export default function App() {
               <Tab.Screen name="Home" component={HomeScreen} />
               <Tab.Screen name="Play" component={PlayScreen} options={{ title: "Round" }} />
               <Tab.Screen name="Caddie" component={CaddieScreen} />
+              <Tab.Screen name="Coach" component={SwingScreen} />
               <Tab.Screen name="Strategy" component={StrategyScreen} />
               <Tab.Screen name="Stats" component={StatsScreen} />
               <Tab.Screen name="Profile" component={ProfileScreen} />

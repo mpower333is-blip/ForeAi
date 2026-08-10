@@ -23,7 +23,7 @@ export default function PlayScreen() {
     course,
     currentHole,
     setCurrentHole,
-    bag,
+    effectiveBag,
     logShot,
     removeLastShot,
     shotsForHole,
@@ -47,9 +47,9 @@ export default function PlayScreen() {
           windSpeed: wind,
           lie: surface === "green" ? "fairway" : (surface as Lie),
         },
-        bag
+        effectiveBag
       ),
-    [distance, wind, surface, bag]
+    [distance, wind, surface, effectiveBag]
   );
 
   const lieForSurface = (s: Surface): Lie =>

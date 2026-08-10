@@ -6,6 +6,9 @@ import {
   Surface,
   strokesGainedForShot,
   round2,
+  learnDistances,
+  effectiveBag as buildEffectiveBag,
+  LearnedClub,
 } from "../lib/golfEngine";
 
 // A single logged shot during a live round.
@@ -65,6 +68,8 @@ type RoundState = {
   totalStrokesGained: number;
   shotsForHole: (hole: number) => LoggedShot[];
   categorySG: () => { label: string; value: number }[];
+  learned: Record<string, LearnedClub>;
+  effectiveBag: Club[];
 };
 
 const Ctx = createContext<RoundState | null>(null);
@@ -104,6 +109,9 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
 
   const shotsForHole = (hole: number) => shots.filter((s) => s.hole === hole);
 
+  const learned = useMemo(() => learnDistances(shots), [shots]);
+  const effectiveBag = useMemo(() => buildEffectiveBag(bag, learned), [bag, learned]);
+
   const categorySG = () => {
     const bucket = (s: LoggedShot): string => {
       if (s.endSurface === "green" || s.startSurface === "green") return "Putting";
@@ -134,6 +142,8 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     totalStrokesGained,
     shotsForHole,
     categorySG,
+    learned,
+    effectiveBag,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

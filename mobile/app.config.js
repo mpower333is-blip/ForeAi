@@ -16,6 +16,12 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.foreai.mobile",
+      infoPlist: {
+        NSCameraUsageDescription:
+          "ForeAi uses the camera to frame your swing and give you posture feedback.",
+        NSMotionUsageDescription:
+          "ForeAi uses motion sensors to detect your swing and measure its tempo.",
+      },
     },
     android: {
       package: "com.foreai.mobile",
@@ -23,11 +29,21 @@ export default {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#071b13",
       },
+      permissions: ["CAMERA", "HIGH_SAMPLING_RATE_SENSORS"],
     },
     web: {
       bundler: "metro",
       favicon: "./assets/favicon.png",
     },
+    plugins: [
+      [
+        "expo-camera",
+        {
+          cameraPermission:
+            "ForeAi uses the camera to frame your swing and give you posture feedback.",
+        },
+      ],
+    ],
     extra: {
       // EXPO_PUBLIC_API_URL is read directly in services/api.ts; set it in a
       // .env or your EAS build profile to point the app at a deployed backend.

@@ -43,10 +43,19 @@ export default function HomeScreen({ navigation }: any) {
         <Button label="Go to Round" onPress={() => navigation.navigate("Play")} />
       </Card>
 
+      <Card>
+        <Text style={styles.cardHeadline}>🎥 Swing Coach</Text>
+        <Text style={styles.cardBody}>
+          Frame yourself and take a swing — ForeAi detects it from your phone's motion and coaches
+          your tempo, posture and balance.
+        </Text>
+        <Button variant="ghost" label="Analyze my swing" onPress={() => navigation.navigate("Coach")} />
+      </Card>
+
       <View style={styles.pairRow}>
         <Card style={styles.pairCard}>
           <Text style={styles.cardHeadline}>AI Caddie</Text>
-          <Text style={styles.cardBody}>Club calls for any distance, wind and lie.</Text>
+          <Text style={styles.cardBody}>Club calls that learn your real distances.</Text>
           <Button variant="ghost" label="Open" onPress={() => navigation.navigate("Caddie")} />
         </Card>
         <Card style={styles.pairCard}>

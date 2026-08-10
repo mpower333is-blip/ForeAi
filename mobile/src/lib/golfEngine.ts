@@ -285,6 +285,80 @@ export function courseStrategy(input: StrategyInput): StrategyPlan {
 }
 
 // ---------------------------------------------------------------------------
+// Smart distances — Arccos-style. Learn each club's real carry and dispersion
+// from the player's own logged shots, instead of trusting static bag numbers.
+// ---------------------------------------------------------------------------
+
+export type ShotRecord = {
+  club: string;
+  startYards: number;
+  endYards: number;
+  holed?: boolean;
+};
+
+export type LearnedClub = {
+  name: string;
+  carry: number; // average yards advanced
+  dispersion: number; // std deviation of carry (consistency proxy)
+  samples: number;
+};
+
+const MIN_SAMPLES = 3; // below this we don't trust the learned number
+
+export function learnDistances(shots: ShotRecord[]): Record<string, LearnedClub> {
+  const byClub: Record<string, number[]> = {};
+  for (const s of shots) {
+    const carry = (s.holed ? s.startYards : s.startYards - s.endYards);
+    if (carry <= 0) continue; // ignore putts / mishits that don't advance
+    (byClub[s.club] ||= []).push(carry);
+  }
+
+  const out: Record<string, LearnedClub> = {};
+  for (const [name, carries] of Object.entries(byClub)) {
+    const mean = carries.reduce((a, b) => a + b, 0) / carries.length;
+    const variance =
+      carries.reduce((a, b) => a + (b - mean) ** 2, 0) / carries.length;
+    out[name] = {
+      name,
+      carry: Math.round(mean),
+      dispersion: Math.round(Math.sqrt(variance)),
+      samples: carries.length,
+    };
+  }
+  return out;
+}
+
+// Merge learned carries into the base bag so recommendations use real numbers
+// wherever the player has enough shots on record.
+export function effectiveBag(
+  base: Club[],
+  learned: Record<string, LearnedClub>
+): Club[] {
+  return base.map((c) => {
+    const l = learned[c.name];
+    return l && l.samples >= MIN_SAMPLES ? { name: c.name, carry: l.carry } : c;
+  });
+}
+
+export function isLearned(
+  name: string,
+  learned: Record<string, LearnedClub>
+): boolean {
+  return !!learned[name] && learned[name].samples >= MIN_SAMPLES;
+}
+
+// Expected finishing window from a club's dispersion — "you'll likely end up
+// within ±N yards of the target". Falls back to a sensible default.
+export function dispersionWindow(
+  club: string,
+  learned: Record<string, LearnedClub>
+): number {
+  const l = learned[club];
+  if (l && l.samples >= MIN_SAMPLES && l.dispersion > 0) return l.dispersion;
+  return 12; // conservative default when we have no data yet
+}
+
+// ---------------------------------------------------------------------------
 // Small helpers
 // ---------------------------------------------------------------------------
 

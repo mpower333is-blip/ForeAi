@@ -17,20 +17,43 @@ backend/   Express + Prisma + PostgreSQL API
 
 ## Mobile app
 
-Built with Expo + React Navigation. Six tabs:
+Built with Expo + React Navigation. Seven tabs:
 
 | Tab       | What it does                                                       |
 |-----------|-------------------------------------------------------------------|
 | Home      | Dashboard — round SG, current hole, quick links                   |
 | Round     | Live shot tracking with real-time club calls and strokes gained   |
-| Caddie    | Club recommender for any distance, wind, elevation, lie & temp    |
+| Caddie    | Data-driven club recommender that learns your real distances      |
+| Coach     | Camera + motion swing detector with tempo & posture coaching      |
 | Strategy  | Aggressive/safe hole plan from hazard, pin and your miss pattern   |
 | Stats     | Strokes-gained dashboard by category with round highlights        |
 | Profile   | Tune your bag's carry distances (drives every recommendation)     |
 
-The golf logic lives in [`mobile/src/lib/golfEngine.ts`](mobile/src/lib/golfEngine.ts):
-playing-distance adjustments, nearest-club recommendation, PGA-baseline expected
-strokes with interpolation, per-shot strokes gained, and course strategy.
+### AI Caddie (Arccos-style)
+
+The caddie starts from sensible defaults but **learns your real game**. Every
+shot you log feeds [`learnDistances`](mobile/src/lib/golfEngine.ts), which
+computes each club's average carry and dispersion. Recommendations then use
+*your* numbers, show whether they came from your data or the default bag, and
+give a dispersion-based finishing window ("expect to finish within ±N yds").
+
+The core golf logic in [`mobile/src/lib/golfEngine.ts`](mobile/src/lib/golfEngine.ts):
+playing-distance adjustments (wind/elevation/lie/temperature), nearest-club
+recommendation, PGA-baseline expected strokes with interpolation, per-shot
+strokes gained, learned smart distances, and course strategy.
+
+### Swing Coach (camera + motion)
+
+The Coach tab uses the **camera** as a framing + posture guide and the phone's
+**motion sensors** to detect your swing — the same signal Arccos-style sensors
+read. [`swingDetector.ts`](mobile/src/lib/swingDetector.ts) finds the takeaway,
+the top, and impact from the accelerometer trace and measures tempo, setup
+stability and finish balance. [`swingCoach.ts`](mobile/src/lib/swingCoach.ts)
+turns those numbers into a graded report with prioritized tips and drills.
+
+Both engines are pure and unit-testable. Detection is intentionally isolated
+behind a `Sample[] → SwingMetrics` interface so on-device camera pose ML
+(MoveNet/BlazePose) can be added later without touching the coaching logic.
 
 ### Run it
 
