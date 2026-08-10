@@ -7,6 +7,8 @@ import {
   ViewStyle,
   TextStyle,
   ScrollView,
+  TextInput,
+  KeyboardTypeOptions,
 } from "react-native";
 import { colors, radius, spacing, type } from "../theme";
 
@@ -128,6 +130,36 @@ export function Segmented<T extends string>({
   );
 }
 
+export function TextField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType,
+  style,
+}: {
+  label?: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder?: string;
+  keyboardType?: KeyboardTypeOptions;
+  style?: ViewStyle;
+}) {
+  return (
+    <View style={[{ marginBottom: spacing.md }, style]}>
+      {label ? <Text style={styles.fieldLabel}>{label}</Text> : null}
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textFaint}
+        keyboardType={keyboardType}
+        style={styles.input}
+      />
+    </View>
+  );
+}
+
 // A +/- stepper for numeric inputs (avoids finicky keyboards on-course).
 export function Stepper({
   label,
@@ -236,6 +268,16 @@ const styles = StyleSheet.create({
   btnTextGhost: { color: colors.accent },
 
   fieldLabel: { color: colors.textMuted, fontSize: 14, marginBottom: 8 },
+  input: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.text,
+    fontSize: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
 
   segRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   seg: {

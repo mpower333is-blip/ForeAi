@@ -22,12 +22,35 @@ Built with Expo + React Navigation. Seven tabs:
 | Tab       | What it does                                                       |
 |-----------|-------------------------------------------------------------------|
 | Home      | Dashboard — round SG, current hole, quick links                   |
-| Round     | Live shot tracking with real-time club calls and strokes gained   |
+| Round     | Course selection, live shot tracking, club calls, and scorecard   |
 | Caddie    | Data-driven club recommender that learns your real distances      |
 | Coach     | Camera + motion swing detector with tempo & posture coaching      |
-| Strategy  | Aggressive/safe hole plan from hazard, pin and your miss pattern   |
+| Events    | Tournaments / golf days — players, tee times, live leaderboard     |
 | Stats     | Strokes-gained dashboard by category with round highlights        |
 | Profile   | Tune your bag's carry distances (drives every recommendation)     |
+
+(Strategy and Course Select are pushed screens reached from Home / Round.)
+
+### Courses & scorecard
+
+Pick from a catalog of full 18-hole layouts (`mobile/src/data/courses.ts`) on the
+Round tab. Each hole carries par, yardage and stroke index. The Round tab has a
+tap-to-edit scorecard with per-hole scoring, front/back-nine totals and live
+to-par.
+
+### Events — tournaments & golf days
+
+The Events tab is a self-contained golf-day manager:
+
+- **Register players** with handicaps.
+- **Build the tee sheet** — create groups, assign players, set the first tee time
+  and interval; each group's tee time is computed automatically.
+- **Track live** — as scores are entered, each group shows *which hole they're on*
+  and a live leaderboard ranks everyone (stroke play or Stableford, handicap-aware).
+
+The scoring/standings logic is pure and tested (`mobile/src/lib/tournament.ts`).
+It runs on one device today (the organizer's phone/tablet); multi-device
+self-registration and live sync is the natural next step via the backend.
 
 ### AI Caddie (Arccos-style)
 
@@ -70,6 +93,34 @@ EXPO_PUBLIC_API_URL=http://192.168.1.20:5000 npm start
 ```
 
 (Use your machine's LAN IP so a physical phone can reach it.)
+
+### Testing on a phone & building an APK
+
+There are three levels, easiest first:
+
+1. **Expo Go (fastest, no build).** Install **Expo Go** from the App Store /
+   Play Store, run `npm start`, and scan the QR code. The camera and motion
+   sensors on the Coach tab need a real device — they don't work in a simulator
+   or web. Expo Go is the quickest way to test everything day-to-day.
+
+2. **Install a real APK / dev build (EAS Build — cloud, no Mac needed).**
+   ```bash
+   npm install -g eas-cli
+   eas login
+   eas build:configure
+   eas build -p android --profile preview   # produces an installable .apk
+   eas build -p ios     --profile preview   # iOS build (needs an Apple account)
+   ```
+   The Android `preview` profile outputs a downloadable **APK** you can sideload
+   on any Android phone. Add this to `eas.json` to force APK output:
+   ```json
+   { "build": { "preview": { "android": { "buildType": "apk" }, "distribution": "internal" } } }
+   ```
+   Because the app uses native modules (camera/sensors), use a **dev/preview
+   build** rather than Expo Go when you want the production-like APK.
+
+3. **Store submission.** `eas build -p android --profile production` (AAB for the
+   Play Store) and `eas submit`. iOS uses TestFlight via `eas submit -p ios`.
 
 ## Backend
 

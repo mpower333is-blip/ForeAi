@@ -10,6 +10,9 @@ import {
   effectiveBag as buildEffectiveBag,
   LearnedClub,
 } from "../lib/golfEngine";
+import { COURSES, Course, Hole, getCourse } from "../data/courses";
+
+export type { Hole } from "../data/courses";
 
 // A single logged shot during a live round.
 export type LoggedShot = {
@@ -25,42 +28,27 @@ export type LoggedShot = {
   strokesGained: number;
 };
 
-export type Hole = {
-  number: number;
-  par: number;
-  yards: number;
+export type ScoreTotals = {
+  out: number; // front nine strokes
+  in: number; // back nine strokes
+  total: number;
+  toPar: number; // total strokes vs par of holes played
+  holesPlayed: number;
 };
 
-// A simple 18-hole layout used for the demo round. In a full build this comes
-// from a course database keyed by GPS position.
-export const DEMO_COURSE: Hole[] = [
-  { number: 1, par: 4, yards: 410 },
-  { number: 2, par: 5, yards: 538 },
-  { number: 3, par: 3, yards: 175 },
-  { number: 4, par: 4, yards: 388 },
-  { number: 5, par: 4, yards: 445 },
-  { number: 6, par: 3, yards: 205 },
-  { number: 7, par: 5, yards: 560 },
-  { number: 8, par: 4, yards: 402 },
-  { number: 9, par: 4, yards: 370 },
-  { number: 10, par: 4, yards: 425 },
-  { number: 11, par: 3, yards: 160 },
-  { number: 12, par: 5, yards: 512 },
-  { number: 13, par: 4, yards: 398 },
-  { number: 14, par: 4, yards: 460 },
-  { number: 15, par: 3, yards: 188 },
-  { number: 16, par: 5, yards: 548 },
-  { number: 17, par: 4, yards: 355 },
-  { number: 18, par: 4, yards: 432 },
-];
-
 type RoundState = {
+  courseId: string;
+  courseName: string;
   course: Hole[];
+  selectedCourse: Course;
   currentHole: number;
   bag: Club[];
   shots: LoggedShot[];
+  scores: Record<number, number>;
+  setCourse: (id: string) => void;
   setCurrentHole: (n: number) => void;
   setBag: (bag: Club[]) => void;
+  setHoleScore: (hole: number, strokes: number) => void;
   logShot: (s: Omit<LoggedShot, "id" | "strokesGained">) => void;
   removeLastShot: () => void;
   resetRound: () => void;
@@ -70,6 +58,7 @@ type RoundState = {
   categorySG: () => { label: string; value: number }[];
   learned: Record<string, LearnedClub>;
   effectiveBag: Club[];
+  scoreTotals: ScoreTotals;
 };
 
 const Ctx = createContext<RoundState | null>(null);
@@ -81,9 +70,27 @@ function makeId() {
 }
 
 export function RoundProvider({ children }: { children: React.ReactNode }) {
+  const [courseId, setCourseId] = useState(COURSES[0].id);
   const [currentHole, setCurrentHole] = useState(1);
   const [bag, setBag] = useState<Club[]>(DEFAULT_BAG);
   const [shots, setShots] = useState<LoggedShot[]>([]);
+  const [scores, setScores] = useState<Record<number, number>>({});
+
+  const selectedCourse = useMemo(() => getCourse(courseId), [courseId]);
+
+  const setCourse = (id: string) => {
+    setCourseId(id);
+    setCurrentHole(1);
+  };
+
+  const setHoleScore = (hole: number, strokes: number) => {
+    setScores((prev) => {
+      const next = { ...prev };
+      if (strokes <= 0) delete next[hole];
+      else next[hole] = strokes;
+      return next;
+    });
+  };
 
   const logShot: RoundState["logShot"] = (s) => {
     const strokesGained = strokesGainedForShot({
@@ -99,6 +106,7 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   const removeLastShot = () => setShots((prev) => prev.slice(0, -1));
   const resetRound = () => {
     setShots([]);
+    setScores({});
     setCurrentHole(1);
   };
 
@@ -111,6 +119,24 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
 
   const learned = useMemo(() => learnDistances(shots), [shots]);
   const effectiveBag = useMemo(() => buildEffectiveBag(bag, learned), [bag, learned]);
+
+  const scoreTotals = useMemo<ScoreTotals>(() => {
+    const holes = selectedCourse.holes;
+    let out = 0;
+    let inn = 0;
+    let parPlayed = 0;
+    let holesPlayed = 0;
+    for (const h of holes) {
+      const s = scores[h.number];
+      if (!s) continue;
+      holesPlayed += 1;
+      parPlayed += h.par;
+      if (h.number <= 9) out += s;
+      else inn += s;
+    }
+    const total = out + inn;
+    return { out, in: inn, total, toPar: total - parPlayed, holesPlayed };
+  }, [scores, selectedCourse]);
 
   const categorySG = () => {
     const bucket = (s: LoggedShot): string => {
@@ -130,12 +156,18 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value: RoundState = {
-    course: DEMO_COURSE,
+    courseId,
+    courseName: selectedCourse.name,
+    course: selectedCourse.holes,
+    selectedCourse,
     currentHole,
     bag,
     shots,
+    scores,
+    setCourse,
     setCurrentHole,
     setBag,
+    setHoleScore,
     logShot,
     removeLastShot,
     resetRound,
@@ -144,6 +176,7 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     categorySG,
     learned,
     effectiveBag,
+    scoreTotals,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

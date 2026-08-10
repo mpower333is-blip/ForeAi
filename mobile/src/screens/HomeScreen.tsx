@@ -52,6 +52,15 @@ export default function HomeScreen({ navigation }: any) {
         <Button variant="ghost" label="Analyze my swing" onPress={() => navigation.navigate("Coach")} />
       </Card>
 
+      <Card>
+        <Text style={styles.cardHeadline}>🏆 Tournaments & Golf Days</Text>
+        <Text style={styles.cardBody}>
+          Register players, set tee times, and follow everyone live — see who's on which hole and the
+          running leaderboard.
+        </Text>
+        <Button variant="ghost" label="Manage events" onPress={() => navigation.navigate("Events")} />
+      </Card>
+
       <View style={styles.pairRow}>
         <Card style={styles.pairCard}>
           <Text style={styles.cardHeadline}>AI Caddie</Text>

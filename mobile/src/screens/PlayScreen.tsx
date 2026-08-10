@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Screen, Card, Button, Segmented, Stepper, StatTile } from "../components/ui";
 import { colors, spacing, type } from "../theme";
 import { useRound } from "../state/RoundContext";
@@ -18,9 +18,10 @@ const SURFACES: { key: Surface; label: string }[] = [
   { key: "green", label: "Green" },
 ];
 
-export default function PlayScreen() {
+export default function PlayScreen({ navigation }: any) {
   const {
     course,
+    courseName,
     currentHole,
     setCurrentHole,
     effectiveBag,
@@ -28,6 +29,9 @@ export default function PlayScreen() {
     removeLastShot,
     shotsForHole,
     totalStrokesGained,
+    scores,
+    setHoleScore,
+    scoreTotals,
   } = useRound();
 
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
@@ -81,8 +85,20 @@ export default function PlayScreen() {
     setSurface("tee");
   };
 
+  const parScore = hole.par;
+  const holeScore = scores[currentHole] ?? 0;
+
   return (
     <Screen>
+      <TouchableOpacity
+        style={styles.courseBar}
+        activeOpacity={0.8}
+        onPress={() => navigation.navigate("CourseSelect")}
+      >
+        <Text style={styles.courseName}>⛳ {courseName}</Text>
+        <Text style={styles.courseChange}>Change ›</Text>
+      </TouchableOpacity>
+
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.holeLabel}>Hole {hole.number}</Text>
@@ -166,7 +182,103 @@ export default function PlayScreen() {
           ))}
         </Card>
       )}
+
+      <Card>
+        <Text style={styles.sectionTitle}>Score — hole {currentHole}</Text>
+        <View style={styles.scoreEntry}>
+          <TouchableOpacity
+            style={styles.scoreBtn}
+            onPress={() => setHoleScore(currentHole, Math.max(1, (holeScore || parScore) - 1))}
+          >
+            <Text style={styles.scoreBtnText}>−</Text>
+          </TouchableOpacity>
+          <View style={styles.scoreMid}>
+            <Text style={styles.scoreBig}>{holeScore || "–"}</Text>
+            <Text style={styles.scoreVsPar}>
+              {holeScore ? scoreLabel(holeScore - parScore) : `par ${parScore}`}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.scoreBtn}
+            onPress={() => setHoleScore(currentHole, (holeScore || parScore) + 1)}
+          >
+            <Text style={styles.scoreBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
+      </Card>
+
+      <Card>
+        <View style={styles.cardTitleRow}>
+          <Text style={styles.sectionTitle}>Scorecard</Text>
+          <Text style={styles.scoreTotal}>
+            {scoreTotals.total || 0}{" "}
+            <Text style={{ color: colors.textFaint }}>
+              ({scoreTotals.holesPlayed ? scoreLabel(scoreTotals.toPar) : "—"})
+            </Text>
+          </Text>
+        </View>
+        <ScorecardGrid
+          course={course}
+          scores={scores}
+          currentHole={currentHole}
+          onTapHole={setCurrentHole}
+        />
+        <Text style={styles.scoreTotalsRow}>
+          Out {scoreTotals.out || 0} • In {scoreTotals.in || 0} • Total {scoreTotals.total || 0}
+        </Text>
+      </Card>
     </Screen>
+  );
+}
+
+function scoreLabel(toPar: number): string {
+  if (toPar === 0) return "par";
+  return toPar > 0 ? `+${toPar}` : `${toPar}`;
+}
+
+function ScorecardGrid({
+  course,
+  scores,
+  currentHole,
+  onTapHole,
+}: {
+  course: { number: number; par: number; yards: number }[];
+  scores: Record<number, number>;
+  currentHole: number;
+  onTapHole: (n: number) => void;
+}) {
+  const renderNine = (holes: typeof course) => (
+    <View style={styles.gridScroll}>
+      <View style={styles.gridRow}>
+        {holes.map((h) => (
+          <TouchableOpacity
+            key={h.number}
+            onPress={() => onTapHole(h.number)}
+            style={[styles.cell, h.number === currentHole && styles.cellActive]}
+          >
+            <Text style={styles.cellHole}>{h.number}</Text>
+            <Text style={styles.cellPar}>{h.par}</Text>
+            <Text
+              style={[
+                styles.cellScore,
+                scores[h.number] &&
+                  scores[h.number] < h.par && { color: colors.positive },
+                scores[h.number] &&
+                  scores[h.number] > h.par && { color: colors.negative },
+              ]}
+            >
+              {scores[h.number] ?? "·"}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+  return (
+    <View>
+      {renderNine(course.slice(0, 9))}
+      {renderNine(course.slice(9))}
+    </View>
   );
 }
 
@@ -209,4 +321,52 @@ const styles = StyleSheet.create({
   },
   shotText: { color: colors.text, fontSize: 15 },
   shotSG: { fontWeight: "700", fontSize: 15 },
+
+  courseBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginTop: spacing.sm,
+  },
+  courseName: { color: colors.text, fontSize: 15, fontWeight: "700" },
+  courseChange: { color: colors.accent, fontSize: 14, fontWeight: "600" },
+
+  cardTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm },
+  scoreTotal: { color: colors.text, fontSize: 18, fontWeight: "800" },
+
+  scoreEntry: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  scoreBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  scoreBtnText: { color: colors.accent, fontSize: 30, fontWeight: "700" },
+  scoreMid: { alignItems: "center" },
+  scoreBig: { color: colors.text, fontSize: 40, fontWeight: "800" },
+  scoreVsPar: { color: colors.textMuted, fontSize: 14 },
+
+  gridScroll: { marginBottom: 8 },
+  gridRow: { flexDirection: "row", justifyContent: "space-between" },
+  cell: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 6,
+    marginHorizontal: 1,
+    borderRadius: 8,
+    backgroundColor: colors.bg,
+  },
+  cellActive: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.accent },
+  cellHole: { color: colors.textFaint, fontSize: 11 },
+  cellPar: { color: colors.textMuted, fontSize: 11 },
+  cellScore: { color: colors.text, fontSize: 16, fontWeight: "700", marginTop: 2 },
+  scoreTotalsRow: { color: colors.textMuted, fontSize: 14, marginTop: 4, textAlign: "center" },
 });
