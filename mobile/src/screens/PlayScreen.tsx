@@ -261,9 +261,9 @@ function ScorecardGrid({
             <Text
               style={[
                 styles.cellScore,
-                scores[h.number] &&
+                !!scores[h.number] &&
                   scores[h.number] < h.par && { color: colors.positive },
-                scores[h.number] &&
+                !!scores[h.number] &&
                   scores[h.number] > h.par && { color: colors.negative },
               ]}
             >
