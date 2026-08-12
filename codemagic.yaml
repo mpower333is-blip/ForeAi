@@ -1,0 +1,91 @@
+# Codemagic CI/CD for ForeAi (Expo React Native app in ./mobile).
+#
+# The app has no committed native projects — `expo prebuild` regenerates the
+# android/ and ios/ folders in CI from app.config.js, then we build with Gradle
+# (Android) / Xcode (iOS).
+#
+# In Codemagic: pick a workflow, run it, and download the artifact.
+#   • android-release → app-release.apk  — installable on any Android phone
+#                                            (enable "install unknown apps")
+#   • ios-simulator   → ForeAi.app       — runs in the iOS Simulator (unsigned).
+#                                            A device .ipa needs Apple signing
+#                                            configured in Codemagic → Teams.
+
+workflows:
+  android-release:
+    name: ForeAi Android (release APK)
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      node: 20
+      java: 17
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Install JS dependencies
+        script: |
+          cd mobile
+          npm install
+      - name: Generate native Android project (expo prebuild)
+        script: |
+          cd mobile
+          npx expo prebuild --platform android --no-install
+      - name: Build release APK
+        script: |
+          cd mobile/android
+          chmod +x ./gradlew
+          # The RN template signs `release` with the debug keystore, so this
+          # APK is standalone and installable without extra signing setup.
+          ./gradlew assembleRelease --no-daemon
+    artifacts:
+      - mobile/android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  ios-simulator:
+    name: ForeAi iOS (simulator build, unsigned)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      node: 20
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install JS dependencies
+        script: |
+          cd mobile
+          npm install
+      - name: Generate native iOS project (expo prebuild)
+        script: |
+          cd mobile
+          npx expo prebuild --platform ios --no-install
+      - name: Install CocoaPods
+        script: |
+          cd mobile/ios
+          pod install
+      - name: Build for the iOS Simulator (no code signing)
+        script: |
+          cd mobile/ios
+          xcodebuild \
+            -workspace ForeAi.xcworkspace \
+            -scheme ForeAi \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO build
+    artifacts:
+      - mobile/ios/build/Build/Products/**/*.app
+    publishing:
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
