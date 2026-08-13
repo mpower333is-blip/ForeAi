@@ -3,6 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Screen, Card, Button, Segmented, Stepper, StatTile } from "../components/ui";
 import { colors, spacing, type } from "../theme";
 import { useRound } from "../state/RoundContext";
+import { useLocation } from "../hooks/useLocation";
+import HoleGps, { HoleMarks } from "../components/HoleGps";
+import { Coord } from "../lib/geo";
 import {
   recommendClub,
   Surface,
@@ -21,6 +24,7 @@ const SURFACES: { key: Surface; label: string }[] = [
 export default function PlayScreen({ navigation }: any) {
   const {
     course,
+    courseId,
     courseName,
     currentHole,
     setCurrentHole,
@@ -40,6 +44,19 @@ export default function PlayScreen({ navigation }: any) {
   const [surface, setSurface] = useState<Surface>("tee");
   const [wind, setWind] = useState(0);
   const [result, setResult] = useState(140); // distance remaining after the shot
+
+  // On-course GPS: tee/pin marks per hole feed the rangefinder.
+  const loc = useLocation();
+  const [teeMarks, setTeeMarks] = useState<Record<string, Coord>>({});
+  const [pinMarks, setPinMarks] = useState<Record<string, Coord>>({});
+  const gpsKey = `${courseId}-${currentHole}`;
+  const marks: HoleMarks = { tee: teeMarks[gpsKey], pin: pinMarks[gpsKey] };
+  const markTee = () => {
+    if (loc.coord) setTeeMarks((m) => ({ ...m, [gpsKey]: loc.coord as Coord }));
+  };
+  const markPin = () => {
+    if (loc.coord) setPinMarks((m) => ({ ...m, [gpsKey]: loc.coord as Coord }));
+  };
 
   const holeShots = shotsForHole(currentHole);
 
@@ -111,6 +128,19 @@ export default function PlayScreen({ navigation }: any) {
           <Button variant="ghost" label="›" onPress={() => goHole(1)} style={styles.navBtn} />
         </View>
       </View>
+
+      <HoleGps
+        holeNumber={hole.number}
+        holeYards={hole.yards}
+        loc={loc}
+        marks={marks}
+        onMarkTee={markTee}
+        onMarkPin={markPin}
+        onPlayFromHere={(yards) => {
+          setDistance(yards);
+          setSurface("fairway");
+        }}
+      />
 
       <Card accent>
         <Text style={styles.recTop}>AI Caddie says</Text>

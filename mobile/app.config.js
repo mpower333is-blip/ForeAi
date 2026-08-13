@@ -21,6 +21,8 @@ export default {
           "ForeAi uses the camera to frame your swing and give you posture feedback.",
         NSMotionUsageDescription:
           "ForeAi uses motion sensors to detect your swing and measure its tempo.",
+        NSLocationWhenInUseUsageDescription:
+          "ForeAi uses your location to show distances to the pin while you play.",
       },
     },
     android: {
@@ -29,7 +31,12 @@ export default {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#071b13",
       },
-      permissions: ["CAMERA", "HIGH_SAMPLING_RATE_SENSORS"],
+      permissions: [
+        "CAMERA",
+        "HIGH_SAMPLING_RATE_SENSORS",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+      ],
     },
     web: {
       bundler: "metro",
@@ -41,6 +48,13 @@ export default {
         {
           cameraPermission:
             "ForeAi uses the camera to frame your swing and give you posture feedback.",
+        },
+      ],
+      [
+        "expo-location",
+        {
+          locationWhenInUsePermission:
+            "ForeAi uses your location to show distances to the pin while you play.",
         },
       ],
     ],
