@@ -20,6 +20,7 @@ import StrategyScreen from "./src/screens/StrategyScreen";
 import StatsScreen from "./src/screens/StatsScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import CourseSelectScreen from "./src/screens/CourseSelectScreen";
+import CoursePreviewScreen from "./src/screens/CoursePreviewScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -94,6 +95,7 @@ export default function App() {
                 <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
                 <Stack.Screen name="Strategy" component={StrategyScreen} options={{ title: "Course Strategy" }} />
                 <Stack.Screen name="CourseSelect" component={CourseSelectScreen} options={{ title: "Choose Course" }} />
+                <Stack.Screen name="CoursePreview" component={CoursePreviewScreen} options={{ title: "Course Preview" }} />
               </Stack.Navigator>
             </NavigationContainer>
           </TournamentProvider>

@@ -107,14 +107,19 @@ export default function PlayScreen({ navigation }: any) {
 
   return (
     <Screen>
-      <TouchableOpacity
-        style={styles.courseBar}
-        activeOpacity={0.8}
-        onPress={() => navigation.navigate("CourseSelect")}
-      >
-        <Text style={styles.courseName}>⛳ {courseName}</Text>
-        <Text style={styles.courseChange}>Change ›</Text>
-      </TouchableOpacity>
+      <View style={styles.courseBar}>
+        <Text style={styles.courseName} numberOfLines={1}>
+          ⛳ {courseName}
+        </Text>
+        <View style={styles.courseActions}>
+          <TouchableOpacity onPress={() => navigation.navigate("CoursePreview")}>
+            <Text style={styles.courseChange}>Preview</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate("CourseSelect")}>
+            <Text style={styles.courseChange}>Change ›</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <View style={styles.headerRow}>
         <View>
@@ -362,7 +367,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     marginTop: spacing.sm,
   },
-  courseName: { color: colors.text, fontSize: 15, fontWeight: "700" },
+  courseName: { color: colors.text, fontSize: 15, fontWeight: "700", flexShrink: 1, marginRight: 8 },
+  courseActions: { flexDirection: "row", gap: 16 },
   courseChange: { color: colors.accent, fontSize: 14, fontWeight: "600" },
 
   cardTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm },

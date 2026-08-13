@@ -234,8 +234,28 @@ export const COURSES: Course[] = RAW_COURSES.map((r) => {
 
 export const PROVINCES: string[] = Array.from(new Set(COURSES.map((c) => c.province)));
 
+// Courses fetched at runtime from the Golf Course API are registered here so
+// getCourse(id) resolves them like the bundled ones.
+const DYNAMIC = new Map<string, Course>();
+
+export function registerCourse(course: Course): void {
+  DYNAMIC.set(course.id, course);
+}
+
 export function getCourse(id: string): Course {
-  return COURSES.find((c) => c.id === id) ?? COURSES[0];
+  return DYNAMIC.get(id) ?? COURSES.find((c) => c.id === id) ?? COURSES[0];
+}
+
+// A shared helper the API layer reuses to fill missing stroke indexes.
+export function assignStrokeIndex(holes: { par: number; yards: number }[]): number[] {
+  const order = holes
+    .map((h, i) => ({ i, difficulty: h.par * 1000 + h.yards }))
+    .sort((a, b) => b.difficulty - a.difficulty);
+  const si: number[] = new Array(holes.length);
+  order.forEach((o, rank) => {
+    si[o.i] = rank + 1;
+  });
+  return si;
 }
 
 export function frontNinePar(course: Course): number {

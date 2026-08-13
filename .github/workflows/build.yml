@@ -11,6 +11,10 @@ jobs:
   checks:
     name: Typecheck & web build
     runs-on: ubuntu-latest
+    # EXPO_PUBLIC_ vars are inlined at bundle time. Add EXPO_PUBLIC_GOLF_API_KEY
+    # as a repo secret to embed online course search into the build.
+    env:
+      EXPO_PUBLIC_GOLF_API_KEY: ${{ secrets.EXPO_PUBLIC_GOLF_API_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -46,6 +50,8 @@ jobs:
   android:
     name: Android APK
     runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_GOLF_API_KEY: ${{ secrets.EXPO_PUBLIC_GOLF_API_KEY }}
     steps:
       - uses: actions/checkout@v4
 

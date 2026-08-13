@@ -31,12 +31,34 @@ Built with Expo + React Navigation. Seven tabs:
 
 (Strategy and Course Select are pushed screens reached from Home / Round.)
 
-### Courses & scorecard
+### Courses, preview & scorecard
 
-Pick from a catalog of full 18-hole layouts (`mobile/src/data/courses.ts`) on the
-Round tab. Each hole carries par, yardage and stroke index. The Round tab has a
-tap-to-edit scorecard with per-hole scoring, front/back-nine totals and live
-to-par.
+Pick a course on the Round tab. The app ships an offline catalog of ~110 real
+South African courses (`mobile/src/data/courses.ts`) and, when a Golf Course API
+key is configured, searches **30,000+ courses worldwide with official
+hole-by-hole scorecards** (see below).
+
+- **Preview** — from the Round tab, tap *Preview* to flip through every hole
+  with a generated top-down diagram (tee, fairway/dogleg, green, hazards) plus
+  par, yardage and stroke index; "Play hole N" jumps you there.
+- **Scorecard** — tap-to-edit per-hole scoring with front/back-nine totals and
+  live to-par.
+
+### Golf Course API (30,000+ courses)
+
+Online course search uses [golfcourseapi.com](https://golfcourseapi.com) and is
+enabled by the `EXPO_PUBLIC_GOLF_API_KEY` environment variable. The key is
+**never committed** — set it wherever you build:
+
+- **Local dev:** create `mobile/.env` with `EXPO_PUBLIC_GOLF_API_KEY=your_key`
+  (`.env` is git-ignored), then `npm start`.
+- **EAS build:** `eas secret:create --name EXPO_PUBLIC_GOLF_API_KEY --value your_key`.
+- **GitHub Actions:** add a repo secret named `EXPO_PUBLIC_GOLF_API_KEY` (the
+  workflow already passes it to the build).
+- **Codemagic:** add an environment variable `EXPO_PUBLIC_GOLF_API_KEY`.
+
+Without a key, the app falls back to the bundled offline course list. Fetched
+courses carry real per-hole data; bundled ones are flagged "approx layout".
 
 ### Events — tournaments & golf days
 
