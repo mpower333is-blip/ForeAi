@@ -46,19 +46,20 @@ hole-by-hole scorecards** (see below).
 
 ### Golf Course API (30,000+ courses)
 
-Online course search uses [golfcourseapi.com](https://golfcourseapi.com) and is
-enabled by the `EXPO_PUBLIC_GOLF_API_KEY` environment variable. The key is
-**never committed** — set it wherever you build:
+Online course search uses [golfcourseapi.com](https://golfcourseapi.com). A free
+default key is embedded (`mobile/src/services/golfCourseApi.ts`), so online
+search works out of the box in every build — no setup required.
 
-- **Local dev:** create `mobile/.env` with `EXPO_PUBLIC_GOLF_API_KEY=your_key`
-  (`.env` is git-ignored), then `npm start`.
+To use your own key/quota instead, set `EXPO_PUBLIC_GOLF_API_KEY`, which takes
+precedence over the default:
+
+- **Local dev:** `mobile/.env` → `EXPO_PUBLIC_GOLF_API_KEY=your_key`, then `npm start`.
 - **EAS build:** `eas secret:create --name EXPO_PUBLIC_GOLF_API_KEY --value your_key`.
-- **GitHub Actions:** add a repo secret named `EXPO_PUBLIC_GOLF_API_KEY` (the
-  workflow already passes it to the build).
-- **Codemagic:** add an environment variable `EXPO_PUBLIC_GOLF_API_KEY`.
+- **GitHub Actions / Codemagic:** add an `EXPO_PUBLIC_GOLF_API_KEY` secret/env var.
 
-Without a key, the app falls back to the bundled offline course list. Fetched
-courses carry real per-hole data; bundled ones are flagged "approx layout".
+Fetched courses carry real per-hole data; the bundled offline courses are
+flagged "approx layout". Note: the embedded key is a public free-tier key, so
+anyone with this repo can see it — rotate to your own key for production.
 
 ### Events — tournaments & golf days
 

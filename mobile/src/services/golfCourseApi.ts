@@ -1,14 +1,16 @@
 // Golf Course API (golfcourseapi.com) — 30,000+ real courses with per-hole data.
 //
-// The API key is read from EXPO_PUBLIC_GOLF_API_KEY and is NEVER committed to
-// the repo. Set it in a local .env, an EAS secret, or a CI secret. Without a
-// key the app falls back to the bundled offline course list.
+// A free default key is embedded so online search works out of the box (the
+// project owner opted to hardcode their free-tier key). Override it per build
+// with EXPO_PUBLIC_GOLF_API_KEY when you want to use your own key/quota.
 
 import { Course, Hole, registerCourse, assignStrokeIndex, hasCourse } from "../data/courses";
 import { Coord } from "../lib/geo";
 
 const BASE = "https://api.golfcourseapi.com/v1";
-const KEY = process.env.EXPO_PUBLIC_GOLF_API_KEY as string | undefined;
+// Free-tier key, embedded by the project owner. Env var takes precedence.
+const DEFAULT_KEY = "YNGKY3MKUOLOEXNB2BZSRTHCBM";
+const KEY = (process.env.EXPO_PUBLIC_GOLF_API_KEY as string | undefined) || DEFAULT_KEY;
 
 export function isConfigured(): boolean {
   return !!KEY;
