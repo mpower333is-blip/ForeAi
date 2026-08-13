@@ -62,6 +62,10 @@
       .empty { color: var(--faint); padding: 8px 0; }
       .contest { display: flex; justify-content: space-between; padding: 10px 4px; border-bottom: 1px solid var(--border); }
       .contest .leader { color: var(--accent); font-weight: 700; }
+      .cause { background: var(--surface2); border: 1px solid var(--accent); border-radius: 14px; padding: 14px 18px; margin-bottom: 16px; font-size: 20px; }
+      .cause b { color: var(--accent); }
+      .sponsorTier { color: var(--faint); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 4px; }
+      .sponsor { display: inline-block; margin: 4px 14px 4px 0; font-size: 20px; font-weight: 700; }
       .reg { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
     </style>
   </head>
@@ -87,6 +91,8 @@
         <div>Join code: <span class="code" id="codeOut">—</span></div>
       </div>
     </header>
+
+    <div class="cause" id="cause" style="display: none"></div>
 
     <div class="panel full" style="margin-bottom:18px">
       <h2>Register a player</h2>
@@ -116,6 +122,10 @@
       <div class="panel full" id="gamesPanel" style="display:none">
         <h2>Side games</h2>
         <div id="games"></div>
+      </div>
+      <div class="panel full" id="sponsorPanel" style="display:none">
+        <h2>💚 Thank you to our sponsors</h2>
+        <div id="sponsors"></div>
       </div>
     </div>
 
@@ -237,9 +247,35 @@
       }
 
       // ---- rendering ---------------------------------------------------------
+      const escapeHtml = (s) =>
+        String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
       function render(e) {
         $("eventName").textContent = e.name || "";
         $("codeOut").textContent = e.code || "local";
+
+        // cause banner
+        if (e.cause) {
+          $("cause").style.display = "";
+          $("cause").innerHTML = "💚 <b>" + escapeHtml(e.cause) + "</b>";
+        } else {
+          $("cause").style.display = "none";
+        }
+
+        // sponsor wall
+        const sp = e.sponsors || [];
+        if (sp.length) {
+          $("sponsorPanel").style.display = "";
+          const tiers = [["title", "Title sponsors"], ["hole", "Hole sponsors"], ["prize", "Prize sponsors"], ["general", "Sponsors"]];
+          $("sponsors").innerHTML = tiers.map(([t, label]) => {
+            const list = sp.filter((s) => s.tier === t);
+            if (!list.length) return "";
+            return `<div class="sponsorTier">${label}</div>` +
+              list.map((s) => `<span class="sponsor">${escapeHtml(s.name)}${s.tier === "hole" && s.hole ? ' <span class="muted">· Hole ' + s.hole + "</span>" : ""}</span>`).join("");
+          }).join("");
+        } else {
+          $("sponsorPanel").style.display = "none";
+        }
 
         const scramble = isScramble(e);
 

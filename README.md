@@ -73,6 +73,21 @@ The Events tab is a self-contained golf-day manager:
 - **Side games** — add closest-to-the-pin or longest-drive contests on any hole;
   record each player's result and the winner is tracked live (syncs across
   devices for shared events, same as scores).
+- **Formats & shotgun** — stroke play, Stableford, or **4-ball scramble** (team
+  scoring, lowest team total). Choose a sequential tee-time start or a **shotgun
+  start** where every group tees off at once on a different hole.
+- **Fundraiser sponsors** — set the cause/beneficiary and add title / hole /
+  prize / general sponsors; they appear in the app and on the clubhouse board.
+
+### Clubhouse board (`clubhouse/`)
+
+`clubhouse/index.html` is a self-contained big-screen dashboard for a clubhouse
+PC — open it in any browser (fullscreen/kiosk), enter the backend URL + event
+join code, and it shows live registration, which hole every group/team is on,
+the leaderboard, side-game winners, the cause and the sponsor wall — refreshing
+every few seconds. It also lets staff register players. Works for stroke,
+Stableford and shotgun scramble events. (A native Windows `.exe` build via
+Electron is a planned follow-up.)
 
 The scoring/standings logic is pure and tested (`mobile/src/lib/tournament.ts`).
 

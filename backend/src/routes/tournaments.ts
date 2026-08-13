@@ -18,6 +18,7 @@ const includeAll = {
   groups: { orderBy: { order: "asc" } },
   scores: true,
   contests: { orderBy: { createdAt: "asc" }, include: { results: true } },
+  sponsors: { orderBy: { createdAt: "asc" } },
 } as const;
 
 type LoadedTournament = Awaited<ReturnType<typeof loadRaw>>;
@@ -42,6 +43,14 @@ function serialize(t: NonNullable<LoadedTournament>) {
     firstTeeMin: t.firstTeeMin,
     intervalMin: t.intervalMin,
     shotgun: t.shotgun,
+    cause: t.cause,
+    sponsors: t.sponsors.map((s) => ({
+      id: s.id,
+      name: s.name,
+      tier: s.tier,
+      hole: s.hole,
+      message: s.message,
+    })),
     players: t.players.map((p) => ({
       id: p.id,
       name: p.name,
@@ -122,7 +131,7 @@ router.get("/code/:code", async (req, res) => {
 
 // Update event settings.
 router.patch("/:id", async (req, res) => {
-  const { name, format, firstTeeMin, intervalMin, shotgun } = req.body;
+  const { name, format, firstTeeMin, intervalMin, shotgun, cause } = req.body;
   await prisma.tournament.update({
     where: { id: req.params.id },
     data: {
@@ -131,6 +140,7 @@ router.patch("/:id", async (req, res) => {
       ...(firstTeeMin != null ? { firstTeeMin } : {}),
       ...(intervalMin != null ? { intervalMin } : {}),
       ...(shotgun != null ? { shotgun: !!shotgun } : {}),
+      ...(cause !== undefined ? { cause } : {}),
     },
   });
   await respondWithEvent(req.params.id, res);
@@ -196,6 +206,27 @@ router.put("/:id/scores", async (req, res) => {
       create: { tournamentId: req.params.id, playerId, hole, strokes },
     });
   }
+  await respondWithEvent(req.params.id, res);
+});
+
+// Add a sponsor.
+router.post("/:id/sponsors", async (req, res) => {
+  const { name, tier, hole, message } = req.body;
+  if (!name || !tier) return res.status(400).json({ error: "name and tier are required" });
+  await prisma.tournamentSponsor.create({
+    data: {
+      tournamentId: req.params.id,
+      name,
+      tier,
+      hole: hole ?? null,
+      message: message ?? null,
+    },
+  });
+  await respondWithEvent(req.params.id, res);
+});
+
+router.delete("/:id/sponsors/:sponsorId", async (req, res) => {
+  await prisma.tournamentSponsor.delete({ where: { id: req.params.sponsorId } });
   await respondWithEvent(req.params.id, res);
 });
 

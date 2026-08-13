@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from "react";
-import { TEvent, TPlayer, TGroup, EventFormat, ContestType } from "../lib/tournament";
+import { TEvent, TPlayer, TGroup, EventFormat, ContestType, SponsorTier } from "../lib/tournament";
 import { COURSES } from "../data/courses";
 import { tournamentApi } from "../services/tournamentApi";
 import { DEVICE_ID } from "./device";
@@ -42,6 +42,8 @@ type TournamentState = {
   addContest: (eventId: string, type: ContestType, hole: number) => void;
   removeContest: (eventId: string, contestId: string) => void;
   setContestResult: (eventId: string, contestId: string, playerId: string, value: number) => void;
+  addSponsor: (eventId: string, name: string, tier: SponsorTier, hole?: number, message?: string) => void;
+  removeSponsor: (eventId: string, sponsorId: string) => void;
 };
 
 const Ctx = createContext<TournamentState | null>(null);
@@ -141,6 +143,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
           firstTeeMin: patch.firstTeeMin,
           intervalMin: patch.intervalMin,
           shotgun: patch.shotgun,
+          cause: patch.cause,
         })
       );
       return;
@@ -286,6 +289,27 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     });
   };
 
+  const addSponsor: TournamentState["addSponsor"] = (eventId, name, tier, hole, message) => {
+    const ev = getEvent(eventId);
+    if (ev?.remote) {
+      runRemote(tournamentApi.addSponsor(eventId, { name, tier, hole: hole ?? null, message: message ?? null }));
+      return;
+    }
+    localMutate(eventId, (e) => ({
+      ...e,
+      sponsors: [...(e.sponsors ?? []), { id: newId("spo"), name, tier, hole: hole ?? null, message: message ?? null }],
+    }));
+  };
+
+  const removeSponsor: TournamentState["removeSponsor"] = (eventId, sponsorId) => {
+    const ev = getEvent(eventId);
+    if (ev?.remote) {
+      runRemote(tournamentApi.removeSponsor(eventId, sponsorId));
+      return;
+    }
+    localMutate(eventId, (e) => ({ ...e, sponsors: (e.sponsors ?? []).filter((s) => s.id !== sponsorId) }));
+  };
+
   const value: TournamentState = {
     events,
     deviceId: DEVICE_ID,
@@ -306,6 +330,8 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     addContest,
     removeContest,
     setContestResult,
+    addSponsor,
+    removeSponsor,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

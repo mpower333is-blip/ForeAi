@@ -83,11 +83,13 @@ model Tournament {
   firstTeeMin Int      @default(480)
   intervalMin Int      @default(10)
   shotgun     Boolean  @default(false)
+  cause       String?
 
   players     TournamentPlayer[]
   groups      TournamentGroup[]
   scores      TournamentScore[]
   contests    TournamentContest[]
+  sponsors    TournamentSponsor[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -169,4 +171,20 @@ model TournamentContestResult {
   updatedAt  DateTime @updatedAt
 
   @@unique([contestId, playerId])
+}
+
+// Sponsors for a fundraiser golf day — title/hole/prize/general sponsors shown
+// in the app and on the clubhouse board.
+model TournamentSponsor {
+  id           String @id @default(uuid())
+
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  name         String
+  tier         String // "title" | "hole" | "prize" | "general"
+  hole         Int?   // for hole sponsors
+  message      String?
+
+  createdAt    DateTime @default(now())
 }

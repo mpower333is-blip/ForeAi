@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from "react-native";
 import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, TextField } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { COURSES, getCourse, searchCourses, hasCourse } from "../data/courses";
@@ -27,6 +27,8 @@ import {
   teamStandings,
   teamCaptain,
   shotgunStartHole,
+  SponsorTier,
+  sponsorTierLabel,
 } from "../lib/tournament";
 
 function hhmm(min: number): string {
@@ -340,7 +342,7 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
 // Event detail (Players / Tee times / Live)
 // ---------------------------------------------------------------------------
 
-type Tab = "players" | "tees" | "live" | "games";
+type Tab = "players" | "tees" | "live" | "games" | "sponsors";
 
 function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void }) {
   const t = useTournament();
@@ -405,24 +407,37 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
         </Card>
       )}
 
-      <View style={styles.tabs}>
-        {(["players", "tees", "live", "games"] as Tab[]).map((k) => (
+      {event.cause ? (
+        <Card accent>
+          <Text style={styles.causeHeart}>💚 Fundraiser</Text>
+          <Text style={styles.causeText}>{event.cause}</Text>
+        </Card>
+      ) : null}
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabs}
+        contentContainerStyle={{ gap: 8 }}
+      >
+        {(["players", "tees", "live", "games", "sponsors"] as Tab[]).map((k) => (
           <TouchableOpacity
             key={k}
             onPress={() => setTab(k)}
             style={[styles.tab, tab === k && styles.tabActive]}
           >
             <Text style={[styles.tabText, tab === k && styles.tabTextActive]}>
-              {k === "players" ? "Players" : k === "tees" ? "Tees" : k === "live" ? "Live" : "Games"}
+              {k === "players" ? "Players" : k === "tees" ? "Tees" : k === "live" ? "Live" : k === "games" ? "Games" : "Sponsors"}
             </Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       {tab === "players" && <PlayersTab event={event} />}
       {tab === "tees" && <TeesTab event={event} />}
       {tab === "live" && <LiveTab event={event} />}
       {tab === "games" && <GamesTab event={event} />}
+      {tab === "sponsors" && <SponsorsTab event={event} />}
     </Screen>
   );
 }
@@ -902,6 +917,86 @@ function GamesTab({ event }: { event: TEvent }) {
   );
 }
 
+function SponsorsTab({ event }: { event: TEvent }) {
+  const { addSponsor, removeSponsor, updateEvent } = useTournament();
+  const [name, setName] = useState("");
+  const [tier, setTier] = useState<SponsorTier>("hole");
+  const [hole, setHole] = useState(1);
+  const [cause, setCause] = useState(event.cause ?? "");
+
+  const sponsors = event.sponsors ?? [];
+  const add = () => {
+    if (!name.trim()) return;
+    addSponsor(event.id, name.trim(), tier, tier === "hole" ? hole : undefined);
+    setName("");
+  };
+
+  const tiers: SponsorTier[] = ["title", "hole", "prize", "general"];
+
+  return (
+    <>
+      <Card>
+        <Text style={styles.formTitle}>The cause</Text>
+        <Text style={styles.hint}>
+          Who this golf day supports — shown across the app and on the clubhouse board.
+        </Text>
+        <TextField
+          label="Cause / beneficiary"
+          value={cause}
+          onChangeText={setCause}
+          placeholder="Supporting Lyla Roux in her fight against ALK+ ALCL"
+        />
+        <Button label="Save cause" onPress={() => updateEvent(event.id, { cause })} />
+      </Card>
+
+      <Card>
+        <Text style={styles.formTitle}>Add a sponsor</Text>
+        <TextField label="Sponsor name" value={name} onChangeText={setName} placeholder="e.g. Engine Control Systems" />
+        <Segmented
+          label="Type"
+          options={[
+            { key: "title", label: "Title" },
+            { key: "hole", label: "Hole" },
+            { key: "prize", label: "Prize" },
+            { key: "general", label: "General" },
+          ]}
+          value={tier}
+          onChange={setTier}
+        />
+        {tier === "hole" && <Stepper label="Hole" value={hole} onChange={setHole} step={1} min={1} max={18} unit="" />}
+        <Button label="Add sponsor" onPress={add} />
+      </Card>
+
+      {sponsors.length === 0 && (
+        <Card>
+          <Text style={styles.empty}>No sponsors yet. Add title, hole and prize sponsors to thank them.</Text>
+        </Card>
+      )}
+
+      {tiers.map((t) => {
+        const list = sponsors.filter((s) => s.tier === t);
+        if (!list.length) return null;
+        return (
+          <Card key={t}>
+            <Text style={styles.formTitle}>{sponsorTierLabel(t)}s</Text>
+            {list.map((s) => (
+              <View key={s.id} style={styles.playerRow}>
+                <Text style={styles.playerName}>
+                  {s.name}
+                  {s.tier === "hole" && s.hole ? <Text style={styles.hint}>{`  ·  Hole ${s.hole}`}</Text> : null}
+                </Text>
+                <TouchableOpacity onPress={() => removeSponsor(event.id, s.id)}>
+                  <Text style={styles.remove}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </Card>
+        );
+      })}
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
   formTitle: { color: colors.text, fontSize: 18, fontWeight: "700", marginBottom: spacing.sm },
   fieldLabel: { color: colors.textMuted, fontSize: 14, marginBottom: 8 },
@@ -932,16 +1027,18 @@ const styles = StyleSheet.create({
   detailTitle: { color: colors.text, fontSize: 28, fontWeight: "800" },
   detailMeta: { color: colors.textMuted, fontSize: 14, marginTop: 2, marginBottom: spacing.md },
 
-  tabs: { flexDirection: "row", gap: 8, marginBottom: spacing.md },
+  tabs: { marginBottom: spacing.md },
   tab: {
-    flex: 1,
     paddingVertical: 10,
+    paddingHorizontal: 18,
     borderRadius: radius.sm,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: "center",
   },
+  causeHeart: { color: colors.accent, fontSize: 13, fontWeight: "800", letterSpacing: 1 },
+  causeText: { color: colors.text, fontSize: 16, fontWeight: "600", lineHeight: 22, marginTop: 4 },
   tabActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   tabText: { color: colors.textMuted, fontWeight: "700" },
   tabTextActive: { color: "#062012" },

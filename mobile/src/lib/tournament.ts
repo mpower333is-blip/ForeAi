@@ -24,6 +24,15 @@ export type EventFormat = "stroke" | "stableford" | "scramble";
 export type ContestType = "closest" | "longest";
 export type Contest = { id: string; type: ContestType; hole: number };
 
+export type SponsorTier = "title" | "hole" | "prize" | "general";
+export type Sponsor = {
+  id: string;
+  name: string;
+  tier: SponsorTier;
+  hole?: number | null;
+  message?: string | null;
+};
+
 export type TEvent = {
   id: string;
   name: string;
@@ -40,6 +49,9 @@ export type TEvent = {
   // Side games (closest to pin / longest drive) run during the day.
   contests?: Contest[];
   contestResults?: Record<string, Record<string, number>>; // [contestId][playerId] = yards
+  // Fundraiser branding.
+  cause?: string | null; // e.g. "Supporting Lyla Roux vs ALK+ ALCL"
+  sponsors?: Sponsor[];
   // Multi-device fields — present only for events hosted on the backend.
   code?: string; // join code shared with other devices
   remote?: boolean; // true when this event is synced with the server
@@ -234,6 +246,14 @@ export function contestName(c: Contest): string {
 
 export function contestUnit(c: Contest): string {
   return c.type === "closest" ? "yds from pin" : "yds";
+}
+
+export function holeSponsor(event: TEvent, hole: number): Sponsor | undefined {
+  return event.sponsors?.find((s) => s.tier === "hole" && s.hole === hole);
+}
+
+export function sponsorTierLabel(tier: SponsorTier): string {
+  return tier === "title" ? "Title sponsor" : tier === "hole" ? "Hole sponsor" : tier === "prize" ? "Prize sponsor" : "Sponsor";
 }
 
 // Winner of a contest: nearest the pin (min) or longest drive (max).
