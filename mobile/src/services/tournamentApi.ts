@@ -60,4 +60,13 @@ export const tournamentApi = {
 
   setScore: (id: string, playerId: string, hole: number, strokes: number) =>
     req<TEvent>(`/${id}/scores`, "PUT", { playerId, hole, strokes }).then(tag),
+
+  addContest: (id: string, type: string, hole: number) =>
+    req<TEvent>(`/${id}/contests`, "POST", { type, hole }).then(tag),
+
+  removeContest: (id: string, contestId: string) =>
+    req<TEvent>(`/${id}/contests/${contestId}`, "DELETE").then(tag),
+
+  setContestResult: (id: string, contestId: string, playerId: string, value: number) =>
+    req<TEvent>(`/${id}/contests/${contestId}/results`, "PUT", { playerId, value }).then(tag),
 };

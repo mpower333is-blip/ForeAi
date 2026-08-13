@@ -15,11 +15,15 @@ import { useTournament } from "../state/TournamentContext";
 import {
   TEvent,
   EventFormat,
+  ContestType,
   groupTeeTime,
   groupCurrentHole,
   groupThru,
   leaderboard,
   formatToPar,
+  contestLeader,
+  contestName,
+  contestUnit,
 } from "../lib/tournament";
 
 function hhmm(min: number): string {
@@ -305,7 +309,7 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
 // Event detail (Players / Tee times / Live)
 // ---------------------------------------------------------------------------
 
-type Tab = "players" | "tees" | "live";
+type Tab = "players" | "tees" | "live" | "games";
 
 function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void }) {
   const t = useTournament();
@@ -370,14 +374,14 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
       )}
 
       <View style={styles.tabs}>
-        {(["players", "tees", "live"] as Tab[]).map((k) => (
+        {(["players", "tees", "live", "games"] as Tab[]).map((k) => (
           <TouchableOpacity
             key={k}
             onPress={() => setTab(k)}
             style={[styles.tab, tab === k && styles.tabActive]}
           >
             <Text style={[styles.tabText, tab === k && styles.tabTextActive]}>
-              {k === "players" ? "Players" : k === "tees" ? "Tee Times" : "Live"}
+              {k === "players" ? "Players" : k === "tees" ? "Tees" : k === "live" ? "Live" : "Games"}
             </Text>
           </TouchableOpacity>
         ))}
@@ -386,6 +390,7 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
       {tab === "players" && <PlayersTab event={event} />}
       {tab === "tees" && <TeesTab event={event} />}
       {tab === "live" && <LiveTab event={event} />}
+      {tab === "games" && <GamesTab event={event} />}
     </Screen>
   );
 }
@@ -679,6 +684,96 @@ function ScoreEntry({
   );
 }
 
+function GamesTab({ event }: { event: TEvent }) {
+  const { addContest, removeContest, setContestResult } = useTournament();
+  const [type, setType] = useState<ContestType>("closest");
+  const [hole, setHole] = useState(3);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const contests = event.contests ?? [];
+
+  return (
+    <>
+      <Card>
+        <Text style={styles.formTitle}>Add a side game</Text>
+        <Segmented
+          label="Game"
+          options={[
+            { key: "closest", label: "Closest to Pin" },
+            { key: "longest", label: "Longest Drive" },
+          ]}
+          value={type}
+          onChange={setType}
+        />
+        <Stepper label="On hole" value={hole} onChange={setHole} step={1} min={1} max={18} unit="" />
+        <Button label="Add game" onPress={() => addContest(event.id, type, hole)} />
+      </Card>
+
+      {contests.length === 0 && (
+        <Card>
+          <Text style={styles.empty}>
+            No side games yet. Add closest-to-the-pin on the par-3s or a longest-drive hole.
+          </Text>
+        </Card>
+      )}
+
+      {contests.map((c) => {
+        const leader = contestLeader(event, c);
+        const open = openId === c.id;
+        const step = c.type === "closest" ? 1 : 5;
+        return (
+          <Card key={c.id}>
+            <TouchableOpacity activeOpacity={0.85} onPress={() => setOpenId(open ? null : c.id)}>
+              <View style={styles.groupHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.contestName}>{contestName(c)}</Text>
+                  <Text style={styles.hint}>Hole {c.hole} · {contestUnit(c)}</Text>
+                </View>
+                <TouchableOpacity onPress={() => removeContest(event.id, c.id)}>
+                  <Text style={styles.remove}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+
+            <Text style={styles.leaderLine}>
+              {leader ? `🏆 ${leader.player.name} — ${leader.value} yds` : "No results in yet"}
+            </Text>
+
+            {open && (
+              <View style={styles.scoreBox}>
+                <Text style={styles.scoreTitle}>Tap ± to record each player's {contestUnit(c)}</Text>
+                {event.players.length === 0 && <Text style={styles.empty}>Register players first.</Text>}
+                {event.players.map((p) => {
+                  const val = event.contestResults?.[c.id]?.[p.id] ?? 0;
+                  return (
+                    <View key={p.id} style={styles.scorePlayer}>
+                      <Text style={styles.scoreName}>{p.name}</Text>
+                      <View style={styles.scoreControls}>
+                        <TouchableOpacity
+                          style={styles.scoreBtn}
+                          onPress={() => setContestResult(event.id, c.id, p.id, Math.max(0, val - step))}
+                        >
+                          <Text style={styles.scoreBtnText}>−</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.scoreVal}>{val || "–"}</Text>
+                        <TouchableOpacity
+                          style={styles.scoreBtn}
+                          onPress={() => setContestResult(event.id, c.id, p.id, val + step)}
+                        >
+                          <Text style={styles.scoreBtnText}>+</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </Card>
+        );
+      })}
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
   formTitle: { color: colors.text, fontSize: 18, fontWeight: "700", marginBottom: spacing.sm },
   fieldLabel: { color: colors.textMuted, fontSize: 14, marginBottom: 8 },
@@ -738,6 +833,8 @@ const styles = StyleSheet.create({
 
   groupHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
   groupTime: { color: colors.accent, fontSize: 18, fontWeight: "800" },
+  contestName: { color: colors.text, fontSize: 17, fontWeight: "800" },
+  leaderLine: { color: colors.accent, fontSize: 15, fontWeight: "600", marginTop: 4 },
   chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
   chip: {
     paddingVertical: 8,

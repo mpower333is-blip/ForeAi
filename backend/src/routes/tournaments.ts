@@ -17,6 +17,7 @@ const includeAll = {
   players: { orderBy: { createdAt: "asc" } },
   groups: { orderBy: { order: "asc" } },
   scores: true,
+  contests: { orderBy: { createdAt: "asc" }, include: { results: true } },
 } as const;
 
 type LoadedTournament = Awaited<ReturnType<typeof loadRaw>>;
@@ -52,6 +53,14 @@ function serialize(t: NonNullable<LoadedTournament>) {
       playerIds: t.players.filter((p) => p.groupId === g.id).map((p) => p.id),
     })),
     scores,
+    contests: t.contests.map((c) => ({ id: c.id, type: c.type, hole: c.hole })),
+    contestResults: t.contests.reduce((acc, c) => {
+      acc[c.id] = c.results.reduce((r, x) => {
+        r[x.playerId] = x.value;
+        return r;
+      }, {} as Record<string, number>);
+      return acc;
+    }, {} as Record<string, Record<string, number>>),
   };
 }
 
@@ -182,6 +191,43 @@ router.put("/:id/scores", async (req, res) => {
       where: { playerId_hole: { playerId, hole } },
       update: { strokes },
       create: { tournamentId: req.params.id, playerId, hole, strokes },
+    });
+  }
+  await respondWithEvent(req.params.id, res);
+});
+
+// Add a side game (contest) on a hole.
+router.post("/:id/contests", async (req, res) => {
+  const { type, hole } = req.body;
+  if (type !== "closest" && type !== "longest") {
+    return res.status(400).json({ error: "type must be 'closest' or 'longest'" });
+  }
+  if (typeof hole !== "number") return res.status(400).json({ error: "hole is required" });
+  await prisma.tournamentContest.create({
+    data: { tournamentId: req.params.id, type, hole },
+  });
+  await respondWithEvent(req.params.id, res);
+});
+
+router.delete("/:id/contests/:contestId", async (req, res) => {
+  await prisma.tournamentContest.delete({ where: { id: req.params.contestId } });
+  await respondWithEvent(req.params.id, res);
+});
+
+// Record a player's result for a contest (yards). value <= 0 clears it.
+router.put("/:id/contests/:contestId/results", async (req, res) => {
+  const { playerId, value } = req.body;
+  if (!playerId) return res.status(400).json({ error: "playerId is required" });
+
+  if (value == null || value <= 0) {
+    await prisma.tournamentContestResult.deleteMany({
+      where: { contestId: req.params.contestId, playerId },
+    });
+  } else {
+    await prisma.tournamentContestResult.upsert({
+      where: { contestId_playerId: { contestId: req.params.contestId, playerId } },
+      update: { value },
+      create: { contestId: req.params.contestId, playerId, value },
     });
   }
   await respondWithEvent(req.params.id, res);

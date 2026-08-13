@@ -70,6 +70,9 @@ The Events tab is a self-contained golf-day manager:
   and interval; each group's tee time is computed automatically.
 - **Track live** — as scores are entered, each group shows *which hole they're on*
   and a live leaderboard ranks everyone (stroke play or Stableford, handicap-aware).
+- **Side games** — add closest-to-the-pin or longest-drive contests on any hole;
+  record each player's result and the winner is tracked live (syncs across
+  devices for shared events, same as scores).
 
 The scoring/standings logic is pure and tested (`mobile/src/lib/tournament.ts`).
 

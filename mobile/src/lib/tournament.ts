@@ -21,6 +21,9 @@ export type TGroup = {
 
 export type EventFormat = "stroke" | "stableford";
 
+export type ContestType = "closest" | "longest";
+export type Contest = { id: string; type: ContestType; hole: number };
+
 export type TEvent = {
   id: string;
   name: string;
@@ -33,6 +36,9 @@ export type TEvent = {
   groups: TGroup[];
   // scores[playerId][holeNumber] = strokes
   scores: Record<string, Record<number, number>>;
+  // Side games (closest to pin / longest drive) run during the day.
+  contests?: Contest[];
+  contestResults?: Record<string, Record<string, number>>; // [contestId][playerId] = yards
   // Multi-device fields — present only for events hosted on the backend.
   code?: string; // join code shared with other devices
   remote?: boolean; // true when this event is synced with the server
@@ -152,4 +158,30 @@ export function leaderboard(event: TEvent, course: Course): Standing[] {
 export function formatToPar(toPar: number): string {
   if (toPar === 0) return "E";
   return toPar > 0 ? `+${toPar}` : `${toPar}`;
+}
+
+// ---- side games ----------------------------------------------------------
+
+export function contestName(c: Contest): string {
+  return c.type === "closest" ? "Closest to the Pin" : "Longest Drive";
+}
+
+export function contestUnit(c: Contest): string {
+  return c.type === "closest" ? "yds from pin" : "yds";
+}
+
+// Winner of a contest: nearest the pin (min) or longest drive (max).
+export function contestLeader(
+  event: TEvent,
+  contest: Contest
+): { player: TPlayer; value: number } | null {
+  const results = event.contestResults?.[contest.id];
+  if (!results) return null;
+  const entries = Object.entries(results);
+  if (entries.length === 0) return null;
+  const winner = entries.reduce((best, e) =>
+    contest.type === "closest" ? (e[1] < best[1] ? e : best) : e[1] > best[1] ? e : best
+  );
+  const player = event.players.find((p) => p.id === winner[0]);
+  return player ? { player, value: winner[1] } : null;
 }

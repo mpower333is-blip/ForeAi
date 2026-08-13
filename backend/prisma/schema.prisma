@@ -86,6 +86,7 @@ model Tournament {
   players     TournamentPlayer[]
   groups      TournamentGroup[]
   scores      TournamentScore[]
+  contests    TournamentContest[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -137,4 +138,34 @@ model TournamentScore {
   updatedAt    DateTime @updatedAt
 
   @@unique([playerId, hole])
+}
+
+// On-course side games during a tournament/golf day (closest to the pin,
+// longest drive, etc.) tracked across the whole field.
+model TournamentContest {
+  id           String @id @default(uuid())
+
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  type         String // "closest" | "longest"
+  hole         Int
+
+  results      TournamentContestResult[]
+
+  createdAt    DateTime @default(now())
+}
+
+model TournamentContestResult {
+  id         String @id @default(uuid())
+
+  contestId  String
+  contest    TournamentContest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+
+  playerId   String
+  value      Float // yards: distance from pin (closest) or drive length (longest)
+
+  updatedAt  DateTime @updatedAt
+
+  @@unique([contestId, playerId])
 }

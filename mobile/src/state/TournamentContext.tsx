@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from "react";
-import { TEvent, TPlayer, TGroup, EventFormat } from "../lib/tournament";
+import { TEvent, TPlayer, TGroup, EventFormat, ContestType } from "../lib/tournament";
 import { COURSES } from "../data/courses";
 import { tournamentApi } from "../services/tournamentApi";
 import { DEVICE_ID } from "./device";
@@ -38,6 +38,9 @@ type TournamentState = {
   removeGroup: (eventId: string, groupId: string) => void;
   togglePlayerInGroup: (eventId: string, groupId: string, playerId: string) => void;
   setScore: (eventId: string, playerId: string, hole: number, strokes: number) => void;
+  addContest: (eventId: string, type: ContestType, hole: number) => void;
+  removeContest: (eventId: string, contestId: string) => void;
+  setContestResult: (eventId: string, contestId: string, playerId: string, value: number) => void;
 };
 
 const Ctx = createContext<TournamentState | null>(null);
@@ -238,6 +241,47 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     });
   };
 
+  const addContest: TournamentState["addContest"] = (eventId, type, hole) => {
+    const ev = getEvent(eventId);
+    if (ev?.remote) {
+      runRemote(tournamentApi.addContest(eventId, type, hole));
+      return;
+    }
+    localMutate(eventId, (e) => ({
+      ...e,
+      contests: [...(e.contests ?? []), { id: newId("con"), type, hole }],
+    }));
+  };
+
+  const removeContest: TournamentState["removeContest"] = (eventId, contestId) => {
+    const ev = getEvent(eventId);
+    if (ev?.remote) {
+      runRemote(tournamentApi.removeContest(eventId, contestId));
+      return;
+    }
+    localMutate(eventId, (e) => {
+      const cr = { ...(e.contestResults ?? {}) };
+      delete cr[contestId];
+      return { ...e, contests: (e.contests ?? []).filter((c) => c.id !== contestId), contestResults: cr };
+    });
+  };
+
+  const setContestResult: TournamentState["setContestResult"] = (eventId, contestId, playerId, value) => {
+    const ev = getEvent(eventId);
+    if (ev?.remote) {
+      runRemote(tournamentApi.setContestResult(eventId, contestId, playerId, value));
+      return;
+    }
+    localMutate(eventId, (e) => {
+      const cr = { ...(e.contestResults ?? {}) };
+      const inner = { ...(cr[contestId] ?? {}) };
+      if (value <= 0) delete inner[playerId];
+      else inner[playerId] = value;
+      cr[contestId] = inner;
+      return { ...e, contestResults: cr };
+    });
+  };
+
   const value: TournamentState = {
     events,
     deviceId: DEVICE_ID,
@@ -255,6 +299,9 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     removeGroup,
     togglePlayerInGroup,
     setScore,
+    addContest,
+    removeContest,
+    setContestResult,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
