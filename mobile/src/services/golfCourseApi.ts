@@ -4,7 +4,8 @@
 // the repo. Set it in a local .env, an EAS secret, or a CI secret. Without a
 // key the app falls back to the bundled offline course list.
 
-import { Course, Hole, registerCourse, assignStrokeIndex } from "../data/courses";
+import { Course, Hole, registerCourse, assignStrokeIndex, hasCourse } from "../data/courses";
+import { Coord } from "../lib/geo";
 
 const BASE = "https://api.golfcourseapi.com/v1";
 const KEY = process.env.EXPO_PUBLIC_GOLF_API_KEY as string | undefined;
@@ -71,6 +72,18 @@ function pickTee(tees: any): any | null {
     })[0] ?? null;
 }
 
+// Pull GPS coordinates out of a hole/point if the data source includes them.
+// Golf data providers use varied field names, so we probe the common shapes.
+function extractCoord(src: any): Coord | undefined {
+  if (!src) return undefined;
+  const lat = src.latitude ?? src.lat ?? src.Latitude;
+  const lng = src.longitude ?? src.lng ?? src.long ?? src.lon ?? src.Longitude;
+  if (typeof lat === "number" && typeof lng === "number" && (lat !== 0 || lng !== 0)) {
+    return { lat, lng };
+  }
+  return undefined;
+}
+
 function mapCourse(c: any): Course | null {
   const tee = pickTee(c.tees);
   if (!tee) return null;
@@ -80,6 +93,8 @@ function mapCourse(c: any): Course | null {
     par: Number(h.par) || 4,
     yards: Number(h.yardage ?? h.yards ?? 0) || 0,
     handicap: Number(h.handicap ?? h.hcp ?? 0) || 0,
+    green: extractCoord(h.green ?? h.green_location ?? h.gps?.green),
+    tee: extractCoord(h.tee ?? h.tee_location ?? h.gps?.tee),
   }));
 
   // Use the API's stroke index (handicap) where present; otherwise derive one.
@@ -91,6 +106,8 @@ function mapCourse(c: any): Course | null {
     par: h.par,
     yards: h.yards,
     si: si[i] || i + 1,
+    green: h.green,
+    tee: h.tee,
   }));
 
   const par = Number(tee.par_total) || holes.reduce((s, h) => s + h.par, 0);
@@ -120,4 +137,21 @@ export async function fetchCourse(apiId: string): Promise<Course | null> {
   } catch {
     return null;
   }
+}
+
+// Make sure a course id resolves to real data — used when another device joins
+// a shared tournament whose course came from the online database. IDs from the
+// API look like "gca-<apiId>"; re-fetch and register if we don't have it.
+export async function ensureCourse(courseId: string): Promise<boolean> {
+  if (hasCourse(courseId)) return true;
+  if (courseId.startsWith("gca-")) {
+    const course = await fetchCourse(courseId.slice(4));
+    return !!course;
+  }
+  return false;
+}
+
+// True if this id refers to an online course that may need hydrating.
+export function isOnlineCourseId(courseId: string): boolean {
+  return courseId.startsWith("gca-");
 }

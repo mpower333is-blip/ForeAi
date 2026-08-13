@@ -13,6 +13,7 @@ export type HoleMarks = { tee?: Coord; pin?: Coord };
 export default function HoleGps({
   holeNumber,
   holeYards,
+  greenCoord,
   loc,
   marks,
   onMarkTee,
@@ -21,6 +22,7 @@ export default function HoleGps({
 }: {
   holeNumber: number;
   holeYards: number;
+  greenCoord?: Coord; // real green GPS from the course data, when available
   loc: LocationState;
   marks: HoleMarks;
   onMarkTee: () => void;
@@ -29,13 +31,16 @@ export default function HoleGps({
 }) {
   const { coord, accuracy, status } = loc;
 
-  // Distance to pin: exact if a pin is marked; otherwise estimate from how far
-  // you've walked off the tee against the hole's listed length.
+  // Distance to pin, best source first:
+  //  1. the course's real green coordinate (fully automatic)
+  //  2. a pin you marked from the green
+  //  3. an estimate from how far you've walked off the tee
+  const pin = greenCoord ?? marks.pin;
   let toPin: number | null = null;
-  let source: "pin" | "estimate" | null = null;
-  if (coord && marks.pin) {
-    toPin = distanceYards(coord, marks.pin);
-    source = "pin";
+  let source: "auto" | "pin" | "estimate" | null = null;
+  if (coord && pin) {
+    toPin = distanceYards(coord, pin);
+    source = greenCoord ? "auto" : "pin";
   } else if (coord && marks.tee) {
     const walked = distanceYards(coord, marks.tee);
     toPin = Math.max(0, holeYards - walked);
@@ -43,7 +48,7 @@ export default function HoleGps({
   }
 
   const teeToPin =
-    marks.tee && marks.pin ? distanceYards(marks.tee, marks.pin) : holeYards;
+    marks.tee && pin ? distanceYards(marks.tee, pin) : holeYards;
 
   return (
     <Card>
@@ -74,7 +79,13 @@ export default function HoleGps({
             {toPin != null ? toPin : "–"}
           </Text>
           <Text style={styles.distUnit}>
-            {source === "pin" ? "yds (gps)" : source === "estimate" ? "yds (est)" : "mark to start"}
+            {source === "auto"
+              ? "yds · auto GPS"
+              : source === "pin"
+              ? "yds (gps)"
+              : source === "estimate"
+              ? "yds (est)"
+              : "mark to start"}
           </Text>
         </View>
       </View>
@@ -83,28 +94,31 @@ export default function HoleGps({
         <Button label="Enable GPS" variant="ghost" onPress={loc.request} />
       )}
 
-      <View style={styles.btnRow}>
-        <Button
-          label={marks.tee ? "Re-mark tee" : "I'm at the tee"}
-          variant="ghost"
-          onPress={onMarkTee}
-          style={styles.flexBtn}
-        />
-        <Button
-          label={marks.pin ? "Re-mark pin" : "I'm at the pin"}
-          variant="ghost"
-          onPress={onMarkPin}
-          style={styles.flexBtn}
-        />
-      </View>
+      {!greenCoord && (
+        <View style={styles.btnRow}>
+          <Button
+            label={marks.tee ? "Re-mark tee" : "I'm at the tee"}
+            variant="ghost"
+            onPress={onMarkTee}
+            style={styles.flexBtn}
+          />
+          <Button
+            label={marks.pin ? "Re-mark pin" : "I'm at the pin"}
+            variant="ghost"
+            onPress={onMarkPin}
+            style={styles.flexBtn}
+          />
+        </View>
+      )}
 
       {toPin != null && (
         <Button label={`Play from here → ${toPin} yds`} onPress={() => onPlayFromHere(toPin!)} />
       )}
 
       <Text style={styles.note}>
-        No course GPS map is loaded, so distances calibrate from the tee/pin you mark. Mark the pin
-        from the green once for exact yardage.
+        {greenCoord
+          ? "Distance to the pin is automatic from this course's GPS data."
+          : "No GPS map for this course, so distances calibrate from the tee/pin you mark — mark the pin from the green once for exact yardage."}
       </Text>
     </Card>
   );

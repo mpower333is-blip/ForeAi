@@ -137,6 +137,7 @@ export default function PlayScreen({ navigation }: any) {
       <HoleGps
         holeNumber={hole.number}
         holeYards={hole.yards}
+        greenCoord={hole.green}
         loc={loc}
         marks={marks}
         onMarkTee={markTee}

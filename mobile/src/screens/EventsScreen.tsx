@@ -1,8 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, TextField } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
-import { COURSES, getCourse, searchCourses } from "../data/courses";
+import { COURSES, getCourse, searchCourses, hasCourse } from "../data/courses";
+import {
+  searchOnline,
+  fetchCourse,
+  ensureCourse,
+  isConfigured as apiConfigured,
+  isOnlineCourseId,
+  CourseSummary,
+} from "../services/golfCourseApi";
 import { useTournament } from "../state/TournamentContext";
 import {
   TEvent,
@@ -46,9 +54,45 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
   const [shared, setShared] = useState(true);
   const [joinCode, setJoinCode] = useState("");
   const [courseQuery, setCourseQuery] = useState("");
+  const [onlineCourses, setOnlineCourses] = useState<CourseSummary[]>([]);
+  const [courseSearching, setCourseSearching] = useState(false);
+  const [courseLoadingId, setCourseLoadingId] = useState<string | null>(null);
 
+  const apiOn = apiConfigured();
   const selectedCourse = getCourse(courseId);
-  const courseResults = searchCourses(courseQuery).slice(0, 8);
+  const courseResults = searchCourses(courseQuery).slice(0, 6);
+
+  // Debounced online course search for events.
+  useEffect(() => {
+    if (!apiOn || courseQuery.trim().length < 2) {
+      setOnlineCourses([]);
+      return;
+    }
+    let cancelled = false;
+    setCourseSearching(true);
+    const t = setTimeout(async () => {
+      const res = await searchOnline(courseQuery);
+      if (!cancelled) {
+        setOnlineCourses(res.slice(0, 8));
+        setCourseSearching(false);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [courseQuery, apiOn]);
+
+  const pickOnlineCourse = async (apiId: string) => {
+    setCourseLoadingId(apiId);
+    const course = await fetchCourse(apiId);
+    setCourseLoadingId(null);
+    if (course) {
+      setCourseId(course.id);
+      setCourseQuery("");
+      setOnlineCourses([]);
+    }
+  };
 
   const create = async () => {
     setError("");
@@ -137,8 +181,36 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
           <TextField
             value={courseQuery}
             onChangeText={setCourseQuery}
-            placeholder="Search SA courses (name, town, province)"
+            placeholder={apiOn ? "Search any course worldwide…" : "Search SA courses"}
           />
+
+          {apiOn && courseQuery.trim().length >= 2 && (
+            <>
+              <View style={styles.onlineHead}>
+                <Text style={styles.onlineLabel}>Online</Text>
+                {courseSearching && <ActivityIndicator size="small" color={colors.accent} />}
+              </View>
+              {onlineCourses.map((c) => (
+                <TouchableOpacity
+                  key={c.apiId}
+                  onPress={() => pickOnlineCourse(c.apiId)}
+                  activeOpacity={0.8}
+                  style={styles.courseRow}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.courseName}>{c.name}</Text>
+                    <Text style={styles.coursePar}>{c.location}</Text>
+                  </View>
+                  {courseLoadingId === c.apiId ? (
+                    <ActivityIndicator size="small" color={colors.accent} />
+                  ) : (
+                    <Text style={styles.realTag}>real card</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
+
           {courseResults.map((c) => (
             <TouchableOpacity
               key={c.id}
@@ -239,6 +311,7 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
   const t = useTournament();
   const event = t.getEvent(eventId);
   const [tab, setTab] = useState<Tab>("players");
+  const [, setCourseReady] = useState(0);
   const isRemote = !!event?.remote;
 
   // Poll the server so every device sees live changes.
@@ -249,6 +322,15 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
     }, 6000);
     return () => clearInterval(iv);
   }, [isRemote, eventId]);
+
+  // If this event's course came from the online database, make sure THIS device
+  // has its real card too (so pars/leaderboard are correct after joining).
+  const eventCourseId = event?.courseId;
+  useEffect(() => {
+    if (eventCourseId && isOnlineCourseId(eventCourseId) && !hasCourse(eventCourseId)) {
+      ensureCourse(eventCourseId).then((ok) => ok && setCourseReady((x) => x + 1));
+    }
+  }, [eventCourseId]);
 
   if (!event) {
     return (
@@ -616,6 +698,9 @@ const styles = StyleSheet.create({
   courseRowActive: { borderColor: colors.accent, backgroundColor: colors.surfaceAlt },
   courseName: { color: colors.text, fontSize: 15, fontWeight: "600" },
   coursePar: { color: colors.textMuted, fontSize: 14 },
+  onlineHead: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 6 },
+  onlineLabel: { color: colors.textFaint, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1 },
+  realTag: { color: colors.accent, fontSize: 12, fontWeight: "600", marginLeft: spacing.sm },
 
   eventName: { color: colors.text, fontSize: 20, fontWeight: "800" },
   eventMeta: { color: colors.textMuted, fontSize: 14, marginTop: 3 },

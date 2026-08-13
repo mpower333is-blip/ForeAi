@@ -10,11 +10,15 @@
 // To make a course exact, replace its generated holes with the official card
 // (or wire a licensed course-data API and hydrate from it).
 
+import { Coord } from "../lib/geo";
+
 export type Hole = {
   number: number;
   par: number;
   yards: number;
   si: number; // stroke index 1-18 (handicap allocation)
+  green?: Coord; // green centre GPS, when the data source provides it
+  tee?: Coord; // tee GPS, when available
 };
 
 export type Course = {
@@ -240,6 +244,10 @@ const DYNAMIC = new Map<string, Course>();
 
 export function registerCourse(course: Course): void {
   DYNAMIC.set(course.id, course);
+}
+
+export function hasCourse(id: string): boolean {
+  return DYNAMIC.has(id) || COURSES.some((c) => c.id === id);
 }
 
 export function getCourse(id: string): Course {
