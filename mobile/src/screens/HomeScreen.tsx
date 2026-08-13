@@ -61,6 +61,15 @@ export default function HomeScreen({ navigation }: any) {
         <Button variant="ghost" label="Manage events" onPress={() => navigation.navigate("Events")} />
       </Card>
 
+      <Card>
+        <Text style={styles.cardHeadline}>🎮 Range Games</Text>
+        <Text style={styles.cardBody}>
+          Gamified practice — closest to the pin, target challenge, long drive and a tempo trainer.
+          Chase a high score.
+        </Text>
+        <Button variant="ghost" label="Play" onPress={() => navigation.navigate("Games")} />
+      </Card>
+
       <View style={styles.pairRow}>
         <Card style={styles.pairCard}>
           <Text style={styles.cardHeadline}>AI Caddie</Text>

@@ -9,6 +9,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { RoundProvider } from "./src/state/RoundContext";
 import { TournamentProvider } from "./src/state/TournamentContext";
+import { GamesProvider } from "./src/state/GamesContext";
 import { colors } from "./src/theme";
 
 import HomeScreen from "./src/screens/HomeScreen";
@@ -21,6 +22,7 @@ import StatsScreen from "./src/screens/StatsScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import CourseSelectScreen from "./src/screens/CourseSelectScreen";
 import CoursePreviewScreen from "./src/screens/CoursePreviewScreen";
+import GamesScreen from "./src/screens/GamesScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -84,6 +86,7 @@ export default function App() {
         <StatusBar barStyle="light-content" />
         <RoundProvider>
           <TournamentProvider>
+            <GamesProvider>
             <NavigationContainer theme={navTheme}>
               <Stack.Navigator
                 screenOptions={{
@@ -96,8 +99,10 @@ export default function App() {
                 <Stack.Screen name="Strategy" component={StrategyScreen} options={{ title: "Course Strategy" }} />
                 <Stack.Screen name="CourseSelect" component={CourseSelectScreen} options={{ title: "Choose Course" }} />
                 <Stack.Screen name="CoursePreview" component={CoursePreviewScreen} options={{ title: "Course Preview" }} />
+                <Stack.Screen name="Games" component={GamesScreen} options={{ title: "Range Games" }} />
               </Stack.Navigator>
             </NavigationContainer>
+            </GamesProvider>
           </TournamentProvider>
         </RoundProvider>
       </SafeAreaProvider>
