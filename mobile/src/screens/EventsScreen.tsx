@@ -17,13 +17,16 @@ import {
   EventFormat,
   ContestType,
   groupTeeTime,
-  groupCurrentHole,
   groupThru,
   leaderboard,
   formatToPar,
   contestLeader,
   contestName,
   contestUnit,
+  currentHole,
+  teamStandings,
+  teamCaptain,
+  shotgunStartHole,
 } from "../lib/tournament";
 
 function hhmm(min: number): string {
@@ -56,6 +59,7 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
   const [firstTee, setFirstTee] = useState(8 * 60);
   const [interval, setInterval] = useState(10);
   const [shared, setShared] = useState(true);
+  const [shotgun, setShotgun] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [courseQuery, setCourseQuery] = useState("");
   const [onlineCourses, setOnlineCourses] = useState<CourseSummary[]>([]);
@@ -107,6 +111,7 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
       firstTeeMin: firstTee,
       intervalMin: interval,
       date: "",
+      shotgun,
     };
     if (shared) {
       setBusy(true);
@@ -234,14 +239,40 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
           <Segmented
             label="Format"
             options={[
-              { key: "stroke", label: "Stroke play" },
+              { key: "stroke", label: "Stroke" },
               { key: "stableford", label: "Stableford" },
+              { key: "scramble", label: "Scramble (teams)" },
             ]}
             value={format}
             onChange={setFormat}
           />
-          <Stepper label={`First tee — ${hhmm(firstTee)}`} value={firstTee} onChange={setFirstTee} step={5} min={5 * 60} max={18 * 60} unit="" />
-          <Stepper label="Tee interval" value={interval} onChange={setInterval} step={1} min={6} max={15} unit="min" />
+          <Segmented
+            label="Start"
+            options={[
+              { key: "sequential", label: "Tee times" },
+              { key: "shotgun", label: "Shotgun" },
+            ]}
+            value={shotgun ? "shotgun" : "sequential"}
+            onChange={(v) => setShotgun(v === "shotgun")}
+          />
+          <Stepper
+            label={shotgun ? `Shotgun time — ${hhmm(firstTee)}` : `First tee — ${hhmm(firstTee)}`}
+            value={firstTee}
+            onChange={setFirstTee}
+            step={5}
+            min={5 * 60}
+            max={18 * 60}
+            unit=""
+          />
+          {!shotgun && (
+            <Stepper label="Tee interval" value={interval} onChange={setInterval} step={1} min={6} max={15} unit="min" />
+          )}
+          {shotgun && (
+            <Text style={styles.hint}>
+              Every group tees off at {hhmm(firstTee)} on a different hole (group 1 → hole 1, group 2
+              → hole 2 …).
+            </Text>
+          )}
 
           <Segmented
             label="Type"
@@ -354,7 +385,8 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
       </TouchableOpacity>
       <Text style={styles.detailTitle}>{event.name}</Text>
       <Text style={styles.detailMeta}>
-        {course.name} • Par {course.par} • {event.format === "stroke" ? "Stroke play" : "Stableford"}
+        {course.name} • Par {course.par} • {formatLabel(event.format)}
+        {event.shotgun ? " • Shotgun" : ""}
       </Text>
 
       {event.remote && (
@@ -503,12 +535,18 @@ function TeesTab({ event }: { event: TEvent }) {
       {event.groups.map((g, i) => (
         <Card key={g.id}>
           <View style={styles.groupHeader}>
-            <Text style={styles.groupTime}>⛳ {groupTeeTime(event, i)}</Text>
+            <Text style={styles.groupTime}>
+              {event.shotgun
+                ? `⛳ Group ${i + 1} · Start hole ${shotgunStartHole(i)}`
+                : `⛳ ${groupTeeTime(event, i)}`}
+            </Text>
             <TouchableOpacity onPress={() => removeGroup(event.id, g.id)}>
               <Text style={styles.remove}>Remove</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.hint}>Tap players to add/remove from this group</Text>
+          <Text style={styles.hint}>
+            {event.format === "scramble" ? "Team " + (i + 1) + " · tap players to add/remove" : "Tap players to add/remove from this group"}
+          </Text>
           <View style={styles.chipWrap}>
             {event.players.map((p) => {
               const inGroup = g.playerIds.includes(p.id);
@@ -544,20 +582,24 @@ function LiveTab({ event }: { event: TEvent }) {
   const { setScore } = useTournament();
   const course = getCourse(event.courseId);
   const [scoringGroup, setScoringGroup] = useState<string | null>(null);
-  const board = leaderboard(event, course);
+  const isScramble = event.format === "scramble";
 
   return (
     <>
       <Card>
         <Text style={styles.formTitle}>On the course</Text>
-        {event.groups.length === 0 && <Text style={styles.empty}>Set up groups in Tee Times.</Text>}
+        {event.groups.length === 0 && <Text style={styles.empty}>Set up groups in the Tees tab.</Text>}
         {event.groups.map((g, i) => {
-          const hole = groupCurrentHole(event, g);
-          const thru = groupThru(event, g);
+          const hole = currentHole(event, g, i);
           const names = g.playerIds
             .map((id) => event.players.find((p) => p.id === id)?.name)
             .filter(Boolean)
             .join(", ");
+          const teeLabel = event.shotgun
+            ? `Start hole ${shotgunStartHole(i)}`
+            : `Off at ${groupTeeTime(event, i)}`;
+          const captain = teamCaptain(g);
+          const teamThru = isScramble && captain ? Object.keys(event.scores[captain] ?? {}).length : 0;
           return (
             <TouchableOpacity
               key={g.id}
@@ -566,8 +608,11 @@ function LiveTab({ event }: { event: TEvent }) {
             >
               <View style={styles.liveGroup}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.liveNames}>{names || "(no players)"}</Text>
-                  <Text style={styles.liveTee}>Off at {groupTeeTime(event, i)}</Text>
+                  <Text style={styles.liveNames}>
+                    {isScramble ? `Team ${i + 1}: ` : ""}
+                    {names || "(no players)"}
+                  </Text>
+                  <Text style={styles.liveTee}>{teeLabel}</Text>
                 </View>
                 <View style={styles.liveRight}>
                   {hole === null ? (
@@ -575,58 +620,101 @@ function LiveTab({ event }: { event: TEvent }) {
                   ) : (
                     <>
                       <Text style={styles.liveHole}>Hole {hole}</Text>
-                      <Text style={styles.liveThru}>thru {thru}</Text>
+                      {isScramble && <Text style={styles.liveThru}>thru {teamThru}</Text>}
                     </>
                   )}
                 </View>
               </View>
               {scoringGroup === g.id && hole !== null && (
-                <ScoreEntry
-                  event={event}
-                  groupId={g.id}
-                  hole={hole}
-                  course={course}
-                  onScore={(pid, strokes) => setScore(event.id, pid, hole, strokes)}
-                />
+                isScramble ? (
+                  <TeamScoreEntry
+                    event={event}
+                    group={g}
+                    hole={hole}
+                    course={course}
+                    onScore={(strokes) => {
+                      const cap = teamCaptain(g);
+                      if (cap) setScore(event.id, cap, hole, strokes);
+                    }}
+                  />
+                ) : (
+                  <ScoreEntry
+                    event={event}
+                    groupId={g.id}
+                    hole={hole}
+                    course={course}
+                    onScore={(pid, strokes) => setScore(event.id, pid, hole, strokes)}
+                  />
+                )
               )}
             </TouchableOpacity>
           );
         })}
       </Card>
 
-      <Card>
-        <Text style={styles.formTitle}>Leaderboard</Text>
-        <View style={styles.lbHead}>
-          <Text style={[styles.lbCell, styles.lbPos]}>#</Text>
-          <Text style={[styles.lbCell, { flex: 1 }]}>Player</Text>
-          <Text style={[styles.lbCell, styles.lbNum]}>Thru</Text>
-          <Text style={[styles.lbCell, styles.lbNum]}>
-            {event.format === "stableford" ? "Pts" : "Score"}
-          </Text>
-        </View>
-        {board.length === 0 && <Text style={styles.empty}>No players registered.</Text>}
-        {board.map((s, i) => (
-          <View key={s.player.id} style={styles.lbRow}>
-            <Text style={[styles.lbCell, styles.lbPos]}>{s.thru > 0 ? i + 1 : "-"}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.lbName}>{s.player.name}</Text>
-              <Text style={styles.lbHcp}>HCP {s.player.handicap}</Text>
-            </View>
-            <Text style={[styles.lbCell, styles.lbNum, styles.lbMuted]}>
-              {s.thru > 0 ? s.thru : "-"}
-            </Text>
-            <Text style={[styles.lbCell, styles.lbNum, styles.lbScore]}>
-              {s.thru === 0
-                ? "-"
-                : event.format === "stableford"
-                ? s.stableford
-                : formatToPar(s.toPar)}
-            </Text>
-          </View>
-        ))}
-      </Card>
+      {isScramble ? <TeamBoard event={event} /> : <IndividualBoard event={event} course={course} />}
     </>
   );
+}
+
+function IndividualBoard({ event, course }: { event: TEvent; course: ReturnType<typeof getCourse> }) {
+  const board = leaderboard(event, course);
+  return (
+    <Card>
+      <Text style={styles.formTitle}>Leaderboard</Text>
+      <View style={styles.lbHead}>
+        <Text style={[styles.lbCell, styles.lbPos]}>#</Text>
+        <Text style={[styles.lbCell, { flex: 1 }]}>Player</Text>
+        <Text style={[styles.lbCell, styles.lbNum]}>Thru</Text>
+        <Text style={[styles.lbCell, styles.lbNum]}>{event.format === "stableford" ? "Pts" : "Score"}</Text>
+      </View>
+      {board.length === 0 && <Text style={styles.empty}>No players registered.</Text>}
+      {board.map((s, i) => (
+        <View key={s.player.id} style={styles.lbRow}>
+          <Text style={[styles.lbCell, styles.lbPos]}>{s.thru > 0 ? i + 1 : "-"}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.lbName}>{s.player.name}</Text>
+            <Text style={styles.lbHcp}>HCP {s.player.handicap}</Text>
+          </View>
+          <Text style={[styles.lbCell, styles.lbNum, styles.lbMuted]}>{s.thru > 0 ? s.thru : "-"}</Text>
+          <Text style={[styles.lbCell, styles.lbNum, styles.lbScore]}>
+            {s.thru === 0 ? "-" : event.format === "stableford" ? s.stableford : formatToPar(s.toPar)}
+          </Text>
+        </View>
+      ))}
+    </Card>
+  );
+}
+
+function TeamBoard({ event }: { event: TEvent }) {
+  const rows = teamStandings(event);
+  return (
+    <Card>
+      <Text style={styles.formTitle}>Team leaderboard</Text>
+      <View style={styles.lbHead}>
+        <Text style={[styles.lbCell, styles.lbPos]}>#</Text>
+        <Text style={[styles.lbCell, { flex: 1 }]}>Team</Text>
+        <Text style={[styles.lbCell, styles.lbNum]}>Thru</Text>
+        <Text style={[styles.lbCell, styles.lbNum]}>Score</Text>
+      </View>
+      {rows.length === 0 && <Text style={styles.empty}>No teams yet.</Text>}
+      {rows.map((r, i) => (
+        <View key={r.group.id} style={styles.lbRow}>
+          <Text style={[styles.lbCell, styles.lbPos]}>{r.thru > 0 ? i + 1 : "-"}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.lbName}>Team {r.index + 1}</Text>
+            <Text style={styles.lbHcp}>{r.names || "no players"}</Text>
+          </View>
+          <Text style={[styles.lbCell, styles.lbNum, styles.lbMuted]}>{r.thru > 0 ? r.thru : "-"}</Text>
+          <Text style={[styles.lbCell, styles.lbNum, styles.lbScore]}>{r.thru > 0 ? r.gross : "-"}</Text>
+        </View>
+      ))}
+    </Card>
+  );
+}
+
+function formatLabel(f: string): string {
+  return f === "stroke" ? "Stroke play" : f === "stableford" ? "Stableford" : "4-Ball Scramble";
 }
 
 function ScoreEntry({
@@ -679,6 +767,46 @@ function ScoreEntry({
       <Text style={styles.scoreHint}>
         Set each score to record the hole. The group advances automatically once everyone has a
         score.
+      </Text>
+    </View>
+  );
+}
+
+function TeamScoreEntry({
+  event,
+  group,
+  hole,
+  course,
+  onScore,
+}: {
+  event: TEvent;
+  group: TEvent["groups"][number];
+  hole: number;
+  course: ReturnType<typeof getCourse>;
+  onScore: (strokes: number) => void;
+}) {
+  const holeInfo = course.holes[hole - 1];
+  const cap = teamCaptain(group);
+  const current = (cap ? event.scores[cap]?.[hole] : undefined) ?? holeInfo.par;
+  return (
+    <View style={styles.scoreBox}>
+      <Text style={styles.scoreTitle}>
+        Hole {hole} • Par {holeInfo.par} • {holeInfo.yards} yds
+      </Text>
+      <View style={styles.scorePlayer}>
+        <Text style={styles.scoreName}>Team score</Text>
+        <View style={styles.scoreControls}>
+          <TouchableOpacity style={styles.scoreBtn} onPress={() => onScore(Math.max(1, current - 1))}>
+            <Text style={styles.scoreBtnText}>−</Text>
+          </TouchableOpacity>
+          <Text style={styles.scoreVal}>{current}</Text>
+          <TouchableOpacity style={styles.scoreBtn} onPress={() => onScore(current + 1)}>
+            <Text style={styles.scoreBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      <Text style={styles.scoreHint}>
+        Enter the team's best-ball score for the hole. The team advances automatically.
       </Text>
     </View>
   );

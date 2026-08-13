@@ -82,6 +82,7 @@ model Tournament {
   format      String   @default("stroke") // "stroke" | "stableford"
   firstTeeMin Int      @default(480)
   intervalMin Int      @default(10)
+  shotgun     Boolean  @default(false)
 
   players     TournamentPlayer[]
   groups      TournamentGroup[]

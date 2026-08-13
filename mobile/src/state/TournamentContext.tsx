@@ -17,6 +17,7 @@ type CreateInput = {
   firstTeeMin: number;
   intervalMin: number;
   date: string;
+  shotgun?: boolean;
 };
 
 type TournamentState = {
@@ -86,6 +87,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       players: [],
       groups: [],
       scores: {},
+      shotgun: !!input.shotgun,
       remote: false,
     };
     setEvents((prev) => [ev, ...prev]);
@@ -100,6 +102,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         format: input.format,
         firstTeeMin: input.firstTeeMin,
         intervalMin: input.intervalMin,
+        shotgun: !!input.shotgun,
       })
     );
 
@@ -137,6 +140,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
           format: patch.format,
           firstTeeMin: patch.firstTeeMin,
           intervalMin: patch.intervalMin,
+          shotgun: patch.shotgun,
         })
       );
       return;

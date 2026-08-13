@@ -34,6 +34,7 @@ export const tournamentApi = {
     format: string;
     firstTeeMin: number;
     intervalMin: number;
+    shotgun?: boolean;
   }) => req<TEvent>("", "POST", input).then(tag),
 
   get: (id: string) => req<TEvent>(`/${id}`, "GET").then(tag),
@@ -41,8 +42,10 @@ export const tournamentApi = {
   getByCode: (code: string) =>
     req<TEvent>(`/code/${encodeURIComponent(code.trim().toUpperCase())}`, "GET").then(tag),
 
-  update: (id: string, patch: Partial<Pick<TEvent, "name" | "format" | "firstTeeMin" | "intervalMin">>) =>
-    req<TEvent>(`/${id}`, "PATCH", patch).then(tag),
+  update: (
+    id: string,
+    patch: Partial<Pick<TEvent, "name" | "format" | "firstTeeMin" | "intervalMin" | "shotgun">>
+  ) => req<TEvent>(`/${id}`, "PATCH", patch).then(tag),
 
   addPlayer: (id: string, player: { name: string; handicap: number; deviceId?: string; groupId?: string | null }) =>
     req<TEvent>(`/${id}/players`, "POST", player).then(tag),

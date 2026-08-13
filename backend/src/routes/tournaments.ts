@@ -41,6 +41,7 @@ function serialize(t: NonNullable<LoadedTournament>) {
     format: t.format,
     firstTeeMin: t.firstTeeMin,
     intervalMin: t.intervalMin,
+    shotgun: t.shotgun,
     players: t.players.map((p) => ({
       id: p.id,
       name: p.name,
@@ -73,7 +74,7 @@ async function respondWithEvent(id: string, res: any) {
 // Create an event, returning a join code that other devices use.
 router.post("/", async (req, res) => {
   try {
-    const { name, courseId, format, firstTeeMin, intervalMin } = req.body;
+    const { name, courseId, format, firstTeeMin, intervalMin, shotgun } = req.body;
     if (!name || !courseId) {
       return res.status(400).json({ error: "name and courseId are required" });
     }
@@ -90,6 +91,7 @@ router.post("/", async (req, res) => {
             format: format ?? "stroke",
             firstTeeMin: firstTeeMin ?? 480,
             intervalMin: intervalMin ?? 10,
+            shotgun: !!shotgun,
           },
         });
       } catch {
@@ -120,7 +122,7 @@ router.get("/code/:code", async (req, res) => {
 
 // Update event settings.
 router.patch("/:id", async (req, res) => {
-  const { name, format, firstTeeMin, intervalMin } = req.body;
+  const { name, format, firstTeeMin, intervalMin, shotgun } = req.body;
   await prisma.tournament.update({
     where: { id: req.params.id },
     data: {
@@ -128,6 +130,7 @@ router.patch("/:id", async (req, res) => {
       ...(format != null ? { format } : {}),
       ...(firstTeeMin != null ? { firstTeeMin } : {}),
       ...(intervalMin != null ? { intervalMin } : {}),
+      ...(shotgun != null ? { shotgun: !!shotgun } : {}),
     },
   });
   await respondWithEvent(req.params.id, res);

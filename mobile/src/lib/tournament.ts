@@ -19,7 +19,7 @@ export type TGroup = {
   playerIds: string[];
 };
 
-export type EventFormat = "stroke" | "stableford";
+export type EventFormat = "stroke" | "stableford" | "scramble";
 
 export type ContestType = "closest" | "longest";
 export type Contest = { id: string; type: ContestType; hole: number };
@@ -30,8 +30,9 @@ export type TEvent = {
   date: string;
   courseId: string;
   format: EventFormat;
-  firstTeeMin: number; // minutes from midnight for the first tee time
-  intervalMin: number; // gap between groups
+  firstTeeMin: number; // minutes from midnight for the first tee time (or shotgun time)
+  intervalMin: number; // gap between groups (ignored for a shotgun start)
+  shotgun?: boolean; // all groups tee off at once on different holes
   players: TPlayer[];
   groups: TGroup[];
   // scores[playerId][holeNumber] = strokes
@@ -158,6 +159,71 @@ export function leaderboard(event: TEvent, course: Course): Standing[] {
 export function formatToPar(toPar: number): string {
   if (toPar === 0) return "E";
   return toPar > 0 ? `+${toPar}` : `${toPar}`;
+}
+
+// ---- scramble (team) + shotgun -------------------------------------------
+
+// A scramble team's single score lives under its captain (first player added).
+export function teamCaptain(group: TGroup): string | null {
+  return group.playerIds[0] ?? null;
+}
+
+// Shotgun: group index i starts on hole i+1 (wraps for more than 18 groups).
+export function shotgunStartHole(groupIndex: number): number {
+  return (groupIndex % 18) + 1;
+}
+
+// Holes a group has completed. Scramble reads the captain's card; stroke play
+// uses the slowest player in the group.
+export function groupHolesDone(event: TEvent, group: TGroup): number {
+  if (event.format === "scramble") {
+    const cap = teamCaptain(group);
+    return cap ? playerThru(event, cap) : 0;
+  }
+  return groupThru(event, group);
+}
+
+// The hole a group is currently playing — shotgun- and format-aware.
+export function currentHole(event: TEvent, group: TGroup, groupIndex: number): number | null {
+  const done = groupHolesDone(event, group);
+  if (done >= 18) return null;
+  if (event.shotgun) {
+    const start = shotgunStartHole(groupIndex);
+    return ((start - 1 + done) % 18) + 1;
+  }
+  return done + 1;
+}
+
+export function teamGross(event: TEvent, group: TGroup): number {
+  const cap = teamCaptain(group);
+  return cap ? playerGross(event, cap) : 0;
+}
+
+export type TeamStanding = {
+  group: TGroup;
+  index: number;
+  names: string;
+  thru: number;
+  gross: number;
+  hole: number | null;
+};
+
+// Team leaderboard for a scramble: lowest team total wins.
+export function teamStandings(event: TEvent): TeamStanding[] {
+  const rows: TeamStanding[] = event.groups.map((group, index) => ({
+    group,
+    index,
+    names: group.playerIds
+      .map((id) => event.players.find((p) => p.id === id)?.name)
+      .filter(Boolean)
+      .join(", "),
+    thru: groupHolesDone(event, group),
+    gross: teamGross(event, group),
+    hole: currentHole(event, group, index),
+  }));
+  const started = rows.filter((r) => r.thru > 0).sort((a, b) => a.gross - b.gross);
+  const rest = rows.filter((r) => r.thru === 0);
+  return [...started, ...rest];
 }
 
 // ---- side games ----------------------------------------------------------

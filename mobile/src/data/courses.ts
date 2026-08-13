@@ -174,6 +174,7 @@ const RAW_COURSES: Raw[] = [
   { id: "killarney", name: "Killarney", town: "Johannesburg", province: "Gauteng", par: 72 },
   { id: "kyalami", name: "Kyalami", town: "Midrand", province: "Gauteng", par: 72 },
   { id: "serengeti", name: "Serengeti", town: "Kempton Park", province: "Gauteng", par: 72 },
+  { id: "kempton-park", name: "Kempton Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 72 },
   { id: "ebotse", name: "Ebotse", town: "Benoni", province: "Gauteng", par: 72 },
   { id: "randpark-firethorn", name: "Randpark — Firethorn", town: "Randburg", province: "Gauteng", par: 72 },
   { id: "randpark-bushwillow", name: "Randpark — Bushwillow", town: "Randburg", province: "Gauteng", par: 72 },
