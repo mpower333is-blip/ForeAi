@@ -25,6 +25,7 @@ type TournamentState = {
   deviceId: string;
   // creation / joining
   createEvent: (input: CreateInput) => TEvent; // local, offline
+  createEcsGolfDay: () => TEvent; // pre-loaded ECS fundraiser (local)
   createSharedEvent: (input: CreateInput) => Promise<TEvent | null>; // backend
   joinByCode: (code: string) => Promise<TEvent | null>;
   refreshEvent: (id: string) => Promise<void>;
@@ -90,6 +91,52 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       groups: [],
       scores: {},
       shotgun: !!input.shotgun,
+      remote: false,
+    };
+    setEvents((prev) => [ev, ...prev]);
+    return ev;
+  };
+
+  // A ready-to-run demo of the ECS Golf Day fundraiser (local/offline). Everything
+  // is editable in the event afterwards — teams, sponsors, cause and contests.
+  const createEcsGolfDay: TournamentState["createEcsGolfDay"] = () => {
+    const names = [
+      "James Botha", "Riaan Naidoo", "Pieter van Wyk", "Sipho Dlamini",
+      "Kyle Roberts", "Thabo Mokoena", "Andre du Toit", "Liam O'Connor",
+    ];
+    const players: TPlayer[] = names.map((n, i) => ({
+      id: newId("ply"),
+      name: n,
+      handicap: 8 + ((i * 5) % 20),
+    }));
+    const g1: TGroup = { id: newId("grp"), playerIds: players.slice(0, 4).map((p) => p.id) };
+    const g2: TGroup = { id: newId("grp"), playerIds: players.slice(4, 8).map((p) => p.id) };
+
+    const ev: TEvent = {
+      id: newId("evt"),
+      name: "ECS Golf Day Fundraiser",
+      date: "2026-10-15",
+      courseId: "kempton-park",
+      format: "scramble",
+      firstTeeMin: 9 * 60, // 09:00 shotgun
+      intervalMin: 10,
+      shotgun: true,
+      players,
+      groups: [g1, g2],
+      scores: {},
+      cause:
+        "Proudly supporting Lyla Roux in her fight against ALK-positive Anaplastic Large Cell Lymphoma. Together we make a difference.",
+      sponsors: [
+        { id: newId("spo"), name: "Engine Control Systems (ECS)", tier: "title" },
+        { id: newId("spo"), name: "Hole 3 sponsor (tap to edit)", tier: "hole", hole: 3 },
+        { id: newId("spo"), name: "Hole 7 sponsor (tap to edit)", tier: "hole", hole: 7 },
+        { id: newId("spo"), name: "Prize sponsor (tap to edit)", tier: "prize" },
+      ],
+      contests: [
+        { id: newId("con"), type: "closest", hole: 3 },
+        { id: newId("con"), type: "longest", hole: 7 },
+      ],
+      contestResults: {},
       remote: false,
     };
     setEvents((prev) => [ev, ...prev]);
@@ -314,6 +361,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     events,
     deviceId: DEVICE_ID,
     createEvent,
+    createEcsGolfDay,
     createSharedEvent,
     joinByCode,
     refreshEvent,
