@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, TextField } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
-import { COURSES, getCourse } from "../data/courses";
+import { COURSES, getCourse, searchCourses } from "../data/courses";
 import { useTournament } from "../state/TournamentContext";
 import {
   TEvent,
@@ -45,6 +45,10 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
   const [interval, setInterval] = useState(10);
   const [shared, setShared] = useState(true);
   const [joinCode, setJoinCode] = useState("");
+  const [courseQuery, setCourseQuery] = useState("");
+
+  const selectedCourse = getCourse(courseId);
+  const courseResults = searchCourses(courseQuery).slice(0, 8);
 
   const create = async () => {
     setError("");
@@ -129,15 +133,23 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
           <Text style={styles.formTitle}>New event</Text>
           <TextField label="Event name" value={name} onChangeText={setName} placeholder="Saturday Cup" />
 
-          <Text style={styles.fieldLabel}>Course</Text>
-          {COURSES.map((c) => (
+          <Text style={styles.fieldLabel}>Course — {selectedCourse.name}</Text>
+          <TextField
+            value={courseQuery}
+            onChangeText={setCourseQuery}
+            placeholder="Search SA courses (name, town, province)"
+          />
+          {courseResults.map((c) => (
             <TouchableOpacity
               key={c.id}
               onPress={() => setCourseId(c.id)}
               activeOpacity={0.8}
               style={[styles.courseRow, courseId === c.id && styles.courseRowActive]}
             >
-              <Text style={styles.courseName}>{c.name}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.courseName}>{c.name}</Text>
+                <Text style={styles.coursePar}>{c.location}</Text>
+              </View>
               <Text style={styles.coursePar}>Par {c.par}</Text>
             </TouchableOpacity>
           ))}

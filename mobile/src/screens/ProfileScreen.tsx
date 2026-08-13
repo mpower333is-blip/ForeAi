@@ -6,7 +6,8 @@ import { useRound } from "../state/RoundContext";
 import { API_BASE } from "../services/api";
 
 export default function ProfileScreen() {
-  const { bag, setBag, shots, totalStrokesGained } = useRound();
+  const { bag, setBag, shots, totalStrokesGained, calibrationHoles, isCalibrated, resetCaddieLearning } =
+    useRound();
   const [editing, setEditing] = useState<number | null>(null);
 
   const updateCarry = (index: number, carry: number) => {
@@ -31,6 +32,23 @@ export default function ProfileScreen() {
             </Text>
           </View>
         </View>
+      </Card>
+
+      <Card>
+        <Text style={styles.sectionTitle}>AI Caddie calibration</Text>
+        {isCalibrated ? (
+          <Text style={styles.hint}>
+            ✓ Calibrated — the caddie uses the distances learned from your first 18 holes.
+          </Text>
+        ) : (
+          <Text style={styles.hint}>
+            {calibrationHoles} / 18 holes logged. Play your first round and the caddie personalizes
+            to your game.
+          </Text>
+        )}
+        <TouchableOpacity onPress={resetCaddieLearning}>
+          <Text style={styles.resetLink}>Reset caddie learning</Text>
+        </TouchableOpacity>
       </Card>
 
       <Card>
@@ -92,6 +110,7 @@ const styles = StyleSheet.create({
 
   sectionTitle: { fontSize: 20, fontWeight: "700", color: colors.text, marginBottom: 4 },
   hint: { color: colors.textFaint, fontSize: 14, marginBottom: spacing.sm },
+  resetLink: { color: colors.negative, fontSize: 14, fontWeight: "600", marginTop: 4 },
 
   clubRow: {
     flexDirection: "row",

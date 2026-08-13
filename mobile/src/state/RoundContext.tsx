@@ -59,7 +59,13 @@ type RoundState = {
   learned: Record<string, LearnedClub>;
   effectiveBag: Club[];
   scoreTotals: ScoreTotals;
+  // AI caddie calibration — it learns from your first 18 holes, then personalizes.
+  calibrationHoles: number; // 0-18 holes logged toward calibration
+  isCalibrated: boolean; // true once you've played your first 18 holes
+  resetCaddieLearning: () => void;
 };
+
+const CALIBRATION_TARGET = 18;
 
 const Ctx = createContext<RoundState | null>(null);
 
@@ -75,6 +81,9 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   const [bag, setBag] = useState<Club[]>(DEFAULT_BAG);
   const [shots, setShots] = useState<LoggedShot[]>([]);
   const [scores, setScores] = useState<Record<number, number>>({});
+  // Career-long shot log the caddie learns from — survives round resets.
+  const [learningShots, setLearningShots] = useState<LoggedShot[]>([]);
+  const [calibrationHoles, setCalibrationHoles] = useState(0);
 
   const selectedCourse = useMemo(() => getCourse(courseId), [courseId]);
 
@@ -100,7 +109,12 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
       endSurface: s.endSurface,
       holed: s.holed,
     });
-    setShots((prev) => [...prev, { ...s, id: makeId(), strokesGained }]);
+    const entry = { ...s, id: makeId(), strokesGained };
+    // First shot on this hole (this round) counts one hole toward calibration.
+    const firstOnHole = shots.every((x) => x.hole !== s.hole);
+    setShots((prev) => [...prev, entry]);
+    setLearningShots((prev) => [...prev, entry]); // never cleared by resetRound
+    if (firstOnHole) setCalibrationHoles((h) => Math.min(CALIBRATION_TARGET, h + 1));
   };
 
   const removeLastShot = () => setShots((prev) => prev.slice(0, -1));
@@ -110,6 +124,11 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     setCurrentHole(1);
   };
 
+  const resetCaddieLearning = () => {
+    setLearningShots([]);
+    setCalibrationHoles(0);
+  };
+
   const totalStrokesGained = useMemo(
     () => round2(shots.reduce((sum, s) => sum + s.strokesGained, 0)),
     [shots]
@@ -117,8 +136,14 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
 
   const shotsForHole = (hole: number) => shots.filter((s) => s.hole === hole);
 
-  const learned = useMemo(() => learnDistances(shots), [shots]);
-  const effectiveBag = useMemo(() => buildEffectiveBag(bag, learned), [bag, learned]);
+  // The caddie learns from the whole career log, not just the current round.
+  const learned = useMemo(() => learnDistances(learningShots), [learningShots]);
+  const isCalibrated = calibrationHoles >= CALIBRATION_TARGET;
+  // Only personalize club numbers once the first 18 holes are in the books.
+  const effectiveBag = useMemo(
+    () => (isCalibrated ? buildEffectiveBag(bag, learned) : bag),
+    [bag, learned, isCalibrated]
+  );
 
   const scoreTotals = useMemo<ScoreTotals>(() => {
     const holes = selectedCourse.holes;
@@ -177,6 +202,9 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     learned,
     effectiveBag,
     scoreTotals,
+    calibrationHoles,
+    isCalibrated,
+    resetCaddieLearning,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

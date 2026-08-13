@@ -20,7 +20,7 @@ const LIES: { key: Lie; label: string }[] = [
 ];
 
 export default function CaddieScreen() {
-  const { effectiveBag, learned } = useRound();
+  const { effectiveBag, learned, calibrationHoles, isCalibrated } = useRound();
   const [yardage, setYardage] = useState(155);
   const [wind, setWind] = useState(0);
   const [elevation, setElevation] = useState(0);
@@ -36,8 +36,9 @@ export default function CaddieScreen() {
     [yardage, wind, elevation, lie, temp, effectiveBag]
   );
 
-  const learnedClub = isLearned(rec.club, learned);
+  const learnedClub = isCalibrated && isLearned(rec.club, learned);
   const window = dispersionWindow(rec.club, learned);
+  const dataBadge = isCalibrated ? (learnedClub ? "your data" : "default bag") : "calibrating";
 
   const confTone =
     rec.confidence === "high" ? colors.positive : rec.confidence === "medium" ? colors.warning : colors.negative;
@@ -62,6 +63,24 @@ export default function CaddieScreen() {
     <Screen>
       <ScreenHeader title="AI Caddie" subtitle="Data-driven club calls that learn from every shot you log." />
 
+      {isCalibrated ? (
+        <View style={styles.calDone}>
+          <Text style={styles.calDoneText}>✓ Calibrated to your game — recommendations use your own distances</Text>
+        </View>
+      ) : (
+        <View style={styles.calCard}>
+          <Text style={styles.calTitle}>Calibrating your caddie</Text>
+          <Text style={styles.calBody}>
+            Play and log your first 18 holes so the caddie learns your real distances. Until then it
+            uses solid default numbers.
+          </Text>
+          <View style={styles.calTrack}>
+            <View style={[styles.calFill, { width: `${(calibrationHoles / 18) * 100}%` }]} />
+          </View>
+          <Text style={styles.calCount}>{calibrationHoles} / 18 holes logged</Text>
+        </View>
+      )}
+
       <Card accent>
         <Text style={styles.club}>{rec.club}</Text>
         <Text style={styles.plays}>plays {rec.playingYards} yds</Text>
@@ -70,9 +89,19 @@ export default function CaddieScreen() {
           <View style={[styles.confPill, { borderColor: confTone }]}>
             <Text style={[styles.confText, { color: confTone }]}>{rec.confidence} confidence</Text>
           </View>
-          <View style={[styles.confPill, { borderColor: learnedClub ? colors.accent : colors.border }]}>
-            <Text style={[styles.confText, { color: learnedClub ? colors.accent : colors.textFaint }]}>
-              {learnedClub ? "your data" : "default bag"}
+          <View
+            style={[
+              styles.confPill,
+              { borderColor: learnedClub ? colors.accent : !isCalibrated ? colors.warning : colors.border },
+            ]}
+          >
+            <Text
+              style={[
+                styles.confText,
+                { color: learnedClub ? colors.accent : !isCalibrated ? colors.warning : colors.textFaint },
+              ]}
+            >
+              {dataBadge}
             </Text>
           </View>
         </View>
@@ -136,6 +165,29 @@ export default function CaddieScreen() {
 }
 
 const styles = StyleSheet.create({
+  calCard: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.warning,
+  },
+  calTitle: { color: colors.warning, fontSize: 16, fontWeight: "800" },
+  calBody: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginTop: 4, marginBottom: 10 },
+  calTrack: { height: 10, borderRadius: 5, backgroundColor: colors.border, overflow: "hidden" },
+  calFill: { height: "100%", borderRadius: 5, backgroundColor: colors.warning },
+  calCount: { color: colors.textMuted, fontSize: 13, marginTop: 6, fontWeight: "600" },
+  calDone: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  calDoneText: { color: colors.accent, fontSize: 14, fontWeight: "700" },
+
   club: { color: colors.accent, fontSize: 52, fontWeight: "800" },
   plays: { color: colors.text, fontSize: 18, marginTop: 2 },
   badgeRow: { flexDirection: "row", gap: 8, marginTop: spacing.sm },

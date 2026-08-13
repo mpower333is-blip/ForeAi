@@ -1,17 +1,17 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { Screen, ScreenHeader } from "../components/ui";
+import { Screen, ScreenHeader, TextField } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
-import { COURSES } from "../data/courses";
+import { searchCourses, COURSES } from "../data/courses";
 import { useRound } from "../state/RoundContext";
 
-// Reused both for choosing the round's course and (via route param) an event's
-// course. When `onPick` is provided through navigation params we call that;
-// otherwise we set the active round course.
 export default function CourseSelectScreen({ navigation, route }: any) {
   const { courseId, setCourse } = useRound();
   const onPick: ((id: string) => void) | undefined = route?.params?.onPick;
   const selectedId: string = route?.params?.selectedId ?? courseId;
+  const [query, setQuery] = useState("");
+
+  const results = useMemo(() => searchCourses(query), [query]);
 
   const choose = (id: string) => {
     if (onPick) onPick(id);
@@ -21,8 +21,19 @@ export default function CourseSelectScreen({ navigation, route }: any) {
 
   return (
     <Screen>
-      <ScreenHeader title="Choose course" subtitle="Pick where you're playing." />
-      {COURSES.map((c) => {
+      <ScreenHeader
+        title="Choose course"
+        subtitle={`${COURSES.length} South African courses — search by name, town or province.`}
+      />
+      <TextField
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Search e.g. Durban, Leopard Creek, Gauteng"
+      />
+      {results.length === 0 && (
+        <Text style={styles.empty}>No courses match “{query}”.</Text>
+      )}
+      {results.map((c) => {
         const active = c.id === selectedId;
         return (
           <TouchableOpacity
@@ -33,7 +44,10 @@ export default function CourseSelectScreen({ navigation, route }: any) {
           >
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{c.name}</Text>
-              <Text style={styles.meta}>{c.location}</Text>
+              <Text style={styles.meta}>
+                {c.location}
+                {c.approxLayout ? "  · approx layout" : ""}
+              </Text>
             </View>
             <View style={styles.right}>
               <Text style={styles.par}>Par {c.par}</Text>
@@ -58,9 +72,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   rowActive: { borderColor: colors.accent },
-  name: { color: colors.text, fontSize: 18, fontWeight: "700" },
-  meta: { color: colors.textMuted, fontSize: 14, marginTop: 2 },
-  right: { alignItems: "flex-end" },
+  name: { color: colors.text, fontSize: 17, fontWeight: "700" },
+  meta: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  right: { alignItems: "flex-end", marginLeft: spacing.sm },
   par: { color: colors.textMuted, fontSize: 14 },
   check: { color: colors.accent, fontSize: 13, fontWeight: "700", marginTop: 4 },
+  empty: { color: colors.textMuted, fontSize: 15, marginBottom: spacing.md },
 });
