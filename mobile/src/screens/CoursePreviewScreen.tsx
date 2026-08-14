@@ -46,6 +46,10 @@ export default function CoursePreviewScreen({ navigation, route }: any) {
 
       <Card style={{ padding: spacing.sm }}>
         <HoleDiagram hole={hole} height={320} />
+        <Text style={styles.diagramNote}>
+          Illustrative schematic — par, yardage and stroke index are real; the hole shape is not a
+          GPS map of {course.name}.
+        </Text>
       </Card>
 
       <View style={styles.navRow}>
@@ -85,6 +89,7 @@ export default function CoursePreviewScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
   courseName: { color: colors.text, fontSize: 24, fontWeight: "800" },
   courseMeta: { color: colors.textMuted, fontSize: 14, marginTop: 2, marginBottom: spacing.md },
+  diagramNote: { color: colors.textFaint, fontSize: 12, fontStyle: "italic", lineHeight: 17, paddingHorizontal: 4, marginTop: 4 },
   chipScroll: { marginBottom: spacing.md },
   chip: {
     width: 38,

@@ -131,6 +131,9 @@ export default function HoleDiagram({ hole, height = 300 }: { hole: Hole; height
       <SvgText x="60" y="196" fill="#8ba394" fontSize="7" textAnchor="middle">
         {hole.yards} yds · par {hole.par}
       </SvgText>
+      <SvgText x="6" y="12" fill="#4f6a5b" fontSize="5" fontWeight="bold">
+        SCHEMATIC
+      </SvgText>
     </Svg>
   );
 }
