@@ -19,6 +19,8 @@ export type Hole = {
   si: number; // stroke index 1-18 (handicap allocation)
   green?: Coord; // green centre GPS, when the data source provides it
   tee?: Coord; // tee GPS, when available
+  greenFront?: Coord; // front of green (for Front/Middle/Back distances)
+  greenBack?: Coord; // back of green
 };
 
 export type Course = {

@@ -25,3 +25,16 @@ export function distanceYards(a: Coord, b: Coord): number {
 export function metersToYards(m: number): number {
   return Math.round(m * M_TO_YARDS);
 }
+
+// Front/Middle/Back-of-green distances (yards) from a position — the classic
+// rangefinder readout (Score Capture's B / M / F).
+export function greenDistances(
+  from: Coord,
+  hole: { greenFront?: Coord; green?: Coord; greenBack?: Coord }
+): { front?: number; middle?: number; back?: number } {
+  return {
+    front: hole.greenFront ? distanceYards(from, hole.greenFront) : undefined,
+    middle: hole.green ? distanceYards(from, hole.green) : undefined,
+    back: hole.greenBack ? distanceYards(from, hole.greenBack) : undefined,
+  };
+}
