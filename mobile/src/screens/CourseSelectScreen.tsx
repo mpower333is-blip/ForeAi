@@ -4,7 +4,15 @@ import { Screen, ScreenHeader, TextField } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { searchCourses, COURSES } from "../data/courses";
 import { useRound } from "../state/RoundContext";
-import { searchOnline, fetchCourse, isConfigured, CourseSummary } from "../services/golfCourseApi";
+import { searchOnline, fetchCourse, isConfigured } from "../services/golfCourseApi";
+import {
+  searchGolfApi,
+  importGolfApiCourse,
+  isGolfApiConfigured,
+  GolfApiSummary,
+} from "../services/golfApiIo";
+
+type Row = { id: string; name: string; location: string; badge?: string; hasGps?: boolean };
 
 export default function CourseSelectScreen({ navigation, route }: any) {
   const { courseId, setCourse } = useRound();
@@ -12,53 +20,64 @@ export default function CourseSelectScreen({ navigation, route }: any) {
   const selectedId: string = route?.params?.selectedId ?? courseId;
 
   const [query, setQuery] = useState("");
-  const [online, setOnline] = useState<CourseSummary[]>([]);
+  const [online, setOnline] = useState<Row[]>([]);
   const [searching, setSearching] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const local = useMemo(() => searchCourses(query), [query]);
-  const apiOn = isConfigured();
+  const gioOn = isGolfApiConfigured(); // preferred: real GPS + yardages
+  const gcaOn = isConfigured(); // fallback: 30k courses
+  const onlineOn = gioOn || gcaOn;
 
-  // Debounced online search over the 30,000+ course database.
+  // Debounced online search over the active provider.
   useEffect(() => {
-    if (!apiOn || query.trim().length < 2) {
+    if (!onlineOn || query.trim().length < 2) {
       setOnline([]);
       return;
     }
     let cancelled = false;
     setSearching(true);
     const t = setTimeout(async () => {
-      const res = await searchOnline(query);
+      let rows: Row[] = [];
+      if (gioOn) {
+        const res = await searchGolfApi(query);
+        rows = res
+          .filter((c) => c.holes === 18)
+          .map((c) => ({ id: c.id, name: c.name, location: c.location, hasGps: c.hasGps, badge: c.hasGps ? "GPS" : undefined }));
+      } else {
+        const res = await searchOnline(query);
+        rows = res.map((c) => ({ id: c.apiId, name: c.name, location: c.location, badge: "card" }));
+      }
       if (!cancelled) {
-        setOnline(res);
+        setOnline(rows);
         setSearching(false);
       }
-    }, 400);
+    }, 450);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [query, apiOn]);
+  }, [query, onlineOn, gioOn]);
 
-  const chooseLocal = (id: string) => {
+  const finish = (id: string) => {
     if (onPick) onPick(id);
     else setCourse(id);
     navigation.goBack();
   };
 
-  const chooseOnline = async (apiId: string) => {
-    setLoadingId(apiId);
+  const chooseOnline = async (row: Row) => {
+    setLoadingId(row.id);
     setError("");
-    const course = await fetchCourse(apiId);
+    const course = gioOn
+      ? await importGolfApiCourse(row.id, !!row.hasGps)
+      : await fetchCourse(row.id);
     setLoadingId(null);
     if (!course) {
       setError("Couldn't load that course's data. Try another.");
       return;
     }
-    if (onPick) onPick(course.id);
-    else setCourse(course.id);
-    navigation.goBack();
+    finish(course.id);
   };
 
   return (
@@ -66,60 +85,55 @@ export default function CourseSelectScreen({ navigation, route }: any) {
       <ScreenHeader
         title="Choose course"
         subtitle={
-          apiOn
-            ? "Search 30,000+ courses worldwide, or pick a bundled South African course."
+          gioOn
+            ? "Search real courses with GPS & yardages, or pick a bundled course."
+            : gcaOn
+            ? "Search 30,000+ courses worldwide, or pick a bundled course."
             : `${COURSES.length} South African courses — search by name, town or province.`
         }
       />
       <TextField
         value={query}
         onChangeText={setQuery}
-        placeholder={apiOn ? "Search any course worldwide…" : "Search e.g. Durban, Leopard Creek"}
+        placeholder={onlineOn ? "Search any course…" : "Search e.g. Durban, Leopard Creek"}
       />
 
       {error !== "" && <Text style={styles.error}>{error}</Text>}
 
-      {/* Online results */}
-      {apiOn && query.trim().length >= 2 && (
+      {onlineOn && query.trim().length >= 2 && (
         <View style={styles.section}>
           <View style={styles.sectionHead}>
-            <Text style={styles.sectionTitle}>Online</Text>
+            <Text style={styles.sectionTitle}>{gioOn ? "GolfAPI · GPS" : "Online"}</Text>
             {searching && <ActivityIndicator size="small" color={colors.accent} />}
           </View>
           {!searching && online.length === 0 && (
             <Text style={styles.hint}>No online matches for “{query}”.</Text>
           )}
           {online.map((c) => (
-            <TouchableOpacity
-              key={c.apiId}
-              activeOpacity={0.85}
-              onPress={() => chooseOnline(c.apiId)}
-              style={styles.row}
-            >
+            <TouchableOpacity key={c.id} activeOpacity={0.85} onPress={() => chooseOnline(c)} style={styles.row}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{c.name}</Text>
                 {c.location ? <Text style={styles.meta}>{c.location}</Text> : null}
               </View>
-              {loadingId === c.apiId ? (
+              {loadingId === c.id ? (
                 <ActivityIndicator size="small" color={colors.accent} />
               ) : (
-                <Text style={styles.realTag}>real card ›</Text>
+                <Text style={styles.realTag}>{c.badge ?? "load"} ›</Text>
               )}
             </TouchableOpacity>
           ))}
         </View>
       )}
 
-      {/* Bundled / offline results */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{apiOn ? "Bundled (offline)" : "Courses"}</Text>
+        <Text style={styles.sectionTitle}>{onlineOn ? "Bundled (offline)" : "Courses"}</Text>
         {local.map((c) => {
           const active = c.id === selectedId;
           return (
             <TouchableOpacity
               key={c.id}
               activeOpacity={0.85}
-              onPress={() => chooseLocal(c.id)}
+              onPress={() => finish(c.id)}
               style={[styles.row, active && styles.rowActive]}
             >
               <View style={{ flex: 1 }}>
@@ -138,9 +152,9 @@ export default function CourseSelectScreen({ navigation, route }: any) {
         })}
       </View>
 
-      {!apiOn && (
+      {!onlineOn && (
         <Text style={styles.apiNote}>
-          Tip: set EXPO_PUBLIC_GOLF_API_KEY to search 30,000+ courses with official scorecards.
+          Tip: set EXPO_PUBLIC_GOLFAPI_KEY for real courses with GPS &amp; yardages.
         </Text>
       )}
     </Screen>
@@ -150,7 +164,14 @@ export default function CourseSelectScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
   section: { marginTop: spacing.md },
   sectionHead: { flexDirection: "row", alignItems: "center", gap: 10 },
-  sectionTitle: { color: colors.textMuted, fontSize: 13, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing.sm },
+  sectionTitle: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: spacing.sm,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",

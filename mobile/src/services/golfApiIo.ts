@@ -1,15 +1,13 @@
-// golfapi.io (v2.3) integration — the key win is the `coordinates` endpoint,
-// which gives per-hole GPS (green front/centre/back, tee) so we can draw real
-// hole maps and compute Front/Middle/Back distances.
+// golfapi.io (v2.3) integration.
 //
-// NOTE: this parser is written to golfapi.io's documented v2.3 shape but has
-// NOT been verified against a live response yet (the build sandbox blocks the
-// host). Confirm/adjust `parseCoordinates` and `parseCourse` once a sample
-// response is available. See https://golfapi.io/docs/.
+// Schema confirmed from the docs for /clubs, /courses and /courses/{id}. The
+// /coordinates/{id} per-hole GPS shape (POI codes) is still to be verified — the
+// coordinate parser below is defensive until then, but course import (pars,
+// stroke indexes, real yardages per tee, course centre) is exact.
 //
-// The key is metered (trial = 25 calls) and this repo is public, so the key is
-// read from EXPO_PUBLIC_GOLFAPI_KEY only — it is intentionally NOT hardcoded.
-// Responses are cached in-memory to conserve the call allowance.
+// Call cost: search = 0.1 calls, a course/coordinates fetch = 1 call each.
+// The key is metered + the repo is public, so it's read from
+// EXPO_PUBLIC_GOLFAPI_KEY only (not hardcoded); results are cached.
 
 import { Course, Hole, registerCourse, assignStrokeIndex } from "../data/courses";
 import { Coord } from "../lib/geo";
@@ -21,14 +19,12 @@ export function isGolfApiConfigured(): boolean {
   return !!KEY;
 }
 
-const cache = new Map<string, Course>();
+const courseCache = new Map<string, Course>();
 
 async function get(path: string): Promise<any | null> {
   if (!KEY) return null;
   try {
-    const res = await fetch(`${BASE}${path}`, {
-      headers: { Authorization: `Bearer ${KEY}` },
-    });
+    const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${KEY}` } });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -40,18 +36,46 @@ function num(v: any): number | undefined {
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
 }
-
 function coord(lat: any, lng: any): Coord | undefined {
   const la = num(lat);
   const ln = num(lng);
   if (la == null || ln == null || (la === 0 && ln === 0)) return undefined;
   return { lat: la, lng: ln };
 }
+function locationString(c: any): string {
+  return [c.city, c.state, c.country].filter(Boolean).join(", ");
+}
+function displayName(c: any): string {
+  const club = c.clubName ?? "";
+  const course = c.courseName ?? "";
+  if (club && course && course !== club && !/^\d+-hole/i.test(course)) return `${club} — ${course}`;
+  return club || course || "Course";
+}
 
-// --- coordinates: per-hole GPS ---------------------------------------------
-// Documented shape: { coordinates: [ { poi, location, sideFW, hole, latitude,
-// longitude }, ... ] }. POI 1 = green (location 1=front, 2=centre, 3=back);
-// POI 11/12 = tee. Adjust here once verified against a real response.
+// --- search (0.1 calls) ----------------------------------------------------
+
+export type GolfApiSummary = {
+  id: string; // courseID
+  name: string;
+  location: string;
+  holes: number;
+  hasGps: boolean;
+};
+
+export async function searchGolfApi(query: string): Promise<GolfApiSummary[]> {
+  if (!KEY || query.trim().length < 2) return [];
+  const data = await get(`/courses?name=${encodeURIComponent(query.trim())}&measureUnit=yd`);
+  const list: any[] = data?.courses ?? [];
+  return list.map((c) => ({
+    id: String(c.courseID),
+    name: displayName(c),
+    location: locationString(c),
+    holes: num(c.numHoles) ?? 18,
+    hasGps: c.hasGPS === 1 || c.hasGPS === "1",
+  }));
+}
+
+// --- coordinates: per-hole GPS (defensive, pending verification) ------------
 type HoleGps = { green?: Coord; greenFront?: Coord; greenBack?: Coord; tee?: Coord };
 
 export function parseCoordinates(data: any): Record<number, HoleGps> {
@@ -67,29 +91,44 @@ export function parseCoordinates(data: any): Record<number, HoleGps> {
     if (poi === 1) {
       if (loc === 1) h.greenFront = pt;
       else if (loc === 3) h.greenBack = pt;
-      else h.green = pt; // location 2 (centre) or unspecified
+      else h.green = pt;
     } else if (poi === 11 || poi === 12) {
-      // prefer a back tee (12); otherwise take whatever tee we see
       if (poi === 12 || !h.tee) h.tee = pt;
     }
   }
   return out;
 }
 
-// --- course: pars + stroke indexes -----------------------------------------
-export function parseCourse(data: any, gps: Record<number, HoleGps>): Course | null {
+// --- course (1 call) — exact schema ----------------------------------------
+
+// Pick a sensible default tee (the median by total length ≈ standard men's tee).
+function pickTee(tees: any[]): any | null {
+  if (!Array.isArray(tees) || tees.length === 0) return null;
+  const withTotal = tees.map((t) => {
+    let total = 0;
+    for (let i = 1; i <= 18; i++) total += num(t[`length${i}`]) ?? 0;
+    return { t, total };
+  });
+  withTotal.sort((a, b) => b.total - a.total);
+  return withTotal[Math.floor(withTotal.length / 2)].t;
+}
+
+export function parseCourse(data: any, gps: Record<number, HoleGps> = {}): Course | null {
   const c = data?.course ?? data;
-  if (!c) return null;
+  if (!c || !c.courseID) return null;
 
   const numHoles = num(c.numHoles) ?? 18;
-  const pars: number[] = c.parsMen ?? c.pars ?? c.parsWomen ?? [];
-  const indexes: number[] = c.indexesMen ?? c.indexes ?? c.indexesWomen ?? [];
+  const pars: any[] = c.parsMen ?? c.parsWomen ?? [];
+  const indexes: any[] = c.indexesMen ?? c.indexesWomen ?? [];
+  const tee = pickTee(c.tees ?? []);
+  const toYards = c.measure === "m" ? 1.09361 : 1; // request uses measureUnit=yd, but guard
 
   const parsed = Array.from({ length: numHoles }, (_, i) => ({
     par: num(pars[i]) ?? 4,
-    yards: 0,
+    yards: tee ? Math.round((num(tee[`length${i + 1}`]) ?? 0) * toYards) : 0,
   }));
-  const si = indexes.length === numHoles ? indexes.map((x) => num(x) ?? 0) : assignStrokeIndex(parsed);
+  const si =
+    indexes.length === numHoles ? indexes.map((x) => num(x) ?? 0) : assignStrokeIndex(parsed);
 
   const holes: Hole[] = parsed.map((p, i) => {
     const g = gps[i + 1] ?? {};
@@ -105,36 +144,32 @@ export function parseCourse(data: any, gps: Record<number, HoleGps>): Course | n
     };
   });
 
-  const par = holes.reduce((s, h) => s + h.par, 0);
-  const center = coord(c.latitude, c.longitude);
-  const name = c.clubName ? `${c.clubName} — ${c.courseName ?? ""}`.trim().replace(/—\s*$/, "") : c.courseName ?? "Course";
-
   return {
-    id: `gio-${c.courseID ?? c.courseId ?? c.id}`,
-    name,
-    location: [c.city, c.state, c.country].filter(Boolean).join(", ") || "GolfAPI",
+    id: `gio-${c.courseID}`,
+    name: displayName(c),
+    location: locationString(c) || "GolfAPI",
     province: c.state ?? c.country ?? "",
-    par,
+    par: holes.reduce((s, h) => s + h.par, 0),
     holes,
     approxLayout: false,
-    center,
+    center: coord(c.latitude, c.longitude),
   };
 }
 
-// Import a course by golfapi.io course id: fetch course + coordinates, combine,
-// register, and return it. Uses ~2 API calls (cached thereafter).
-export async function importGolfApiCourse(courseId: string): Promise<Course | null> {
-  if (cache.has(courseId)) return cache.get(courseId)!;
-  const [courseData, coordData] = await Promise.all([
-    get(`/courses/${courseId}`),
-    get(`/coordinates/${courseId}`),
-  ]);
+// Import by course id: course (1 call) + coordinates (1 call, only if hasGPS).
+export async function importGolfApiCourse(courseId: string, hasGps = true): Promise<Course | null> {
+  const cacheKey = `gio-${courseId}`;
+  if (courseCache.has(cacheKey)) return courseCache.get(cacheKey)!;
+
+  const courseData = await get(`/courses/${courseId}?measureUnit=yd`);
   if (!courseData) return null;
-  const gps = coordData ? parseCoordinates(coordData) : {};
+  const gpsData = hasGps ? await get(`/coordinates/${courseId}`) : null;
+  const gps = gpsData ? parseCoordinates(gpsData) : {};
+
   const course = parseCourse(courseData, gps);
   if (course) {
     registerCourse(course);
-    cache.set(courseId, course);
+    courseCache.set(cacheKey, course);
   }
   return course;
 }
