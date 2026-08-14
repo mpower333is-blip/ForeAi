@@ -113,6 +113,7 @@ function mapCourse(c: any): Course | null {
   }));
 
   const par = Number(tee.par_total) || holes.reduce((s, h) => s + h.par, 0);
+  const center = extractCoord(c.location);
 
   return {
     id: `gca-${c.id}`,
@@ -122,6 +123,7 @@ function mapCourse(c: any): Course | null {
     par,
     holes,
     approxLayout: false, // real per-hole data
+    center,
   };
 }
 

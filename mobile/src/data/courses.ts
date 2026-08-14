@@ -29,6 +29,7 @@ export type Course = {
   par: number;
   holes: Hole[];
   approxLayout?: boolean;
+  center?: Coord; // course GPS centre, for the satellite view
 };
 
 type Raw = {
@@ -38,6 +39,8 @@ type Raw = {
   province: string;
   par?: number; // defaults to 72
   yards?: number; // total; layout is scaled to it when given
+  lat?: number;
+  lng?: number;
 };
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
@@ -174,7 +177,7 @@ const RAW_COURSES: Raw[] = [
   { id: "killarney", name: "Killarney", town: "Johannesburg", province: "Gauteng", par: 72 },
   { id: "kyalami", name: "Kyalami", town: "Midrand", province: "Gauteng", par: 72 },
   { id: "serengeti", name: "Serengeti", town: "Kempton Park", province: "Gauteng", par: 72 },
-  { id: "kempton-park", name: "Kempton Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 72 },
+  { id: "kempton-park", name: "Kempton Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.1016, lng: 28.236 },
   { id: "ebotse", name: "Ebotse", town: "Benoni", province: "Gauteng", par: 72 },
   { id: "randpark-firethorn", name: "Randpark — Firethorn", town: "Randburg", province: "Gauteng", par: 72 },
   { id: "randpark-bushwillow", name: "Randpark — Bushwillow", town: "Randburg", province: "Gauteng", par: 72 },
@@ -234,6 +237,7 @@ export const COURSES: Course[] = RAW_COURSES.map((r) => {
     par: holes.reduce((sum, h) => sum + h.par, 0),
     holes,
     approxLayout: true,
+    center: r.lat != null && r.lng != null ? { lat: r.lat, lng: r.lng } : undefined,
   };
 });
 

@@ -5,6 +5,7 @@ import { colors, spacing, radius } from "../theme";
 import { getCourse, frontNinePar, backNinePar } from "../data/courses";
 import { useRound } from "../state/RoundContext";
 import HoleDiagram from "../components/HoleDiagram";
+import SatelliteHole from "../components/SatelliteHole";
 
 export default function CoursePreviewScreen({ navigation, route }: any) {
   const { courseId, setCourse, setCurrentHole } = useRound();
@@ -14,6 +15,8 @@ export default function CoursePreviewScreen({ navigation, route }: any) {
 
   const hole = course.holes[idx];
   const isActiveCourse = previewId === courseId;
+  const hasSat = !!(course.center || hole.green || hole.tee);
+  const [view, setView] = useState<"sat" | "schematic">(hasSat ? "sat" : "schematic");
 
   const go = (delta: number) => setIdx((i) => Math.max(0, Math.min(17, i + delta)));
 
@@ -44,12 +47,42 @@ export default function CoursePreviewScreen({ navigation, route }: any) {
         ))}
       </ScrollView>
 
+      {hasSat && (
+        <View style={styles.viewToggle}>
+          <TouchableOpacity
+            style={[styles.toggleBtn, view === "sat" && styles.toggleActive]}
+            onPress={() => setView("sat")}
+          >
+            <Text style={[styles.toggleText, view === "sat" && styles.toggleTextActive]}>🛰 Satellite</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleBtn, view === "schematic" && styles.toggleActive]}
+            onPress={() => setView("schematic")}
+          >
+            <Text style={[styles.toggleText, view === "schematic" && styles.toggleTextActive]}>Schematic</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <Card style={{ padding: spacing.sm }}>
-        <HoleDiagram hole={hole} height={320} />
-        <Text style={styles.diagramNote}>
-          Illustrative schematic — par, yardage and stroke index are real; the hole shape is not a
-          GPS map of {course.name}.
-        </Text>
+        {view === "sat" && hasSat ? (
+          <>
+            <SatelliteHole hole={hole} center={course.center} />
+            <Text style={styles.diagramNote}>
+              {hole.green || hole.tee
+                ? "Real satellite imagery, framed on this hole."
+                : "Real satellite imagery of the course. Mark each hole's tee & green on-course (GPS) to frame holes precisely and enable auto distance-to-pin."}
+            </Text>
+          </>
+        ) : (
+          <>
+            <HoleDiagram hole={hole} height={320} />
+            <Text style={styles.diagramNote}>
+              Illustrative schematic — par, yardage and stroke index are real; the hole shape is not
+              a GPS map of {course.name}.
+            </Text>
+          </>
+        )}
       </Card>
 
       <View style={styles.navRow}>
@@ -89,7 +122,20 @@ export default function CoursePreviewScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
   courseName: { color: colors.text, fontSize: 24, fontWeight: "800" },
   courseMeta: { color: colors.textMuted, fontSize: 14, marginTop: 2, marginBottom: spacing.md },
-  diagramNote: { color: colors.textFaint, fontSize: 12, fontStyle: "italic", lineHeight: 17, paddingHorizontal: 4, marginTop: 4 },
+  diagramNote: { color: colors.textFaint, fontSize: 12, fontStyle: "italic", lineHeight: 17, paddingHorizontal: 4, marginTop: 6 },
+  viewToggle: { flexDirection: "row", gap: 8, marginBottom: spacing.sm },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+  },
+  toggleActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  toggleText: { color: colors.textMuted, fontWeight: "700" },
+  toggleTextActive: { color: "#062012" },
   chipScroll: { marginBottom: spacing.md },
   chip: {
     width: 38,
