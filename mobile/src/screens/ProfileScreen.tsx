@@ -6,8 +6,18 @@ import { useRound } from "../state/RoundContext";
 import { API_BASE } from "../services/api";
 
 export default function ProfileScreen() {
-  const { bag, setBag, shots, totalStrokesGained, calibrationHoles, isCalibrated, resetCaddieLearning } =
-    useRound();
+  const {
+    bag,
+    setBag,
+    shots,
+    totalStrokesGained,
+    calibrationHoles,
+    isCalibrated,
+    resetCaddieLearning,
+    playerHandicap,
+    setPlayerHandicap,
+    courseHcp,
+  } = useRound();
   const [editing, setEditing] = useState<number | null>(null);
 
   const updateCarry = (index: number, carry: number) => {
@@ -32,6 +42,15 @@ export default function ProfileScreen() {
             </Text>
           </View>
         </View>
+      </Card>
+
+      <Card>
+        <Text style={styles.sectionTitle}>Handicap</Text>
+        <Text style={styles.hint}>
+          Drives strokes received per hole and your net / Stableford scores. Course handicap:{" "}
+          <Text style={{ color: colors.accent, fontWeight: "700" }}>{courseHcp}</Text>
+        </Text>
+        <Stepper label="Handicap index" value={playerHandicap} onChange={setPlayerHandicap} step={1} min={0} max={54} unit="" />
       </Card>
 
       <Card>

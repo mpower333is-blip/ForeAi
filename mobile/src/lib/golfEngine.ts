@@ -362,6 +362,31 @@ export function dispersionWindow(
 // Small helpers
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Handicapping (relative, not official WHS) — course handicap, strokes received
+// per hole, and Stableford points. Without slope/rating the course handicap is
+// just the rounded index; the app is a scoring aid, not a WHS authority.
+// ---------------------------------------------------------------------------
+
+export function courseHandicap(index: number): number {
+  return Math.round(index);
+}
+
+// WHS-style allocation: everyone gets floor(hcp/18) on every hole, plus one
+// extra on the hardest `hcp % 18` holes (by stroke index).
+export function strokesReceivedOnHole(courseHcp: number, si: number): number {
+  if (courseHcp <= 0) return 0;
+  const base = Math.floor(courseHcp / 18);
+  const extra = si <= courseHcp % 18 ? 1 : 0;
+  return base + extra;
+}
+
+// Stableford points for a hole: 2 at net par, +1 per shot better, floored at 0.
+export function stablefordPoints(par: number, gross: number, received: number): number {
+  const net = gross - received;
+  return Math.max(0, 2 - (net - par));
+}
+
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }

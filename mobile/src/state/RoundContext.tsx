@@ -9,6 +9,9 @@ import {
   learnDistances,
   effectiveBag as buildEffectiveBag,
   LearnedClub,
+  courseHandicap,
+  strokesReceivedOnHole,
+  stablefordPoints,
 } from "../lib/golfEngine";
 import { COURSES, Course, Hole, getCourse } from "../data/courses";
 
@@ -34,6 +37,8 @@ export type ScoreTotals = {
   total: number;
   toPar: number; // total strokes vs par of holes played
   holesPlayed: number;
+  net: number; // net strokes (gross - strokes received)
+  points: number; // Stableford points
 };
 
 type RoundState = {
@@ -45,10 +50,15 @@ type RoundState = {
   bag: Club[];
   shots: LoggedShot[];
   scores: Record<number, number>;
+  pickups: Record<number, boolean>;
+  playerHandicap: number;
+  courseHcp: number;
   setCourse: (id: string) => void;
   setCurrentHole: (n: number) => void;
   setBag: (bag: Club[]) => void;
   setHoleScore: (hole: number, strokes: number) => void;
+  setPickup: (hole: number, picked: boolean) => void;
+  setPlayerHandicap: (h: number) => void;
   logShot: (s: Omit<LoggedShot, "id" | "strokesGained">) => void;
   removeLastShot: () => void;
   resetRound: () => void;
@@ -81,6 +91,9 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   const [bag, setBag] = useState<Club[]>(DEFAULT_BAG);
   const [shots, setShots] = useState<LoggedShot[]>([]);
   const [scores, setScores] = useState<Record<number, number>>({});
+  const [pickups, setPickups] = useState<Record<number, boolean>>({});
+  const [playerHandicap, setPlayerHandicap] = useState(18);
+  const courseHcp = courseHandicap(playerHandicap);
   // Career-long shot log the caddie learns from — survives round resets.
   const [learningShots, setLearningShots] = useState<LoggedShot[]>([]);
   const [calibrationHoles, setCalibrationHoles] = useState(0);
@@ -97,6 +110,16 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
       const next = { ...prev };
       if (strokes <= 0) delete next[hole];
       else next[hole] = strokes;
+      return next;
+    });
+    if (strokes > 0) setPickups((prev) => ({ ...prev, [hole]: false }));
+  };
+
+  const setPickup = (hole: number, picked: boolean) => {
+    setPickups((prev) => ({ ...prev, [hole]: picked }));
+    if (picked) setScores((prev) => {
+      const next = { ...prev };
+      delete next[hole];
       return next;
     });
   };
@@ -121,6 +144,7 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   const resetRound = () => {
     setShots([]);
     setScores({});
+    setPickups({});
     setCurrentHole(1);
   };
 
@@ -151,17 +175,25 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     let inn = 0;
     let parPlayed = 0;
     let holesPlayed = 0;
+    let net = 0;
+    let points = 0;
     for (const h of holes) {
-      const s = scores[h.number];
-      if (!s) continue;
+      const received = strokesReceivedOnHole(courseHcp, h.si);
+      const scored = scores[h.number];
+      const isPickup = pickups[h.number];
+      if (!scored && !isPickup) continue;
       holesPlayed += 1;
       parPlayed += h.par;
-      if (h.number <= 9) out += s;
-      else inn += s;
+      // A pickup counts as net double bogey for stroke totals, 0 points.
+      const gross = isPickup ? h.par + received + 2 : (scored as number);
+      if (h.number <= 9) out += gross;
+      else inn += gross;
+      net += gross - received;
+      points += isPickup ? 0 : stablefordPoints(h.par, gross, received);
     }
     const total = out + inn;
-    return { out, in: inn, total, toPar: total - parPlayed, holesPlayed };
-  }, [scores, selectedCourse]);
+    return { out, in: inn, total, toPar: total - parPlayed, holesPlayed, net, points };
+  }, [scores, pickups, courseHcp, selectedCourse]);
 
   const categorySG = () => {
     const bucket = (s: LoggedShot): string => {
@@ -189,10 +221,15 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     bag,
     shots,
     scores,
+    pickups,
+    playerHandicap,
+    courseHcp,
     setCourse,
     setCurrentHole,
     setBag,
     setHoleScore,
+    setPickup,
+    setPlayerHandicap,
     logShot,
     removeLastShot,
     resetRound,

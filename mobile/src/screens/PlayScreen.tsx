@@ -5,6 +5,7 @@ import { colors, spacing, type } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { useLocation } from "../hooks/useLocation";
 import HoleGps, { HoleMarks } from "../components/HoleGps";
+import ScoreCaptureCard from "../components/ScoreCaptureCard";
 import { Coord } from "../lib/geo";
 import {
   recommendClub,
@@ -36,6 +37,9 @@ export default function PlayScreen({ navigation }: any) {
     scores,
     setHoleScore,
     scoreTotals,
+    pickups,
+    setPickup,
+    courseHcp,
   } = useRound();
 
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
@@ -219,29 +223,20 @@ export default function PlayScreen({ navigation }: any) {
         </Card>
       )}
 
-      <Card>
-        <Text style={styles.sectionTitle}>Score — hole {currentHole}</Text>
-        <View style={styles.scoreEntry}>
-          <TouchableOpacity
-            style={styles.scoreBtn}
-            onPress={() => setHoleScore(currentHole, Math.max(1, (holeScore || parScore) - 1))}
-          >
-            <Text style={styles.scoreBtnText}>−</Text>
-          </TouchableOpacity>
-          <View style={styles.scoreMid}>
-            <Text style={styles.scoreBig}>{holeScore || "–"}</Text>
-            <Text style={styles.scoreVsPar}>
-              {holeScore ? scoreLabel(holeScore - parScore) : `par ${parScore}`}
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.scoreBtn}
-            onPress={() => setHoleScore(currentHole, (holeScore || parScore) + 1)}
-          >
-            <Text style={styles.scoreBtnText}>+</Text>
-          </TouchableOpacity>
-        </View>
-      </Card>
+      <Text style={styles.sectionTitle}>Score — hole {currentHole}</Text>
+      <ScoreCaptureCard
+        hole={hole}
+        courseHcp={courseHcp}
+        gross={scores[currentHole]}
+        pickup={!!pickups[currentHole]}
+        onChange={(g) => setHoleScore(currentHole, g)}
+        onPickup={(p) => setPickup(currentHole, p)}
+        onClear={() => {
+          setHoleScore(currentHole, 0);
+          setPickup(currentHole, false);
+        }}
+        onTapMap={() => navigation.navigate("CoursePreview", { hole: currentHole })}
+      />
 
       <Card>
         <View style={styles.cardTitleRow}>
@@ -260,7 +255,10 @@ export default function PlayScreen({ navigation }: any) {
           onTapHole={setCurrentHole}
         />
         <Text style={styles.scoreTotalsRow}>
-          Out {scoreTotals.out || 0} • In {scoreTotals.in || 0} • Total {scoreTotals.total || 0}
+          Out {scoreTotals.out || 0} • In {scoreTotals.in || 0} • Gross {scoreTotals.total || 0}
+        </Text>
+        <Text style={styles.scoreTotalsRow}>
+          Net {scoreTotals.net || 0} • Stableford {scoreTotals.points || 0} pts • CH {courseHcp}
         </Text>
       </Card>
     </Screen>
