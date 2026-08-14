@@ -31,6 +31,15 @@ export type LoggedShot = {
   strokesGained: number;
 };
 
+export type HoleStats = {
+  club?: string; // club off the tee
+  fairway?: "hit" | "left" | "right" | "miss"; // tee-shot accuracy
+  gir?: boolean; // green in regulation
+  putts?: number;
+  upDown?: boolean; // got up & down after missing the green
+  penalties?: number;
+};
+
 export type ScoreTotals = {
   out: number; // front nine strokes
   in: number; // back nine strokes
@@ -51,6 +60,7 @@ type RoundState = {
   shots: LoggedShot[];
   scores: Record<number, number>;
   pickups: Record<number, boolean>;
+  holeStats: Record<number, HoleStats>;
   playerHandicap: number;
   courseHcp: number;
   setCourse: (id: string) => void;
@@ -59,6 +69,7 @@ type RoundState = {
   setHoleScore: (hole: number, strokes: number) => void;
   setPickup: (hole: number, picked: boolean) => void;
   setPlayerHandicap: (h: number) => void;
+  setHoleStat: (hole: number, patch: Partial<HoleStats>) => void;
   logShot: (s: Omit<LoggedShot, "id" | "strokesGained">) => void;
   removeLastShot: () => void;
   resetRound: () => void;
@@ -92,6 +103,7 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   const [shots, setShots] = useState<LoggedShot[]>([]);
   const [scores, setScores] = useState<Record<number, number>>({});
   const [pickups, setPickups] = useState<Record<number, boolean>>({});
+  const [holeStats, setHoleStats] = useState<Record<number, HoleStats>>({});
   const [playerHandicap, setPlayerHandicap] = useState(18);
   const courseHcp = courseHandicap(playerHandicap);
   // Career-long shot log the caddie learns from — survives round resets.
@@ -113,6 +125,10 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
     if (strokes > 0) setPickups((prev) => ({ ...prev, [hole]: false }));
+  };
+
+  const setHoleStat = (hole: number, patch: Partial<HoleStats>) => {
+    setHoleStats((prev) => ({ ...prev, [hole]: { ...prev[hole], ...patch } }));
   };
 
   const setPickup = (hole: number, picked: boolean) => {
@@ -145,6 +161,7 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     setShots([]);
     setScores({});
     setPickups({});
+    setHoleStats({});
     setCurrentHole(1);
   };
 
@@ -222,6 +239,7 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     shots,
     scores,
     pickups,
+    holeStats,
     playerHandicap,
     courseHcp,
     setCourse,
@@ -230,6 +248,7 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     setHoleScore,
     setPickup,
     setPlayerHandicap,
+    setHoleStat,
     logShot,
     removeLastShot,
     resetRound,

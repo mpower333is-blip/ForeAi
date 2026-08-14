@@ -6,9 +6,37 @@ import { useRound } from "../state/RoundContext";
 import { signed } from "../lib/golfEngine";
 
 export default function StatsScreen() {
-  const { shots, totalStrokesGained, categorySG, resetRound } = useRound();
+  const { shots, totalStrokesGained, categorySG, resetRound, holeStats } = useRound();
   const cats = categorySG();
   const maxAbs = Math.max(0.5, ...cats.map((c) => Math.abs(c.value)));
+
+  const rs = React.useMemo(() => {
+    const s = Object.values(holeStats);
+    const fwAtt = s.filter((h) => h.fairway).length;
+    const fwHit = s.filter((h) => h.fairway === "hit").length;
+    const girSet = s.filter((h) => typeof h.gir === "boolean");
+    const girHit = girSet.filter((h) => h.gir).length;
+    const puttHoles = s.filter((h) => typeof h.putts === "number");
+    const totalPutts = puttHoles.reduce((a, h) => a + (h.putts || 0), 0);
+    const udChances = s.filter((h) => h.gir === false && typeof h.upDown === "boolean");
+    const udMade = udChances.filter((h) => h.upDown).length;
+    const penalties = s.reduce((a, h) => a + (h.penalties || 0), 0);
+    return {
+      count: s.length,
+      fwAtt,
+      fwHit,
+      fwPct: fwAtt ? Math.round((fwHit / fwAtt) * 100) : null,
+      girHoles: girSet.length,
+      girHit,
+      girPct: girSet.length ? Math.round((girHit / girSet.length) * 100) : null,
+      puttHoles: puttHoles.length,
+      totalPutts,
+      avgPutts: puttHoles.length ? (totalPutts / puttHoles.length).toFixed(1) : null,
+      udMade,
+      udChances: udChances.length,
+      penalties,
+    };
+  }, [holeStats]);
 
   const best = shots.length
     ? [...shots].sort((a, b) => b.strokesGained - a.strokesGained)[0]
@@ -21,14 +49,43 @@ export default function StatsScreen() {
     <Screen>
       <ScreenHeader title="Strokes Gained" subtitle="How your round breaks down by part of the game." />
 
-      {shots.length === 0 ? (
+      {rs.count > 0 && (
+        <Card>
+          <Text style={styles.roundStatsTitle}>Round stats</Text>
+          <View style={styles.grid}>
+            <StatTile
+              label="Fairways"
+              value={rs.fwPct != null ? `${rs.fwPct}%` : "—"}
+              hint={`${rs.fwHit}/${rs.fwAtt}`}
+              tone="neutral"
+            />
+            <StatTile
+              label="GIR"
+              value={rs.girPct != null ? `${rs.girPct}%` : "—"}
+              hint={`${rs.girHit}/${rs.girHoles}`}
+              tone="neutral"
+            />
+            <StatTile label="Putts/hole" value={rs.avgPutts ?? "—"} hint={`${rs.totalPutts} total`} tone="neutral" />
+          </View>
+          <View style={styles.grid}>
+            <StatTile
+              label="Up & down"
+              value={rs.udChances ? `${rs.udMade}/${rs.udChances}` : "—"}
+              tone="neutral"
+            />
+            <StatTile label="Penalties" value={`${rs.penalties}`} tone={rs.penalties ? "negative" : "neutral"} />
+          </View>
+        </Card>
+      )}
+
+      {shots.length === 0 && rs.count === 0 ? (
         <Card>
           <Text style={styles.empty}>
             No shots logged yet. Head to the Round tab and log a few shots — your strokes-gained
             dashboard builds itself as you play.
           </Text>
         </Card>
-      ) : (
+      ) : shots.length > 0 ? (
         <>
           <View style={styles.grid}>
             <StatTile
@@ -75,7 +132,7 @@ export default function StatsScreen() {
 
           <Button variant="ghost" label="Reset round" onPress={resetRound} />
         </>
-      )}
+      ) : null}
     </Screen>
   );
 }
@@ -84,6 +141,7 @@ const styles = StyleSheet.create({
   empty: { color: colors.textMuted, fontSize: 16, lineHeight: 24 },
   grid: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
   sectionTitle: { fontSize: 20, fontWeight: "700", color: colors.text, marginBottom: spacing.md },
+  roundStatsTitle: { fontSize: 18, fontWeight: "700", color: colors.text, marginBottom: spacing.sm },
   hlLine: {
     flexDirection: "row",
     justifyContent: "space-between",

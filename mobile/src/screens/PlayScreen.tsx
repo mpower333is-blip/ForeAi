@@ -6,6 +6,7 @@ import { useRound } from "../state/RoundContext";
 import { useLocation } from "../hooks/useLocation";
 import HoleGps, { HoleMarks } from "../components/HoleGps";
 import ScoreCaptureCard from "../components/ScoreCaptureCard";
+import StatsEntry from "../components/StatsEntry";
 import { Coord } from "../lib/geo";
 import {
   recommendClub,
@@ -40,6 +41,9 @@ export default function PlayScreen({ navigation }: any) {
     pickups,
     setPickup,
     courseHcp,
+    holeStats,
+    setHoleStat,
+    bag,
   } = useRound();
 
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
@@ -236,6 +240,13 @@ export default function PlayScreen({ navigation }: any) {
           setPickup(currentHole, false);
         }}
         onTapMap={() => navigation.navigate("CoursePreview", { hole: currentHole })}
+      />
+
+      <StatsEntry
+        par={hole.par}
+        bag={bag}
+        stats={holeStats[currentHole] ?? {}}
+        onChange={(patch) => setHoleStat(currentHole, patch)}
       />
 
       <Card>
