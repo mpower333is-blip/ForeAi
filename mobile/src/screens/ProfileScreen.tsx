@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { Screen, ScreenHeader, Card, Stepper } from "../components/ui";
+import { Screen, ScreenHeader, Card, Stepper, TextField } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { useRound } from "../state/RoundContext";
+import { useProfile } from "../state/ProfileContext";
 import { API_BASE } from "../services/api";
 
 export default function ProfileScreen() {
@@ -18,6 +19,7 @@ export default function ProfileScreen() {
     setPlayerHandicap,
     courseHcp,
   } = useRound();
+  const { name, setName, homeClub, setHomeClub } = useProfile();
   const [editing, setEditing] = useState<number | null>(null);
 
   const updateCarry = (index: number, carry: number) => {
@@ -32,15 +34,21 @@ export default function ProfileScreen() {
       <Card accent>
         <View style={styles.profRow}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>⛳</Text>
+            <Text style={styles.avatarText}>
+              {(name || "⛳").trim().charAt(0).toUpperCase() || "⛳"}
+            </Text>
           </View>
-          <View>
-            <Text style={styles.name}>ForeAi Golfer</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.name}>{name || "ForeAi Golfer"}</Text>
             <Text style={styles.meta}>
               {shots.length} shots this round · SG {totalStrokesGained >= 0 ? "+" : ""}
               {totalStrokesGained}
             </Text>
           </View>
+        </View>
+        <View style={{ marginTop: spacing.md }}>
+          <TextField label="Name" value={name} onChangeText={setName} placeholder="Your name" />
+          <TextField label="Home club (optional)" value={homeClub} onChangeText={setHomeClub} placeholder="e.g. Kempton Park GC" />
         </View>
       </Card>
 

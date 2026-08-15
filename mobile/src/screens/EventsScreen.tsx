@@ -12,6 +12,7 @@ import {
   CourseSummary,
 } from "../services/golfCourseApi";
 import { useTournament } from "../state/TournamentContext";
+import { useProfile } from "../state/ProfileContext";
 import {
   TEvent,
   EventFormat,
@@ -462,10 +463,11 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
 
 function PlayersTab({ event }: { event: TEvent }) {
   const { addPlayer, removePlayer, registerSelf, myPlayerId } = useTournament();
+  const { name: profileName, handicap: profileHcp } = useProfile();
   const [name, setName] = useState("");
   const [hcp, setHcp] = useState(18);
-  const [meName, setMeName] = useState("");
-  const [meHcp, setMeHcp] = useState(18);
+  const [meName, setMeName] = useState(profileName);
+  const [meHcp, setMeHcp] = useState(profileHcp);
   const [busy, setBusy] = useState(false);
 
   const meId = myPlayerId(event.id);

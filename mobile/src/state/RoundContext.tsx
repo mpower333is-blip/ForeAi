@@ -14,6 +14,7 @@ import {
   stablefordPoints,
 } from "../lib/golfEngine";
 import { COURSES, Course, Hole, getCourse } from "../data/courses";
+import { useProfile } from "./ProfileContext";
 
 export type { Hole } from "../data/courses";
 
@@ -104,7 +105,8 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   const [scores, setScores] = useState<Record<number, number>>({});
   const [pickups, setPickups] = useState<Record<number, boolean>>({});
   const [holeStats, setHoleStats] = useState<Record<number, HoleStats>>({});
-  const [playerHandicap, setPlayerHandicap] = useState(18);
+  // Handicap is owned by the persisted profile so it's one value everywhere.
+  const { handicap: playerHandicap, setHandicap: setPlayerHandicap } = useProfile();
   const courseHcp = courseHandicap(playerHandicap);
   // Career-long shot log the caddie learns from — survives round resets.
   const [learningShots, setLearningShots] = useState<LoggedShot[]>([]);

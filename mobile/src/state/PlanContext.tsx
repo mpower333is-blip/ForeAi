@@ -1,5 +1,8 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { FeatureKey, FREE_FEATURE_KEYS } from "../config/appConfig";
+import { loadJSON, saveJSON } from "../lib/storage";
+
+const KEY = "foreai.plan.v1";
 
 // The app ships as a free demo: Swing Coach + AI Caddie are demo-only and the
 // Golf Day / Events area is fully usable, so players can try it on the day.
@@ -25,6 +28,18 @@ const Ctx = createContext<PlanState | null>(null);
 
 export function PlanProvider({ children }: { children: React.ReactNode }) {
   const [plan, setPlan] = useState<Plan>("demo");
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    loadJSON<{ plan: Plan }>(KEY).then((saved) => {
+      if (saved?.plan === "pro") setPlan("pro");
+      setReady(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (ready) saveJSON(KEY, { plan });
+  }, [plan, ready]);
 
   const value = useMemo<PlanState>(
     () => ({

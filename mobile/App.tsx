@@ -1,6 +1,6 @@
 import "react-native-gesture-handler";
 import React from "react";
-import { Text, StatusBar } from "react-native";
+import { Text, View, StatusBar, ActivityIndicator, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
@@ -11,9 +11,12 @@ import { RoundProvider } from "./src/state/RoundContext";
 import { TournamentProvider } from "./src/state/TournamentContext";
 import { GamesProvider } from "./src/state/GamesContext";
 import { PlanProvider, usePlan } from "./src/state/PlanContext";
+import { ProfileProvider, useProfile } from "./src/state/ProfileContext";
 import { UpgradeGate } from "./src/components/Upsell";
 import { FeatureKey } from "./src/config/appConfig";
 import { colors } from "./src/theme";
+
+import Onboarding from "./src/screens/Onboarding";
 
 import HomeScreen from "./src/screens/HomeScreen";
 import PlayScreen from "./src/screens/PlayScreen";
@@ -101,36 +104,60 @@ function Tabs() {
   );
 }
 
+// Decides between a loading splash, the first-run onboarding, and the main app.
+function Root() {
+  const { ready, onboarded } = useProfile();
+  if (!ready) {
+    return (
+      <View style={styles.splash}>
+        <Text style={styles.splashBrand}>ForeAi</Text>
+        <ActivityIndicator color={colors.accent} />
+      </View>
+    );
+  }
+  if (!onboarded) return <Onboarding />;
+  return (
+    <NavigationContainer theme={navTheme}>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.bg },
+        }}
+      >
+        <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
+        <Stack.Screen name="Strategy" component={locked(StrategyScreen, "strategy")} options={{ title: "Course Strategy" }} />
+        <Stack.Screen name="CourseSelect" component={CourseSelectScreen} options={{ title: "Choose Course" }} />
+        <Stack.Screen name="CoursePreview" component={CoursePreviewScreen} options={{ title: "Course Preview" }} />
+        <Stack.Screen name="Games" component={locked(GamesScreen, "games")} options={{ title: "Range Games" }} />
+        <Stack.Screen name="Upgrade" component={UpgradeScreen} options={{ title: "ForeAi Pro" }} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" />
         <PlanProvider>
+        <ProfileProvider>
         <RoundProvider>
           <TournamentProvider>
             <GamesProvider>
-            <NavigationContainer theme={navTheme}>
-              <Stack.Navigator
-                screenOptions={{
-                  headerStyle: { backgroundColor: colors.surface },
-                  headerTintColor: colors.text,
-                  contentStyle: { backgroundColor: colors.bg },
-                }}
-              >
-                <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
-                <Stack.Screen name="Strategy" component={locked(StrategyScreen, "strategy")} options={{ title: "Course Strategy" }} />
-                <Stack.Screen name="CourseSelect" component={CourseSelectScreen} options={{ title: "Choose Course" }} />
-                <Stack.Screen name="CoursePreview" component={CoursePreviewScreen} options={{ title: "Course Preview" }} />
-                <Stack.Screen name="Games" component={locked(GamesScreen, "games")} options={{ title: "Range Games" }} />
-                <Stack.Screen name="Upgrade" component={UpgradeScreen} options={{ title: "ForeAi Pro" }} />
-              </Stack.Navigator>
-            </NavigationContainer>
+              <Root />
             </GamesProvider>
           </TournamentProvider>
         </RoundProvider>
+        </ProfileProvider>
         </PlanProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  splash: { flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center", gap: 16 },
+  splashBrand: { color: colors.accent, fontSize: 44, fontWeight: "800", letterSpacing: -1 },
+});

@@ -5,6 +5,7 @@ import { StoreButtons, shareApp } from "../components/Upsell";
 import { colors, spacing, type, radius } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { usePlan } from "../state/PlanContext";
+import { useProfile } from "../state/ProfileContext";
 import { PACKAGE_NAME } from "../config/appConfig";
 import { signed } from "../lib/golfEngine";
 
@@ -58,15 +59,21 @@ function FeatureCard({
 export default function HomeScreen({ navigation }: any) {
   const { shots, totalStrokesGained, categorySG, course, currentHole, courseName } = useRound();
   const { isPro } = usePlan();
+  const { name } = useProfile();
   const cats = categorySG();
   const best = [...cats].sort((a, b) => b.value - a.value)[0];
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
   const demo = !isPro;
   const toUpgrade = () => navigation.navigate("Upgrade");
+  const firstName = (name || "").trim().split(" ")[0];
 
   return (
     <Screen>
-      <Hero title="ForeAi" tagline="AI Golf Performance Platform" right={<FlagMark size={56} />} />
+      <Hero
+        title="ForeAi"
+        tagline={firstName ? `Welcome back, ${firstName} 👋` : "AI Golf Performance Platform"}
+        right={<FlagMark size={56} />}
+      />
 
       {demo && (
         <Card accent onPress={toUpgrade}>
