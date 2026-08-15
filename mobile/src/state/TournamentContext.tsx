@@ -118,7 +118,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       date: "2026-10-15",
       courseId: "kempton-park",
       format: "scramble",
-      firstTeeMin: 9 * 60, // 09:00 shotgun
+      firstTeeMin: 8 * 60, // 08:00 shotgun (07:30 for 08:00, per the registration forms)
       intervalMin: 10,
       shotgun: true,
       players,

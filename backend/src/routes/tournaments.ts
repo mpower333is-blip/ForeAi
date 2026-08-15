@@ -338,6 +338,26 @@ router.get("/:id/registrations", async (req, res) => {
   res.json(rows.map((r) => ({ ...r, payload: safeJson(r.payload) })));
 });
 
+// Office: update a submission's workflow status (new | paid | confirmed).
+router.patch("/:id/registrations/:regId", async (req, res) => {
+  const { status } = req.body ?? {};
+  const allowed = ["new", "paid", "confirmed"];
+  if (!allowed.includes(status)) {
+    return res.status(400).json({ error: "status must be new, paid or confirmed" });
+  }
+  const row = await prisma.tournamentRegistration.update({
+    where: { id: req.params.regId },
+    data: { status },
+  });
+  res.json({ ...row, payload: safeJson(row.payload) });
+});
+
+// Office: remove a submission (does not remove already-imported players/sponsors).
+router.delete("/:id/registrations/:regId", async (req, res) => {
+  await prisma.tournamentRegistration.delete({ where: { id: req.params.regId } });
+  res.json({ ok: true });
+});
+
 function regColumns(b: any) {
   return {
     company: String(b.company),

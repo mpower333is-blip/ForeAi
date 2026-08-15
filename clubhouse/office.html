@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ECS Golf Day — Office Admin</title>
+<!--
+  Office admin console for the ECS Golf Day. Reads submissions from the ForeAi
+  backend (the same event the public register.html form writes to) and manages
+  the paperwork: payment status, confirmations, totals and CSV export.
+
+  Connect with the event join code + backend URL (saved locally after first use,
+  or pass ?api=...&code=... in the URL). This is the office end; register.html
+  is the player/sponsor end — both talk to the same event.
+-->
+<style>
+  :root{ --bg:#06170F; --panel:#10261C; --panel2:#16362A; --border:#204636;
+    --lime:#8DFF6B; --text:#F4FBF6; --muted:#C2D2C6; --faint:#87A092; --gold:#FFD36A; --red:#FF6B6B; --sky:#6BD5FF; }
+  *{box-sizing:border-box}
+  body{margin:0;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    background:linear-gradient(160deg,#0C3222,#06170F 60%);min-height:100vh;padding:18px}
+  .wrap{max-width:1080px;margin:0 auto}
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+  .logo svg{height:44px;width:auto}
+  h1{font-size:20px;margin:0}
+  .evt{color:var(--muted);font-size:13px}
+  .spacer{flex:1}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  input,select{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:9px 11px;font-size:14px;font-family:inherit}
+  .btn{border:none;cursor:pointer;background:linear-gradient(135deg,#B6FF8E,#8DFF6B,#46C85A);color:#052012;font-weight:800;padding:10px 14px;border-radius:10px;font-size:14px}
+  .btn.ghost{background:transparent;border:1.5px solid var(--border);color:var(--lime)}
+  .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+  .tile{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
+  .tile .k{color:var(--faint);font-size:12px;text-transform:uppercase;letter-spacing:1px}
+  .tile .v{font-size:26px;font-weight:800;margin-top:4px}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
+  .tab{padding:9px 14px;border-radius:999px;background:var(--panel);border:1px solid var(--border);color:var(--muted);font-weight:700;cursor:pointer;font-size:13px}
+  .tab.on{background:var(--lime);border-color:var(--lime);color:#052012}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+  .rowtop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .company{font-size:18px;font-weight:800}
+  .badge{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;margin-left:8px}
+  .b-team{background:rgba(141,255,107,0.14);color:var(--lime)}
+  .b-hole{background:rgba(107,213,255,0.14);color:var(--sky)}
+  .b-prize{background:rgba(255,211,106,0.14);color:var(--gold)}
+  .meta{color:var(--muted);font-size:13px;line-height:1.7;margin-top:6px}
+  .meta b{color:var(--text)}
+  .players{margin-top:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px}
+  .pl{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px}
+  .amt{text-align:right}
+  .amt .big{font-size:20px;font-weight:800;color:var(--gold)}
+  .amt .ref{color:var(--faint);font-size:12px}
+  .status{display:flex;gap:6px;margin-top:10px;align-items:center;flex-wrap:wrap}
+  .status .lbl{color:var(--faint);font-size:12px;margin-right:2px}
+  .sbtn{padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--muted);cursor:pointer;font-weight:700;font-size:12px}
+  .sbtn.on-new{background:#3a3a1a;color:var(--gold);border-color:var(--gold)}
+  .sbtn.on-paid{background:#14361f;color:var(--lime);border-color:var(--lime)}
+  .sbtn.on-confirmed{background:#123a2a;color:var(--lime);border-color:var(--accentDeep,#2FA24B)}
+  .del{margin-left:auto;color:var(--red);background:transparent;border:none;cursor:pointer;font-size:12px}
+  .empty{color:var(--faint);text-align:center;padding:40px}
+  .connect{max-width:460px;margin:60px auto;text-align:center}
+  .connect .card{padding:22px}
+  .connect input{width:100%;margin:6px 0}
+  .hint{color:var(--faint);font-size:12px;margin-top:8px;line-height:1.6}
+  @media print{ .bar,.tabs,.status,.del,.btn{display:none!important} body{background:#fff;color:#000} .card,.tile{border-color:#ccc} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="logo">
+      <svg viewBox="0 0 920 360" xmlns="http://www.w3.org/2000/svg" aria-label="ECS">
+        <defs><radialGradient id="g" cx="0.42" cy="0.34" r="0.85"><stop offset="0" stop-color="#2E6FB5"/><stop offset="0.7" stop-color="#1E4A86"/><stop offset="1" stop-color="#14315E"/></radialGradient></defs>
+        <path d="M74,300 C6,150 120,44 250,58 C360,70 430,120 470,132" fill="none" stroke="#E11021" stroke-width="23" stroke-linecap="round"/>
+        <path d="M452,92 L512,132 L448,170 Z" fill="#E11021"/>
+        <circle cx="160" cy="176" r="104" fill="url(#g)"/>
+        <g stroke="#5AA0DA" stroke-width="3.5" fill="none" opacity="0.8"><ellipse cx="160" cy="176" rx="44" ry="104"/><ellipse cx="160" cy="176" rx="86" ry="104"/><line x1="56" y1="176" x2="264" y2="176"/></g>
+        <g transform="skewX(-11)"><text x="330" y="236" font-family="Arial" font-size="196" font-weight="900" letter-spacing="-2" fill="#14315E">ECS</text><text x="334" y="300" font-family="Arial" font-size="42" font-weight="800" textLength="360" lengthAdjust="spacingAndGlyphs" fill="#E11021">ENGINE CONTROL SYSTEMS</text></g>
+      </svg>
+    </span>
+    <div>
+      <h1>Golf Day — Office Admin</h1>
+      <div class="evt" id="evtName">Not connected</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="bar" id="topbar" style="display:none">
+      <button class="btn ghost sm" onclick="refresh()">↻ Refresh</button>
+      <button class="btn ghost sm" onclick="exportCsv()">⬇ CSV</button>
+      <button class="btn ghost sm" onclick="window.print()">🖨 Print</button>
+      <button class="btn ghost sm" onclick="disconnect()">Disconnect</button>
+    </div>
+  </header>
+
+  <!-- connect gate -->
+  <div class="connect" id="connect">
+    <div class="card">
+      <h1 style="margin-bottom:4px">Connect to your event</h1>
+      <div class="hint" style="margin-bottom:12px">Enter the event join code and your ForeAi backend address.</div>
+      <input id="inCode" placeholder="Join code (e.g. EC5GLF)" maxlength="10" />
+      <input id="inApi" placeholder="Backend URL (https://your-backend)" />
+      <button class="btn" style="width:100%;margin-top:10px" onclick="connect()">Connect</button>
+      <div class="msg" id="connectMsg" style="color:var(--red);margin-top:10px"></div>
+      <div class="hint">The office end reads submissions from register.html. Details are saved on this computer for next time.</div>
+    </div>
+  </div>
+
+  <!-- dashboard -->
+  <div id="dash" style="display:none">
+    <div class="tiles" id="tiles"></div>
+    <div class="tabs" id="tabs">
+      <div class="tab on" data-f="all">All</div>
+      <div class="tab" data-f="team">Teams</div>
+      <div class="tab" data-f="hole">Hole sponsors</div>
+      <div class="tab" data-f="prize">Prize sponsors</div>
+      <div class="tab" data-f="unpaid">Outstanding</div>
+    </div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script>
+  // Safe storage (localStorage can throw in sandboxed/private contexts).
+  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+  function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
+
+  var q=new URLSearchParams(location.search);
+  var CFG={ api:(q.get('api')||lsGet('ecs_api')||'').replace(/\/$/,''),
+            code:(q.get('code')||lsGet('ecs_code')||'').toUpperCase() };
+  var EVENT=null, REGS=[], FILTER='all';
+  var TEAM_FEE=4000, HOLE_FEE=2000;
+
+  function money(n){ return 'R ' + (n||0).toLocaleString('en-ZA'); }
+  function parseAmount(s){ if(s==null) return 0; var m=String(s).replace(/[^0-9.]/g,''); return parseFloat(m)||0; }
+  function teamCount(r){ var p=r.payload||{}; return p.teamCount || (Array.isArray(p.teams)?p.teams.length:1) || 1; }
+  function amountFor(r){
+    if(r.type==='team') return teamCount(r)*TEAM_FEE;
+    if(r.type==='hole') return HOLE_FEE;
+    if(r.type==='prize') return (r.payload&&r.payload.prizeType==='cash')?parseAmount(r.payload.cashAmount):0;
+    return 0;
+  }
+
+  async function connect(){
+    CFG.code=(document.getElementById('inCode').value||'').toUpperCase();
+    CFG.api=(document.getElementById('inApi').value||'').replace(/\/$/,'');
+    if(!CFG.code||!CFG.api){ document.getElementById('connectMsg').textContent='Enter both the code and backend URL.'; return; }
+    await load(true);
+  }
+  function disconnect(){ lsDel('ecs_api'); lsDel('ecs_code'); location.href=location.pathname; }
+
+  async function load(fromConnect){
+    try{
+      var er=await fetch(CFG.api+'/tournaments/code/'+CFG.code);
+      if(!er.ok){ throw new Error('Event not found for code '+CFG.code); }
+      EVENT=await er.json();
+      var rr=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations');
+      REGS = rr.ok ? await rr.json() : [];
+      lsSet('ecs_api',CFG.api); lsSet('ecs_code',CFG.code);
+      document.getElementById('connect').style.display='none';
+      document.getElementById('dash').style.display='block';
+      document.getElementById('topbar').style.display='flex';
+      document.getElementById('evtName').textContent = EVENT.name+' · code '+CFG.code;
+      render();
+    }catch(e){
+      var m=document.getElementById('connectMsg'); if(m) m.textContent=e.message||'Could not connect.';
+      if(!fromConnect){ document.getElementById('connect').style.display='block'; document.getElementById('dash').style.display='none'; }
+    }
+  }
+  function refresh(){ load(false); }
+
+  function render(){
+    // tiles
+    var teams=REGS.filter(r=>r.type==='team'), holes=REGS.filter(r=>r.type==='hole'), prizes=REGS.filter(r=>r.type==='prize');
+    var players=teams.reduce((s,r)=>s+teamCount(r)*4,0);
+    var expected=REGS.reduce((s,r)=>s+amountFor(r),0);
+    var received=REGS.filter(r=>r.status==='paid'||r.status==='confirmed').reduce((s,r)=>s+amountFor(r),0);
+    var tiles=[
+      ['Team entries', teams.length, ''],
+      ['Players', players, ''],
+      ['Hole sponsors', holes.length, ''],
+      ['Prize sponsors', prizes.length, ''],
+      ['Expected', money(expected), 'gold'],
+      ['Received', money(received), 'lime'],
+      ['Outstanding', money(expected-received), 'red'],
+    ];
+    document.getElementById('tiles').innerHTML = tiles.map(function(t){
+      var c = t[2]==='gold'?'var(--gold)':t[2]==='lime'?'var(--lime)':t[2]==='red'?'var(--red)':'var(--text)';
+      return '<div class="tile"><div class="k">'+t[0]+'</div><div class="v" style="color:'+c+'">'+t[1]+'</div></div>';
+    }).join('');
+
+    // list
+    var rows = REGS.filter(function(r){
+      if(FILTER==='all') return true;
+      if(FILTER==='unpaid') return r.status==='new';
+      return r.type===FILTER;
+    });
+    var host=document.getElementById('list');
+    if(!rows.length){ host.innerHTML='<div class="empty">No submissions'+(FILTER!=='all'?' in this view':' yet')+'.</div>'; return; }
+    host.innerHTML = rows.map(cardHTML).join('');
+  }
+
+  function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+
+  function cardHTML(r){
+    var p=r.payload||{};
+    var typeLabel=r.type==='team'?'TEAM':r.type==='hole'?'HOLE SPONSOR':'PRIZE SPONSOR';
+    var detail='';
+    if(r.type==='team'){
+      var teams=Array.isArray(p.teams)?p.teams:[];
+      detail = '<div class="players">'+teams.map(function(t,ti){
+        return (t.players||[]).map(function(pl){ return '<div class="pl">T'+(ti+1)+': '+esc(pl.name)+(pl.handicap?(' ('+pl.handicap+')'):'')+'</div>'; }).join('');
+      }).join('')+'</div>';
+    } else if(r.type==='hole'){
+      detail = '<div class="meta">Hole preference: <b>'+(p.holePreference||'any')+'</b></div>';
+    } else if(r.type==='prize'){
+      detail = p.prizeType==='cash'
+        ? '<div class="meta">Cash prize: <b>'+esc(p.cashAmount||'')+'</b></div>'
+        : '<div class="meta">Item prize(s): <b>'+esc((p.prizes||[]).join(', ')||'—')+'</b></div>';
+    }
+    var contact='<div class="meta"><b>'+esc(r.contactPerson||'')+'</b> · '+esc(r.cell||'')+' · '+esc(r.email||'')
+      +'<br>'+[r.regNumber?('Reg '+esc(r.regNumber)):'', r.vatNumber?('VAT '+esc(r.vatNumber)):'', esc([r.address,r.city,r.postalCode].filter(Boolean).join(', '))].filter(Boolean).join(' · ')+'</div>';
+    var amt=amountFor(r);
+    var st=r.status||'new';
+    function sb(v,label){ return '<button class="sbtn '+(st===v?'on-'+v:'')+'" onclick="setStatus(\''+r.id+'\',\''+v+'\')">'+label+'</button>'; }
+    return '<div class="card">'
+      +'<div class="rowtop"><div><span class="company">'+esc(r.company)+'</span>'
+        +'<span class="badge b-'+r.type+'">'+typeLabel+'</span></div>'
+        +'<div class="amt"><div class="big">'+ (amt?money(amt):'in-kind') +'</div><div class="ref">Ref: ECS Golf Day - '+esc(r.company)+'</div></div></div>'
+      + contact + detail
+      +'<div class="status"><span class="lbl">Status</span>'+sb('new','New')+sb('paid','Paid')+sb('confirmed','Confirmed')
+        +'<button class="del" onclick="delReg(\''+r.id+'\')">Delete</button></div>'
+      +'</div>';
+  }
+
+  async function setStatus(id,status){
+    try{
+      var r=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:status})});
+      if(r.ok){ var row=REGS.find(x=>x.id===id); if(row) row.status=status; render(); }
+    }catch(e){}
+  }
+  async function delReg(id){
+    if(!confirm('Delete this submission? (Players/sponsors already imported are not removed.)')) return;
+    try{
+      var r=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations/'+id,{method:'DELETE'});
+      if(r.ok){ REGS=REGS.filter(x=>x.id!==id); render(); }
+    }catch(e){}
+  }
+
+  function exportCsv(){
+    var cols=['type','company','contactPerson','cell','email','regNumber','vatNumber','address','city','postalCode','details','amount','reference','status','submitted'];
+    var lines=[cols.join(',')];
+    REGS.forEach(function(r){
+      var p=r.payload||{};
+      var details = r.type==='team' ? (teamCount(r)+' team(s): '+ (Array.isArray(p.teams)?p.teams.map(function(t){return (t.players||[]).map(function(x){return x.name;}).join('/');}).join(' | '):''))
+        : r.type==='hole' ? ('hole pref '+(p.holePreference||'any'))
+        : (p.prizeType==='cash'?('cash '+(p.cashAmount||'')):('items '+((p.prizes||[]).join('/'))));
+      var vals=[r.type,r.company,r.contactPerson,r.cell,r.email,r.regNumber,r.vatNumber,r.address,r.city,r.postalCode,details,amountFor(r),'ECS Golf Day - '+r.company,r.status,r.createdAt];
+      lines.push(vals.map(function(v){ v=(v==null?'':String(v)); return '"'+v.replace(/"/g,'""')+'"'; }).join(','));
+    });
+    var blob=new Blob([lines.join('\n')],{type:'text/csv'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ECS-GolfDay-registrations.csv'; a.click();
+  }
+
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click',function(){ document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')}); t.classList.add('on'); FILTER=t.dataset.f; render(); });
+  });
+
+  // auto-connect if we already have details
+  if(CFG.api && CFG.code){ document.getElementById('inCode').value=CFG.code; document.getElementById('inApi').value=CFG.api; load(false); }
+</script>
+</body>
+</html>
