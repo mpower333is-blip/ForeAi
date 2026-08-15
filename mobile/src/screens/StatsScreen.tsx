@@ -1,11 +1,11 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Screen, ScreenHeader, Card, StatTile, SGBar, Button } from "../components/ui";
+import { Screen, ScreenHeader, Card, StatTile, SGBar, Button, EmptyState } from "../components/ui";
 import { colors, spacing } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { signed } from "../lib/golfEngine";
 
-export default function StatsScreen() {
+export default function StatsScreen({ navigation }: any) {
   const { shots, totalStrokesGained, categorySG, resetRound, holeStats } = useRound();
   const cats = categorySG();
   const maxAbs = Math.max(0.5, ...cats.map((c) => Math.abs(c.value)));
@@ -79,12 +79,13 @@ export default function StatsScreen() {
       )}
 
       {shots.length === 0 && rs.count === 0 ? (
-        <Card>
-          <Text style={styles.empty}>
-            No shots logged yet. Head to the Round tab and log a few shots — your strokes-gained
-            dashboard builds itself as you play.
-          </Text>
-        </Card>
+        <EmptyState
+          emoji="📊"
+          title="No stats yet"
+          body="Log a few shots in a round and your strokes-gained dashboard builds itself as you play."
+          actionLabel="Go to Round"
+          onAction={() => navigation.navigate("Play")}
+        />
       ) : shots.length > 0 ? (
         <>
           <View style={styles.grid}>

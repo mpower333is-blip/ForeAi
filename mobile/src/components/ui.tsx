@@ -9,6 +9,7 @@ import {
   ScrollView,
   TextInput,
   KeyboardTypeOptions,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, radius, spacing, type, shadow, gradients } from "../theme";
@@ -137,6 +138,44 @@ export function IconChip({ emoji, tone = "accent" }: { emoji: string; tone?: "ac
   return (
     <View style={[styles.iconChip, { backgroundColor: bg }]}>
       <Text style={styles.iconChipText}>{emoji}</Text>
+    </View>
+  );
+}
+
+// A friendly, consistent empty state — icon, title, one line, optional action.
+export function EmptyState({
+  emoji,
+  title,
+  body,
+  actionLabel,
+  onAction,
+}: {
+  emoji: string;
+  title: string;
+  body?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <View style={styles.emptyWrap}>
+      <View style={styles.emptyIcon}>
+        <Text style={styles.emptyEmoji}>{emoji}</Text>
+      </View>
+      <Text style={styles.emptyTitle}>{title}</Text>
+      {body ? <Text style={styles.emptyBody}>{body}</Text> : null}
+      {actionLabel && onAction ? (
+        <Button label={actionLabel} onPress={onAction} style={{ alignSelf: "stretch" }} />
+      ) : null}
+    </View>
+  );
+}
+
+// An inline loading row (spinner + label) for consistent loading moments.
+export function Loading({ label = "Loading…" }: { label?: string }) {
+  return (
+    <View style={styles.loadingRow}>
+      <ActivityIndicator color={colors.accent} />
+      <Text style={styles.loadingText}>{label}</Text>
     </View>
   );
 }
@@ -440,6 +479,35 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     ...shadow.soft,
   },
+  emptyWrap: {
+    alignItems: "center",
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.md,
+    gap: 8,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  emptyEmoji: { fontSize: 30 },
+  emptyTitle: { color: colors.text, fontSize: 18, fontWeight: "800", textAlign: "center" },
+  emptyBody: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    maxWidth: 320,
+  },
+  loadingRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: spacing.md },
+  loadingText: { color: colors.textMuted, fontSize: 14 },
+
   tileAccent: { position: "absolute", top: 0, left: 0, right: 0, height: 3, opacity: 0.9 },
   tileLabel: { color: colors.textMuted, fontSize: 13, marginTop: 4 },
   tileValue: { fontSize: 30, fontWeight: "800", marginTop: 6 },

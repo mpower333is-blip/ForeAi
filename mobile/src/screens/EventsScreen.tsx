@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Image } from "react-native";
-import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, TextField } from "../components/ui";
+import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, TextField, EmptyState } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { COURSES, getCourse, searchCourses, hasCourse } from "../data/courses";
 import {
@@ -315,12 +315,13 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
       )}
 
       {events.length === 0 && !creating && (
-        <Card>
-          <Text style={styles.empty}>
-            No events yet. Create one to register players, set tee times, and track everyone live as
-            they move around the course.
-          </Text>
-        </Card>
+        <EmptyState
+          emoji="🏆"
+          title="No golf days yet"
+          body="Create one to register players, set tee times, and follow everyone live as they move around the course."
+          actionLabel="+ New event"
+          onAction={() => setCreating(true)}
+        />
       )}
 
       {events.map((e) => {
