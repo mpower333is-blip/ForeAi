@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Card, Button } from "./ui";
 import { colors, spacing, radius } from "../theme";
-import { Coord, distanceYards } from "../lib/geo";
+import { Coord, distanceYards, greenDistances } from "../lib/geo";
 import { LocationState } from "../hooks/useLocation";
 
 export type HoleMarks = { tee?: Coord; pin?: Coord };
@@ -14,6 +14,8 @@ export default function HoleGps({
   holeNumber,
   holeYards,
   greenCoord,
+  greenFront,
+  greenBack,
   loc,
   marks,
   onMarkTee,
@@ -23,6 +25,8 @@ export default function HoleGps({
   holeNumber: number;
   holeYards: number;
   greenCoord?: Coord; // real green GPS from the course data, when available
+  greenFront?: Coord; // front-of-green GPS (for the B/M/F readout)
+  greenBack?: Coord; // back-of-green GPS
   loc: LocationState;
   marks: HoleMarks;
   onMarkTee: () => void;
@@ -47,6 +51,13 @@ export default function HoleGps({
     source = "estimate";
   }
 
+  // Score-Capture-style Front / Middle / Back readout when the course has full
+  // green GPS and we have a live fix.
+  const fmb =
+    coord && greenFront && greenBack
+      ? greenDistances(coord, { greenFront, green: greenCoord, greenBack })
+      : null;
+
   const teeToPin =
     marks.tee && pin ? distanceYards(marks.tee, pin) : holeYards;
 
@@ -67,28 +78,49 @@ export default function HoleGps({
         </Text>
       </View>
 
-      <View style={styles.distRow}>
-        <View style={styles.distCol}>
-          <Text style={styles.distLabel}>Tee → Pin</Text>
-          <Text style={styles.distValue}>{teeToPin}</Text>
-          <Text style={styles.distUnit}>yds{marks.pin && marks.tee ? " (gps)" : ""}</Text>
+      {fmb ? (
+        // Front / Middle / Back — the classic rangefinder readout.
+        <View style={styles.distRow}>
+          <View style={styles.distCol}>
+            <Text style={styles.distLabel}>Front</Text>
+            <Text style={styles.distValueSm}>{fmb.front ?? "–"}</Text>
+            <Text style={styles.distUnit}>yds</Text>
+          </View>
+          <View style={[styles.distCol, styles.distColMid]}>
+            <Text style={styles.distLabel}>Middle</Text>
+            <Text style={[styles.distValue, { color: colors.accent }]}>{fmb.middle ?? "–"}</Text>
+            <Text style={styles.distUnit}>yds · auto GPS</Text>
+          </View>
+          <View style={styles.distCol}>
+            <Text style={styles.distLabel}>Back</Text>
+            <Text style={styles.distValueSm}>{fmb.back ?? "–"}</Text>
+            <Text style={styles.distUnit}>yds</Text>
+          </View>
         </View>
-        <View style={styles.distCol}>
-          <Text style={styles.distLabel}>To Pin now</Text>
-          <Text style={[styles.distValue, { color: colors.accent }]}>
-            {toPin != null ? toPin : "–"}
-          </Text>
-          <Text style={styles.distUnit}>
-            {source === "auto"
-              ? "yds · auto GPS"
-              : source === "pin"
-              ? "yds (gps)"
-              : source === "estimate"
-              ? "yds (est)"
-              : "mark to start"}
-          </Text>
+      ) : (
+        <View style={styles.distRow}>
+          <View style={styles.distCol}>
+            <Text style={styles.distLabel}>Tee → Pin</Text>
+            <Text style={styles.distValue}>{teeToPin}</Text>
+            <Text style={styles.distUnit}>yds{marks.pin && marks.tee ? " (gps)" : ""}</Text>
+          </View>
+          <View style={styles.distCol}>
+            <Text style={styles.distLabel}>To Pin now</Text>
+            <Text style={[styles.distValue, { color: colors.accent }]}>
+              {toPin != null ? toPin : "–"}
+            </Text>
+            <Text style={styles.distUnit}>
+              {source === "auto"
+                ? "yds · auto GPS"
+                : source === "pin"
+                ? "yds (gps)"
+                : source === "estimate"
+                ? "yds (est)"
+                : "mark to start"}
+            </Text>
+          </View>
         </View>
-      </View>
+      )}
 
       {status === "denied" && (
         <Button label="Enable GPS" variant="ghost" onPress={loc.request} />
@@ -137,8 +169,10 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     alignItems: "center",
   },
+  distColMid: { borderWidth: 1, borderColor: colors.accent },
   distLabel: { color: colors.textMuted, fontSize: 13 },
   distValue: { color: colors.text, fontSize: 34, fontWeight: "800", marginTop: 2 },
+  distValueSm: { color: colors.text, fontSize: 26, fontWeight: "800", marginTop: 2 },
   distUnit: { color: colors.textFaint, fontSize: 12 },
 
   btnRow: { flexDirection: "row", gap: spacing.sm },

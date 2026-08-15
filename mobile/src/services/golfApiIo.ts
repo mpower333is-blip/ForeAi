@@ -75,8 +75,21 @@ export async function searchGolfApi(query: string): Promise<GolfApiSummary[]> {
   }));
 }
 
-// --- coordinates: per-hole GPS (defensive, pending verification) ------------
+// --- coordinates: per-hole GPS --------------------------------------------
+// golfapi.io /coordinates/{id} returns a flat list, one row per point of
+// interest:  { poi, location, sideFW, hole, latitude, longitude }.
+//   poi  1  = green   (with location 1=front, 2=centre, 3=back)
+//   poi 11  = front tee
+//   poi 12  = back tee
+// Other poi values (bunkers, water, markers, dogleg) aren't used for the
+// tee→green line, so they're ignored here.
 type HoleGps = { green?: Coord; greenFront?: Coord; greenBack?: Coord; tee?: Coord };
+
+const POI_GREEN = 1;
+const POI_TEE_FRONT = 11;
+const POI_TEE_BACK = 12;
+const LOC_FRONT = 1;
+const LOC_BACK = 3;
 
 export function parseCoordinates(data: any): Record<number, HoleGps> {
   const list: any[] = data?.coordinates ?? (Array.isArray(data) ? data : []);
@@ -88,12 +101,23 @@ export function parseCoordinates(data: any): Record<number, HoleGps> {
     const pt = coord(c.latitude ?? c.lat, c.longitude ?? c.lng ?? c.long);
     if (hole == null || !pt) continue;
     const h = (out[hole] ||= {});
-    if (poi === 1) {
-      if (loc === 1) h.greenFront = pt;
-      else if (loc === 3) h.greenBack = pt;
-      else h.green = pt;
-    } else if (poi === 11 || poi === 12) {
-      if (poi === 12 || !h.tee) h.tee = pt;
+    if (poi === POI_GREEN) {
+      if (loc === LOC_FRONT) h.greenFront = pt;
+      else if (loc === LOC_BACK) h.greenBack = pt;
+      else h.green = pt; // location 2 (centre), or unspecified
+    } else if (poi === POI_TEE_FRONT || poi === POI_TEE_BACK) {
+      // Prefer the back tee (matches the fuller yardage), else take what we get.
+      if (poi === POI_TEE_BACK || !h.tee) h.tee = pt;
+    }
+  }
+  // If a green centre is missing but front & back exist, derive the midpoint so
+  // the "Middle" distance and the tee→green line still work.
+  for (const h of Object.values(out)) {
+    if (!h.green && h.greenFront && h.greenBack) {
+      h.green = {
+        lat: (h.greenFront.lat + h.greenBack.lat) / 2,
+        lng: (h.greenFront.lng + h.greenBack.lng) / 2,
+      };
     }
   }
   return out;

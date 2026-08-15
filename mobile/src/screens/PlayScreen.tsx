@@ -146,6 +146,8 @@ export default function PlayScreen({ navigation }: any) {
         holeNumber={hole.number}
         holeYards={hole.yards}
         greenCoord={hole.green}
+        greenFront={hole.greenFront}
+        greenBack={hole.greenBack}
         loc={loc}
         marks={marks}
         onMarkTee={markTee}
