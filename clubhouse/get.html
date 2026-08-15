@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ForeAi — Get the app & join the golf day</title>
+<!--
+  Public landing page. Host this (e.g. as foreai.app) and point LANDING_URL in
+  mobile/src/config/appConfig.ts at it. Update the two store links below once the
+  app is live. The ECS logo is inlined as SVG; drop in the official artwork when
+  available. "JOIN CODE" is filled in by the event organizer.
+-->
+<style>
+  :root{
+    --bg:#06170F; --panel:#10261C; --panel2:#16362A; --border:#204636;
+    --lime:#8DFF6B; --text:#F4FBF6; --muted:#C2D2C6; --faint:#87A092; --gold:#FFD36A;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:
+      radial-gradient(120% 60% at 78% 0%, rgba(141,255,107,0.14), transparent 60%),
+      linear-gradient(160deg,#134E32,#0C3222 55%,#06170F);
+    color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    min-height:100vh;padding:24px 16px 60px;}
+  .wrap{max-width:520px;margin:0 auto}
+  .ecs{display:flex;justify-content:center;margin:4px 0 22px}
+  .ecs svg{width:230px;height:auto}
+  .hero{display:flex;align-items:center;gap:14px;justify-content:center;margin-bottom:6px}
+  .brand{font-size:52px;font-weight:800;letter-spacing:-2px;color:var(--lime);line-height:1}
+  .tag{text-align:center;color:var(--muted);font-weight:600;margin:2px 0 22px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:22px;padding:20px;margin-bottom:16px}
+  .card.accent{background:var(--panel2);border-color:#2FA24B}
+  .heart{color:var(--lime);font-weight:800;font-size:13px;letter-spacing:1px}
+  .cause{font-weight:600;line-height:1.5;margin-top:6px}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .fact{flex:1;min-width:120px;background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:12px}
+  .fact .k{color:var(--faint);font-size:12px;letter-spacing:1px;text-transform:uppercase}
+  .fact .v{font-size:18px;font-weight:800;margin-top:3px}
+  h2{font-size:18px;margin:0 0 12px}
+  .stores{display:flex;gap:12px;flex-wrap:wrap}
+  .store{flex:1;min-width:150px;display:flex;align-items:center;gap:10px;background:#000;border:1px solid var(--border);
+    border-radius:14px;padding:10px 14px;text-decoration:none;color:#fff}
+  .store .g{font-size:26px}
+  .store .s{font-size:10px;color:#cfd8d0;font-weight:600}
+  .store .b{font-size:16px;font-weight:800;margin-top:-2px}
+  .join{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .code{font-size:34px;font-weight:800;color:var(--lime);letter-spacing:3px}
+  .btn{display:block;text-align:center;background:linear-gradient(135deg,#B6FF8E,#8DFF6B,#46C85A);
+    color:#052012;font-weight:800;text-decoration:none;padding:15px;border-radius:16px;margin-top:14px}
+  .tiers{display:flex;gap:12px;flex-wrap:wrap}
+  .tier{flex:1;min-width:150px}
+  .tier ul{margin:8px 0 0;padding-left:18px;color:var(--muted);line-height:1.7;font-size:14px}
+  .pill{display:inline-block;font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px}
+  .pill.free{background:rgba(141,255,107,0.14);color:var(--lime)}
+  .pill.pro{background:rgba(255,211,106,0.14);color:var(--gold)}
+  .foot{color:var(--faint);font-size:12px;text-align:center;margin-top:22px;line-height:1.6}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- ECS logo, top middle -->
+    <div class="ecs">
+      <svg viewBox="0 0 880 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ECS Engine Control Systems">
+        <defs><radialGradient id="globe" cx="0.4" cy="0.33" r="0.8">
+          <stop offset="0" stop-color="#4E97D6"/><stop offset="0.6" stop-color="#1E63A8"/><stop offset="1" stop-color="#12315F"/>
+        </radialGradient></defs>
+        <path d="M56,232 C28,112 132,52 226,64 C300,73 340,100 366,110" fill="none" stroke="#D0121B" stroke-width="24" stroke-linecap="round"/>
+        <path d="M344,78 L394,116 L338,146 Z" fill="#D0121B"/>
+        <circle cx="150" cy="158" r="98" fill="url(#globe)"/>
+        <g stroke="#4E97D6" stroke-width="4" fill="none" opacity="0.85">
+          <ellipse cx="150" cy="158" rx="42" ry="98"/><ellipse cx="150" cy="158" rx="84" ry="98"/>
+          <line x1="52" y1="158" x2="248" y2="158"/>
+          <path d="M66,113 Q150,142 234,113"/><path d="M66,203 Q150,174 234,203"/>
+        </g>
+        <text x="276" y="218" font-family="Arial,sans-serif" font-size="182" font-weight="800" font-style="italic" letter-spacing="2" fill="#12315F">ECS</text>
+        <text x="282" y="286" font-family="Arial,sans-serif" font-size="35" font-weight="800" font-style="italic" letter-spacing="1.5" fill="#D0121B">ENGINE CONTROL SYSTEMS</text>
+      </svg>
+    </div>
+
+    <div class="hero">
+      <svg width="52" height="52" viewBox="0 0 400 400" aria-hidden="true">
+        <ellipse cx="200" cy="308" rx="152" ry="46" fill="#12492B"/><ellipse cx="200" cy="299" rx="152" ry="43" fill="#217746"/>
+        <ellipse cx="228" cy="296" rx="22" ry="8" fill="#04120B"/>
+        <rect x="225" y="94" width="6" height="206" rx="3" fill="#EAF2EC"/>
+        <path d="M231,100 Q322,93 362,121 Q316,134 231,151 Z" fill="#8DFF6B"/>
+        <circle cx="150" cy="268" r="35" fill="#F8FBF6"/>
+      </svg>
+      <div class="brand">ForeAi</div>
+    </div>
+    <div class="tag">AI Golf Performance Platform</div>
+
+    <div class="card accent">
+      <div class="heart">💚 ECS GOLF DAY FUNDRAISER</div>
+      <div class="cause">Proudly supporting <b>Lyla Roux</b> in her fight against ALK-positive Anaplastic
+        Large Cell Lymphoma. Every player helps — together we make a difference.</div>
+      <div class="row" style="margin-top:14px">
+        <div class="fact"><div class="k">Date</div><div class="v">15 Oct 2026</div></div>
+        <div class="fact"><div class="k">Venue</div><div class="v">Kempton Park GC</div></div>
+        <div class="fact"><div class="k">Start</div><div class="v">09:00 Shotgun</div></div>
+        <div class="fact"><div class="k">Format</div><div class="v">4-Ball Scramble</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>1 · Download ForeAi</h2>
+      <div class="stores">
+        <a class="store" id="ios" href="#"><span class="g"></span><span><span class="s">Download on the</span><br><span class="b">App Store</span></span></a>
+        <a class="store" id="android" href="#"><span class="g">▶</span><span><span class="s">GET IT ON</span><br><span class="b">Google Play</span></span></a>
+      </div>
+      <p style="color:var(--faint);font-size:13px;margin:12px 0 0">Free to download. Try the Swing Coach and AI Caddie demos, and use Golf Days free on the day.</p>
+    </div>
+
+    <div class="card">
+      <h2>2 · Join the golf day</h2>
+      <div class="join">
+        <div>
+          <div style="color:var(--faint);font-size:12px;letter-spacing:1px">JOIN CODE</div>
+          <div class="code" id="code">— — — —</div>
+        </div>
+        <div style="color:var(--muted);font-size:13px;max-width:210px">Open ForeAi → Events → “Join by code”, or use the clubhouse screen.</div>
+      </div>
+      <a class="btn" id="clubhouse" href="index.html">Open the live clubhouse board</a>
+    </div>
+
+    <div class="card">
+      <h2>Free vs Full</h2>
+      <div class="tiers">
+        <div class="tier">
+          <span class="pill free">FREE</span>
+          <ul>
+            <li>Swing Coach (demo)</li>
+            <li>AI Caddie (demo)</li>
+            <li>Full Golf Day access</li>
+            <li>Live scoring on the day</li>
+          </ul>
+        </div>
+        <div class="tier">
+          <span class="pill pro">FORE­AI PRO</span>
+          <ul>
+            <li>Live round tracking & GPS</li>
+            <li>Caddie learns your distances</li>
+            <li>Strokes-gained stats</li>
+            <li>Strategy & range games</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      Enter a 4-ball: R4,000 per team (R1,000 pp) · Sponsor a hole: R2,000<br>
+      Bookings: Jacki 074 632 2792 · Karma 073 253 4910 · admin@ecs-sa.co.za
+    </div>
+  </div>
+
+  <script>
+    // Wire the real links here (kept in sync with mobile/src/config/appConfig.ts).
+    var APP_STORE_URL = "https://apps.apple.com/app/foreai/id0000000000";
+    var PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.foreai.mobile";
+    document.getElementById('ios').href = APP_STORE_URL;
+    document.getElementById('android').href = PLAY_STORE_URL;
+    // ?code=ABCD prefills the golf-day join code and forwards it to the clubhouse.
+    var code = new URLSearchParams(location.search).get('code');
+    if (code) {
+      document.getElementById('code').textContent = code.toUpperCase();
+      document.getElementById('clubhouse').href = 'index.html?code=' + encodeURIComponent(code);
+    }
+  </script>
+</body>
+</html>

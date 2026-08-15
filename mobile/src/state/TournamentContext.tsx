@@ -126,6 +126,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       scores: {},
       cause:
         "Proudly supporting Lyla Roux in her fight against ALK-positive Anaplastic Large Cell Lymphoma. Together we make a difference.",
+      logoKey: "ecs",
       sponsors: [
         { id: newId("spo"), name: "Engine Control Systems (ECS)", tier: "title" },
         { id: newId("spo"), name: "Hole 3 sponsor (tap to edit)", tier: "hole", hole: 3 },

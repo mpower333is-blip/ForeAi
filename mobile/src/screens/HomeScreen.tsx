@@ -1,8 +1,11 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Screen, Card, StatTile, Button, Hero, FlagMark, IconChip, Chip } from "../components/ui";
+import { StoreButtons, shareApp } from "../components/Upsell";
 import { colors, spacing, type, radius } from "../theme";
 import { useRound } from "../state/RoundContext";
+import { usePlan } from "../state/PlanContext";
+import { PACKAGE_NAME } from "../config/appConfig";
 import { signed } from "../lib/golfEngine";
 
 // A feature card with an icon chip, headline, blurb and CTA.
@@ -15,6 +18,8 @@ function FeatureCard({
   onPress,
   primary,
   badge,
+  locked,
+  onUpgrade,
 }: {
   emoji: string;
   tone?: "accent" | "gold" | "sky";
@@ -24,6 +29,8 @@ function FeatureCard({
   onPress: () => void;
   primary?: boolean;
   badge?: string;
+  locked?: boolean; // Pro feature not yet unlocked
+  onUpgrade?: () => void;
 }) {
   return (
     <Card accent={primary}>
@@ -31,24 +38,52 @@ function FeatureCard({
         <IconChip emoji={emoji} tone={tone} />
         <View style={styles.featHeadText}>
           <Text style={styles.cardHeadline}>{title}</Text>
-          {badge ? <Chip label={badge} tone={tone === "gold" ? "gold" : "accent"} /> : null}
+          {locked ? (
+            <Chip label="🔒 PRO" tone="muted" />
+          ) : badge ? (
+            <Chip label={badge} tone={tone === "gold" ? "gold" : "accent"} />
+          ) : null}
         </View>
       </View>
       <Text style={styles.cardBody}>{body}</Text>
-      <Button variant={primary ? "primary" : "ghost"} label={cta} onPress={onPress} />
+      <Button
+        variant={primary ? "primary" : "ghost"}
+        label={locked ? "Unlock with Pro" : cta}
+        onPress={locked ? onUpgrade! : onPress}
+      />
     </Card>
   );
 }
 
 export default function HomeScreen({ navigation }: any) {
   const { shots, totalStrokesGained, categorySG, course, currentHole, courseName } = useRound();
+  const { isPro } = usePlan();
   const cats = categorySG();
   const best = [...cats].sort((a, b) => b.value - a.value)[0];
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
+  const demo = !isPro;
+  const toUpgrade = () => navigation.navigate("Upgrade");
 
   return (
     <Screen>
       <Hero title="ForeAi" tagline="AI Golf Performance Platform" right={<FlagMark size={56} />} />
+
+      {demo && (
+        <Card accent onPress={toUpgrade}>
+          <View style={styles.featHead}>
+            <IconChip emoji="⛳" tone="gold" />
+            <View style={styles.featHeadText}>
+              <Text style={styles.cardHeadline}>Unlock {PACKAGE_NAME}</Text>
+              <Chip label="FREE DEMO" tone="gold" />
+            </View>
+          </View>
+          <Text style={styles.cardBody}>
+            You're on the free demo — Swing Coach, AI Caddie and Golf Days are open. Unlock live
+            rounds, GPS, stats and more.
+          </Text>
+          <Button label="See what's included" icon="🔓" onPress={toUpgrade} />
+        </Card>
+      )}
 
       <View style={styles.grid}>
         <StatTile
@@ -85,6 +120,8 @@ export default function HomeScreen({ navigation }: any) {
         body="Track shots, get club calls and watch your strokes gained update in real time."
         cta="Go to Round"
         onPress={() => navigation.navigate("Play")}
+        locked={demo}
+        onUpgrade={toUpgrade}
       />
 
       <FeatureCard
@@ -111,6 +148,8 @@ export default function HomeScreen({ navigation }: any) {
         body="Gamified practice — closest to the pin, target challenge, long drive and a tempo trainer. Chase a high score."
         cta="Play"
         onPress={() => navigation.navigate("Games")}
+        locked={demo}
+        onUpgrade={toUpgrade}
       />
 
       <View style={styles.pairRow}>
@@ -122,9 +161,13 @@ export default function HomeScreen({ navigation }: any) {
         </Card>
         <Card style={styles.pairCard}>
           <IconChip emoji="🧭" />
-          <Text style={[styles.cardHeadline, { marginTop: 10 }]}>Strategy</Text>
+          <Text style={[styles.cardHeadline, { marginTop: 10 }]}>Strategy {demo ? "🔒" : ""}</Text>
           <Text style={styles.cardBody}>Aggressive or safe? Plan every hole.</Text>
-          <Button variant="ghost" label="Open" onPress={() => navigation.navigate("Strategy")} />
+          <Button
+            variant="ghost"
+            label={demo ? "Unlock" : "Open"}
+            onPress={demo ? toUpgrade : () => navigation.navigate("Strategy")}
+          />
         </Card>
       </View>
 
@@ -154,7 +197,26 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           ))
         )}
-        <Button variant="ghost" label="Full stats" onPress={() => navigation.navigate("Stats")} />
+        <Button
+          variant="ghost"
+          label={demo ? "🔒 Unlock stats" : "Full stats"}
+          onPress={demo ? toUpgrade : () => navigation.navigate("Stats")}
+        />
+      </Card>
+
+      <Card>
+        <View style={styles.featHead}>
+          <IconChip emoji="📲" tone="sky" />
+          <View style={styles.featHeadText}>
+            <Text style={styles.cardHeadline}>Get the app</Text>
+          </View>
+        </View>
+        <Text style={styles.cardBody}>
+          Share ForeAi with your fourball so everyone can join the golf day and score live.
+        </Text>
+        <Button variant="ghost" label="Share the app" icon="↗" onPress={shareApp} />
+        <View style={{ height: spacing.sm }} />
+        <StoreButtons />
       </Card>
     </Screen>
   );

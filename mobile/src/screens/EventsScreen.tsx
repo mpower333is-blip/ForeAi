@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Image } from "react-native";
 import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, TextField } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { COURSES, getCourse, searchCourses, hasCourse } from "../data/courses";
@@ -36,6 +36,12 @@ function hhmm(min: number): string {
   const m = min % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
+
+// Bundled sponsor/organizer logos shown at the top of an event page. Drop a new
+// PNG in assets and add it here to brand another event.
+const EVENT_LOGOS: Record<string, any> = {
+  ecs: require("../../assets/ecs-logo.png"),
+};
 
 export default function EventsScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -394,6 +400,9 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
       <TouchableOpacity onPress={onBack}>
         <Text style={styles.back}>‹ Events</Text>
       </TouchableOpacity>
+      {EVENT_LOGOS[event.logoKey ?? ""] && (
+        <Image source={EVENT_LOGOS[event.logoKey ?? ""]} style={styles.eventLogo} resizeMode="contain" />
+      )}
       <Text style={styles.detailTitle}>{event.name}</Text>
       <Text style={styles.detailMeta}>
         {course.name} • Par {course.par} • {formatLabel(event.format)}
@@ -1033,6 +1042,7 @@ const styles = StyleSheet.create({
   eventMeta: { color: colors.textMuted, fontSize: 14, marginTop: 3 },
 
   back: { color: colors.accent, fontSize: 16, marginBottom: spacing.sm },
+  eventLogo: { width: "72%", height: 84, alignSelf: "center", marginBottom: spacing.md },
   detailTitle: { color: colors.text, fontSize: 28, fontWeight: "800" },
   detailMeta: { color: colors.textMuted, fontSize: 14, marginTop: 2, marginBottom: spacing.md },
 

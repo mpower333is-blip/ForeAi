@@ -4,6 +4,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { Accelerometer } from "expo-sensors";
 
 import { Screen, ScreenHeader, Card, Button } from "../components/ui";
+import { DemoBanner } from "../components/Upsell";
 import { colors, spacing, radius } from "../theme";
 import { detectSwing, Sample } from "../lib/swingDetector";
 import { buildReport, SwingReport, Grade } from "../lib/swingCoach";
@@ -14,7 +15,7 @@ const IMPACT_THRESHOLD = 0.9; // g of dynamic acceleration that flags impact
 const FINISH_TAIL_MS = 800; // keep recording after impact to score the finish
 const MAX_BUFFER_MS = 5000;
 
-export default function SwingScreen() {
+export default function SwingScreen({ navigation }: any) {
   const [permission, requestPermission] = useCameraPermissions();
   const [phase, setPhase] = useState<Phase>("idle");
   const [report, setReport] = useState<SwingReport | null>(null);
@@ -100,6 +101,7 @@ export default function SwingScreen() {
   return (
     <Screen>
       <ScreenHeader title="Swing Coach" subtitle="Frame yourself, take a swing — get tempo and posture feedback." />
+      <DemoBanner onUpgrade={() => navigation.navigate("Upgrade")} />
 
       <Card style={styles.camCard}>
         <View style={styles.camWrap}>

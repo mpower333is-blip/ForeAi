@@ -52,6 +52,7 @@ export type TEvent = {
   // Fundraiser branding.
   cause?: string | null; // e.g. "Supporting Lyla Roux vs ALK+ ALCL"
   sponsors?: Sponsor[];
+  logoKey?: string; // key into the bundled event-logo registry (e.g. "ecs")
   // Multi-device fields — present only for events hosted on the backend.
   code?: string; // join code shared with other devices
   remote?: boolean; // true when this event is synced with the server

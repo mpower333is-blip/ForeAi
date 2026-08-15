@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Screen, ScreenHeader, Card, Segmented, Stepper } from "../components/ui";
+import { DemoBanner } from "../components/Upsell";
 import { colors, spacing, radius } from "../theme";
 import { useRound } from "../state/RoundContext";
 import {
@@ -19,7 +20,7 @@ const LIES: { key: Lie; label: string }[] = [
   { key: "recovery", label: "Trees" },
 ];
 
-export default function CaddieScreen() {
+export default function CaddieScreen({ navigation }: any) {
   const { effectiveBag, learned, calibrationHoles, isCalibrated } = useRound();
   const [yardage, setYardage] = useState(155);
   const [wind, setWind] = useState(0);
@@ -62,6 +63,7 @@ export default function CaddieScreen() {
   return (
     <Screen>
       <ScreenHeader title="AI Caddie" subtitle="Data-driven club calls that learn from every shot you log." />
+      <DemoBanner onUpgrade={() => navigation.navigate("Upgrade")} />
 
       {isCalibrated ? (
         <View style={styles.calDone}>
