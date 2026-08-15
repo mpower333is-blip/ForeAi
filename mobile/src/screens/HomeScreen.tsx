@@ -1,22 +1,54 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { Screen, Card, StatTile, Button } from "../components/ui";
-import { colors, spacing, type } from "../theme";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Screen, Card, StatTile, Button, Hero, FlagMark, IconChip, Chip } from "../components/ui";
+import { colors, spacing, type, radius } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { signed } from "../lib/golfEngine";
 
+// A feature card with an icon chip, headline, blurb and CTA.
+function FeatureCard({
+  emoji,
+  tone,
+  title,
+  body,
+  cta,
+  onPress,
+  primary,
+  badge,
+}: {
+  emoji: string;
+  tone?: "accent" | "gold" | "sky";
+  title: string;
+  body: string;
+  cta: string;
+  onPress: () => void;
+  primary?: boolean;
+  badge?: string;
+}) {
+  return (
+    <Card accent={primary}>
+      <View style={styles.featHead}>
+        <IconChip emoji={emoji} tone={tone} />
+        <View style={styles.featHeadText}>
+          <Text style={styles.cardHeadline}>{title}</Text>
+          {badge ? <Chip label={badge} tone={tone === "gold" ? "gold" : "accent"} /> : null}
+        </View>
+      </View>
+      <Text style={styles.cardBody}>{body}</Text>
+      <Button variant={primary ? "primary" : "ghost"} label={cta} onPress={onPress} />
+    </Card>
+  );
+}
+
 export default function HomeScreen({ navigation }: any) {
-  const { shots, totalStrokesGained, categorySG, course, currentHole } = useRound();
+  const { shots, totalStrokesGained, categorySG, course, currentHole, courseName } = useRound();
   const cats = categorySG();
   const best = [...cats].sort((a, b) => b.value - a.value)[0];
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
 
   return (
     <Screen>
-      <View style={styles.hero}>
-        <Text style={styles.brand}>ForeAi</Text>
-        <Text style={styles.tag}>AI Golf Performance Platform</Text>
-      </View>
+      <Hero title="ForeAi" tagline="AI Golf Performance Platform" right={<FlagMark size={56} />} />
 
       <View style={styles.grid}>
         <StatTile
@@ -25,66 +57,84 @@ export default function HomeScreen({ navigation }: any) {
           hint={shots.length ? `${shots.length} shots logged` : "No shots yet"}
           tone={totalStrokesGained < 0 ? "negative" : "accent"}
         />
-        <StatTile label="Current Hole" value={`${hole.number}`} hint={`Par ${hole.par} • ${hole.yards} yds`} />
+        <StatTile label="Current Hole" value={`${hole.number}`} hint={`Par ${hole.par} • ${hole.yards} yds`} tone="neutral" />
         <StatTile
           label="Strong Suit"
           value={best && best.value !== 0 ? best.label.split(" ")[0] : "—"}
           hint={best && best.value !== 0 ? signed(best.value) : "Play a hole"}
+          tone="gold"
         />
       </View>
 
-      <Text style={styles.sectionTitle}>Jump back in</Text>
+      <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate("CourseSelect")} style={styles.courseChipRow}>
+        <Text style={styles.courseChipLabel}>⛳ Playing</Text>
+        <Text style={styles.courseChipName} numberOfLines={1}>{courseName}</Text>
+        <Text style={styles.courseChipCta}>Change ›</Text>
+      </TouchableOpacity>
 
-      <Card accent>
-        <Text style={styles.cardHeadline}>Live Round</Text>
-        <Text style={styles.cardBody}>
-          Track shots, get club calls and watch your strokes gained update in real time.
-        </Text>
-        <Button label="Go to Round" onPress={() => navigation.navigate("Play")} />
-      </Card>
+      <View style={styles.sectionRow}>
+        <View style={styles.sectionBar} />
+        <Text style={styles.sectionTitle}>Jump back in</Text>
+      </View>
 
-      <Card>
-        <Text style={styles.cardHeadline}>🎥 Swing Coach</Text>
-        <Text style={styles.cardBody}>
-          Frame yourself and take a swing — ForeAi detects it from your phone's motion and coaches
-          your tempo, posture and balance.
-        </Text>
-        <Button variant="ghost" label="Analyze my swing" onPress={() => navigation.navigate("Coach")} />
-      </Card>
+      <FeatureCard
+        emoji="🏌️"
+        primary
+        badge="LIVE"
+        title="Live Round"
+        body="Track shots, get club calls and watch your strokes gained update in real time."
+        cta="Go to Round"
+        onPress={() => navigation.navigate("Play")}
+      />
 
-      <Card>
-        <Text style={styles.cardHeadline}>🏆 Tournaments & Golf Days</Text>
-        <Text style={styles.cardBody}>
-          Register players, set tee times, and follow everyone live — see who's on which hole and the
-          running leaderboard.
-        </Text>
-        <Button variant="ghost" label="Manage events" onPress={() => navigation.navigate("Events")} />
-      </Card>
+      <FeatureCard
+        emoji="🎥"
+        title="Swing Coach"
+        body="Frame yourself and take a swing — ForeAi detects it from your phone's motion and coaches your tempo, posture and balance."
+        cta="Analyze my swing"
+        onPress={() => navigation.navigate("Coach")}
+      />
 
-      <Card>
-        <Text style={styles.cardHeadline}>🎮 Range Games</Text>
-        <Text style={styles.cardBody}>
-          Gamified practice — closest to the pin, target challenge, long drive and a tempo trainer.
-          Chase a high score.
-        </Text>
-        <Button variant="ghost" label="Play" onPress={() => navigation.navigate("Games")} />
-      </Card>
+      <FeatureCard
+        emoji="🏆"
+        tone="gold"
+        title="Tournaments & Golf Days"
+        body="Register players, set tee times, and follow everyone live — see who's on which hole and the running leaderboard."
+        cta="Manage events"
+        onPress={() => navigation.navigate("Events")}
+      />
+
+      <FeatureCard
+        emoji="🎮"
+        tone="sky"
+        title="Range Games"
+        body="Gamified practice — closest to the pin, target challenge, long drive and a tempo trainer. Chase a high score."
+        cta="Play"
+        onPress={() => navigation.navigate("Games")}
+      />
 
       <View style={styles.pairRow}>
         <Card style={styles.pairCard}>
-          <Text style={styles.cardHeadline}>AI Caddie</Text>
+          <IconChip emoji="🎒" />
+          <Text style={[styles.cardHeadline, { marginTop: 10 }]}>AI Caddie</Text>
           <Text style={styles.cardBody}>Club calls that learn your real distances.</Text>
           <Button variant="ghost" label="Open" onPress={() => navigation.navigate("Caddie")} />
         </Card>
         <Card style={styles.pairCard}>
-          <Text style={styles.cardHeadline}>Strategy</Text>
+          <IconChip emoji="🧭" />
+          <Text style={[styles.cardHeadline, { marginTop: 10 }]}>Strategy</Text>
           <Text style={styles.cardBody}>Aggressive or safe? Plan every hole.</Text>
           <Button variant="ghost" label="Open" onPress={() => navigation.navigate("Strategy")} />
         </Card>
       </View>
 
       <Card>
-        <Text style={styles.cardHeadline}>Strokes Gained</Text>
+        <View style={styles.featHead}>
+          <IconChip emoji="📊" />
+          <View style={styles.featHeadText}>
+            <Text style={styles.cardHeadline}>Strokes Gained</Text>
+          </View>
+        </View>
         {shots.length === 0 ? (
           <Text style={styles.cardBody}>
             Your strokes-gained breakdown appears here once you log shots in a round.
@@ -111,15 +161,35 @@ export default function HomeScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  hero: { marginTop: spacing.lg, marginBottom: spacing.lg },
-  brand: { ...(type.brand as any), color: colors.accent },
-  tag: { fontSize: 16, color: colors.textMuted, marginTop: 2 },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.lg },
-  sectionTitle: { ...(type.h2 as any), color: colors.text, marginBottom: spacing.sm },
-  cardHeadline: { fontSize: 20, fontWeight: "700", color: colors.text, marginBottom: 6 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.md },
+
+  courseChipRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: spacing.lg,
+  },
+  courseChipLabel: { color: colors.textMuted, fontSize: 14, fontWeight: "700" },
+  courseChipName: { color: colors.text, fontSize: 14, fontWeight: "700", flex: 1, marginLeft: 10 },
+  courseChipCta: { color: colors.accent, fontSize: 14, fontWeight: "700" },
+
+  sectionRow: { flexDirection: "row", alignItems: "center", marginBottom: spacing.sm },
+  sectionBar: { width: 4, height: 22, borderRadius: 2, backgroundColor: colors.accent, marginRight: 10 },
+  sectionTitle: { ...(type.h2 as any), color: colors.text },
+
+  featHead: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  featHeadText: { marginLeft: 12, flex: 1, gap: 6 },
+  cardHeadline: { fontSize: 19, fontWeight: "800", color: colors.text },
   cardBody: { color: colors.textMuted, fontSize: 15, lineHeight: 22, marginBottom: 4 },
+
   pairRow: { flexDirection: "row", gap: spacing.sm },
   pairCard: { flex: 1 },
+
   sgLine: {
     flexDirection: "row",
     justifyContent: "space-between",

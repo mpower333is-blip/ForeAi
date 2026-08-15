@@ -57,14 +57,18 @@ function Tabs() {
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textFaint,
         tabBarStyle: {
-          backgroundColor: colors.surface,
+          backgroundColor: colors.bgElevated,
           borderTopColor: colors.border,
-          height: 62,
-          paddingBottom: 8,
-          paddingTop: 6,
+          borderTopWidth: 1,
+          height: 66,
+          paddingBottom: 10,
+          paddingTop: 8,
         },
-        tabBarIcon: ({ color }) => (
-          <Text style={{ fontSize: 20, color }}>{ICONS[route.name] ?? "•"}</Text>
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "700" },
+        tabBarIcon: ({ color, focused }) => (
+          <Text style={{ fontSize: focused ? 22 : 19, color, opacity: focused ? 1 : 0.85 }}>
+            {ICONS[route.name] ?? "•"}
+          </Text>
         ),
       })}
     >

@@ -10,7 +10,8 @@ import {
   TextInput,
   KeyboardTypeOptions,
 } from "react-native";
-import { colors, radius, spacing, type } from "../theme";
+import { LinearGradient } from "expo-linear-gradient";
+import { colors, radius, spacing, type, shadow, gradients } from "../theme";
 
 export function Screen({ children }: { children: React.ReactNode }) {
   return (
@@ -18,6 +19,7 @@ export function Screen({ children }: { children: React.ReactNode }) {
       style={styles.screen}
       contentContainerStyle={styles.screenContent}
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
       {children}
     </ScrollView>
@@ -27,8 +29,51 @@ export function Screen({ children }: { children: React.ReactNode }) {
 export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <View style={{ marginBottom: spacing.lg }}>
-      <Text style={styles.h1}>{title}</Text>
+      <View style={styles.headerRow}>
+        <View style={styles.headerBar} />
+        <Text style={styles.h1}>{title}</Text>
+      </View>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+    </View>
+  );
+}
+
+// A branded gradient hero banner — the product's first impression.
+export function Hero({
+  title,
+  tagline,
+  right,
+}: {
+  title: string;
+  tagline?: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <LinearGradient
+      colors={gradients.brand}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.hero}
+    >
+      <View style={styles.heroGlow} />
+      <View style={styles.heroRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.heroBrand}>{title}</Text>
+          {tagline ? <Text style={styles.heroTag}>{tagline}</Text> : null}
+        </View>
+        {right}
+      </View>
+    </LinearGradient>
+  );
+}
+
+// Small logo mark: a golf flag on a green — pure views, no asset needed.
+export function FlagMark({ size = 44 }: { size?: number }) {
+  return (
+    <View style={[styles.flagWrap, { width: size, height: size, borderRadius: size / 3 }]}>
+      <View style={styles.flagPole} />
+      <View style={styles.flagCloth} />
+      <View style={styles.flagBall} />
     </View>
   );
 }
@@ -37,13 +82,62 @@ export function Card({
   children,
   style,
   accent,
+  onPress,
 }: {
   children: React.ReactNode;
   style?: ViewStyle;
   accent?: boolean;
+  onPress?: () => void;
 }) {
+  const inner = <View style={[styles.card, accent && styles.cardAccent, style]}>{children}</View>;
+  if (onPress) {
+    return (
+      <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
+        {inner}
+      </TouchableOpacity>
+    );
+  }
+  return inner;
+}
+
+// A rounded pill for tags/labels (e.g. "GPS", "Live", sponsor tiers).
+export function Chip({
+  label,
+  tone = "accent",
+  style,
+}: {
+  label: string;
+  tone?: "accent" | "gold" | "sky" | "muted";
+  style?: ViewStyle;
+}) {
+  const bg =
+    tone === "gold"
+      ? colors.goldSoft
+      : tone === "muted"
+      ? colors.surfaceAlt
+      : colors.accentSoft;
+  const fg =
+    tone === "gold"
+      ? colors.gold
+      : tone === "sky"
+      ? colors.sky
+      : tone === "muted"
+      ? colors.textMuted
+      : colors.accent;
   return (
-    <View style={[styles.card, accent && styles.cardAccent, style]}>{children}</View>
+    <View style={[styles.chip, { backgroundColor: bg }, style]}>
+      <Text style={[styles.chipText, { color: fg }]}>{label}</Text>
+    </View>
+  );
+}
+
+// A rounded emoji "app icon" tile used to head feature cards.
+export function IconChip({ emoji, tone = "accent" }: { emoji: string; tone?: "accent" | "gold" | "sky" }) {
+  const bg = tone === "gold" ? colors.goldSoft : tone === "sky" ? "rgba(107,213,255,0.14)" : colors.accentSoft;
+  return (
+    <View style={[styles.iconChip, { backgroundColor: bg }]}>
+      <Text style={styles.iconChipText}>{emoji}</Text>
+    </View>
   );
 }
 
@@ -56,16 +150,19 @@ export function StatTile({
   label: string;
   value: string;
   hint?: string;
-  tone?: "accent" | "positive" | "negative" | "neutral";
+  tone?: "accent" | "positive" | "negative" | "neutral" | "gold";
 }) {
   const valueColor =
     tone === "negative"
       ? colors.negative
       : tone === "neutral"
       ? colors.text
+      : tone === "gold"
+      ? colors.gold
       : colors.accent;
   return (
     <View style={styles.tile}>
+      <View style={[styles.tileAccent, { backgroundColor: valueColor }]} />
       <Text style={styles.tileLabel}>{label}</Text>
       <Text style={[styles.tileValue, { color: valueColor }]}>{value}</Text>
       {hint ? <Text style={styles.tileHint}>{hint}</Text> : null}
@@ -78,20 +175,38 @@ export function Button({
   onPress,
   variant = "primary",
   style,
+  icon,
 }: {
   label: string;
   onPress: () => void;
   variant?: "primary" | "ghost";
   style?: ViewStyle;
+  icon?: string;
 }) {
   const isGhost = variant === "ghost";
+  const content = (
+    <Text style={[styles.btnText, isGhost && styles.btnTextGhost]}>
+      {icon ? `${icon}  ` : ""}
+      {label}
+    </Text>
+  );
+  if (isGhost) {
+    return (
+      <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={[styles.btn, styles.btnGhost, style]}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
   return (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={onPress}
-      style={[styles.btn, isGhost && styles.btnGhost, style]}
-    >
-      <Text style={[styles.btnText, isGhost && styles.btnTextGhost]}>{label}</Text>
+    <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={[styles.btnWrap, style]}>
+      <LinearGradient
+        colors={gradients.accent}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.btn}
+      >
+        {content}
+      </LinearGradient>
     </TouchableOpacity>
   );
 }
@@ -228,8 +343,62 @@ export function SGBar({ label, value, max }: { label: string; value: number; max
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   screenContent: { padding: spacing.lg, paddingBottom: 60 },
+
+  headerRow: { flexDirection: "row", alignItems: "center" },
+  headerBar: {
+    width: 4,
+    height: 26,
+    borderRadius: 2,
+    backgroundColor: colors.accent,
+    marginRight: 10,
+  },
   h1: { ...(type.h1 as TextStyle), color: colors.text },
-  subtitle: { ...(type.body as TextStyle), color: colors.textMuted, marginTop: 4 },
+  subtitle: { ...(type.body as TextStyle), color: colors.textMuted, marginTop: 6, marginLeft: 14 },
+
+  // Hero
+  hero: {
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+    ...shadow.card,
+  },
+  heroGlow: {
+    position: "absolute",
+    top: -60,
+    right: -40,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: colors.accentSoft,
+  },
+  heroRow: { flexDirection: "row", alignItems: "center" },
+  heroBrand: { ...(type.brand as TextStyle), color: colors.accent },
+  heroTag: { fontSize: 15, color: colors.textMuted, marginTop: 4, fontWeight: "600" },
+
+  flagWrap: { backgroundColor: colors.surfaceHi, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  flagPole: { position: "absolute", left: "46%", top: "20%", width: 2, height: "55%", backgroundColor: colors.text },
+  flagCloth: {
+    position: "absolute",
+    left: "52%",
+    top: "22%",
+    width: "26%",
+    height: "16%",
+    backgroundColor: colors.accent,
+    borderTopRightRadius: 3,
+    borderBottomRightRadius: 3,
+  },
+  flagBall: {
+    position: "absolute",
+    bottom: "20%",
+    left: "40%",
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.text,
+  },
 
   card: {
     backgroundColor: colors.surface,
@@ -238,8 +407,26 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadow.soft,
   },
-  cardAccent: { backgroundColor: colors.surfaceAlt },
+  cardAccent: { backgroundColor: colors.surfaceAlt, borderColor: colors.accentDeep },
+
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    alignSelf: "flex-start",
+  },
+  chipText: { fontSize: 12, fontWeight: "800", letterSpacing: 0.5 },
+
+  iconChip: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconChipText: { fontSize: 22 },
 
   tile: {
     backgroundColor: colors.surface,
@@ -250,24 +437,32 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: "30%",
     minWidth: 100,
+    overflow: "hidden",
+    ...shadow.soft,
   },
-  tileLabel: { color: colors.textMuted, fontSize: 13 },
+  tileAccent: { position: "absolute", top: 0, left: 0, right: 0, height: 3, opacity: 0.9 },
+  tileLabel: { color: colors.textMuted, fontSize: 13, marginTop: 4 },
   tileValue: { fontSize: 30, fontWeight: "800", marginTop: 6 },
   tileHint: { color: colors.textFaint, fontSize: 12, marginTop: 2 },
 
+  btnWrap: { borderRadius: radius.md, marginTop: spacing.sm, overflow: "hidden", ...shadow.glow },
   btn: {
-    backgroundColor: colors.accent,
     borderRadius: radius.md,
     paddingVertical: 16,
     paddingHorizontal: spacing.lg,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  btnGhost: {
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: colors.accentDim,
     marginTop: spacing.sm,
   },
-  btnGhost: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.accentDim },
-  btnText: { color: "#062012", fontWeight: "800", fontSize: 16 },
+  btnText: { color: colors.onAccent, fontWeight: "800", fontSize: 16 },
   btnTextGhost: { color: colors.accent },
 
-  fieldLabel: { color: colors.textMuted, fontSize: 14, marginBottom: 8 },
+  fieldLabel: { color: colors.textMuted, fontSize: 14, marginBottom: 8, fontWeight: "600" },
   input: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.sm,
@@ -283,14 +478,14 @@ const styles = StyleSheet.create({
   seg: {
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: radius.sm,
+    borderRadius: radius.pill,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
   segActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   segText: { color: colors.textMuted, fontWeight: "600" },
-  segTextActive: { color: "#062012" },
+  segTextActive: { color: colors.onAccent },
 
   stepRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   stepBtn: {
