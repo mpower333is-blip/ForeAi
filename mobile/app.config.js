@@ -11,7 +11,7 @@ export default {
     splash: {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
-      backgroundColor: "#071b13",
+      backgroundColor: "#06170F",
     },
     ios: {
       supportsTablet: true,
@@ -29,7 +29,7 @@ export default {
       package: "com.foreai.mobile",
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
-        backgroundColor: "#071b13",
+        backgroundColor: "#06170F",
       },
       permissions: [
         "CAMERA",
