@@ -230,6 +230,136 @@ router.delete("/:id/sponsors/:sponsorId", async (req, res) => {
   await respondWithEvent(req.params.id, res);
 });
 
+// ---- public online registration (shared form → immediate import) ----------
+//
+// These are keyed by the event's join code so the form can be shared without
+// exposing internal ids. Each submission is stored in full (for the office) and
+// also reflected into the event as players/groups or a sponsor, so it appears
+// straight away in the app and on the clubhouse board.
+
+async function findByCode(code: string) {
+  return prisma.tournament.findUnique({ where: { code: code.toUpperCase() } });
+}
+
+function contactMessage(b: any): string {
+  return [b.contactPerson, b.cell, b.email].filter(Boolean).join(" · ");
+}
+
+// Team (four-ball) entry.
+router.post("/code/:code/register/team", async (req, res) => {
+  const t = await findByCode(req.params.code);
+  if (!t) return res.status(404).json({ error: "No event with that code" });
+  const b = req.body ?? {};
+  if (!b.company) return res.status(400).json({ error: "Company name is required" });
+
+  const teams: any[] = Array.isArray(b.teams) && b.teams.length ? b.teams : [{ players: [] }];
+  let playersAdded = 0;
+  let order = await prisma.tournamentGroup.count({ where: { tournamentId: t.id } });
+
+  for (const team of teams) {
+    const group = await prisma.tournamentGroup.create({
+      data: { tournamentId: t.id, order: order++ },
+    });
+    const players: any[] = Array.isArray(team.players) ? team.players : [];
+    for (const p of players) {
+      const name = (typeof p === "string" ? p : p?.name)?.trim();
+      if (!name) continue;
+      await prisma.tournamentPlayer.create({
+        data: {
+          tournamentId: t.id,
+          groupId: group.id,
+          name,
+          handicap: Number(typeof p === "object" ? p?.handicap : 0) || 0,
+        },
+      });
+      playersAdded++;
+    }
+  }
+
+  await prisma.tournamentRegistration.create({
+    data: { tournamentId: t.id, type: "team", ...regColumns(b), payload: JSON.stringify(b) },
+  });
+  res.json({ ok: true, teamsAdded: teams.length, playersAdded });
+});
+
+// Hole (tee/green) sponsor.
+router.post("/code/:code/register/hole-sponsor", async (req, res) => {
+  const t = await findByCode(req.params.code);
+  if (!t) return res.status(404).json({ error: "No event with that code" });
+  const b = req.body ?? {};
+  if (!b.company) return res.status(400).json({ error: "Company name is required" });
+
+  await prisma.tournamentSponsor.create({
+    data: {
+      tournamentId: t.id,
+      name: b.company,
+      tier: "hole",
+      hole: b.holePreference != null && b.holePreference !== "" ? Number(b.holePreference) : null,
+      message: contactMessage(b) || null,
+    },
+  });
+  await prisma.tournamentRegistration.create({
+    data: { tournamentId: t.id, type: "hole", ...regColumns(b), payload: JSON.stringify(b) },
+  });
+  res.json({ ok: true });
+});
+
+// Prize sponsor (cash or item).
+router.post("/code/:code/register/prize-sponsor", async (req, res) => {
+  const t = await findByCode(req.params.code);
+  if (!t) return res.status(404).json({ error: "No event with that code" });
+  const b = req.body ?? {};
+  if (!b.company) return res.status(400).json({ error: "Company name is required" });
+
+  const prizeBits =
+    b.prizeType === "cash"
+      ? `Cash: ${b.cashAmount ?? ""}`.trim()
+      : (Array.isArray(b.prizes) ? b.prizes.filter(Boolean).join(", ") : "") || "Item prize";
+  await prisma.tournamentSponsor.create({
+    data: {
+      tournamentId: t.id,
+      name: b.company,
+      tier: "prize",
+      message: [prizeBits, contactMessage(b)].filter(Boolean).join(" — ") || null,
+    },
+  });
+  await prisma.tournamentRegistration.create({
+    data: { tournamentId: t.id, type: "prize", ...regColumns(b), payload: JSON.stringify(b) },
+  });
+  res.json({ ok: true });
+});
+
+// Office list of raw submissions for an event (for export / follow-up).
+router.get("/:id/registrations", async (req, res) => {
+  const rows = await prisma.tournamentRegistration.findMany({
+    where: { tournamentId: req.params.id },
+    orderBy: { createdAt: "desc" },
+  });
+  res.json(rows.map((r) => ({ ...r, payload: safeJson(r.payload) })));
+});
+
+function regColumns(b: any) {
+  return {
+    company: String(b.company),
+    regNumber: b.regNumber ?? null,
+    vatNumber: b.vatNumber ?? null,
+    address: b.address ?? null,
+    city: b.city ?? null,
+    postalCode: b.postalCode ?? null,
+    contactPerson: b.contactPerson ?? null,
+    cell: b.cell ?? null,
+    email: b.email ?? null,
+  };
+}
+
+function safeJson(s: string): any {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return s;
+  }
+}
+
 // Add a side game (contest) on a hole.
 router.post("/:id/contests", async (req, res) => {
   const { type, hole } = req.body;

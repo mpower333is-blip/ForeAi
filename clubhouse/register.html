@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ECS Golf Day — Online Registration</title>
+<!--
+  Shareable registration form for the ECS Corporate Golf Day. Submissions POST
+  to the ForeAi backend and import immediately into the event (players + sponsors
+  appear in the app and on the clubhouse board); the full company record is kept
+  for the office.
+
+  Share a ready-to-use link like:
+    register.html?api=https://YOUR-BACKEND&code=ABCDEF
+  If api/code aren't set, the form still works via "Download entry" / email.
+-->
+<style>
+  :root{ --bg:#06170F; --panel:#10261C; --panel2:#16362A; --border:#204636;
+    --lime:#8DFF6B; --text:#F4FBF6; --muted:#C2D2C6; --faint:#87A092; --gold:#FFD36A; --red:#FF6B6B; }
+  *{box-sizing:border-box}
+  body{margin:0;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    background:radial-gradient(120% 60% at 80% 0%, rgba(141,255,107,0.12), transparent 60%),
+      linear-gradient(160deg,#134E32,#0C3222 55%,#06170F);min-height:100vh;padding:22px 14px 60px}
+  .wrap{max-width:640px;margin:0 auto}
+  .ecs{display:flex;justify-content:center;margin:2px 0 14px}
+  .ecs svg{width:220px;height:auto}
+  h1{font-size:26px;text-align:center;margin:6px 0 2px}
+  .sub{text-align:center;color:var(--muted);margin:0 0 6px}
+  .meta{text-align:center;color:var(--faint);font-size:13px;margin-bottom:18px}
+  .tabs{display:flex;gap:8px;margin-bottom:16px}
+  .tab{flex:1;padding:12px 8px;text-align:center;border-radius:12px;background:var(--panel);
+    border:1px solid var(--border);color:var(--muted);font-weight:700;cursor:pointer;font-size:14px}
+  .tab.on{background:var(--lime);border-color:var(--lime);color:#052012}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px}
+  label{display:block;font-size:13px;color:var(--muted);font-weight:600;margin:12px 0 6px}
+  input,select{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);
+    border-radius:10px;padding:12px;font-size:15px;font-family:inherit}
+  input::placeholder{color:var(--faint)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .sectionTitle{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--lime);font-weight:800;margin:6px 0 2px}
+  .team{border:1px dashed var(--border);border-radius:12px;padding:12px;margin-top:10px}
+  .team h4{margin:0 0 6px;font-size:14px;color:var(--gold)}
+  .radios{display:flex;gap:10px}
+  .radios label{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--border);
+    padding:12px;border-radius:10px;flex:1;margin:0;cursor:pointer;color:var(--text);font-weight:600}
+  .btn{display:block;width:100%;text-align:center;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#B6FF8E,#8DFF6B,#46C85A);color:#052012;font-weight:800;font-size:16px;
+    padding:15px;border-radius:14px;margin-top:16px}
+  .btn.ghost{background:transparent;border:1.5px solid var(--border);color:var(--lime)}
+  .pay{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:12px;font-size:14px;line-height:1.7}
+  .pay b{color:var(--text)} .pay .k{color:var(--faint)}
+  .msg{padding:12px;border-radius:10px;margin-top:12px;font-weight:600;display:none}
+  .msg.ok{display:block;background:rgba(141,255,107,0.14);color:var(--lime);border:1px solid var(--lime)}
+  .msg.err{display:block;background:rgba(255,107,107,0.14);color:var(--red);border:1px solid var(--red)}
+  .cfg{font-size:12px;color:var(--faint);text-align:center;margin-top:18px;line-height:1.6}
+  .cfg input{display:inline-block;width:auto;padding:6px 8px;font-size:12px;margin:2px}
+  .hidden{display:none}
+  .foot{color:var(--faint);font-size:12px;text-align:center;margin-top:18px;line-height:1.7}
+  .req{color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ecs">
+    <svg viewBox="0 0 920 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ECS Engine Control Systems">
+      <defs>
+        <radialGradient id="globe" cx="0.42" cy="0.34" r="0.85">
+          <stop offset="0" stop-color="#2E6FB5"/><stop offset="0.7" stop-color="#1E4A86"/><stop offset="1" stop-color="#14315E"/>
+        </radialGradient>
+        <clipPath id="gc"><circle cx="160" cy="176" r="104"/></clipPath>
+      </defs>
+      <path d="M74,300 C6,150 120,44 250,58 C360,70 430,120 470,132" fill="none" stroke="#E11021" stroke-width="23" stroke-linecap="round"/>
+      <path d="M452,92 L512,132 L448,170 Z" fill="#E11021"/>
+      <circle cx="160" cy="176" r="104" fill="url(#globe)"/>
+      <g clip-path="url(#gc)">
+        <path d="M150,96 q34,6 30,34 q-2,20 14,30 q26,14 10,44 q-14,26 -34,30 q-8,26 -26,40 q-20,-30 -18,-70 q2,-46 20,-78 q10,-24 24,-30 z" fill="#14315E" opacity="0.85"/>
+      </g>
+      <g stroke="#5AA0DA" stroke-width="3.5" fill="none" opacity="0.8">
+        <ellipse cx="160" cy="176" rx="44" ry="104"/><ellipse cx="160" cy="176" rx="86" ry="104"/>
+        <line x1="56" y1="176" x2="264" y2="176"/><path d="M70,128 Q160,160 250,128"/><path d="M70,224 Q160,192 250,224"/>
+      </g>
+      <g transform="skewX(-11)">
+        <text x="330" y="236" font-family="Arial,sans-serif" font-size="196" font-weight="900" letter-spacing="-2" fill="#14315E">ECS</text>
+        <text x="334" y="300" font-family="'Arial Narrow',Arial,sans-serif" font-size="42" font-weight="800" textLength="360" lengthAdjust="spacingAndGlyphs" fill="#E11021">ENGINE CONTROL SYSTEMS</text>
+      </g>
+    </svg>
+  </div>
+
+  <h1>Corporate Golf Day 2026 — Registration</h1>
+  <p class="sub">💚 In support of Lyla Roux</p>
+  <p class="meta">Kempton Park Golf Club · Thursday, 15 October 2026 · Shotgun start 07:30 for 08:00</p>
+
+  <div class="tabs">
+    <div class="tab on" data-tab="team">Team entry</div>
+    <div class="tab" data-tab="hole">Hole sponsor</div>
+    <div class="tab" data-tab="prize">Prize sponsor</div>
+  </div>
+
+  <!-- ============ TEAM ENTRY ============ -->
+  <form id="form-team" class="card">
+    <div class="sectionTitle">Four-ball team registration</div>
+    <div id="company-team"></div>
+    <label>Number of four-ball teams <span class="req">*</span></label>
+    <select id="teamCount"></select>
+    <div id="teams"></div>
+    <div class="pay">
+      <div class="k">Amount</div><b>R 4,000 incl VAT</b> per four-ball team &nbsp;·&nbsp; 1 team = 4 players<br>
+      <div class="k" style="margin-top:6px">Banking (EFT)</div>
+      <b>ENGINE CONTROL SYSTEMS (PTY) LTD</b> · FNB · Acc 620-631-829-78 · Branch 205-609<br>
+      <div class="k">Reference</div> ECS Golf Day - <span id="ref-team">Company</span>
+    </div>
+    <button class="btn" type="submit">Submit team entry</button>
+    <div class="msg" id="msg-team"></div>
+  </form>
+
+  <!-- ============ HOLE SPONSOR ============ -->
+  <form id="form-hole" class="card hidden">
+    <div class="sectionTitle">Hole (tee / green) sponsorship</div>
+    <div id="company-hole"></div>
+    <label>Hole number preference (if any)</label>
+    <input name="holePreference" type="number" min="1" max="18" placeholder="e.g. 7" />
+    <div class="pay">
+      <div class="k">Amount</div><b>R 2,000 incl VAT</b> per hole<br>
+      <div class="k" style="margin-top:6px">Banking (EFT)</div>
+      <b>ENGINE CONTROL SYSTEMS (PTY) LTD</b> · FNB · Acc 620-631-829-78 · Branch 205-609<br>
+      <div class="k">Reference</div> ECS Golf Day - <span id="ref-hole">Company</span>
+    </div>
+    <button class="btn" type="submit">Submit hole sponsorship</button>
+    <div class="msg" id="msg-hole"></div>
+  </form>
+
+  <!-- ============ PRIZE SPONSOR ============ -->
+  <form id="form-prize" class="card hidden">
+    <div class="sectionTitle">Prize sponsorship</div>
+    <label>Type of prize <span class="req">*</span></label>
+    <div class="radios">
+      <label><input type="radio" name="prizeType" value="cash" checked /> Cash prize</label>
+      <label><input type="radio" name="prizeType" value="item" /> Item prize</label>
+    </div>
+    <div id="company-prize"></div>
+    <div id="cashBlock">
+      <label>Cash prize amount</label>
+      <input name="cashAmount" placeholder="e.g. R 2,000" />
+    </div>
+    <div id="itemBlock" class="hidden">
+      <div class="sectionTitle" style="margin-top:12px">Item prize details</div>
+      <label>Prize 1</label><input name="prize1" placeholder="Describe the prize" />
+      <label>Prize 2</label><input name="prize2" placeholder="(optional)" />
+      <label>Prize 3</label><input name="prize3" placeholder="(optional)" />
+    </div>
+    <button class="btn" type="submit">Submit prize sponsorship</button>
+    <div class="msg" id="msg-prize"></div>
+  </form>
+
+  <div class="cfg" id="cfgPanel">
+    <div>Submitting to event <b id="cfgCode">—</b> <span id="cfgApi"></span></div>
+    <div id="cfgInputs" class="hidden" style="margin-top:6px">
+      Join code <input id="inCode" placeholder="ABCDEF" maxlength="8" />
+      Server <input id="inApi" placeholder="https://your-backend" size="26" />
+      <button class="btn ghost" style="display:inline-block;width:auto;padding:6px 12px;margin-left:6px" onclick="saveCfg();return false;">Set</button>
+    </div>
+    <div style="margin-top:6px"><a href="#" onclick="toggleCfg();return false;" style="color:var(--lime)">Organiser setup</a></div>
+  </div>
+
+  <div class="foot">
+    Not online? Your entry can be <a href="#" id="dl" style="color:var(--lime)">downloaded as a file</a>
+    and emailed to <b>admin@ecs-sa.co.za</b>.<br>
+    Bookings: Jacki 074 632 2792 · Karma 073 253 4910
+  </div>
+</div>
+
+<script>
+  var q = new URLSearchParams(location.search);
+  var CFG = { api: (q.get('api')||'').replace(/\/$/,''), code: (q.get('code')||'').toUpperCase() };
+  var lastPayload = null, lastType = null;
+
+  // ---- shared company fieldset (rendered into each form) ----
+  function companyHTML(){
+    return `
+      <label>Name of company <span class="req">*</span></label>
+      <input name="company" required placeholder="Company name" />
+      <div class="grid2">
+        <div><label>Company reg. number</label><input name="regNumber" /></div>
+        <div><label>VAT number</label><input name="vatNumber" /></div>
+      </div>
+      <label>Company address</label><input name="address" />
+      <div class="grid2">
+        <div><label>City</label><input name="city" /></div>
+        <div><label>Postal code</label><input name="postalCode" /></div>
+      </div>
+      <div class="sectionTitle" style="margin-top:12px">Contact person</div>
+      <label>Contact person <span class="req">*</span></label><input name="contactPerson" required />
+      <div class="grid2">
+        <div><label>Cell <span class="req">*</span></label><input name="cell" required /></div>
+        <div><label>Email <span class="req">*</span></label><input name="email" type="email" required /></div>
+      </div>`;
+  }
+  document.getElementById('company-team').innerHTML = companyHTML();
+  document.getElementById('company-hole').innerHTML = companyHTML();
+  document.getElementById('company-prize').innerHTML = companyHTML();
+
+  // team count + player blocks
+  var sel = document.getElementById('teamCount');
+  for (var i=1;i<=8;i++){ var o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); }
+  function renderTeams(){
+    var n = parseInt(sel.value,10)||1, host=document.getElementById('teams'), html='';
+    for (var t=1;t<=n;t++){
+      html += `<div class="team"><h4>Team ${t}</h4>`;
+      for (var p=1;p<=4;p++){
+        html += `<label>Player ${p}${p===1?' <span class="req">*</span>':''}</label>
+          <div class="grid3" style="grid-template-columns:2fr 1fr">
+            <input data-team="${t}" data-role="name" placeholder="Name & surname" />
+            <input data-team="${t}" data-role="hcp" type="number" placeholder="H/cap" />
+          </div>`;
+      }
+      html += `</div>`;
+    }
+    host.innerHTML = html;
+  }
+  sel.addEventListener('change', renderTeams); renderTeams();
+
+  // prize type toggle
+  document.querySelectorAll('input[name="prizeType"]').forEach(function(r){
+    r.addEventListener('change', function(){
+      var cash = document.querySelector('input[name="prizeType"]:checked').value==='cash';
+      document.getElementById('cashBlock').classList.toggle('hidden', !cash);
+      document.getElementById('itemBlock').classList.toggle('hidden', cash);
+    });
+  });
+
+  // live reference
+  function wireRef(formId, spanId){
+    var f=document.getElementById(formId);
+    f.addEventListener('input', function(){
+      var c=f.querySelector('[name="company"]'); document.getElementById(spanId).textContent = (c && c.value) || 'Company';
+    });
+  }
+  wireRef('form-team','ref-team'); wireRef('form-hole','ref-hole');
+
+  // tabs
+  document.querySelectorAll('.tab').forEach(function(tab){
+    tab.addEventListener('click', function(){
+      document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on')});
+      tab.classList.add('on');
+      ['team','hole','prize'].forEach(function(k){
+        document.getElementById('form-'+k).classList.toggle('hidden', k!==tab.dataset.tab);
+      });
+    });
+  });
+
+  // config panel
+  document.getElementById('cfgCode').textContent = CFG.code || 'not set';
+  document.getElementById('cfgApi').textContent = CFG.api ? '· '+CFG.api.replace(/^https?:\/\//,'') : '';
+  function toggleCfg(){ document.getElementById('cfgInputs').classList.toggle('hidden'); }
+  function saveCfg(){
+    CFG.code=(document.getElementById('inCode').value||'').toUpperCase();
+    CFG.api=(document.getElementById('inApi').value||'').replace(/\/$/,'');
+    document.getElementById('cfgCode').textContent = CFG.code||'not set';
+    document.getElementById('cfgApi').textContent = CFG.api ? '· '+CFG.api.replace(/^https?:\/\//,'') : '';
+  }
+
+  function common(f){
+    var g=function(n){var e=f.querySelector('[name="'+n+'"]');return e?e.value.trim():'';};
+    return {company:g('company'),regNumber:g('regNumber'),vatNumber:g('vatNumber'),address:g('address'),
+      city:g('city'),postalCode:g('postalCode'),contactPerson:g('contactPerson'),cell:g('cell'),email:g('email')};
+  }
+  function show(id, ok, text){ var m=document.getElementById(id); m.className='msg '+(ok?'ok':'err'); m.textContent=text; m.scrollIntoView({behavior:'smooth',block:'center'}); }
+
+  async function submit(type, payload, msgId){
+    lastPayload=payload; lastType=type;
+    if(!CFG.api || !CFG.code){
+      show(msgId,false,'No live event configured. Use “Download entry” below and email it to the organiser, or ask them for the registration link.');
+      return;
+    }
+    var path = type==='team'?'team':type==='hole'?'hole-sponsor':'prize-sponsor';
+    try{
+      var r = await fetch(CFG.api+'/tournaments/code/'+CFG.code+'/register/'+path,{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      var d = await r.json().catch(function(){return {};});
+      if(!r.ok){ show(msgId,false, d.error||('Submission failed ('+r.status+').')); return; }
+      var extra = type==='team' ? (' '+(d.playersAdded||0)+' players across '+(d.teamsAdded||0)+' team(s) added.') : '';
+      show(msgId,true,'✓ Registered! Your entry is now in the event.'+extra+' Please make payment using the banking details and reference above to confirm.');
+    }catch(e){
+      show(msgId,false,'Could not reach the server. Use “Download entry” below and email it to the organiser.');
+    }
+  }
+
+  document.getElementById('form-team').addEventListener('submit', function(e){
+    e.preventDefault(); var f=e.target; var b=common(f);
+    if(!b.company){show('msg-team',false,'Company name is required.');return;}
+    var teams=[], n=parseInt(sel.value,10)||1;
+    for(var t=1;t<=n;t++){
+      var players=[];
+      var names=f.querySelectorAll('[data-team="'+t+'"][data-role="name"]');
+      var hcps=f.querySelectorAll('[data-team="'+t+'"][data-role="hcp"]');
+      names.forEach(function(inp,idx){
+        if(inp.value.trim()) players.push({name:inp.value.trim(), handicap:Number(hcps[idx] && hcps[idx].value)||0});
+      });
+      teams.push({players:players});
+    }
+    b.teamCount=n; b.teams=teams;
+    submit('team',b,'msg-team');
+  });
+
+  document.getElementById('form-hole').addEventListener('submit', function(e){
+    e.preventDefault(); var f=e.target; var b=common(f);
+    if(!b.company){show('msg-hole',false,'Company name is required.');return;}
+    b.holePreference=(f.querySelector('[name="holePreference"]').value||'');
+    submit('hole',b,'msg-hole');
+  });
+
+  document.getElementById('form-prize').addEventListener('submit', function(e){
+    e.preventDefault(); var f=e.target; var b=common(f);
+    if(!b.company){show('msg-prize',false,'Company name is required.');return;}
+    b.prizeType=f.querySelector('input[name="prizeType"]:checked').value;
+    b.cashAmount=(f.querySelector('[name="cashAmount"]').value||'');
+    b.prizes=[f.querySelector('[name="prize1"]').value,f.querySelector('[name="prize2"]').value,f.querySelector('[name="prize3"]').value].filter(Boolean);
+    submit('prize',b,'msg-prize');
+  });
+
+  // download fallback
+  document.getElementById('dl').addEventListener('click', function(e){
+    e.preventDefault();
+    var data = lastPayload || {note:'Fill in a form first'};
+    var blob = new Blob([JSON.stringify({type:lastType,event:CFG.code,submitted:new Date().toISOString(),data:data},null,2)],{type:'application/json'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='ECS-GolfDay-'+(lastType||'entry')+'.json'; a.click();
+  });
+</script>
+</body>
+</html>

@@ -85,14 +85,40 @@ model Tournament {
   shotgun     Boolean  @default(false)
   cause       String?
 
-  players     TournamentPlayer[]
-  groups      TournamentGroup[]
-  scores      TournamentScore[]
-  contests    TournamentContest[]
-  sponsors    TournamentSponsor[]
+  players       TournamentPlayer[]
+  groups        TournamentGroup[]
+  scores        TournamentScore[]
+  contests      TournamentContest[]
+  sponsors      TournamentSponsor[]
+  registrations TournamentRegistration[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// A submission from the shared online registration form (team entry, hole
+// sponsor or prize sponsor). Keeps the full company/contact record for the
+// office; players & sponsors are also created so entries import immediately.
+model TournamentRegistration {
+  id           String @id @default(uuid())
+
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  type          String  // "team" | "hole" | "prize"
+  company       String
+  regNumber     String?
+  vatNumber     String?
+  address       String?
+  city          String?
+  postalCode    String?
+  contactPerson String?
+  cell          String?
+  email         String?
+  payload       String  @db.Text // JSON: type-specific extras (teams/players, holePref, prizes…)
+  status        String  @default("new") // office workflow: new | paid | confirmed
+
+  createdAt    DateTime @default(now())
 }
 
 model TournamentGroup {
