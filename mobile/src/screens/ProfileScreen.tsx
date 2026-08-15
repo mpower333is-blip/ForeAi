@@ -6,7 +6,7 @@ import { useRound } from "../state/RoundContext";
 import { useProfile } from "../state/ProfileContext";
 import { API_BASE } from "../services/api";
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }: any) {
   const {
     bag,
     setBag,
@@ -50,6 +50,15 @@ export default function ProfileScreen() {
           <TextField label="Name" value={name} onChangeText={setName} placeholder="Your name" />
           <TextField label="Home club (optional)" value={homeClub} onChangeText={setHomeClub} placeholder="e.g. Kempton Park GC" />
         </View>
+      </Card>
+
+      <Card>
+        <Text style={styles.sectionTitle}>More</Text>
+        <MoreLink emoji="🎒" label="AI Caddie" onPress={() => navigation.navigate("Caddie")} />
+        <MoreLink emoji="📊" label="Strokes-gained stats" onPress={() => navigation.navigate("Stats")} />
+        <MoreLink emoji="🧭" label="Course strategy" onPress={() => navigation.navigate("Strategy")} />
+        <MoreLink emoji="🎮" label="Range games" onPress={() => navigation.navigate("Games")} />
+        <MoreLink emoji="⛳" label="ForeAi Pro" onPress={() => navigation.navigate("Upgrade")} last />
       </Card>
 
       <Card>
@@ -121,7 +130,37 @@ export default function ProfileScreen() {
   );
 }
 
+function MoreLink({
+  emoji,
+  label,
+  onPress,
+  last,
+}: {
+  emoji: string;
+  label: string;
+  onPress: () => void;
+  last?: boolean;
+}) {
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={[styles.moreRow, last && { borderBottomWidth: 0 }]}>
+      <Text style={styles.moreEmoji}>{emoji}</Text>
+      <Text style={styles.moreLabel}>{label}</Text>
+      <Text style={styles.moreChevron}>›</Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
+  moreRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  moreEmoji: { fontSize: 20, width: 32 },
+  moreLabel: { color: colors.text, fontSize: 16, fontWeight: "600", flex: 1 },
+  moreChevron: { color: colors.textFaint, fontSize: 22, fontWeight: "700" },
   profRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   avatar: {
     width: 60,

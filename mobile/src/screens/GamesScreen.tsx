@@ -15,7 +15,7 @@ import {
 import { useGames } from "../state/GamesContext";
 import { useSwingCapture } from "../hooks/useSwingCapture";
 
-export default function GamesScreen() {
+export default function GamesScreen({ navigation }: any) {
   const [active, setActive] = useState<GameId | null>(null);
   const { best } = useGames();
 
@@ -29,7 +29,7 @@ export default function GamesScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title="Range Games" subtitle="Gamified practice — sharpen your game and chase a high score." />
+      <ScreenHeader title="Range Games" subtitle="Gamified practice — sharpen your game and chase a high score." onBack={() => navigation.goBack()} />
       {GAMES.map((g) => (
         <TouchableOpacity key={g.id} activeOpacity={0.85} onPress={() => setActive(g.id)}>
           <Card>

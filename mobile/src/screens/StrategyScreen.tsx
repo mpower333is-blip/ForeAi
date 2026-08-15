@@ -27,7 +27,7 @@ const MISSES: { key: NonNullable<StrategyInput["miss"]>; label: string }[] = [
   { key: "right", label: "Right" },
 ];
 
-export default function StrategyScreen() {
+export default function StrategyScreen({ navigation }: any) {
   const [parYards, setParYards] = useState(410);
   const [hazard, setHazard] = useState<NonNullable<StrategyInput["hazard"]>>("water-right");
   const [pin, setPin] = useState<NonNullable<StrategyInput["pin"]>>("back-right");
@@ -47,7 +47,7 @@ export default function StrategyScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title="Course Strategy" subtitle="Plan the smart play for the hole in front of you." />
+      <ScreenHeader title="Course Strategy" subtitle="Plan the smart play for the hole in front of you." onBack={() => navigation.goBack()} />
 
       <Card accent>
         <View style={[styles.aggPill, { borderColor: tone }]}>

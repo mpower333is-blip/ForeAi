@@ -83,6 +83,7 @@ export default function CourseSelectScreen({ navigation, route }: any) {
   return (
     <Screen>
       <ScreenHeader
+        onBack={() => navigation.goBack()}
         title="Choose course"
         subtitle={
           gioOn

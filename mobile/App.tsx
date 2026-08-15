@@ -51,10 +51,8 @@ function locked(Comp: React.ComponentType<any>, feature: FeatureKey) {
 const ICONS: Record<string, string> = {
   Home: "⛳",
   Play: "🏌️",
-  Caddie: "🎒",
   Coach: "🎥",
   Events: "🏆",
-  Stats: "📊",
   Profile: "👤",
 };
 
@@ -95,10 +93,8 @@ function Tabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Play" component={locked(PlayScreen, "round")} options={{ title: "Round" }} />
-      <Tab.Screen name="Caddie" component={CaddieScreen} />
       <Tab.Screen name="Coach" component={SwingScreen} />
       <Tab.Screen name="Events" component={EventsScreen} />
-      <Tab.Screen name="Stats" component={locked(StatsScreen, "stats")} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
@@ -123,14 +119,19 @@ function Root() {
           headerStyle: { backgroundColor: colors.surface },
           headerTintColor: colors.text,
           contentStyle: { backgroundColor: colors.bg },
+          headerShown: false, // pushed screens carry their own ScreenHeader with a back arrow
         }}
       >
-        <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
-        <Stack.Screen name="Strategy" component={locked(StrategyScreen, "strategy")} options={{ title: "Course Strategy" }} />
-        <Stack.Screen name="CourseSelect" component={CourseSelectScreen} options={{ title: "Choose Course" }} />
-        <Stack.Screen name="CoursePreview" component={CoursePreviewScreen} options={{ title: "Course Preview" }} />
-        <Stack.Screen name="Games" component={locked(GamesScreen, "games")} options={{ title: "Range Games" }} />
-        <Stack.Screen name="Upgrade" component={UpgradeScreen} options={{ title: "ForeAi Pro" }} />
+        <Stack.Screen name="Tabs" component={Tabs} />
+        {/* Nested feature screens (surfaced from Home cards and the Profile hub). */}
+        <Stack.Screen name="Caddie" component={CaddieScreen} />
+        <Stack.Screen name="Stats" component={locked(StatsScreen, "stats")} />
+        <Stack.Screen name="Strategy" component={locked(StrategyScreen, "strategy")} />
+        <Stack.Screen name="Games" component={locked(GamesScreen, "games")} />
+        <Stack.Screen name="CourseSelect" component={CourseSelectScreen} />
+        <Stack.Screen name="Upgrade" component={UpgradeScreen} />
+        {/* Keeps the native header (it has no in-screen ScreenHeader). */}
+        <Stack.Screen name="CoursePreview" component={CoursePreviewScreen} options={{ headerShown: true, title: "Course Preview" }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -62,7 +62,7 @@ export default function CaddieScreen({ navigation }: any) {
 
   return (
     <Screen>
-      <ScreenHeader title="AI Caddie" subtitle="Data-driven club calls that learn from every shot you log." />
+      <ScreenHeader title="AI Caddie" subtitle="Data-driven club calls that learn from every shot you log." onBack={() => navigation.goBack()} />
       <DemoBanner onUpgrade={() => navigation.navigate("Upgrade")} />
 
       {isCalibrated ? (

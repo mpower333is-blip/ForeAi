@@ -27,9 +27,22 @@ export function Screen({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+export function ScreenHeader({
+  title,
+  subtitle,
+  onBack,
+}: {
+  title: string;
+  subtitle?: string;
+  onBack?: () => void; // shows a back chevron (for pushed screens)
+}) {
   return (
     <View style={{ marginBottom: spacing.lg }}>
+      {onBack ? (
+        <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={styles.backText}>‹ Back</Text>
+        </TouchableOpacity>
+      ) : null}
       <View style={styles.headerRow}>
         <View style={styles.headerBar} />
         <Text style={styles.h1}>{title}</Text>
@@ -383,6 +396,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   screenContent: { padding: spacing.lg, paddingBottom: 60 },
 
+  backBtn: { marginBottom: spacing.sm },
+  backText: { color: colors.accent, fontSize: 16, fontWeight: "700" },
   headerRow: { flexDirection: "row", alignItems: "center" },
   headerBar: {
     width: 4,

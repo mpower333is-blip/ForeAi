@@ -47,7 +47,7 @@ export default function StatsScreen({ navigation }: any) {
 
   return (
     <Screen>
-      <ScreenHeader title="Strokes Gained" subtitle="How your round breaks down by part of the game." />
+      <ScreenHeader title="Strokes Gained" subtitle="How your round breaks down by part of the game." onBack={() => navigation.goBack()} />
 
       {rs.count > 0 && (
         <Card>
