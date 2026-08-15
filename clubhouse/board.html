@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ForeAi Clubhouse Board</title>
+    <style>
+      :root {
+        --bg: #071b13;
+        --surface: #10261c;
+        --surface2: #16362a;
+        --border: #1e4433;
+        --accent: #7cff57;
+        --text: #ffffff;
+        --muted: #c8d1c9;
+        --faint: #8ba394;
+        --warn: #ffcf5c;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, Segoe UI, Roboto, system-ui, sans-serif;
+        padding: 22px 26px;
+      }
+      header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+      .brand { font-size: 30px; font-weight: 800; color: var(--accent); }
+      .brand small { color: var(--muted); font-weight: 500; font-size: 16px; }
+      .status { font-size: 15px; color: var(--faint); text-align: right; }
+      .code { color: var(--accent); font-weight: 800; letter-spacing: 3px; }
+      .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--warn); margin-right: 6px; }
+      .dot.live { background: var(--accent); }
+
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+      @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+      .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px 18px; }
+      .panel h2 { margin: 0 0 12px; font-size: 20px; }
+      .full { grid-column: 1 / -1; }
+
+      table { width: 100%; border-collapse: collapse; }
+      th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 18px; }
+      th { color: var(--faint); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+      td.num, th.num { text-align: right; }
+      .pos { color: var(--faint); width: 34px; }
+      .accent { color: var(--accent); font-weight: 800; }
+
+      .group { display: flex; align-items: center; justify-content: space-between; padding: 12px 4px; border-bottom: 1px solid var(--border); }
+      .group .names { font-size: 19px; font-weight: 600; }
+      .group .tee { color: var(--faint); font-size: 14px; }
+      .hole { font-size: 30px; font-weight: 800; color: var(--accent); text-align: right; }
+      .thru { color: var(--faint); font-size: 13px; text-align: right; }
+      .finished { color: var(--accent); font-weight: 700; }
+
+      .config { background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+      .config label { font-size: 12px; color: var(--faint); display: block; margin-bottom: 4px; }
+      .config input { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px 12px; font-size: 16px; }
+      button { background: var(--accent); color: #062012; border: 0; border-radius: 10px; padding: 11px 18px; font-weight: 800; font-size: 15px; cursor: pointer; }
+      button.ghost { background: transparent; color: var(--accent); border: 1px solid #4ea83a; }
+      .muted { color: var(--muted); }
+      .err { color: #ff6b6b; margin-top: 8px; }
+      .empty { color: var(--faint); padding: 8px 0; }
+      .contest { display: flex; justify-content: space-between; padding: 10px 4px; border-bottom: 1px solid var(--border); }
+      .contest .leader { color: var(--accent); font-weight: 700; }
+      .cause { background: var(--surface2); border: 1px solid var(--accent); border-radius: 14px; padding: 14px 18px; margin-bottom: 16px; font-size: 20px; }
+      .cause b { color: var(--accent); }
+      .sponsorTier { color: var(--faint); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 4px; }
+      .sponsor { display: inline-block; margin: 4px 14px 4px 0; font-size: 20px; font-weight: 700; }
+      .reg { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
+    </style>
+  </head>
+  <body>
+    <div class="config" id="config">
+      <div>
+        <label>Backend URL</label>
+        <input id="apiBase" size="26" placeholder="http://192.168.1.20:5000" />
+      </div>
+      <div>
+        <label>Join code (or event id)</label>
+        <input id="code" size="14" placeholder="ABC123" />
+      </div>
+      <button id="connect">Connect</button>
+      <button class="ghost" id="fullscreen">Fullscreen</button>
+      <span class="muted" id="cfgMsg"></span>
+    </div>
+
+    <header>
+      <div class="brand">ForeAi <small id="eventName">Clubhouse Board</small></div>
+      <div class="status">
+        <div><span class="dot" id="dot"></span><span id="conn">not connected</span></div>
+        <div>Join code: <span class="code" id="codeOut">—</span></div>
+      </div>
+    </header>
+
+    <div class="cause" id="cause" style="display: none"></div>
+
+    <div class="panel full" style="margin-bottom:18px">
+      <h2>Register a player</h2>
+      <div class="reg">
+        <div>
+          <label class="muted" style="font-size:12px">Name</label><br />
+          <input id="pName" placeholder="Player name" />
+        </div>
+        <div>
+          <label class="muted" style="font-size:12px">Handicap</label><br />
+          <input id="pHcp" type="number" value="18" size="4" style="width:80px" />
+        </div>
+        <button id="addPlayer">Add player</button>
+        <span class="err" id="regMsg"></span>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h2>On the course</h2>
+        <div id="groups"><div class="empty">Connect to an event to see live progress.</div></div>
+      </div>
+      <div class="panel">
+        <h2>Leaderboard</h2>
+        <div id="board"><div class="empty">—</div></div>
+      </div>
+      <div class="panel full" id="gamesPanel" style="display:none">
+        <h2>Side games</h2>
+        <div id="games"></div>
+      </div>
+      <div class="panel full" id="sponsorPanel" style="display:none">
+        <h2>💚 Thank you to our sponsors</h2>
+        <div id="sponsors"></div>
+      </div>
+    </div>
+
+    <script>
+      // ---- config persistence ------------------------------------------------
+      // Precedence: ?api=&code= from the hub link, then saved config, then default.
+      const cfg = JSON.parse(localStorage.getItem("foreai.clubhouse") || "{}");
+      const _q = new URLSearchParams(location.search);
+      if (_q.get("api")) cfg.apiBase = _q.get("api");
+      if (_q.get("code")) cfg.code = _q.get("code").toUpperCase();
+      const $ = (id) => document.getElementById(id);
+      $("apiBase").value = cfg.apiBase || "http://localhost:5000";
+      $("code").value = cfg.code || "";
+
+      let apiBase = $("apiBase").value;
+      let eventId = null;
+      let timer = null;
+
+      function saveCfg() {
+        localStorage.setItem(
+          "foreai.clubhouse",
+          JSON.stringify({ apiBase: $("apiBase").value.trim(), code: $("code").value.trim() })
+        );
+      }
+
+      // ---- pure helpers (mirror the app's tournament engine) -----------------
+      const isUuid = (s) => /^[0-9a-f]{8}-/.test(s);
+      function hhmm(min) {
+        const h = Math.floor(min / 60) % 24, m = min % 60;
+        return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+      }
+      const groupTee = (e, i) => hhmm(e.firstTeeMin + i * e.intervalMin);
+      const playerThru = (e, pid) => Object.keys(e.scores?.[pid] || {}).length;
+      const playerGross = (e, pid) => Object.values(e.scores?.[pid] || {}).reduce((a, b) => a + b, 0);
+      const isScramble = (e) => e.format === "scramble";
+      const captain = (g) => g.playerIds[0];
+      const shotgunStart = (i) => (i % 18) + 1;
+      function groupThru(e, g) {
+        if (!g.playerIds.length) return 0;
+        return Math.min(...g.playerIds.map((id) => playerThru(e, id)));
+      }
+      function groupDone(e, g) {
+        return isScramble(e) ? (captain(g) ? playerThru(e, captain(g)) : 0) : groupThru(e, g);
+      }
+      function curHole(e, g, i) {
+        const done = groupDone(e, g);
+        if (done >= 18) return null;
+        return e.shotgun ? ((shotgunStart(i) - 1 + done) % 18) + 1 : done + 1;
+      }
+      const teamGross = (e, g) => (captain(g) ? playerGross(e, captain(g)) : 0);
+      function contestLeader(e, c) {
+        const r = e.contestResults?.[c.id];
+        if (!r) return null;
+        const entries = Object.entries(r);
+        if (!entries.length) return null;
+        const w = entries.reduce((b, x) => (c.type === "closest" ? (x[1] < b[1] ? x : b) : x[1] > b[1] ? x : b));
+        const p = e.players.find((p) => p.id === w[0]);
+        return p ? { name: p.name, value: w[1] } : null;
+      }
+
+      // ---- networking --------------------------------------------------------
+      async function resolveEvent() {
+        const code = $("code").value.trim();
+        apiBase = $("apiBase").value.trim().replace(/\/$/, "");
+        if (!code) throw new Error("Enter a join code");
+        const url = isUuid(code) ? `${apiBase}/tournaments/${code}` : `${apiBase}/tournaments/code/${code.toUpperCase()}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Event not found (check code and backend URL)");
+        return res.json();
+      }
+
+      async function poll() {
+        if (!eventId) return;
+        try {
+          const res = await fetch(`${apiBase}/tournaments/${eventId}`);
+          if (!res.ok) throw new Error("lost connection");
+          render(await res.json());
+          setConn(true);
+        } catch (e) {
+          setConn(false);
+        }
+      }
+
+      function setConn(live) {
+        $("dot").className = "dot" + (live ? " live" : "");
+        $("conn").textContent = live ? "live · auto-refresh" : "reconnecting…";
+      }
+
+      async function connect() {
+        try {
+          $("cfgMsg").textContent = "connecting…";
+          const ev = await resolveEvent();
+          eventId = ev.id;
+          saveCfg();
+          $("cfgMsg").textContent = "";
+          render(ev);
+          setConn(true);
+          if (timer) clearInterval(timer);
+          timer = setInterval(poll, 5000);
+        } catch (e) {
+          $("cfgMsg").innerHTML = '<span class="err">' + e.message + "</span>";
+          setConn(false);
+        }
+      }
+
+      async function addPlayer() {
+        $("regMsg").textContent = "";
+        if (!eventId) { $("regMsg").textContent = "Connect to an event first."; return; }
+        const name = $("pName").value.trim();
+        if (!name) return;
+        try {
+          const res = await fetch(`${apiBase}/tournaments/${eventId}/players`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, handicap: Number($("pHcp").value) || 0 }),
+          });
+          if (!res.ok) throw new Error("register failed");
+          $("pName").value = "";
+          render(await res.json());
+        } catch (e) {
+          $("regMsg").textContent = "Could not register (check connection).";
+        }
+      }
+
+      // ---- rendering ---------------------------------------------------------
+      const escapeHtml = (s) =>
+        String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+      function render(e) {
+        $("eventName").textContent = e.name || "";
+        $("codeOut").textContent = e.code || "local";
+
+        // cause banner
+        if (e.cause) {
+          $("cause").style.display = "";
+          $("cause").innerHTML = "💚 <b>" + escapeHtml(e.cause) + "</b>";
+        } else {
+          $("cause").style.display = "none";
+        }
+
+        // sponsor wall
+        const sp = e.sponsors || [];
+        if (sp.length) {
+          $("sponsorPanel").style.display = "";
+          const tiers = [["title", "Title sponsors"], ["hole", "Hole sponsors"], ["prize", "Prize sponsors"], ["general", "Sponsors"]];
+          $("sponsors").innerHTML = tiers.map(([t, label]) => {
+            const list = sp.filter((s) => s.tier === t);
+            if (!list.length) return "";
+            return `<div class="sponsorTier">${label}</div>` +
+              list.map((s) => `<span class="sponsor">${escapeHtml(s.name)}${s.tier === "hole" && s.hole ? ' <span class="muted">· Hole ' + s.hole + "</span>" : ""}</span>`).join("");
+          }).join("");
+        } else {
+          $("sponsorPanel").style.display = "none";
+        }
+
+        const scramble = isScramble(e);
+
+        // groups on the course
+        const groups = e.groups.map((g, i) => {
+          const names = g.playerIds.map((id) => e.players.find((p) => p.id === id)?.name).filter(Boolean).join(", ");
+          const hole = curHole(e, g, i);
+          const thru = groupDone(e, g);
+          const holeHtml = hole === null
+            ? '<div class="finished">Finished</div>'
+            : `<div class="hole">Hole ${hole}</div><div class="thru">thru ${thru}</div>`;
+          const label = e.shotgun ? `Start hole ${shotgunStart(i)}` : `Off at ${groupTee(e, i)}`;
+          const title = scramble ? `Team ${i + 1}: ${names || "(no players)"}` : names || "(no players)";
+          return `<div class="group"><div><div class="names">${title}</div>
+            <div class="tee">${label}</div></div><div>${holeHtml}</div></div>`;
+        }).join("");
+        $("groups").innerHTML = groups || '<div class="empty">No tee groups yet.</div>';
+
+        // leaderboard
+        if (scramble) {
+          const rows = e.groups.map((g, i) => ({
+            i, g,
+            names: g.playerIds.map((id) => e.players.find((p) => p.id === id)?.name).filter(Boolean).join(", "),
+            thru: groupDone(e, g), gross: teamGross(e, g),
+          }));
+          const started = rows.filter((r) => r.thru > 0).sort((a, b) => a.gross - b.gross);
+          const rest = rows.filter((r) => r.thru === 0);
+          const all = [...started, ...rest];
+          $("board").innerHTML = all.length
+            ? `<table><tr><th class="pos">#</th><th>Team</th><th class="num">Thru</th><th class="num">Score</th></tr>` +
+              all.map((r, i) => `<tr><td class="pos">${r.thru > 0 ? i + 1 : "-"}</td>
+                <td>Team ${r.i + 1} <span class="muted">${r.names}</span></td>
+                <td class="num">${r.thru || "-"}</td>
+                <td class="num accent">${r.thru ? r.gross : "-"}</td></tr>`).join("") +
+              `</table>`
+            : '<div class="empty">No teams yet.</div>';
+        } else {
+          const rows = e.players.map((p) => {
+            const thru = playerThru(e, p.id), gross = playerGross(e, p.id);
+            return { p, thru, gross, net: gross - Math.round(p.handicap || 0) };
+          });
+          const started = rows.filter((r) => r.thru > 0).sort((a, b) => a.net - b.net);
+          const rest = rows.filter((r) => r.thru === 0);
+          const all = [...started, ...rest];
+          $("board").innerHTML = all.length
+            ? `<table><tr><th class="pos">#</th><th>Player</th><th class="num">Thru</th><th class="num">Gross</th><th class="num">Net</th></tr>` +
+              all.map((r, i) => `<tr><td class="pos">${r.thru > 0 ? i + 1 : "-"}</td>
+                <td>${r.p.name} <span class="muted">(${r.p.handicap ?? 0})</span></td>
+                <td class="num">${r.thru || "-"}</td>
+                <td class="num">${r.gross || "-"}</td>
+                <td class="num accent">${r.thru ? r.net : "-"}</td></tr>`).join("") +
+              `</table>`
+            : '<div class="empty">No players registered.</div>';
+        }
+
+        // side games
+        const contests = e.contests || [];
+        if (contests.length) {
+          $("gamesPanel").style.display = "";
+          $("games").innerHTML = contests.map((c) => {
+            const l = contestLeader(e, c);
+            const name = c.type === "closest" ? "Closest to the Pin" : "Longest Drive";
+            return `<div class="contest"><div><b>${name}</b> <span class="muted">· Hole ${c.hole}</span></div>
+              <div class="leader">${l ? l.name + " — " + l.value + " yds" : "No results yet"}</div></div>`;
+          }).join("");
+        } else {
+          $("gamesPanel").style.display = "none";
+        }
+      }
+
+      $("connect").onclick = connect;
+      $("addPlayer").onclick = addPlayer;
+      $("fullscreen").onclick = () => document.documentElement.requestFullscreen?.();
+      // Auto-connect if we have saved config.
+      if (cfg.code) connect();
+    </script>
+  </body>
+</html>

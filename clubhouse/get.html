@@ -127,7 +127,7 @@
         </div>
         <div style="color:var(--muted);font-size:13px;max-width:210px">Open ForeAi → Events → “Join by code”, or use the clubhouse screen.</div>
       </div>
-      <a class="btn" id="clubhouse" href="index.html">Open the live clubhouse board</a>
+      <a class="btn" id="clubhouse" href="board.html">Open the live clubhouse board</a>
       <a class="btn" id="register" href="register.html" style="background:transparent;border:1.5px solid var(--border);color:var(--lime);margin-top:10px">Enter a team or sponsor a hole →</a>
     </div>
 
@@ -174,7 +174,7 @@
     var qs = (code ? '?code=' + encodeURIComponent(code) : '') + (api ? (code ? '&' : '?') + 'api=' + encodeURIComponent(api) : '');
     if (code) document.getElementById('code').textContent = code.toUpperCase();
     if (qs) {
-      document.getElementById('clubhouse').href = 'index.html' + qs;
+      document.getElementById('clubhouse').href = 'board.html' + qs;
       document.getElementById('register').href = 'register.html' + qs;
     }
   </script>
