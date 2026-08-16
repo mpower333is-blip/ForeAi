@@ -25,7 +25,8 @@ type TournamentState = {
   deviceId: string;
   // creation / joining
   createEvent: (input: CreateInput) => TEvent; // local, offline
-  createEcsGolfDay: () => TEvent; // pre-loaded ECS fundraiser (local)
+  createEcsGolfDay: () => TEvent; // pre-loaded ECS fundraiser (local, no code)
+  createEcsGolfDayLive: () => Promise<TEvent | null>; // shared ECS fundraiser with a join code
   createSharedEvent: (input: CreateInput) => Promise<TEvent | null>; // backend
   joinByCode: (code: string) => Promise<TEvent | null>;
   refreshEvent: (id: string) => Promise<void>;
@@ -155,6 +156,42 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         shotgun: !!input.shotgun,
       })
     );
+
+  // Create the ECS Golf Day on the backend (so it has a shareable join code) and
+  // apply its branding — cause, title/hole/prize sponsors and side games. Real
+  // players register themselves; no demo players are added. Returns null offline.
+  const createEcsGolfDayLive: TournamentState["createEcsGolfDayLive"] = async () => {
+    const created = await runRemote(
+      tournamentApi.create({
+        name: "ECS Golf Day Fundraiser",
+        courseId: "kempton-park",
+        format: "scramble",
+        firstTeeMin: 8 * 60, // 08:00 shotgun (07:30 for 08:00)
+        intervalMin: 10,
+        shotgun: true,
+      })
+    );
+    if (!created) return null;
+    const id = created.id;
+    let ev: TEvent = created;
+    const step = async (p: Promise<TEvent | null>) => {
+      const r = await runRemote(p);
+      if (r) ev = r;
+    };
+    await step(
+      tournamentApi.update(id, {
+        cause:
+          "Proudly supporting Lyla Roux in her fight against ALK-positive Anaplastic Large Cell Lymphoma. Together we make a difference.",
+      })
+    );
+    await step(tournamentApi.addSponsor(id, { name: "Engine Control Systems (ECS)", tier: "title" }));
+    await step(tournamentApi.addSponsor(id, { name: "Hole 3 sponsor (tap to edit)", tier: "hole", hole: 3 }));
+    await step(tournamentApi.addSponsor(id, { name: "Hole 7 sponsor (tap to edit)", tier: "hole", hole: 7 }));
+    await step(tournamentApi.addSponsor(id, { name: "Prize sponsor (tap to edit)", tier: "prize" }));
+    await step(tournamentApi.addContest(id, "closest", 3));
+    await step(tournamentApi.addContest(id, "longest", 7));
+    return ev;
+  };
 
   const joinByCode: TournamentState["joinByCode"] = (code) =>
     runRemote(tournamentApi.getByCode(code));
@@ -363,6 +400,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     deviceId: DEVICE_ID,
     createEvent,
     createEcsGolfDay,
+    createEcsGolfDayLive,
     createSharedEvent,
     joinByCode,
     refreshEvent,

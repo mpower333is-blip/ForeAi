@@ -57,7 +57,8 @@ export default function EventsScreen() {
 // ---------------------------------------------------------------------------
 
 function EventList({ onOpen }: { onOpen: (id: string) => void }) {
-  const { events, createEvent, createEcsGolfDay, createSharedEvent, joinByCode } = useTournament();
+  const { events, createEvent, createEcsGolfDay, createEcsGolfDayLive, createSharedEvent, joinByCode } =
+    useTournament();
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -142,6 +143,20 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
     onOpen(id);
   };
 
+  // One tap: create the ECS Golf Day on the backend (with a join code) + branding.
+  const loadEcsLive = async () => {
+    if (busy) return;
+    setError("");
+    setBusy(true);
+    const ev = await createEcsGolfDayLive();
+    setBusy(false);
+    if (ev) onOpen(ev.id);
+    else
+      setError(
+        "Couldn't reach the backend to create a live event. Check your connection and try again — or load the offline demo below."
+      );
+  };
+
   const join = async () => {
     setError("");
     setBusy(true);
@@ -167,11 +182,17 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
             <Button label="Join by code" variant="ghost" onPress={() => setJoining(true)} style={{ flex: 1 }} />
           </View>
           {events.length === 0 && (
-            <Button
-              label="💚 Load the ECS Golf Day (demo)"
-              variant="ghost"
-              onPress={() => onOpen(createEcsGolfDay().id)}
-            />
+            <>
+              <Button
+                label={busy ? "Creating…" : "🏁 Create the ECS Golf Day (gets a join code)"}
+                onPress={loadEcsLive}
+              />
+              <Button
+                label="💚 Load ECS demo (offline, no code)"
+                variant="ghost"
+                onPress={() => onOpen(createEcsGolfDay().id)}
+              />
+            </>
           )}
         </>
       )}
@@ -402,11 +423,16 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
       <TouchableOpacity onPress={onBack}>
         <Text style={styles.back}>‹ Events</Text>
       </TouchableOpacity>
-      {EVENT_LOGOS[event.logoKey ?? ""] && (
-        <View style={styles.eventLogoWrap}>
-          <Image source={EVENT_LOGOS[event.logoKey ?? ""]} style={styles.eventLogo} resizeMode="contain" />
-        </View>
-      )}
+      {(() => {
+        // Local events carry a logoKey; shared events (from the backend) don't,
+        // so fall back to matching the event name.
+        const logo = EVENT_LOGOS[event.logoKey ?? ""] ?? (/\becs\b/i.test(event.name) ? EVENT_LOGOS.ecs : null);
+        return logo ? (
+          <View style={styles.eventLogoWrap}>
+            <Image source={logo} style={styles.eventLogo} resizeMode="contain" />
+          </View>
+        ) : null;
+      })()}
       <Text style={styles.detailTitle}>{event.name}</Text>
       <Text style={styles.detailMeta}>
         {course.name} • Par {course.par} • {formatLabel(event.format)}
