@@ -7,8 +7,8 @@
 <!--
   Public landing page. Host this (e.g. as foreai.app) and point LANDING_URL in
   mobile/src/config/appConfig.ts at it. Update the two store links below once the
-  app is live. The ECS logo is inlined as SVG; drop in the official artwork when
-  available. "JOIN CODE" is filled in by the event organizer.
+  app is live. The ECS logo is the official artwork (ecs-logo.png, shipped
+  alongside these pages). "JOIN CODE" is filled in by the event organizer.
 -->
 <style>
   :root{
@@ -23,7 +23,7 @@
     min-height:100vh;padding:24px 16px 60px;}
   .wrap{max-width:520px;margin:0 auto}
   .ecs{display:flex;justify-content:center;margin:4px 0 22px}
-  .ecs svg{width:230px;height:auto}
+  .ecs img{width:230px;height:auto}
   .hero{display:flex;align-items:center;gap:14px;justify-content:center;margin-bottom:6px}
   .brand{font-size:52px;font-weight:800;letter-spacing:-2px;color:var(--lime);line-height:1}
   .tag{text-align:center;color:var(--muted);font-weight:600;margin:2px 0 22px}
@@ -59,30 +59,7 @@
   <div class="wrap">
     <!-- ECS logo, top middle -->
     <div class="ecs">
-      <svg viewBox="0 0 920 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ECS Engine Control Systems">
-        <defs>
-          <radialGradient id="globe" cx="0.42" cy="0.34" r="0.85">
-            <stop offset="0" stop-color="#2E6FB5"/><stop offset="0.7" stop-color="#1E4A86"/><stop offset="1" stop-color="#14315E"/>
-          </radialGradient>
-          <clipPath id="gc"><circle cx="160" cy="176" r="104"/></clipPath>
-        </defs>
-        <path d="M74,300 C6,150 120,44 250,58 C360,70 430,120 470,132" fill="none" stroke="#E11021" stroke-width="23" stroke-linecap="round"/>
-        <path d="M452,92 L512,132 L448,170 Z" fill="#E11021"/>
-        <circle cx="160" cy="176" r="104" fill="url(#globe)"/>
-        <g clip-path="url(#gc)">
-          <path d="M150,96 q34,6 30,34 q-2,20 14,30 q26,14 10,44 q-14,26 -34,30 q-8,26 -26,40 q-20,-30 -18,-70 q2,-46 20,-78 q10,-24 24,-30 z" fill="#14315E" opacity="0.85"/>
-          <path d="M96,150 q30,-4 40,12 q-24,6 -40,-12 z" fill="#14315E" opacity="0.8"/>
-        </g>
-        <g stroke="#5AA0DA" stroke-width="3.5" fill="none" opacity="0.8">
-          <ellipse cx="160" cy="176" rx="44" ry="104"/><ellipse cx="160" cy="176" rx="86" ry="104"/>
-          <line x1="56" y1="176" x2="264" y2="176"/>
-          <path d="M70,128 Q160,160 250,128"/><path d="M70,224 Q160,192 250,224"/>
-        </g>
-        <g transform="skewX(-11)">
-          <text x="330" y="236" font-family="Arial,sans-serif" font-size="196" font-weight="900" letter-spacing="-2" fill="#14315E">ECS</text>
-          <text x="334" y="300" font-family="'Arial Narrow',Arial,sans-serif" font-size="42" font-weight="800" textLength="360" lengthAdjust="spacingAndGlyphs" fill="#E11021">ENGINE CONTROL SYSTEMS</text>
-        </g>
-      </svg>
+      <img src="ecs-logo.png" alt="ECS Engine Control Systems" />
     </div>
 
     <div class="hero">
