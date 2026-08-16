@@ -1,24 +1,43 @@
-# Codemagic CI/CD for ForeAi (Expo React Native app in ./mobile).
+# Codemagic CI/CD for ForeAi — ONE codebase, TWO apps.
 #
-# The app has no committed native projects — `expo prebuild` regenerates the
-# android/ and ios/ folders in CI from app.config.js, then we build with Gradle
-# (Android) / Xcode (iOS).
+# There are no committed native projects: `expo prebuild` regenerates the
+# android/ and ios/ folders in CI from mobile/app.config.js. Which app you get
+# is chosen by EXPO_PUBLIC_APP_VARIANT:
+#     (unset / "full")  → "ForeAi"        com.foreai.mobile
+#     "event"           → "ECS Golf Day"  com.foreai.event
 #
-# In Codemagic: pick a workflow, run it, and download the artifact.
-#   • android-release → app-release.apk  — installable on any Android phone
-#                                            (enable "install unknown apps")
-#   • ios-simulator   → ForeAi.app       — runs in the iOS Simulator (unsigned).
-#                                            A device .ipa needs Apple signing
-#                                            configured in Codemagic → Teams.
+# ── WORKFLOWS ──  (Codemagic → Start new build → pick one)
+#   foreai-android        ForeAi        → app-release.apk   (sideloadable, no setup)
+#   ecs-golfday-android   ECS Golf Day  → app-release.apk   (hand out on the day)
+#   foreai-ios            ForeAi        → TestFlight / .ipa  (needs Apple setup*)
+#   ecs-golfday-ios       ECS Golf Day  → TestFlight / .ipa  (needs Apple setup*)
+#
+# ── * ONE-TIME iOS SETUP (only for the two *-ios workflows) ──
+#   1. In Codemagic: Teams (or your personal account) → Integrations →
+#      App Store Connect → Connect, and upload an App Store Connect API key
+#      (App Store Connect → Users and Access → Integrations → create a key with
+#       the "App Manager" role). Give the integration a NAME.
+#   2. Put that exact name below in each *-ios workflow under
+#      `integrations: app_store_connect:` (it currently says "ForeAi ASC").
+#   3. Run the workflow once. Codemagic auto-creates the bundle IDs
+#      (com.foreai.mobile / com.foreai.event) and provisioning profiles, builds
+#      a signed .ipa, and uploads it to TestFlight. (If the App Store Connect
+#      app record doesn't exist yet, create it once at appstoreconnect.apple.com
+#      with the matching bundle ID, then re-run.)
+#   Android needs NO setup — the APK is signed with the debug keystore and
+#   installs on any phone once "install unknown apps" is allowed.
 
 workflows:
-  android-release:
-    name: ForeAi Android (release APK)
+  # ─────────────────────────── ANDROID ───────────────────────────
+  foreai-android:
+    name: ForeAi — Android APK
     instance_type: linux_x2
     max_build_duration: 60
     environment:
       node: 20
       java: 17
+      vars:
+        EXPO_PUBLIC_APP_VARIANT: "full"
     cache:
       cache_paths:
         - $HOME/.npm
@@ -36,8 +55,6 @@ workflows:
         script: |
           cd mobile/android
           chmod +x ./gradlew
-          # The RN template signs `release` with the debug keystore, so this
-          # APK is standalone and installable without extra signing setup.
           ./gradlew assembleRelease --no-daemon
     artifacts:
       - mobile/android/app/build/outputs/**/*.apk
@@ -49,14 +66,59 @@ workflows:
           success: true
           failure: true
 
-  ios-simulator:
-    name: ForeAi iOS (simulator build, unsigned)
-    instance_type: mac_mini_m2
+  ecs-golfday-android:
+    name: ECS Golf Day — Android APK
+    instance_type: linux_x2
     max_build_duration: 60
+    environment:
+      node: 20
+      java: 17
+      vars:
+        EXPO_PUBLIC_APP_VARIANT: "event"
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Install JS dependencies
+        script: |
+          cd mobile
+          npm install
+      - name: Generate native Android project (expo prebuild)
+        script: |
+          cd mobile
+          npx expo prebuild --platform android --no-install
+      - name: Build release APK
+        script: |
+          cd mobile/android
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --no-daemon
+    artifacts:
+      - mobile/android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ───────────────────────────── iOS ─────────────────────────────
+  foreai-ios:
+    name: ForeAi — iOS (TestFlight)
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    integrations:
+      app_store_connect: ForeAi ASC   # ← rename to your integration's name
     environment:
       node: 20
       xcode: latest
       cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.foreai.mobile
+      vars:
+        EXPO_PUBLIC_APP_VARIANT: "full"
     scripts:
       - name: Install JS dependencies
         script: |
@@ -70,19 +132,79 @@ workflows:
         script: |
           cd mobile/ios
           pod install
-      - name: Build for the iOS Simulator (no code signing)
+      - name: Fetch signing profiles
+        script: xcode-project use-profiles
+      - name: Set build number
         script: |
           cd mobile/ios
-          xcodebuild \
-            -workspace ForeAi.xcworkspace \
-            -scheme ForeAi \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO build
+          agvtool new-version -all "$BUILD_NUMBER"
+      - name: Build signed IPA
+        script: |
+          cd mobile/ios
+          WORKSPACE=$(find . -maxdepth 1 -name "*.xcworkspace" | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcode-project build-ipa --workspace "$WORKSPACE" --scheme "$SCHEME"
     artifacts:
-      - mobile/ios/build/Build/Products/**/*.app
+      - mobile/ios/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
     publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  ecs-golfday-ios:
+    name: ECS Golf Day — iOS (TestFlight)
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    integrations:
+      app_store_connect: ForeAi ASC   # ← rename to your integration's name
+    environment:
+      node: 20
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.foreai.event
+      vars:
+        EXPO_PUBLIC_APP_VARIANT: "event"
+    scripts:
+      - name: Install JS dependencies
+        script: |
+          cd mobile
+          npm install
+      - name: Generate native iOS project (expo prebuild)
+        script: |
+          cd mobile
+          npx expo prebuild --platform ios --no-install
+      - name: Install CocoaPods
+        script: |
+          cd mobile/ios
+          pod install
+      - name: Fetch signing profiles
+        script: xcode-project use-profiles
+      - name: Set build number
+        script: |
+          cd mobile/ios
+          agvtool new-version -all "$BUILD_NUMBER"
+      - name: Build signed IPA
+        script: |
+          cd mobile/ios
+          WORKSPACE=$(find . -maxdepth 1 -name "*.xcworkspace" | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcode-project build-ipa --workspace "$WORKSPACE" --scheme "$SCHEME"
+    artifacts:
+      - mobile/ios/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
       email:
         recipients:
           - mpower333is@gmail.com
