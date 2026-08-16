@@ -1,21 +1,27 @@
+// Two build variants from one codebase (EXPO_PUBLIC_APP_VARIANT):
+//   default  → "ForeAi"        (full showcase app)
+//   "event"  → "ECS Golf Day"  (golf-day-only app, its own icon + package id)
+// Different ids so both can be installed side by side.
+const isEvent = process.env.EXPO_PUBLIC_APP_VARIANT === "event";
+
 export default {
   expo: {
-    name: "ForeAi",
-    slug: "foreai",
+    name: isEvent ? "ECS Golf Day" : "ForeAi",
+    slug: isEvent ? "ecs-golf-day" : "foreai",
     version: "1.0.0",
     orientation: "portrait",
-    scheme: "foreai",
+    scheme: isEvent ? "ecsgolfday" : "foreai",
     userInterfaceStyle: "dark",
-    icon: "./assets/icon.png",
+    icon: isEvent ? "./assets/icon-event.png" : "./assets/icon.png",
     platforms: ["ios", "android", "web"],
     splash: {
-      image: "./assets/splash-icon.png",
+      image: isEvent ? "./assets/splash-icon-event.png" : "./assets/splash-icon.png",
       resizeMode: "contain",
-      backgroundColor: "#06170F",
+      backgroundColor: isEvent ? "#0A1B3A" : "#06170F",
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.foreai.mobile",
+      bundleIdentifier: isEvent ? "com.foreai.event" : "com.foreai.mobile",
       infoPlist: {
         NSCameraUsageDescription:
           "ForeAi uses the camera to frame your swing and give you posture feedback.",
@@ -26,10 +32,10 @@ export default {
       },
     },
     android: {
-      package: "com.foreai.mobile",
+      package: isEvent ? "com.foreai.event" : "com.foreai.mobile",
       adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-icon.png",
-        backgroundColor: "#06170F",
+        foregroundImage: isEvent ? "./assets/adaptive-icon-event.png" : "./assets/adaptive-icon.png",
+        backgroundColor: isEvent ? "#0A1B3A" : "#06170F",
       },
       permissions: [
         "CAMERA",

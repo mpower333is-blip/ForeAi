@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Image } from "react-native";
 import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, TextField, EmptyState } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
@@ -13,6 +13,7 @@ import {
 } from "../services/golfCourseApi";
 import { useTournament } from "../state/TournamentContext";
 import { useProfile } from "../state/ProfileContext";
+import { IS_EVENT, PRESET_EVENT_CODE } from "../config/appVariant";
 import {
   TEvent,
   EventFormat,
@@ -142,6 +143,18 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
     setName("");
     onOpen(id);
   };
+
+  // Event app: if a join code is baked in (EXPO_PUBLIC_EVENT_CODE), auto-join it
+  // on launch so the app opens straight into the golf day.
+  const triedPreset = useRef(false);
+  useEffect(() => {
+    if (IS_EVENT && PRESET_EVENT_CODE && !triedPreset.current && events.length === 0) {
+      triedPreset.current = true;
+      joinByCode(PRESET_EVENT_CODE).then((ev) => {
+        if (ev) onOpen(ev.id);
+      });
+    }
+  }, [events.length]);
 
   // One tap: create the ECS Golf Day on the backend (with a join code) + branding.
   const loadEcsLive = async () => {

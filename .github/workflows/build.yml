@@ -47,13 +47,19 @@ jobs:
           npx prisma generate
           npx tsc --noEmit
 
-  # Build a standalone, installable Android APK and upload it as an artifact.
+  # Build two standalone, installable Android APKs — the full ForeAi app and the
+  # golf-day-only "ECS Golf Day" app — and upload each as its own artifact.
   android:
-    name: Android APK
+    name: Android APK (${{ matrix.variant }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [full, event]
     env:
       EXPO_PUBLIC_GOLF_API_KEY: ${{ secrets.EXPO_PUBLIC_GOLF_API_KEY }}
       EXPO_PUBLIC_GOLFAPI_KEY: ${{ secrets.EXPO_PUBLIC_GOLFAPI_KEY }}
+      EXPO_PUBLIC_APP_VARIANT: ${{ matrix.variant }}
     steps:
       - uses: actions/checkout@v4
 
@@ -86,6 +92,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: foreai-android-apk
+          name: foreai-${{ matrix.variant }}-apk
           path: mobile/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error

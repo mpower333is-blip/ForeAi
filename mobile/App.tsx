@@ -14,6 +14,7 @@ import { PlanProvider, usePlan } from "./src/state/PlanContext";
 import { ProfileProvider, useProfile } from "./src/state/ProfileContext";
 import { UpgradeGate } from "./src/components/Upsell";
 import { FeatureKey } from "./src/config/appConfig";
+import { IS_EVENT, APP_NAME } from "./src/config/appVariant";
 import { colors } from "./src/theme";
 
 import Onboarding from "./src/screens/Onboarding";
@@ -52,6 +53,7 @@ const ICONS: Record<string, string> = {
   Home: "⛳",
   Play: "🏌️",
   Coach: "🎥",
+  Caddie: "🎒",
   Events: "🏆",
   Profile: "👤",
 };
@@ -71,6 +73,7 @@ const navTheme = {
 function Tabs() {
   return (
     <Tab.Navigator
+      initialRouteName={IS_EVENT ? "Events" : "Home"}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
@@ -91,11 +94,24 @@ function Tabs() {
         ),
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Play" component={locked(PlayScreen, "round")} options={{ title: "Round" }} />
-      <Tab.Screen name="Coach" component={SwingScreen} />
-      <Tab.Screen name="Events" component={EventsScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      {IS_EVENT ? (
+        // ECS Golf Day app — golf-day only.
+        <>
+          <Tab.Screen name="Events" component={EventsScreen} options={{ title: "Golf Day" }} />
+          <Tab.Screen name="Coach" component={SwingScreen} />
+          <Tab.Screen name="Caddie" component={CaddieScreen} />
+          <Tab.Screen name="Profile" component={ProfileScreen} />
+        </>
+      ) : (
+        // Full ForeAi app.
+        <>
+          <Tab.Screen name="Home" component={HomeScreen} />
+          <Tab.Screen name="Play" component={locked(PlayScreen, "round")} options={{ title: "Round" }} />
+          <Tab.Screen name="Coach" component={SwingScreen} />
+          <Tab.Screen name="Events" component={EventsScreen} />
+          <Tab.Screen name="Profile" component={ProfileScreen} />
+        </>
+      )}
     </Tab.Navigator>
   );
 }
@@ -106,7 +122,7 @@ function Root() {
   if (!ready) {
     return (
       <View style={styles.splash}>
-        <Text style={styles.splashBrand}>ForeAi</Text>
+        <Text style={styles.splashBrand}>{APP_NAME}</Text>
         <ActivityIndicator color={colors.accent} />
       </View>
     );
@@ -123,11 +139,12 @@ function Root() {
         }}
       >
         <Stack.Screen name="Tabs" component={Tabs} />
-        {/* Nested feature screens (surfaced from Home cards and the Profile hub). */}
-        <Stack.Screen name="Caddie" component={CaddieScreen} />
-        <Stack.Screen name="Stats" component={locked(StatsScreen, "stats")} />
-        <Stack.Screen name="Strategy" component={locked(StrategyScreen, "strategy")} />
-        <Stack.Screen name="Games" component={locked(GamesScreen, "games")} />
+        {/* Nested feature screens (surfaced from Home cards and the Profile hub).
+            In the event app, Caddie is a tab, and the Pro-only screens are omitted. */}
+        {!IS_EVENT && <Stack.Screen name="Caddie" component={CaddieScreen} />}
+        {!IS_EVENT && <Stack.Screen name="Stats" component={locked(StatsScreen, "stats")} />}
+        {!IS_EVENT && <Stack.Screen name="Strategy" component={locked(StrategyScreen, "strategy")} />}
+        {!IS_EVENT && <Stack.Screen name="Games" component={locked(GamesScreen, "games")} />}
         <Stack.Screen name="CourseSelect" component={CourseSelectScreen} />
         <Stack.Screen name="Upgrade" component={UpgradeScreen} />
         {/* Keeps the native header (it has no in-screen ScreenHeader). */}

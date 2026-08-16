@@ -4,6 +4,7 @@ import { Screen, Card, Button, TextField, Stepper, Hero, FlagMark, IconChip, Chi
 import { colors, spacing, radius, type } from "../theme";
 import { useProfile } from "../state/ProfileContext";
 import { useTournament } from "../state/TournamentContext";
+import { APP_NAME, IS_EVENT } from "../config/appVariant";
 
 // First-run flow: welcome → your details → join a golf day → ready.
 // Sets the persisted profile so the app knows who you are from the first tap.
@@ -57,7 +58,7 @@ export default function Onboarding() {
 
       {step === 0 && (
         <>
-          <Hero title="ForeAi" tagline="Your AI golf partner" right={<FlagMark size={56} />} />
+          <Hero title={APP_NAME} tagline={IS_EVENT ? "Your golf day, live" : "Your AI golf partner"} right={<FlagMark size={56} />} />
           <Card>
             <Feature emoji="🎒" title="AI Caddie" body="Club calls that learn your real distances." />
             <Feature emoji="🎥" title="Swing Coach" body="Frame a swing and get tempo & posture feedback." />
@@ -118,7 +119,7 @@ export default function Onboarding() {
               <Button label="Join golf day" icon="🏁" onPress={tryJoin} />
             )}
           </Card>
-          <Button label="Enter ForeAi" onPress={finish} />
+          <Button label={`Enter ${APP_NAME}`} onPress={finish} />
           <Button variant="ghost" label="Back" onPress={() => setStep(1)} />
         </>
       )}
