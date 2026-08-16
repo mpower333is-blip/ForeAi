@@ -59,6 +59,7 @@
   .foot{color:var(--faint);font-size:12px;text-align:center;margin-top:18px;line-height:1.7}
   .req{color:var(--gold)}
 </style>
+  <script src="config.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -151,7 +152,8 @@
 
 <script>
   var q = new URLSearchParams(location.search);
-  var CFG = { api: (q.get('api')||'').replace(/\/$/,''), code: (q.get('code')||'').toUpperCase() };
+  var D = (window.FOREAI_DEFAULTS||{});
+  var CFG = { api: (q.get('api')||D.api||'').replace(/\/$/,''), code: (q.get('code')||D.code||'').toUpperCase() };
   var lastPayload = null, lastType = null;
 
   // ---- shared company fieldset (rendered into each form) ----

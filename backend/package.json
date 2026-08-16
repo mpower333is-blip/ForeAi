@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "main": "server.ts",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/server.ts"
+    "dev": "nodemon --exec ts-node src/server.ts",
+    "build": "prisma generate && tsc",
+    "start": "node dist/server.js",
+    "db:push": "prisma db push"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

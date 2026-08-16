@@ -68,7 +68,8 @@
       .sponsor { display: inline-block; margin: 4px 14px 4px 0; font-size: 20px; font-weight: 700; }
       .reg { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
     </style>
-  </head>
+    <script src="config.js"></script>
+</head>
   <body>
     <div class="config" id="config">
       <div>
@@ -134,8 +135,11 @@
       // Precedence: ?api=&code= from the hub link, then saved config, then default.
       const cfg = JSON.parse(localStorage.getItem("foreai.clubhouse") || "{}");
       const _q = new URLSearchParams(location.search);
+      const _D = window.FOREAI_DEFAULTS || {};
       if (_q.get("api")) cfg.apiBase = _q.get("api");
       if (_q.get("code")) cfg.code = _q.get("code").toUpperCase();
+      if (!cfg.apiBase && _D.api) cfg.apiBase = _D.api;
+      if (!cfg.code && _D.code) cfg.code = _D.code;
       const $ = (id) => document.getElementById(id);
       $("apiBase").value = cfg.apiBase || "http://localhost:5000";
       $("code").value = cfg.code || "";

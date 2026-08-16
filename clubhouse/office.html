@@ -65,6 +65,7 @@
   .hint{color:var(--faint);font-size:12px;margin-top:8px;line-height:1.6}
   @media print{ .bar,.tabs,.status,.del,.btn{display:none!important} body{background:#fff;color:#000} .card,.tile{border-color:#ccc} }
 </style>
+  <script src="config.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -119,8 +120,9 @@
   function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
 
   var q=new URLSearchParams(location.search);
-  var CFG={ api:(q.get('api')||lsGet('ecs_api')||'').replace(/\/$/,''),
-            code:(q.get('code')||lsGet('ecs_code')||'').toUpperCase() };
+  var D=(window.FOREAI_DEFAULTS||{});
+  var CFG={ api:(q.get('api')||lsGet('ecs_api')||D.api||'').replace(/\/$/,''),
+            code:(q.get('code')||lsGet('ecs_code')||D.code||'').toUpperCase() };
   var EVENT=null, REGS=[], FILTER='all';
   var TEAM_FEE=4000, HOLE_FEE=2000;
 

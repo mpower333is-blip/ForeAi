@@ -1,0 +1,36 @@
+# One-click deploy for the ForeAi backend + a free PostgreSQL database.
+#
+# In Render (https://render.com):
+#   New  →  Blueprint  →  connect this repo  →  Apply.
+# Render provisions the database, builds the API, pushes the Prisma schema, and
+# gives you a public URL like https://foreai-backend.onrender.com — that's the
+# backend URL to wire into the app and the clubhouse pages.
+#
+# Note: the free web service sleeps after inactivity and takes ~30s to wake on
+# the first request. Fine for a golf day; upgrade the plan if you want it always-on.
+
+databases:
+  - name: foreai-db
+    plan: free
+    databaseName: foreai
+    user: foreai
+
+services:
+  - type: web
+    name: foreai-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    # Build the API and sync the schema (db push covers the tournament/registration
+    # tables, which aren't in the older migration history). DATABASE_URL is
+    # injected below and is available at build time.
+    buildCommand: npm install && npm run build && npm run db:push
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: foreai-db
+          property: connectionString
+      - key: NODE_VERSION
+        value: "20"

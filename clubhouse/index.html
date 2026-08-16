@@ -61,6 +61,7 @@
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--lime);color:#052012;font-weight:800;padding:10px 18px;border-radius:999px;opacity:0;transition:opacity .2s}
   .toast.show{opacity:1}
 </style>
+  <script src="config.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -133,7 +134,8 @@
 
   var q=new URLSearchParams(location.search);
   var saved=lsGet();
-  var CFG={ api:(q.get('api')||saved.apiBase||'').replace(/\/$/,''), code:(q.get('code')||saved.code||'').toUpperCase() };
+  var D=(window.FOREAI_DEFAULTS||{});
+  var CFG={ api:(q.get('api')||saved.apiBase||D.api||'').replace(/\/$/,''), code:(q.get('code')||saved.code||D.code||'').toUpperCase() };
   $('api').value=CFG.api; $('code').value=CFG.code;
 
   function qs(){ var p=[]; if(CFG.api)p.push('api='+encodeURIComponent(CFG.api)); if(CFG.code)p.push('code='+encodeURIComponent(CFG.code)); return p.length?('?'+p.join('&')):''; }

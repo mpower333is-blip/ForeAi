@@ -54,6 +54,7 @@
   .pill.pro{background:rgba(255,211,106,0.14);color:var(--gold)}
   .foot{color:var(--faint);font-size:12px;text-align:center;margin-top:22px;line-height:1.6}
 </style>
+  <script src="config.js"></script>
 </head>
 <body>
   <div class="wrap">
@@ -147,7 +148,8 @@
     // ?code=ABCD (and optional ?api=) prefill the join code and forward it to the
     // clubhouse board and the registration form.
     var qp = new URLSearchParams(location.search);
-    var code = qp.get('code'), api = qp.get('api');
+    var D = window.FOREAI_DEFAULTS || {};
+    var code = qp.get('code') || D.code || '', api = qp.get('api') || D.api || '';
     var qs = (code ? '?code=' + encodeURIComponent(code) : '') + (api ? (code ? '&' : '?') + 'api=' + encodeURIComponent(api) : '');
     if (code) document.getElementById('code').textContent = code.toUpperCase();
     if (qs) {
