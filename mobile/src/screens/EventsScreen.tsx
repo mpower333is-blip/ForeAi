@@ -403,7 +403,9 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
         <Text style={styles.back}>‹ Events</Text>
       </TouchableOpacity>
       {EVENT_LOGOS[event.logoKey ?? ""] && (
-        <Image source={EVENT_LOGOS[event.logoKey ?? ""]} style={styles.eventLogo} resizeMode="contain" />
+        <View style={styles.eventLogoWrap}>
+          <Image source={EVENT_LOGOS[event.logoKey ?? ""]} style={styles.eventLogo} resizeMode="contain" />
+        </View>
       )}
       <Text style={styles.detailTitle}>{event.name}</Text>
       <Text style={styles.detailMeta}>
@@ -1045,7 +1047,15 @@ const styles = StyleSheet.create({
   eventMeta: { color: colors.textMuted, fontSize: 14, marginTop: 3 },
 
   back: { color: colors.accent, fontSize: 16, marginBottom: spacing.sm },
-  eventLogo: { width: "72%", height: 84, alignSelf: "center", marginBottom: spacing.md },
+  eventLogoWrap: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    alignSelf: "center",
+    marginBottom: spacing.md,
+  },
+  eventLogo: { width: 240, height: 70 },
   detailTitle: { color: colors.text, fontSize: 28, fontWeight: "800" },
   detailMeta: { color: colors.textMuted, fontSize: 14, marginTop: 2, marginBottom: spacing.md },
 
