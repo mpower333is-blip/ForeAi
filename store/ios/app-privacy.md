@@ -72,6 +72,6 @@ App Store Connect requires a privacy policy URL. Host a short policy at, e.g.,
   days, stored on the ForeAi backend.
 - Location and camera are used on your device only and are not collected.
 - No data is sold or used for advertising or tracking.
-- Contact: mpowerdiagnostics@outlook.com
+- Contact: support@foreai.co.za
 
 (Say the word and I'll write that privacy.html page to match these answers.)
