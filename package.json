@@ -7,6 +7,9 @@
     "backend": "npm --prefix backend run dev",
     "mobile": "npm --prefix mobile start",
     "mobile:android": "npm --prefix mobile start -- --android",
-    "mobile:ios": "npm --prefix mobile start -- --ios"
+    "mobile:ios": "npm --prefix mobile start -- --ios",
+    "build": "npm --prefix backend install && npm --prefix backend run build",
+    "db:push": "npm --prefix backend run db:push",
+    "start": "npm --prefix backend run start"
   }
 }
