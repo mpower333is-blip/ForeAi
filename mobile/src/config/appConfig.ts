@@ -7,8 +7,8 @@ export const APP_STORE_URL = "https://apps.apple.com/app/foreai/id0000000000";
 export const PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=com.foreai.mobile";
 // A single shareable link that sends people to the right store + event sign-up.
-// Point this at your landing page (or clubhouse/get.html once hosted).
-export const LANDING_URL = "https://foreai.app";
+// This is the hosted landing page (clubhouse/get.html) on the ForeAi domain.
+export const LANDING_URL = "https://foreai.co.za/get.html";
 
 // The full package (unlocks everything beyond the free demo).
 export const PACKAGE_NAME = "ForeAi Pro";
