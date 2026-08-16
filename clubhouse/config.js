@@ -6,6 +6,6 @@
 //
 // Precedence on each page:  ?api=/?code= in the URL  >  saved (this device)  >  these defaults.
 window.FOREAI_DEFAULTS = {
-  api: "", // e.g. "https://foreai-backend.onrender.com"  (no trailing slash)
+  api: "https://foreai-backend.onrender.com", // the live ForeAi backend
   code: "", // e.g. "EC5GLF"  (optional — pre-selects the event)
 };

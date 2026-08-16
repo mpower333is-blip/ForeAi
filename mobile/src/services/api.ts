@@ -6,10 +6,11 @@
 
 import { Conditions, StrategyInput } from "../lib/golfEngine";
 
-// Point this at your running backend. During local dev with Expo, use your
-// machine's LAN IP (e.g. http://192.168.1.20:5000) so a phone can reach it.
+// The live backend. Override with EXPO_PUBLIC_API_URL for local dev (use your
+// machine's LAN IP, e.g. http://192.168.1.20:5000, so a phone can reach it).
 export const API_BASE =
-  (process.env.EXPO_PUBLIC_API_URL as string | undefined) ?? "http://localhost:5000";
+  (process.env.EXPO_PUBLIC_API_URL as string | undefined) ??
+  "https://foreai-backend.onrender.com";
 
 async function post<T>(path: string, body: unknown): Promise<T | null> {
   try {
