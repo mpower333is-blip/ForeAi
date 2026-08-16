@@ -20,7 +20,9 @@ export default {
       backgroundColor: isEvent ? "#0A1B3A" : "#06170F",
     },
     ios: {
-      supportsTablet: true,
+      // iPhone-first: avoids Apple's separate 13" iPad screenshot requirement.
+      // (An iPhone app still runs on iPad in compatibility mode.)
+      supportsTablet: false,
       bundleIdentifier: isEvent ? "com.foreai.event" : "com.foreai.mobile",
       infoPlist: {
         NSCameraUsageDescription:
@@ -29,6 +31,9 @@ export default {
           "ForeAi uses motion sensors to detect your swing and measure its tempo.",
         NSLocationWhenInUseUsageDescription:
           "ForeAi uses your location to show distances to the pin while you play.",
+        // The app only uses standard HTTPS encryption — declare it exempt so
+        // App Store Connect never asks the export-compliance question per build.
+        ITSAppUsesNonExemptEncryption: false,
       },
     },
     android: {
