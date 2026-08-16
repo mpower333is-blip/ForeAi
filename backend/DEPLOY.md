@@ -8,8 +8,8 @@ app's AI caddie, swing coach and solo round tracking all work with no backend.
 
 1. Push this repo to GitHub (already done for the `foreai` repo).
 2. Go to https://render.com → sign up → **New → Blueprint**.
-3. Connect this repository. Render reads [`backend/render.yaml`](./render.yaml)
-   and shows a database (`foreai-db`) + a web service (`foreai-backend`).
+3. Connect this repository. Render reads [`render.yaml`](../render.yaml) at the
+   repo root and shows a database (`foreai-db`) + a web service (`foreai-backend`).
 4. Click **Apply**. Render provisions Postgres, builds the API, pushes the
    schema, and deploys.
 5. When it's live, open the `foreai-backend` service — its URL (e.g.
