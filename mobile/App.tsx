@@ -12,12 +12,14 @@ import { TournamentProvider } from "./src/state/TournamentContext";
 import { GamesProvider } from "./src/state/GamesContext";
 import { PlanProvider, usePlan } from "./src/state/PlanContext";
 import { ProfileProvider, useProfile } from "./src/state/ProfileContext";
+import { CourseCoordsProvider } from "./src/state/CourseCoordsContext";
 import { UpgradeGate } from "./src/components/Upsell";
 import { FeatureKey } from "./src/config/appConfig";
 import { IS_EVENT, APP_NAME } from "./src/config/appVariant";
 import { colors } from "./src/theme";
 
 import Onboarding from "./src/screens/Onboarding";
+import OnCourseScreen from "./src/screens/OnCourseScreen";
 
 import HomeScreen from "./src/screens/HomeScreen";
 import PlayScreen from "./src/screens/PlayScreen";
@@ -52,6 +54,7 @@ function locked(Comp: React.ComponentType<any>, feature: FeatureKey) {
 const ICONS: Record<string, string> = {
   Home: "⛳",
   Play: "🏌️",
+  Course: "📍",
   Coach: "🎥",
   Caddie: "🎒",
   Events: "🏆",
@@ -98,6 +101,7 @@ function Tabs() {
         // ECS Golf Day app — golf-day only.
         <>
           <Tab.Screen name="Events" component={EventsScreen} options={{ title: "Golf Day" }} />
+          <Tab.Screen name="Course" component={OnCourseScreen} />
           <Tab.Screen name="Coach" component={SwingScreen} />
           <Tab.Screen name="Caddie" component={CaddieScreen} />
           <Tab.Screen name="Profile" component={ProfileScreen} />
@@ -161,6 +165,7 @@ export default function App() {
         <StatusBar barStyle="light-content" />
         <PlanProvider>
         <ProfileProvider>
+        <CourseCoordsProvider>
         <RoundProvider>
           <TournamentProvider>
             <GamesProvider>
@@ -168,6 +173,7 @@ export default function App() {
             </GamesProvider>
           </TournamentProvider>
         </RoundProvider>
+        </CourseCoordsProvider>
         </ProfileProvider>
         </PlanProvider>
       </SafeAreaProvider>

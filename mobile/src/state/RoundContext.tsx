@@ -13,8 +13,9 @@ import {
   strokesReceivedOnHole,
   stablefordPoints,
 } from "../lib/golfEngine";
-import { COURSES, Course, Hole, getCourse } from "../data/courses";
+import { COURSES, Course, Hole, getCourse, hasCourse } from "../data/courses";
 import { useProfile } from "./ProfileContext";
+import { IS_EVENT } from "../config/appVariant";
 
 export type { Hole } from "../data/courses";
 
@@ -98,7 +99,10 @@ function makeId() {
 }
 
 export function RoundProvider({ children }: { children: React.ReactNode }) {
-  const [courseId, setCourseId] = useState(COURSES[0].id);
+  // The event app is the ECS Golf Day at Kempton Park — start there.
+  const [courseId, setCourseId] = useState(
+    IS_EVENT && hasCourse("kempton-park") ? "kempton-park" : COURSES[0].id
+  );
   const [currentHole, setCurrentHole] = useState(1);
   const [bag, setBag] = useState<Club[]>(DEFAULT_BAG);
   const [shots, setShots] = useState<LoggedShot[]>([]);
