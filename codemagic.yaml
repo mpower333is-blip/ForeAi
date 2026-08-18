@@ -114,11 +114,9 @@ workflows:
       node: 20
       xcode: latest
       cocoapods: default
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.foreai.mobile
       vars:
         EXPO_PUBLIC_APP_VARIANT: "full"
+        BUNDLE_ID: "com.foreai.mobile"
     scripts:
       - name: Install JS dependencies
         script: |
@@ -132,8 +130,17 @@ workflows:
         script: |
           cd mobile/ios
           pod install
-      - name: Fetch signing profiles
-        script: xcode-project use-profiles
+      - name: Set up code signing (creates the cert + profile if missing)
+        script: |
+          keychain initialize
+          # Uses the "ForeAi ASC" App Store Connect integration. --create makes a
+          # distribution certificate and an App Store provisioning profile for
+          # $BUNDLE_ID the first time (this Apple account has none yet).
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
       - name: Set build number
         script: |
           cd mobile/ios
@@ -168,11 +175,9 @@ workflows:
       node: 20
       xcode: latest
       cocoapods: default
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.foreai.event
       vars:
         EXPO_PUBLIC_APP_VARIANT: "event"
+        BUNDLE_ID: "com.foreai.event"
     scripts:
       - name: Install JS dependencies
         script: |
@@ -186,8 +191,17 @@ workflows:
         script: |
           cd mobile/ios
           pod install
-      - name: Fetch signing profiles
-        script: xcode-project use-profiles
+      - name: Set up code signing (creates the cert + profile if missing)
+        script: |
+          keychain initialize
+          # Uses the "ForeAi ASC" App Store Connect integration. --create makes a
+          # distribution certificate and an App Store provisioning profile for
+          # $BUNDLE_ID the first time (this Apple account has none yet).
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
       - name: Set build number
         script: |
           cd mobile/ios
