@@ -140,6 +140,9 @@ workflows:
             --type IOS_APP_STORE \
             --create
           keychain add-certificates
+          # Run from mobile/ios so use-profiles configures THIS Xcode project
+          # (the app lives in a monorepo subfolder, not the repo root).
+          cd mobile/ios
           xcode-project use-profiles
       - name: Set build number
         script: |
@@ -201,6 +204,9 @@ workflows:
             --type IOS_APP_STORE \
             --create
           keychain add-certificates
+          # Run from mobile/ios so use-profiles configures THIS Xcode project
+          # (the app lives in a monorepo subfolder, not the repo root).
+          cd mobile/ios
           xcode-project use-profiles
       - name: Set build number
         script: |
