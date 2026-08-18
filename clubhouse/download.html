@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ForeAi — Get the test app</title>
+<!-- Testers' download hub. APKs are auto-published by CI to a stable GitHub
+     release (tag test-latest), so these links always give the newest build.
+     Swap TESTFLIGHT in gen_download.py and regenerate once the iOS invite is live. -->
+<style>
+  :root{--bg:#06170F;--panel:#10261C;--panel2:#16362A;--border:#204636;
+    --lime:#8DFF6B;--text:#F4FBF6;--muted:#C2D2C6;--faint:#87A092;--gold:#FFD36A;}
+  *{box-sizing:border-box}
+  body{margin:0;background:
+      radial-gradient(120% 60% at 78% 0%, rgba(141,255,107,0.14), transparent 60%),
+      linear-gradient(160deg,#134E32,#0C3222 55%,#06170F);
+    color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    min-height:100vh;padding:24px 16px 60px;}
+  .wrap{max-width:560px;margin:0 auto}
+  .ecs{display:flex;justify-content:center;margin:4px 0 20px}
+  .ecs img{width:210px;height:auto;background:#fff;padding:10px 16px;border-radius:14px}
+  .brand{font-size:46px;font-weight:800;letter-spacing:-2px;color:var(--lime);text-align:center;line-height:1}
+  .tag{text-align:center;color:var(--muted);font-weight:600;margin:4px 0 22px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:22px;padding:20px;margin-bottom:16px}
+  h2{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--faint);font-size:13px;margin:0 0 16px}
+  .app{display:flex;gap:14px;align-items:center;padding:14px 0;border-top:1px solid var(--border)}
+  .app:first-of-type{border-top:none}
+  .app .qrs{width:96px;height:96px;border-radius:12px;background:#fff;padding:6px;flex:none}
+  .app .qrs img{width:100%;height:100%;display:block}
+  .app .meta{flex:1}
+  .app .name{font-size:17px;font-weight:800}
+  .app .desc{color:var(--muted);font-size:13px;margin:2px 0 10px;line-height:1.4}
+  .btn{display:inline-block;text-align:center;background:linear-gradient(135deg,#B6FF8E,#8DFF6B,#46C85A);
+    color:#052012;font-weight:800;text-decoration:none;padding:11px 16px;border-radius:12px;font-size:14px}
+  .btn.alt{background:transparent;border:1px solid var(--border);color:var(--lime)}
+  .soon{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:16px;color:var(--muted);font-size:14px;line-height:1.5}
+  .soon b{color:var(--text);display:block;margin-bottom:6px}
+  .soon a,.sub a{color:var(--lime)}
+  .steps{color:var(--faint);font-size:12.5px;line-height:1.7;margin:8px 0 0;padding-left:18px}
+  .foot{color:var(--faint);font-size:12px;text-align:center;margin-top:22px;line-height:1.6}
+  a{color:var(--lime)}
+</style>
+  <script src="config.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="ecs"><img src="ecs-logo.png" alt="ECS Engine Control Systems" /></div>
+    <div class="brand">ForeAi</div>
+    <div class="tag">Get the test app · ECS Golf Day</div>
+
+    <div class="card">
+      <h2>🤖 Android</h2>
+      <p class="sub">Scan the QR with your phone camera, or tap Download. Then open the file and allow “install unknown apps”.</p>
+
+      <div class="app">
+        <div class="qrs"><img src="data:image/png;base64,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" alt="ECS Golf Day APK QR"/></div>
+        <div class="meta">
+          <div class="name">ECS Golf Day</div>
+          <div class="desc">The golf-day app — live scoring, live round & on-course GPS.</div>
+          <a class="btn" href="https://github.com/mpower333is-blip/ForeAi/releases/download/test-latest/ECS-Golf-Day.apk">⬇ Download APK</a>
+        </div>
+      </div>
+
+      <div class="app">
+        <div class="qrs"><img src="data:image/png;base64,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" alt="ForeAi full APK QR"/></div>
+        <div class="meta">
+          <div class="name">ForeAi (full app)</div>
+          <div class="desc">The complete app — everything unlocked to explore.</div>
+          <a class="btn alt" href="https://github.com/mpower333is-blip/ForeAi/releases/download/test-latest/ForeAi.apk">⬇ Download APK</a>
+        </div>
+      </div>
+
+      <ol class="steps">
+        <li>Tap Download — the APK saves to your phone.</li>
+        <li>Open it; if warned, choose “Install anyway / allow this source”.</li>
+        <li>Play Protect may ask to scan — that’s normal for test apps.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>🍎 iPhone / iPad</h2>
+      <p class="sub">iOS test builds install through Apple’s TestFlight app.</p>
+      <div class="soon">
+        <b>iOS is via TestFlight</b>
+        Apple requires beta testers to install through its TestFlight app. Your
+        invite link is being set up — until then, ask the organiser or email
+        <a href="mailto:support@foreai.co.za">support@foreai.co.za</a> to be added.
+      </div>
+    </div>
+
+    <div class="foot">
+      One link for everyone: <b>foreai.co.za/download.html</b><br/>
+      © 2026 ForeAi · Questions? support@foreai.co.za
+    </div>
+  </div>
+</body>
+</html>
