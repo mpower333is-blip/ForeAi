@@ -133,9 +133,11 @@ workflows:
       - name: Set up code signing (creates the cert + profile if missing)
         script: |
           keychain initialize
-          # Uses the "ForeAi ASC" App Store Connect integration. --create makes a
-          # distribution certificate and an App Store provisioning profile for
-          # $BUNDLE_ID the first time (this Apple account has none yet).
+          # Fresh Apple account with no iOS distribution certificate yet.
+          # fetch-signing-files can't save a certificate without its private key,
+          # so first create a distribution certificate (this generates + saves the
+          # private key), then fetch/create the App Store profile for $BUNDLE_ID.
+          app-store-connect create-certificate --type IOS_DISTRIBUTION --save
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
@@ -197,9 +199,11 @@ workflows:
       - name: Set up code signing (creates the cert + profile if missing)
         script: |
           keychain initialize
-          # Uses the "ForeAi ASC" App Store Connect integration. --create makes a
-          # distribution certificate and an App Store provisioning profile for
-          # $BUNDLE_ID the first time (this Apple account has none yet).
+          # Fresh Apple account with no iOS distribution certificate yet.
+          # fetch-signing-files can't save a certificate without its private key,
+          # so first create a distribution certificate (this generates + saves the
+          # private key), then fetch/create the App Store profile for $BUNDLE_ID.
+          app-store-connect create-certificate --type IOS_DISTRIBUTION --save
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
