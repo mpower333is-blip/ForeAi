@@ -133,13 +133,14 @@ workflows:
       - name: Set up code signing (creates the cert + profile if missing)
         script: |
           keychain initialize
-          # Fresh Apple account with no iOS distribution certificate yet.
-          # fetch-signing-files can't save a certificate without its private key,
-          # so first create a distribution certificate (this generates + saves the
-          # private key), then fetch/create the App Store profile for $BUNDLE_ID.
-          app-store-connect create-certificate --type IOS_DISTRIBUTION --save
+          # Fresh Apple account: generate a private key, then let fetch-signing-files
+          # create the iOS distribution certificate (from this key) AND the App
+          # Store provisioning profile for $BUNDLE_ID, saving both so we can sign.
+          CERT_KEY=/tmp/ios_distribution_key.pem
+          openssl genrsa -out "$CERT_KEY" 2048
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --certificate-key=@file:"$CERT_KEY" \
             --create
           keychain add-certificates
           # Run from mobile/ios so use-profiles configures THIS Xcode project
@@ -199,13 +200,14 @@ workflows:
       - name: Set up code signing (creates the cert + profile if missing)
         script: |
           keychain initialize
-          # Fresh Apple account with no iOS distribution certificate yet.
-          # fetch-signing-files can't save a certificate without its private key,
-          # so first create a distribution certificate (this generates + saves the
-          # private key), then fetch/create the App Store profile for $BUNDLE_ID.
-          app-store-connect create-certificate --type IOS_DISTRIBUTION --save
+          # Fresh Apple account: generate a private key, then let fetch-signing-files
+          # create the iOS distribution certificate (from this key) AND the App
+          # Store provisioning profile for $BUNDLE_ID, saving both so we can sign.
+          CERT_KEY=/tmp/ios_distribution_key.pem
+          openssl genrsa -out "$CERT_KEY" 2048
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --certificate-key=@file:"$CERT_KEY" \
             --create
           keychain add-certificates
           # Run from mobile/ios so use-profiles configures THIS Xcode project
