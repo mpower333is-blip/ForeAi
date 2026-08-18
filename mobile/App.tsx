@@ -98,12 +98,13 @@ function Tabs() {
       })}
     >
       {IS_EVENT ? (
-        // ECS Golf Day app — golf-day only.
+        // ECS Golf Day app — everything the players need on the day: run the
+        // event with live scoring, play a live round, and on-course GPS.
         <>
           <Tab.Screen name="Events" component={EventsScreen} options={{ title: "Golf Day" }} />
+          <Tab.Screen name="Play" component={PlayScreen} options={{ title: "Round" }} />
           <Tab.Screen name="Course" component={OnCourseScreen} />
           <Tab.Screen name="Coach" component={SwingScreen} />
-          <Tab.Screen name="Caddie" component={CaddieScreen} />
           <Tab.Screen name="Profile" component={ProfileScreen} />
         </>
       ) : (
@@ -143,12 +144,16 @@ function Root() {
         }}
       >
         <Stack.Screen name="Tabs" component={Tabs} />
-        {/* Nested feature screens (surfaced from Home cards and the Profile hub).
-            In the event app, Caddie is a tab, and the Pro-only screens are omitted. */}
-        {!IS_EVENT && <Stack.Screen name="Caddie" component={CaddieScreen} />}
-        {!IS_EVENT && <Stack.Screen name="Stats" component={locked(StatsScreen, "stats")} />}
-        {!IS_EVENT && <Stack.Screen name="Strategy" component={locked(StrategyScreen, "strategy")} />}
-        {!IS_EVENT && <Stack.Screen name="Games" component={locked(GamesScreen, "games")} />}
+        {/* Nested feature screens (surfaced from Home cards, the Round screen and
+            the Profile hub). Registered in both builds — the event build is fully
+            unlocked, so the Round screen's links to these all work on the day. */}
+        <Stack.Screen name="Caddie" component={CaddieScreen} />
+        <Stack.Screen name="Stats" component={locked(StatsScreen, "stats")} />
+        <Stack.Screen name="Strategy" component={locked(StrategyScreen, "strategy")} />
+        <Stack.Screen name="Games" component={locked(GamesScreen, "games")} />
+        {/* On-course GPS + coordinate survey, reachable from Home in the full app
+            (it's also the "Course" tab in the event app). */}
+        <Stack.Screen name="Survey" component={OnCourseScreen} />
         <Stack.Screen name="CourseSelect" component={CourseSelectScreen} />
         <Stack.Screen name="Upgrade" component={UpgradeScreen} />
         {/* Keeps the native header (it has no in-screen ScreenHeader). */}

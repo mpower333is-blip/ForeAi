@@ -132,6 +132,14 @@ export default function HomeScreen({ navigation }: any) {
       />
 
       <FeatureCard
+        emoji="📍"
+        title="Course GPS & Survey"
+        body="Live distances to the front, middle and back of every green — plus a survey mode to record a course's tee and green coordinates while you walk it."
+        cta="Open GPS"
+        onPress={() => navigation.navigate("Survey")}
+      />
+
+      <FeatureCard
         emoji="🎥"
         title="Swing Coach"
         body="Frame yourself and take a swing — ForeAi detects it from your phone's motion and coaches your tempo, posture and balance."

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { FeatureKey, FREE_FEATURE_KEYS } from "../config/appConfig";
+import { IS_EVENT } from "../config/appVariant";
 import { loadJSON, saveJSON } from "../lib/storage";
 
 const KEY = "foreai.plan.v1";
@@ -44,8 +45,10 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<PlanState>(
     () => ({
       plan,
-      isPro: plan === "pro",
-      hasFeature: (f) => plan === "pro" || FREE_FEATURE_KEYS.includes(f),
+      // The ECS Golf Day (event) build is fully unlocked — nothing is paywalled
+      // on the day, so every player gets live round + scoring + GPS for free.
+      isPro: IS_EVENT || plan === "pro",
+      hasFeature: (f) => IS_EVENT || plan === "pro" || FREE_FEATURE_KEYS.includes(f),
       purchase: () => setPlan("pro"),
       restore: () => setPlan("pro"),
       resetToDemo: () => setPlan("demo"),

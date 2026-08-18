@@ -10,7 +10,7 @@ import { greenDistances, bearingDegrees, compass8 } from "../lib/geo";
 // On-course GPS: which hole you're on, how far to the green (front / middle /
 // back), and an arrow to the green. Plus a capture mode: stand at each point and
 // tap to record its GPS, so a course with no GPS data becomes fully mapped.
-export default function OnCourseScreen() {
+export default function OnCourseScreen({ navigation }: any) {
   const { course, currentHole, setCurrentHole, courseName, courseId } = useRound();
   const { points, capture, clearPoint, greensCaptured, exportCourse } = useCourseCoords();
   const loc = useLocation();
@@ -49,7 +49,11 @@ export default function OnCourseScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title="On the course" subtitle={`⛳ ${courseName}`} />
+      <ScreenHeader
+        title="On the course"
+        subtitle={`⛳ ${courseName}`}
+        onBack={navigation?.canGoBack?.() ? () => navigation.goBack() : undefined}
+      />
 
       <Card>
         <View style={styles.holeRow}>
