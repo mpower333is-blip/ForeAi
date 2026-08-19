@@ -134,6 +134,14 @@ workflows:
         script: |
           set -e
           keychain initialize
+          # Self-heal: distribution certs from earlier runs are orphaned (their
+          # private keys only lived on ephemeral build machines). Delete them so
+          # we never hit Apple's 2-certificate cap. Fully guarded — can't fail the
+          # build even if the CLI flags change.
+          ( for CID in $(app-store-connect list-certificates --certificate-type IOS_DISTRIBUTION --json 2>/dev/null | jq -r '.[].id' 2>/dev/null); do
+              echo "Removing orphaned distribution cert $CID"
+              app-store-connect delete-certificate "$CID" >/dev/null 2>&1 || true
+            done ) || true
           # Generate a PKCS#8 RSA private key — the format the CLI accepts.
           # `openssl genrsa` alone emits PKCS#1, which the tool silently ignores
           # → "Cannot create resource without certificate private key".
@@ -206,6 +214,14 @@ workflows:
         script: |
           set -e
           keychain initialize
+          # Self-heal: distribution certs from earlier runs are orphaned (their
+          # private keys only lived on ephemeral build machines). Delete them so
+          # we never hit Apple's 2-certificate cap. Fully guarded — can't fail the
+          # build even if the CLI flags change.
+          ( for CID in $(app-store-connect list-certificates --certificate-type IOS_DISTRIBUTION --json 2>/dev/null | jq -r '.[].id' 2>/dev/null); do
+              echo "Removing orphaned distribution cert $CID"
+              app-store-connect delete-certificate "$CID" >/dev/null 2>&1 || true
+            done ) || true
           # Generate a PKCS#8 RSA private key — the format the CLI accepts.
           # `openssl genrsa` alone emits PKCS#1, which the tool silently ignores
           # → "Cannot create resource without certificate private key".
