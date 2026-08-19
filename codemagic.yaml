@@ -132,13 +132,18 @@ workflows:
           pod install
       - name: Set up code signing (creates the cert + profile if missing)
         script: |
+          set -e
           keychain initialize
-          # Fresh Apple account: generate a private key, then let fetch-signing-files
-          # create the iOS distribution certificate (from this key) AND the App
-          # Store provisioning profile for $BUNDLE_ID, saving both so we can sign.
+          # Generate a PKCS#8 RSA private key — the format the CLI accepts.
+          # `openssl genrsa` alone emits PKCS#1, which the tool silently ignores
+          # → "Cannot create resource without certificate private key".
           CERT_KEY=/tmp/ios_distribution_key.pem
-          openssl genrsa -out "$CERT_KEY" 2048
+          openssl genrsa 2048 | openssl pkcs8 -topk8 -nocrypt -out "$CERT_KEY"
+          echo "Private key: $(wc -c < "$CERT_KEY") bytes"
+          # Create the iOS distribution certificate (from this key) AND the App
+          # Store provisioning profile for $BUNDLE_ID, saving both so we can sign.
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --platform IOS \
             --type IOS_APP_STORE \
             --certificate-key=@file:"$CERT_KEY" \
             --create
@@ -199,13 +204,18 @@ workflows:
           pod install
       - name: Set up code signing (creates the cert + profile if missing)
         script: |
+          set -e
           keychain initialize
-          # Fresh Apple account: generate a private key, then let fetch-signing-files
-          # create the iOS distribution certificate (from this key) AND the App
-          # Store provisioning profile for $BUNDLE_ID, saving both so we can sign.
+          # Generate a PKCS#8 RSA private key — the format the CLI accepts.
+          # `openssl genrsa` alone emits PKCS#1, which the tool silently ignores
+          # → "Cannot create resource without certificate private key".
           CERT_KEY=/tmp/ios_distribution_key.pem
-          openssl genrsa -out "$CERT_KEY" 2048
+          openssl genrsa 2048 | openssl pkcs8 -topk8 -nocrypt -out "$CERT_KEY"
+          echo "Private key: $(wc -c < "$CERT_KEY") bytes"
+          # Create the iOS distribution certificate (from this key) AND the App
+          # Store provisioning profile for $BUNDLE_ID, saving both so we can sign.
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --platform IOS \
             --type IOS_APP_STORE \
             --certificate-key=@file:"$CERT_KEY" \
             --create
