@@ -85,7 +85,8 @@
     <select id="teamCount"></select>
     <div id="teams"></div>
     <div class="pay">
-      <div class="k">Amount</div><b>R 4,000 incl VAT</b> per four-ball team &nbsp;·&nbsp; 1 team = 4 players<br>
+      <div class="k">Amount</div><b>R 1,000 incl VAT</b> per player &nbsp;·&nbsp; you only pay for the players you enter (a full four-ball = R 4,000)<br>
+      <div class="k" style="margin-top:6px">Your total</div><b id="team-total">R 0</b> <span id="team-total-detail" style="color:var(--faint)">(enter player names above)</span><br>
       <div class="k" style="margin-top:6px">Banking (EFT)</div>
       <b>ENGINE CONTROL SYSTEMS (PTY) LTD</b> · FNB · Acc 620-631-829-78 · Branch 205-609<br>
       <div class="k">Reference</div> ECS Golf Day - <span id="ref-team">Company</span>
@@ -199,7 +200,23 @@
     }
     host.innerHTML = html;
   }
-  sel.addEventListener('change', renderTeams); renderTeams();
+  // Per-player pricing: you only pay for the players you actually enter, so a
+  // half-full four-ball costs half. R 1,000 per player (a full team = R 4,000).
+  var PER_PLAYER = 1000;
+  function countTeamPlayers(){
+    var c = 0;
+    document.querySelectorAll('#teams [data-role="name"]').forEach(function(n){ if(n.value.trim()) c++; });
+    return c;
+  }
+  function updateTeamTotal(){
+    var c = countTeamPlayers(), total = c * PER_PLAYER;
+    var el = document.getElementById('team-total'); if(el) el.textContent = 'R ' + total.toLocaleString('en-ZA');
+    var d = document.getElementById('team-total-detail');
+    if(d) d.textContent = c ? '('+c+' player'+(c===1?'':'s')+' × R 1,000)' : '(enter player names above)';
+  }
+  document.getElementById('teams').addEventListener('input', updateTeamTotal);
+  sel.addEventListener('change', function(){ renderTeams(); updateTeamTotal(); });
+  renderTeams(); updateTeamTotal();
 
   // prize type toggle
   document.querySelectorAll('input[name="prizeType"]').forEach(function(r){
@@ -280,7 +297,12 @@
       });
       teams.push({players:players});
     }
+    var playerCount = teams.reduce(function(s,tm){return s + tm.players.length;}, 0);
+    if(playerCount===0){show('msg-team',false,'Add at least one player.');return;}
     b.teamCount=n; b.teams=teams;
+    b.playerCount = playerCount;
+    b.perPlayer = PER_PLAYER;
+    b.amount = playerCount * PER_PLAYER; // pay only for players entered
     submit('team',b,'msg-team');
   });
 
