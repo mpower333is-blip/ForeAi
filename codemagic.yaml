@@ -112,7 +112,7 @@ workflows:
       app_store_connect: ForeAi ASC   # your Codemagic App Store Connect integration
     environment:
       node: 20
-      xcode: 16.2
+      xcode: latest
       cocoapods: default
       vars:
         EXPO_PUBLIC_APP_VARIANT: "full"
@@ -195,7 +195,7 @@ workflows:
       app_store_connect: ForeAi ASC   # your Codemagic App Store Connect integration
     environment:
       node: 20
-      xcode: 16.2
+      xcode: latest
       cocoapods: default
       vars:
         EXPO_PUBLIC_APP_VARIANT: "event"
