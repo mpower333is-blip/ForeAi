@@ -138,7 +138,7 @@ workflows:
           # orphaned — their private keys only lived on ephemeral runners) so we
           # never hit Apple's 2-certificate cap. Visible + guarded.
           echo "== Clearing existing iOS distribution certificates =="
-          app-store-connect certificates list --type IOS_DISTRIBUTION --json > /tmp/certs.json 2>/tmp/certs.err || cat /tmp/certs.err || true
+          app-store-connect certificates list --type DISTRIBUTION IOS_DISTRIBUTION --json > /tmp/certs.json 2>/tmp/certs.err || cat /tmp/certs.err || true
           CIDS=$(jq -r '(if type=="object" and has("data") then .data else . end)[]?.id // empty' /tmp/certs.json 2>/dev/null || true)
           echo "Distribution certs found: ${CIDS:-none}"
           for CID in $CIDS; do
@@ -221,7 +221,7 @@ workflows:
           # orphaned — their private keys only lived on ephemeral runners) so we
           # never hit Apple's 2-certificate cap. Visible + guarded.
           echo "== Clearing existing iOS distribution certificates =="
-          app-store-connect certificates list --type IOS_DISTRIBUTION --json > /tmp/certs.json 2>/tmp/certs.err || cat /tmp/certs.err || true
+          app-store-connect certificates list --type DISTRIBUTION IOS_DISTRIBUTION --json > /tmp/certs.json 2>/tmp/certs.err || cat /tmp/certs.err || true
           CIDS=$(jq -r '(if type=="object" and has("data") then .data else . end)[]?.id // empty' /tmp/certs.json 2>/dev/null || true)
           echo "Distribution certs found: ${CIDS:-none}"
           for CID in $CIDS; do
