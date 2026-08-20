@@ -164,6 +164,15 @@ workflows:
         script: |
           cd mobile/ios
           pod install
+      - name: Disable fmt consteval for Xcode 26
+        script: |
+          cd mobile/ios
+          echo "fmt consteval BEFORE:"; grep -rn "define FMT_USE_CONSTEVAL" Pods/fmt 2>/dev/null || echo "(none)"
+          # Xcode 26's clang mis-handles fmt's consteval path. Force the macro OFF
+          # directly in fmt's source so it uses runtime format checking instead.
+          find Pods/fmt -type f \( -name "*.h" -o -name "*.cc" \) -exec sed -i '' 's/define FMT_USE_CONSTEVAL 1/define FMT_USE_CONSTEVAL 0/g' {} + 2>/dev/null || \
+            find Pods/fmt -type f \( -name "*.h" -o -name "*.cc" \) -exec sed -i 's/define FMT_USE_CONSTEVAL 1/define FMT_USE_CONSTEVAL 0/g' {} +
+          echo "fmt consteval AFTER:"; grep -rn "define FMT_USE_CONSTEVAL" Pods/fmt 2>/dev/null || echo "(none)"
       - name: Set up code signing (creates the cert + profile if missing)
         script: |
           set -e
@@ -291,6 +300,15 @@ workflows:
         script: |
           cd mobile/ios
           pod install
+      - name: Disable fmt consteval for Xcode 26
+        script: |
+          cd mobile/ios
+          echo "fmt consteval BEFORE:"; grep -rn "define FMT_USE_CONSTEVAL" Pods/fmt 2>/dev/null || echo "(none)"
+          # Xcode 26's clang mis-handles fmt's consteval path. Force the macro OFF
+          # directly in fmt's source so it uses runtime format checking instead.
+          find Pods/fmt -type f \( -name "*.h" -o -name "*.cc" \) -exec sed -i '' 's/define FMT_USE_CONSTEVAL 1/define FMT_USE_CONSTEVAL 0/g' {} + 2>/dev/null || \
+            find Pods/fmt -type f \( -name "*.h" -o -name "*.cc" \) -exec sed -i 's/define FMT_USE_CONSTEVAL 1/define FMT_USE_CONSTEVAL 0/g' {} +
+          echo "fmt consteval AFTER:"; grep -rn "define FMT_USE_CONSTEVAL" Pods/fmt 2>/dev/null || echo "(none)"
       - name: Set up code signing (creates the cert + profile if missing)
         script: |
           set -e
