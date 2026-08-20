@@ -190,11 +190,16 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
 
       {!creating && !joining && (
         <>
+          {/* The event build is view/score only — the golf day itself is created
+              and managed from the main app, the office page and the website.
+              Players just join by code to follow along and keep score. */}
           <View style={styles.formRow}>
-            <Button label="+ New event" onPress={() => setCreating(true)} style={{ flex: 1 }} />
+            {!IS_EVENT && (
+              <Button label="+ New event" onPress={() => setCreating(true)} style={{ flex: 1 }} />
+            )}
             <Button label="Join by code" variant="ghost" onPress={() => setJoining(true)} style={{ flex: 1 }} />
           </View>
-          {events.length === 0 && (
+          {!IS_EVENT && events.length === 0 && (
             <>
               <Button
                 label={busy ? "Creating…" : "🏁 Create the ECS Golf Day (gets a join code)"}
@@ -351,10 +356,14 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
       {events.length === 0 && !creating && (
         <EmptyState
           emoji="🏆"
-          title="No golf days yet"
-          body="Create one to register players, set tee times, and follow everyone live as they move around the course."
-          actionLabel="+ New event"
-          onAction={() => setCreating(true)}
+          title={IS_EVENT ? "Join the golf day" : "No golf days yet"}
+          body={
+            IS_EVENT
+              ? "Enter the join code from the organiser to see the tee sheet, follow the leaderboard live and keep score for your four-ball."
+              : "Create one to register players, set tee times, and follow everyone live as they move around the course."
+          }
+          actionLabel={IS_EVENT ? "Join by code" : "+ New event"}
+          onAction={() => (IS_EVENT ? setJoining(true) : setCreating(true))}
         />
       )}
 
@@ -398,7 +407,7 @@ type Tab = "players" | "tees" | "live" | "games" | "sponsors";
 function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void }) {
   const t = useTournament();
   const event = t.getEvent(eventId);
-  const [tab, setTab] = useState<Tab>("players");
+  const [tab, setTab] = useState<Tab>(IS_EVENT ? "live" : "players");
   const [, setCourseReady] = useState(0);
   const isRemote = !!event?.remote;
 
@@ -531,7 +540,9 @@ function PlayersTab({ event }: { event: TEvent }) {
 
   return (
     <>
-      {event.remote && !meId && (
+      {/* The player roster is managed from the main app, the office page and the
+          website. The event build shows it read-only — no adding or removing. */}
+      {!IS_EVENT && event.remote && !meId && (
         <Card accent>
           <Text style={styles.formTitle}>Join as a player</Text>
           <Text style={styles.hint}>Add yourself to this event from your phone.</Text>
@@ -541,12 +552,14 @@ function PlayersTab({ event }: { event: TEvent }) {
         </Card>
       )}
 
-      <Card>
-        <Text style={styles.formTitle}>{event.remote ? "Add another player" : "Register player"}</Text>
-        <TextField label="Name" value={name} onChangeText={setName} placeholder="Player name" />
-        <Stepper label="Handicap" value={hcp} onChange={setHcp} step={1} min={0} max={54} unit="" />
-        <Button label="Add player" onPress={add} />
-      </Card>
+      {!IS_EVENT && (
+        <Card>
+          <Text style={styles.formTitle}>{event.remote ? "Add another player" : "Register player"}</Text>
+          <TextField label="Name" value={name} onChangeText={setName} placeholder="Player name" />
+          <Stepper label="Handicap" value={hcp} onChange={setHcp} step={1} min={0} max={54} unit="" />
+          <Button label="Add player" onPress={add} />
+        </Card>
+      )}
 
       <Card>
         <Text style={styles.formTitle}>{event.players.length} registered</Text>
@@ -559,9 +572,11 @@ function PlayersTab({ event }: { event: TEvent }) {
             </Text>
             <View style={styles.playerRight}>
               <Text style={styles.playerHcp}>HCP {p.handicap}</Text>
-              <TouchableOpacity onPress={() => removePlayer(event.id, p.id)}>
-                <Text style={styles.remove}>Remove</Text>
-              </TouchableOpacity>
+              {!IS_EVENT && (
+                <TouchableOpacity onPress={() => removePlayer(event.id, p.id)}>
+                  <Text style={styles.remove}>Remove</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         ))}
@@ -577,30 +592,42 @@ function TeesTab({ event }: { event: TEvent }) {
 
   return (
     <>
+      {/* The tee sheet and groups are built in the main app, the office page and
+          the website. The event build shows them read-only. */}
       <Card>
         <Text style={styles.formTitle}>Tee sheet</Text>
-        <Stepper
-          label={`First tee — ${hhmm(event.firstTeeMin)}`}
-          value={event.firstTeeMin}
-          onChange={(v) => updateEvent(event.id, { firstTeeMin: v })}
-          step={5}
-          min={5 * 60}
-          max={18 * 60}
-          unit=""
-        />
-        <Stepper
-          label="Interval"
-          value={event.intervalMin}
-          onChange={(v) => updateEvent(event.id, { intervalMin: v })}
-          step={1}
-          min={6}
-          max={15}
-          unit="min"
-        />
-        <Button label="+ Add group" onPress={() => addGroup(event.id)} />
+        {IS_EVENT ? (
+          <Text style={styles.hint}>
+            {event.shotgun
+              ? `Shotgun start at ${hhmm(event.firstTeeMin)}.`
+              : `First tee ${hhmm(event.firstTeeMin)} · groups every ${event.intervalMin} min.`}
+          </Text>
+        ) : (
+          <>
+            <Stepper
+              label={`First tee — ${hhmm(event.firstTeeMin)}`}
+              value={event.firstTeeMin}
+              onChange={(v) => updateEvent(event.id, { firstTeeMin: v })}
+              step={5}
+              min={5 * 60}
+              max={18 * 60}
+              unit=""
+            />
+            <Stepper
+              label="Interval"
+              value={event.intervalMin}
+              onChange={(v) => updateEvent(event.id, { intervalMin: v })}
+              step={1}
+              min={6}
+              max={15}
+              unit="min"
+            />
+            <Button label="+ Add group" onPress={() => addGroup(event.id)} />
+          </>
+        )}
       </Card>
 
-      {unassigned.length > 0 && (
+      {!IS_EVENT && unassigned.length > 0 && (
         <Card>
           <Text style={styles.hint}>
             Unassigned: {unassigned.map((p) => p.name).join(", ")}. Tap a player below to add them to
@@ -617,20 +644,29 @@ function TeesTab({ event }: { event: TEvent }) {
                 ? `⛳ Group ${i + 1} · Start hole ${shotgunStartHole(i)}`
                 : `⛳ ${groupTeeTime(event, i)}`}
             </Text>
-            <TouchableOpacity onPress={() => removeGroup(event.id, g.id)}>
-              <Text style={styles.remove}>Remove</Text>
-            </TouchableOpacity>
+            {!IS_EVENT && (
+              <TouchableOpacity onPress={() => removeGroup(event.id, g.id)}>
+                <Text style={styles.remove}>Remove</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <Text style={styles.hint}>
-            {event.format === "scramble" ? "Team " + (i + 1) + " · tap players to add/remove" : "Tap players to add/remove from this group"}
+            {IS_EVENT
+              ? event.format === "scramble"
+                ? `Team ${i + 1}`
+                : "Group"
+              : event.format === "scramble"
+              ? "Team " + (i + 1) + " · tap players to add/remove"
+              : "Tap players to add/remove from this group"}
           </Text>
           <View style={styles.chipWrap}>
-            {event.players.map((p) => {
+            {(IS_EVENT ? event.players.filter((p) => g.playerIds.includes(p.id)) : event.players).map((p) => {
               const inGroup = g.playerIds.includes(p.id);
               const elsewhere = !inGroup && assigned.has(p.id);
               return (
                 <TouchableOpacity
                   key={p.id}
+                  disabled={IS_EVENT}
                   onPress={() => togglePlayerInGroup(event.id, g.id, p.id)}
                   style={[
                     styles.chip,
@@ -665,7 +701,15 @@ function LiveTab({ event }: { event: TEvent }) {
     <>
       <Card>
         <Text style={styles.formTitle}>On the course</Text>
-        {event.groups.length === 0 && <Text style={styles.empty}>Set up groups in the Tees tab.</Text>}
+        <Text style={styles.hint}>
+          Tap your group to keep score. Anyone can enter the score for every player in the four-ball —
+          so if a phone dies, the round keeps going.
+        </Text>
+        {event.groups.length === 0 && (
+          <Text style={styles.empty}>
+            {IS_EVENT ? "The tee sheet hasn't been set up yet." : "Set up groups in the Tees tab."}
+          </Text>
+        )}
         {event.groups.map((g, i) => {
           const hole = currentHole(event, g, i);
           const names = g.playerIds
@@ -898,25 +942,31 @@ function GamesTab({ event }: { event: TEvent }) {
 
   return (
     <>
-      <Card>
-        <Text style={styles.formTitle}>Add a side game</Text>
-        <Segmented
-          label="Game"
-          options={[
-            { key: "closest", label: "Closest to Pin" },
-            { key: "longest", label: "Longest Drive" },
-          ]}
-          value={type}
-          onChange={setType}
-        />
-        <Stepper label="On hole" value={hole} onChange={setHole} step={1} min={1} max={18} unit="" />
-        <Button label="Add game" onPress={() => addContest(event.id, type, hole)} />
-      </Card>
+      {/* Side games are set up in the main app / office / website. The event
+          build can still record each player's result on the day. */}
+      {!IS_EVENT && (
+        <Card>
+          <Text style={styles.formTitle}>Add a side game</Text>
+          <Segmented
+            label="Game"
+            options={[
+              { key: "closest", label: "Closest to Pin" },
+              { key: "longest", label: "Longest Drive" },
+            ]}
+            value={type}
+            onChange={setType}
+          />
+          <Stepper label="On hole" value={hole} onChange={setHole} step={1} min={1} max={18} unit="" />
+          <Button label="Add game" onPress={() => addContest(event.id, type, hole)} />
+        </Card>
+      )}
 
       {contests.length === 0 && (
         <Card>
           <Text style={styles.empty}>
-            No side games yet. Add closest-to-the-pin on the par-3s or a longest-drive hole.
+            {IS_EVENT
+              ? "No side games for this golf day."
+              : "No side games yet. Add closest-to-the-pin on the par-3s or a longest-drive hole."}
           </Text>
         </Card>
       )}
@@ -933,9 +983,11 @@ function GamesTab({ event }: { event: TEvent }) {
                   <Text style={styles.contestName}>{contestName(c)}</Text>
                   <Text style={styles.hint}>Hole {c.hole} · {contestUnit(c)}</Text>
                 </View>
-                <TouchableOpacity onPress={() => removeContest(event.id, c.id)}>
-                  <Text style={styles.remove}>Remove</Text>
-                </TouchableOpacity>
+                {!IS_EVENT && (
+                  <TouchableOpacity onPress={() => removeContest(event.id, c.id)}>
+                    <Text style={styles.remove}>Remove</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </TouchableOpacity>
 
@@ -997,37 +1049,50 @@ function SponsorsTab({ event }: { event: TEvent }) {
 
   return (
     <>
-      <Card>
-        <Text style={styles.formTitle}>The cause</Text>
-        <Text style={styles.hint}>
-          Who this golf day supports — shown across the app and on the clubhouse board.
-        </Text>
-        <TextField
-          label="Cause / beneficiary"
-          value={cause}
-          onChangeText={setCause}
-          placeholder="Supporting Lyla Roux in her fight against ALK+ ALCL"
-        />
-        <Button label="Save cause" onPress={() => updateEvent(event.id, { cause })} />
-      </Card>
+      {/* Cause and sponsors are managed from the main app / office / website.
+          The event build shows them read-only to thank everyone on the day. */}
+      {IS_EVENT ? (
+        event.cause ? (
+          <Card>
+            <Text style={styles.formTitle}>The cause</Text>
+            <Text style={styles.hint}>{event.cause}</Text>
+          </Card>
+        ) : null
+      ) : (
+        <>
+          <Card>
+            <Text style={styles.formTitle}>The cause</Text>
+            <Text style={styles.hint}>
+              Who this golf day supports — shown across the app and on the clubhouse board.
+            </Text>
+            <TextField
+              label="Cause / beneficiary"
+              value={cause}
+              onChangeText={setCause}
+              placeholder="Supporting Lyla Roux in her fight against ALK+ ALCL"
+            />
+            <Button label="Save cause" onPress={() => updateEvent(event.id, { cause })} />
+          </Card>
 
-      <Card>
-        <Text style={styles.formTitle}>Add a sponsor</Text>
-        <TextField label="Sponsor name" value={name} onChangeText={setName} placeholder="e.g. Engine Control Systems" />
-        <Segmented
-          label="Type"
-          options={[
-            { key: "title", label: "Title" },
-            { key: "hole", label: "Hole" },
-            { key: "prize", label: "Prize" },
-            { key: "general", label: "General" },
-          ]}
-          value={tier}
-          onChange={setTier}
-        />
-        {tier === "hole" && <Stepper label="Hole" value={hole} onChange={setHole} step={1} min={1} max={18} unit="" />}
-        <Button label="Add sponsor" onPress={add} />
-      </Card>
+          <Card>
+            <Text style={styles.formTitle}>Add a sponsor</Text>
+            <TextField label="Sponsor name" value={name} onChangeText={setName} placeholder="e.g. Engine Control Systems" />
+            <Segmented
+              label="Type"
+              options={[
+                { key: "title", label: "Title" },
+                { key: "hole", label: "Hole" },
+                { key: "prize", label: "Prize" },
+                { key: "general", label: "General" },
+              ]}
+              value={tier}
+              onChange={setTier}
+            />
+            {tier === "hole" && <Stepper label="Hole" value={hole} onChange={setHole} step={1} min={1} max={18} unit="" />}
+            <Button label="Add sponsor" onPress={add} />
+          </Card>
+        </>
+      )}
 
       {sponsors.length === 0 && (
         <Card>
@@ -1047,9 +1112,11 @@ function SponsorsTab({ event }: { event: TEvent }) {
                   {s.name}
                   {s.tier === "hole" && s.hole ? <Text style={styles.hint}>{`  ·  Hole ${s.hole}`}</Text> : null}
                 </Text>
-                <TouchableOpacity onPress={() => removeSponsor(event.id, s.id)}>
-                  <Text style={styles.remove}>Remove</Text>
-                </TouchableOpacity>
+                {!IS_EVENT && (
+                  <TouchableOpacity onPress={() => removeSponsor(event.id, s.id)}>
+                    <Text style={styles.remove}>Remove</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             ))}
           </Card>
