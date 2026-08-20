@@ -126,6 +126,11 @@ workflows:
         script: |
           cd mobile
           npx expo prebuild --platform ios --no-install
+      - name: Verify fmt fix is in the Podfile (Xcode 26)
+        script: |
+          cd mobile/ios
+          echo "----- Podfile fmt fix -----"
+          grep -n "FMT_USE_CONSTEVAL\|post_install" Podfile || echo "!!! fmt fix NOT found in Podfile !!!"
       - name: Install CocoaPods
         script: |
           cd mobile/ios
@@ -209,6 +214,11 @@ workflows:
         script: |
           cd mobile
           npx expo prebuild --platform ios --no-install
+      - name: Verify fmt fix is in the Podfile (Xcode 26)
+        script: |
+          cd mobile/ios
+          echo "----- Podfile fmt fix -----"
+          grep -n "FMT_USE_CONSTEVAL\|post_install" Podfile || echo "!!! fmt fix NOT found in Podfile !!!"
       - name: Install CocoaPods
         script: |
           cd mobile/ios
