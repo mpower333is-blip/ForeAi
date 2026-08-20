@@ -58,8 +58,9 @@ export default function EventsScreen() {
 // ---------------------------------------------------------------------------
 
 function EventList({ onOpen }: { onOpen: (id: string) => void }) {
-  const { events, createEvent, createEcsGolfDay, createEcsGolfDayLive, createSharedEvent, joinByCode } =
+  const { events, createEvent, createEcsGolfDay, createEcsGolfDayLive, createSharedEvent, joinByCode, registerSelf } =
     useTournament();
+  const { name: profileName, handicap: profileHcp } = useProfile();
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -72,6 +73,8 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
   const [shared, setShared] = useState(true);
   const [shotgun, setShotgun] = useState(false);
   const [joinCode, setJoinCode] = useState("");
+  const [joinName, setJoinName] = useState(profileName);
+  const [joinHcp, setJoinHcp] = useState(profileHcp);
   const [courseQuery, setCourseQuery] = useState("");
   const [onlineCourses, setOnlineCourses] = useState<CourseSummary[]>([]);
   const [courseSearching, setCourseSearching] = useState(false);
@@ -172,13 +175,20 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
 
   const join = async () => {
     setError("");
+    if (!joinName.trim()) {
+      setError("Enter your name so you're on the tee sheet and leaderboard.");
+      return;
+    }
     setBusy(true);
     const ev = await joinByCode(joinCode);
-    setBusy(false);
     if (!ev) {
+      setBusy(false);
       setError("No event found for that code (or the server is unreachable).");
       return;
     }
+    // Sign yourself in as a player the moment you join with the code.
+    await registerSelf(ev.id, joinName.trim(), joinHcp);
+    setBusy(false);
     setJoining(false);
     setJoinCode("");
     onOpen(ev.id);
@@ -223,14 +233,19 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
 
       {joining && (
         <Card>
-          <Text style={styles.formTitle}>Join an event</Text>
-          <Text style={styles.hint}>Enter the code the organizer shared with you.</Text>
+          <Text style={styles.formTitle}>Join the golf day</Text>
+          <Text style={styles.hint}>
+            Enter the code the organiser shared, plus your name — you'll be added to the field
+            straight away.
+          </Text>
           <TextField
             label="Join code"
             value={joinCode}
             onChangeText={(v) => setJoinCode(v.toUpperCase())}
             placeholder="ABC123"
           />
+          <TextField label="Your name" value={joinName} onChangeText={setJoinName} placeholder="You" />
+          <Stepper label="Your handicap" value={joinHcp} onChange={setJoinHcp} step={1} min={0} max={54} unit="" />
           <View style={styles.formRow}>
             <Button label={busy ? "Joining…" : "Join"} onPress={join} style={{ flex: 1 }} />
             <Button label="Cancel" variant="ghost" onPress={() => setJoining(false)} style={{ flex: 1 }} />
@@ -540,9 +555,9 @@ function PlayersTab({ event }: { event: TEvent }) {
 
   return (
     <>
-      {/* The player roster is managed from the main app, the office page and the
-          website. The event build shows it read-only — no adding or removing. */}
-      {!IS_EVENT && event.remote && !meId && (
+      {/* Anyone can sign themselves in, but only the main app / office / website
+          can add or remove OTHER players. */}
+      {event.remote && !meId && (
         <Card accent>
           <Text style={styles.formTitle}>Join as a player</Text>
           <Text style={styles.hint}>Add yourself to this event from your phone.</Text>
