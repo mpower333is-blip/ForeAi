@@ -57,6 +57,9 @@ function serialize(t: NonNullable<LoadedTournament>) {
       handicap: p.handicap,
       deviceId: p.deviceId,
       groupId: p.groupId,
+      lastSeen: p.lastSeen ? p.lastSeen.getTime() : null,
+      lat: p.lat,
+      lng: p.lng,
     })),
     groups: t.groups.map((g) => ({
       id: g.id,
@@ -165,6 +168,28 @@ router.post("/:id/players", async (req, res) => {
 router.delete("/:id/players/:playerId", async (req, res) => {
   await prisma.tournamentPlayer.delete({ where: { id: req.params.playerId } });
   await respondWithEvent(req.params.id, res);
+});
+
+// Heartbeat: a player's phone marks itself "live" and (optionally) shares its
+// GPS position. Called every ~40s while the event is open so the organiser can
+// see who's on the app and roughly where each team is. Kept lightweight — the
+// 6-second full-state poll is what fans the presence out to other devices.
+router.put("/:id/players/:playerId/ping", async (req, res) => {
+  const { lat, lng } = req.body ?? {};
+  try {
+    await prisma.tournamentPlayer.update({
+      where: { id: req.params.playerId },
+      data: {
+        lastSeen: new Date(),
+        ...(typeof lat === "number" ? { lat } : {}),
+        ...(typeof lng === "number" ? { lng } : {}),
+      },
+    });
+    res.json({ ok: true });
+  } catch {
+    // Player may have been removed — don't error the heartbeat.
+    res.json({ ok: false });
+  }
 });
 
 // Assign / unassign a player to a group (groupId null = unassigned).

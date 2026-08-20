@@ -13,6 +13,7 @@ import {
 } from "../services/golfCourseApi";
 import { useTournament } from "../state/TournamentContext";
 import { useProfile } from "../state/ProfileContext";
+import { useLocation } from "../hooks/useLocation";
 import { IS_EVENT, PRESET_EVENT_CODE } from "../config/appVariant";
 import {
   TEvent,
@@ -31,6 +32,8 @@ import {
   shotgunStartHole,
   SponsorTier,
   sponsorTierLabel,
+  isPlayerLive,
+  groupLiveCount,
 } from "../lib/tournament";
 
 function hhmm(min: number): string {
@@ -425,6 +428,7 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
   const [tab, setTab] = useState<Tab>(IS_EVENT ? "live" : "players");
   const [, setCourseReady] = useState(0);
   const isRemote = !!event?.remote;
+  const meId = t.myPlayerId(eventId);
 
   // Poll the server so every device sees live changes.
   useEffect(() => {
@@ -434,6 +438,23 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
     }, 6000);
     return () => clearInterval(iv);
   }, [isRemote, eventId]);
+
+  // Presence + position heartbeat. Only a registered player on a shared event
+  // shares location, so organisers just browsing never get a permission prompt.
+  const sharing = isRemote && !!meId;
+  const loc = useLocation(sharing);
+  const coordRef = useRef(loc.coord);
+  coordRef.current = loc.coord;
+  useEffect(() => {
+    if (!sharing || !meId) return;
+    const beat = () => {
+      const c = coordRef.current;
+      t.pingPresence(eventId, meId, c ? { lat: c.lat, lng: c.lng } : undefined);
+    };
+    beat(); // mark live immediately on open
+    const iv = setInterval(beat, 40000);
+    return () => clearInterval(iv);
+  }, [sharing, meId, eventId]);
 
   // If this event's course came from the online database, make sure THIS device
   // has its real card too (so pars/leaderboard are correct after joining).
@@ -712,8 +733,37 @@ function LiveTab({ event }: { event: TEvent }) {
   const [scoringGroup, setScoringGroup] = useState<string | null>(null);
   const isScramble = event.format === "scramble";
 
+  const now = Date.now();
+  const livePlayers = event.players.filter((p) => isPlayerLive(p, now));
+
   return (
     <>
+      {event.remote && (
+        <Card>
+          <Text style={styles.formTitle}>Who's out there</Text>
+          <View style={styles.presenceHead}>
+            <View style={[styles.presenceDot, livePlayers.length > 0 && styles.presenceDotOn]} />
+            <Text style={styles.presenceCount}>
+              {livePlayers.length} of {event.players.length} on the app now
+            </Text>
+          </View>
+          {livePlayers.length === 0 ? (
+            <Text style={styles.hint}>
+              No one's live yet — players show here once they open the app on the course.
+            </Text>
+          ) : (
+            <View style={styles.chipWrap}>
+              {livePlayers.map((p) => (
+                <View key={p.id} style={styles.presenceChip}>
+                  <View style={[styles.presenceDot, styles.presenceDotOn]} />
+                  <Text style={styles.presenceName}>{p.name}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </Card>
+      )}
+
       <Card>
         <Text style={styles.formTitle}>On the course</Text>
         <Text style={styles.hint}>
@@ -736,6 +786,7 @@ function LiveTab({ event }: { event: TEvent }) {
             : `Off at ${groupTeeTime(event, i)}`;
           const captain = teamCaptain(g);
           const teamThru = isScramble && captain ? Object.keys(event.scores[captain] ?? {}).length : 0;
+          const live = groupLiveCount(event, g, now);
           return (
             <TouchableOpacity
               key={g.id}
@@ -748,7 +799,15 @@ function LiveTab({ event }: { event: TEvent }) {
                     {isScramble ? `Team ${i + 1}: ` : ""}
                     {names || "(no players)"}
                   </Text>
-                  <Text style={styles.liveTee}>{teeLabel}</Text>
+                  <View style={styles.liveTeeRow}>
+                    <Text style={styles.liveTee}>{teeLabel}</Text>
+                    {live > 0 && (
+                      <View style={styles.liveHereBadge}>
+                        <View style={[styles.presenceDot, styles.presenceDotOn]} />
+                        <Text style={styles.liveHereText}>{live} live</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
                 <View style={styles.liveRight}>
                   {hole === null ? (
@@ -1236,7 +1295,28 @@ const styles = StyleSheet.create({
   },
   liveNames: { color: colors.text, fontSize: 16, fontWeight: "600" },
   liveTee: { color: colors.textFaint, fontSize: 13, marginTop: 2 },
+  liveTeeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
+  liveHereBadge: { flexDirection: "row", alignItems: "center", gap: 4 },
+  liveHereText: { color: colors.positive, fontSize: 12, fontWeight: "700" },
   liveRight: { alignItems: "flex-end" },
+
+  // Live presence ("who's on the app").
+  presenceHead: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
+  presenceCount: { color: colors.text, fontSize: 15, fontWeight: "700" },
+  presenceDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.textFaint },
+  presenceDotOn: { backgroundColor: colors.positive },
+  presenceChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  presenceName: { color: colors.text, fontSize: 13, fontWeight: "600" },
   liveHole: { color: colors.accent, fontSize: 18, fontWeight: "800" },
   liveThru: { color: colors.textFaint, fontSize: 12 },
   liveFinished: { color: colors.positive, fontSize: 15, fontWeight: "700" },

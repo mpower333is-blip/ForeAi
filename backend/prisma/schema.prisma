@@ -147,6 +147,12 @@ model TournamentPlayer {
   handicap     Float  @default(0)
   deviceId     String? // the phone that registered this player (for "me")
 
+  // Live presence + position ("who's on the app / where is each team").
+  // Updated by a heartbeat from the player's phone while the event is open.
+  lastSeen     DateTime? // last heartbeat — recent = on the app right now
+  lat          Float?    // last known GPS position (optional, if shared)
+  lng          Float?
+
   scores       TournamentScore[]
 
   createdAt    DateTime @default(now())

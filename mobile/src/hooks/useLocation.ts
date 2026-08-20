@@ -11,7 +11,9 @@ export type LocationState = {
 };
 
 // Watches the device's foreground position and exposes the latest fix.
-export function useLocation(): LocationState {
+// Pass enabled=false to stay dormant (no permission prompt, no watching) until
+// it's actually needed — e.g. only for a player who's shared their position.
+export function useLocation(enabled: boolean = true): LocationState {
   const [coord, setCoord] = useState<Coord | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [heading, setHeading] = useState<number | null>(null);
@@ -21,6 +23,7 @@ export function useLocation(): LocationState {
   const [tick, setTick] = useState(0); // bump to (re)request
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
 
     (async () => {
@@ -67,7 +70,7 @@ export function useLocation(): LocationState {
       headRef.current?.remove();
       headRef.current = null;
     };
-  }, [tick]);
+  }, [tick, enabled]);
 
   return { coord, accuracy, heading, status, request: () => setTick((t) => t + 1) };
 }

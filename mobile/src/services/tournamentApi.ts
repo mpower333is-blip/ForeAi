@@ -80,4 +80,9 @@ export const tournamentApi = {
 
   setContestResult: (id: string, contestId: string, playerId: string, value: number) =>
     req<TEvent>(`/${id}/contests/${contestId}/results`, "PUT", { playerId, value }).then(tag),
+
+  // Heartbeat: mark this player live and optionally share GPS. Returns quickly
+  // (no full event) — presence fans out via the regular poll.
+  ping: (id: string, playerId: string, coord?: { lat: number; lng: number }) =>
+    req<{ ok: boolean }>(`/${id}/players/${playerId}/ping`, "PUT", coord ?? {}),
 };

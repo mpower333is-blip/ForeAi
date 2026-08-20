@@ -32,6 +32,9 @@ type TournamentState = {
   refreshEvent: (id: string) => Promise<void>;
   registerSelf: (eventId: string, name: string, handicap: number) => Promise<TEvent | null>;
   myPlayerId: (eventId: string) => string | undefined;
+  // Heartbeat: mark this device's player live (+ optional GPS) so organisers
+  // can see who's on the app and where each team is.
+  pingPresence: (eventId: string, playerId: string, coord?: { lat: number; lng: number }) => void;
   // mutations (branch local vs remote automatically)
   getEvent: (id: string) => TEvent | undefined;
   updateEvent: (id: string, patch: Partial<TEvent>) => void;
@@ -214,6 +217,13 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       if (mine) setMyByEvent((prev) => ({ ...prev, [eventId]: mine.id }));
     }
     return ev;
+  };
+
+  const pingPresence: TournamentState["pingPresence"] = (eventId, playerId, coord) => {
+    const ev = getEvent(eventId);
+    if (!ev?.remote || !playerId) return;
+    // Fire-and-forget — a missed heartbeat just means "not seen for a bit".
+    tournamentApi.ping(eventId, playerId, coord);
   };
 
   // ---- mutations (local or remote) ---------------------------------------
@@ -406,6 +416,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     refreshEvent,
     registerSelf,
     myPlayerId,
+    pingPresence,
     getEvent,
     updateEvent,
     addPlayer,
