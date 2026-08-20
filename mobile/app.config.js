@@ -68,9 +68,6 @@ export default {
             "ForeAi uses your location to show distances to the pin while you play.",
         },
       ],
-      // Compile the fmt pod as C++17 so it builds under Xcode 26 (required by
-      // Apple for App Store / TestFlight uploads). See plugins/withFmtCpp17.js.
-      "./plugins/withFmtCpp17",
     ],
     extra: {
       // EXPO_PUBLIC_API_URL is read directly in services/api.ts; set it in a

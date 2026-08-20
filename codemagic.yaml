@@ -126,11 +126,36 @@ workflows:
         script: |
           cd mobile
           npx expo prebuild --platform ios --no-install
-      - name: Verify fmt fix is in the Podfile (Xcode 26)
+      - name: Patch Podfile for Xcode 26 (build fmt as C++17)
         script: |
           cd mobile/ios
-          echo "----- Podfile fmt fix -----"
-          grep -n "FMT_USE_CONSTEVAL\|post_install" Podfile || echo "!!! fmt fix NOT found in Podfile !!!"
+          if ! grep -q "ci-fmt-cxx17-fix" Podfile; then
+            awk '
+              /post_install do \|installer\|/ && !done {
+                print
+                print "    # ci-fmt-cxx17-fix: fmt fails on Xcode 26 (consteval); build it as C++17."
+                print "    installer.pods_project.targets.each do |t|"
+                print "      if t.name == \"fmt\""
+                print "        t.build_configurations.each do |c|"
+                print "          c.build_settings[\"CLANG_CXX_LANGUAGE_STANDARD\"] = \"c++17\""
+                print "          d = c.build_settings[\"GCC_PREPROCESSOR_DEFINITIONS\"] || [\"$(inherited)\"]"
+                print "          d = [d] unless d.is_a?(Array)"
+                print "          d << \"FMT_USE_CONSTEVAL=0\" unless d.include?(\"FMT_USE_CONSTEVAL=0\")"
+                print "          c.build_settings[\"GCC_PREPROCESSOR_DEFINITIONS\"] = d"
+                print "        end"
+                print "      end"
+                print "    end"
+                done=1
+                next
+              }
+              { print }
+            ' Podfile > Podfile.new && mv Podfile.new Podfile
+            echo "PATCHED Podfile with fmt C++17 fix"
+          else
+            echo "fmt C++17 fix already present"
+          fi
+          echo "----- Podfile fmt section -----"
+          grep -n "ci-fmt-cxx17-fix\|CLANG_CXX_LANGUAGE_STANDARD\|FMT_USE_CONSTEVAL" Podfile || echo "NONE"
       - name: Install CocoaPods
         script: |
           cd mobile/ios
@@ -224,11 +249,36 @@ workflows:
         script: |
           cd mobile
           npx expo prebuild --platform ios --no-install
-      - name: Verify fmt fix is in the Podfile (Xcode 26)
+      - name: Patch Podfile for Xcode 26 (build fmt as C++17)
         script: |
           cd mobile/ios
-          echo "----- Podfile fmt fix -----"
-          grep -n "FMT_USE_CONSTEVAL\|post_install" Podfile || echo "!!! fmt fix NOT found in Podfile !!!"
+          if ! grep -q "ci-fmt-cxx17-fix" Podfile; then
+            awk '
+              /post_install do \|installer\|/ && !done {
+                print
+                print "    # ci-fmt-cxx17-fix: fmt fails on Xcode 26 (consteval); build it as C++17."
+                print "    installer.pods_project.targets.each do |t|"
+                print "      if t.name == \"fmt\""
+                print "        t.build_configurations.each do |c|"
+                print "          c.build_settings[\"CLANG_CXX_LANGUAGE_STANDARD\"] = \"c++17\""
+                print "          d = c.build_settings[\"GCC_PREPROCESSOR_DEFINITIONS\"] || [\"$(inherited)\"]"
+                print "          d = [d] unless d.is_a?(Array)"
+                print "          d << \"FMT_USE_CONSTEVAL=0\" unless d.include?(\"FMT_USE_CONSTEVAL=0\")"
+                print "          c.build_settings[\"GCC_PREPROCESSOR_DEFINITIONS\"] = d"
+                print "        end"
+                print "      end"
+                print "    end"
+                done=1
+                next
+              }
+              { print }
+            ' Podfile > Podfile.new && mv Podfile.new Podfile
+            echo "PATCHED Podfile with fmt C++17 fix"
+          else
+            echo "fmt C++17 fix already present"
+          fi
+          echo "----- Podfile fmt section -----"
+          grep -n "ci-fmt-cxx17-fix\|CLANG_CXX_LANGUAGE_STANDARD\|FMT_USE_CONSTEVAL" Podfile || echo "NONE"
       - name: Install CocoaPods
         script: |
           cd mobile/ios
