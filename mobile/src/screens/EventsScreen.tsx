@@ -14,6 +14,7 @@ import {
 import { useTournament } from "../state/TournamentContext";
 import { useProfile } from "../state/ProfileContext";
 import { useLocation } from "../hooks/useLocation";
+import CourseMap from "../components/CourseMap";
 import { IS_EVENT, PRESET_EVENT_CODE } from "../config/appVariant";
 import {
   TEvent,
@@ -738,6 +739,14 @@ function LiveTab({ event }: { event: TEvent }) {
 
   return (
     <>
+      {event.remote && (
+        <Card>
+          <Text style={styles.formTitle}>Live course map</Text>
+          <Text style={styles.hint}>Each team shows where they are on the course, live.</Text>
+          <CourseMap event={event} course={course} />
+        </Card>
+      )}
+
       {event.remote && (
         <Card>
           <Text style={styles.formTitle}>Who's out there</Text>
