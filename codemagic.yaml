@@ -177,7 +177,15 @@ workflows:
           cd mobile/ios
           WORKSPACE=$(find . -maxdepth 1 -name "*.xcworkspace" | head -1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          set +e
           xcode-project build-ipa --workspace "$WORKSPACE" --scheme "$SCHEME"
+          RC=$?
+          if [ $RC -ne 0 ]; then
+            echo "=================== ACTUAL COMPILER ERRORS ==================="
+            grep -rhE "error:|error :" /tmp/xcodebuild_logs/ 2>/dev/null | tail -50
+            echo "============================================================="
+          fi
+          exit $RC
     artifacts:
       - mobile/ios/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
@@ -265,7 +273,15 @@ workflows:
           cd mobile/ios
           WORKSPACE=$(find . -maxdepth 1 -name "*.xcworkspace" | head -1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          set +e
           xcode-project build-ipa --workspace "$WORKSPACE" --scheme "$SCHEME"
+          RC=$?
+          if [ $RC -ne 0 ]; then
+            echo "=================== ACTUAL COMPILER ERRORS ==================="
+            grep -rhE "error:|error :" /tmp/xcodebuild_logs/ 2>/dev/null | tail -50
+            echo "============================================================="
+          fi
+          exit $RC
     artifacts:
       - mobile/ios/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
