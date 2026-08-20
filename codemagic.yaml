@@ -158,10 +158,12 @@ workflows:
           echo "Private key: $(wc -c < "$CERT_KEY") bytes"
           # Create the iOS distribution certificate (from this key) AND the App
           # Store provisioning profile for $BUNDLE_ID, saving both so we can sign.
+          # Retry on Apple's transient 500s (common right after a cert revoke).
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --platform IOS \
             --type IOS_APP_STORE \
             --certificate-key=@file:"$CERT_KEY" \
+            --api-server-error-retries 10 \
             --create
           keychain add-certificates
           # Run from mobile/ios so use-profiles configures THIS Xcode project
@@ -254,10 +256,12 @@ workflows:
           echo "Private key: $(wc -c < "$CERT_KEY") bytes"
           # Create the iOS distribution certificate (from this key) AND the App
           # Store provisioning profile for $BUNDLE_ID, saving both so we can sign.
+          # Retry on Apple's transient 500s (common right after a cert revoke).
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --platform IOS \
             --type IOS_APP_STORE \
             --certificate-key=@file:"$CERT_KEY" \
+            --api-server-error-retries 10 \
             --create
           keychain add-certificates
           # Run from mobile/ios so use-profiles configures THIS Xcode project
