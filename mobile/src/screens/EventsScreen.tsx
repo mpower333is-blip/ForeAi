@@ -729,10 +729,11 @@ function TeesTab({ event }: { event: TEvent }) {
 }
 
 function LiveTab({ event }: { event: TEvent }) {
-  const { setScore } = useTournament();
+  const { setScore, myPlayerId } = useTournament();
   const course = getCourse(event.courseId);
   const [scoringGroup, setScoringGroup] = useState<string | null>(null);
   const isScramble = event.format === "scramble";
+  const meId = myPlayerId(event.id);
 
   const now = Date.now();
   const livePlayers = event.players.filter((p) => isPlayerLive(p, now));
@@ -743,7 +744,7 @@ function LiveTab({ event }: { event: TEvent }) {
         <Card>
           <Text style={styles.formTitle}>Live course map</Text>
           <Text style={styles.hint}>Each team shows where they are on the course, live.</Text>
-          <CourseMap event={event} course={course} />
+          <CourseMap event={event} course={course} meId={meId} />
         </Card>
       )}
 

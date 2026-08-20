@@ -17,13 +17,21 @@ const TEAM_COLORS = [
   "#7CF5D0", "#FFB067", "#B6FF8E", "#FF9BE0", "#9AD0FF",
 ];
 
-type TeamDot = { key: string; label: string; coord: Coord; color: string; live: number };
+type TeamDot = { key: string; label: string; coord: Coord; color: string; live: number; isMe: boolean };
 
 function avg(ns: number[]): number {
   return ns.reduce((a, b) => a + b, 0) / ns.length;
 }
 
-export default function CourseMap({ event, course }: { event: TEvent; course: Course }) {
+export default function CourseMap({
+  event,
+  course,
+  meId,
+}: {
+  event: TEvent;
+  course: Course;
+  meId?: string | null;
+}) {
   const now = Date.now();
 
   // One dot per team, at the average position of its live members.
@@ -46,6 +54,7 @@ export default function CourseMap({ event, course }: { event: TEvent; course: Co
       coord,
       color: TEAM_COLORS[i % TEAM_COLORS.length],
       live: live.length,
+      isMe: !!meId && g.playerIds.includes(meId),
     });
   });
 
@@ -112,11 +121,27 @@ export default function CourseMap({ event, course }: { event: TEvent; course: Co
             const { x, y } = toXY(c);
             return <Circle key={`h${h.number}`} cx={x} cy={y} r="0.8" fill="rgba(255,255,255,0.55)" />;
           })}
-          {/* Team dots. */}
+          {/* Team dots — the current player's team gets a "you are here" ring. */}
           {dots.map((d) => {
             const { x, y } = toXY(d.coord);
             return (
               <G key={d.key}>
+                {d.isMe && (
+                  <>
+                    <Circle cx={x} cy={y} r="4.6" fill="none" stroke="#FFFFFF" strokeWidth="0.9" />
+                    <Circle cx={x} cy={y} r="4.6" fill={d.color} fillOpacity={0.18} />
+                    <SvgText
+                      x={x}
+                      y={y - 5.6}
+                      fontSize="2.3"
+                      fontWeight="bold"
+                      fill="#FFFFFF"
+                      textAnchor="middle"
+                    >
+                      You are here
+                    </SvgText>
+                  </>
+                )}
                 <Circle cx={x} cy={y} r="2.6" fill={d.color} stroke="#04120B" strokeWidth="0.5" />
                 <SvgText
                   x={x}
@@ -148,10 +173,11 @@ export default function CourseMap({ event, course }: { event: TEvent; course: Co
               .join(", ");
             return (
               <View key={d.key} style={styles.legendRow}>
-                <View style={[styles.legendDot, { backgroundColor: d.color }]} />
+                <View style={[styles.legendDot, { backgroundColor: d.color }, d.isMe && styles.legendDotMe]} />
                 <Text style={styles.legendLabel}>{d.label}</Text>
                 <Text style={styles.legendNames} numberOfLines={1}>
                   {names || "—"}
+                  {d.isMe ? "  · you" : ""}
                 </Text>
               </View>
             );
@@ -195,6 +221,7 @@ const styles = StyleSheet.create({
   legend: { marginTop: 10, gap: 6 },
   legendRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   legendDot: { width: 12, height: 12, borderRadius: 6 },
+  legendDotMe: { borderWidth: 2, borderColor: "#FFFFFF" },
   legendLabel: { color: colors.text, fontSize: 13, fontWeight: "800", width: 30 },
   legendNames: { color: colors.textMuted, fontSize: 13, flex: 1 },
 });
