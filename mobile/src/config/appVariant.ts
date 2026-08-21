@@ -16,6 +16,10 @@ export const IS_EVENT = APP_VARIANT === "event";
 // Display name for this build (splash, onboarding).
 export const APP_NAME = IS_EVENT ? "ECS Golf Day" : "ForeAi";
 
-// Optional: pre-fill an event join code in the event app (set once you've
-// created the ECS Golf Day and have its code).
-export const PRESET_EVENT_CODE = (process.env.EXPO_PUBLIC_EVENT_CODE ?? "").toUpperCase();
+// Join code the event app auto-joins on first launch, so a player never has to
+// type it. Overridable at build time with EXPO_PUBLIC_EVENT_CODE; otherwise the
+// event build falls back to the ECS Golf Day code. (The full app has no preset.)
+const DEFAULT_EVENT_CODE = IS_EVENT ? "3YG6JS" : "";
+export const PRESET_EVENT_CODE = (
+  process.env.EXPO_PUBLIC_EVENT_CODE || DEFAULT_EVENT_CODE
+).toUpperCase();

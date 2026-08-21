@@ -49,7 +49,20 @@ const EVENT_LOGOS: Record<string, any> = {
 };
 
 export default function EventsScreen() {
+  const { events } = useTournament();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Event build: as soon as an event is available (cached from last time or just
+  // joined), drop straight into it — no need to pick it from a one-item list.
+  // Only auto-opens once, so the back button still returns to the list.
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (IS_EVENT && !autoOpened.current && !selectedId && events.length > 0) {
+      autoOpened.current = true;
+      setSelectedId(events[0].id);
+    }
+  }, [events, selectedId]);
+
   if (selectedId) {
     return <EventDetail eventId={selectedId} onBack={() => setSelectedId(null)} />;
   }

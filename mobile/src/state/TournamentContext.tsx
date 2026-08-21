@@ -8,6 +8,9 @@ import { loadJSON, saveJSON } from "../lib/storage";
 // Remembers which player is "me" in each event, so the app recognises you on
 // every launch instead of asking you to pick (or re-registering) each time.
 const MY_KEY = "foreai.myPlayers.v1";
+// Caches the events you've joined/created so the app reopens straight into them
+// on the next launch instead of asking for the join code again.
+const EVENTS_KEY = "foreai.events.v1";
 
 let idc = 0;
 export function newId(prefix: string): string {
@@ -65,20 +68,35 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   const [events, setEvents] = useState<TEvent[]>([]);
   const [myByEvent, setMyByEvent] = useState<Record<string, string>>({});
   const [myReady, setMyReady] = useState(false);
+  const [eventsReady, setEventsReady] = useState(false);
 
-  // Hydrate the stable device id and the saved "who am I" map once on mount.
+  // Hydrate the device id, the saved "who am I" map, and the cached events once
+  // on mount. Cached events open instantly (also works offline); remote ones are
+  // then refreshed from the server in the background.
   useEffect(() => {
     initDeviceId();
     loadJSON<Record<string, string>>(MY_KEY).then((saved) => {
       if (saved) setMyByEvent(saved);
       setMyReady(true);
     });
+    loadJSON<TEvent[]>(EVENTS_KEY).then((saved) => {
+      if (saved && saved.length) {
+        setEvents(saved);
+        saved.forEach((e) => {
+          if (e.remote) tournamentApi.get(e.id).then((fresh) => fresh && replaceEvent(fresh));
+        });
+      }
+      setEventsReady(true);
+    });
   }, []);
 
-  // Persist the "who am I" map whenever it changes (after the initial load).
+  // Persist the "who am I" map and the events cache whenever they change.
   useEffect(() => {
     if (myReady) saveJSON(MY_KEY, myByEvent);
   }, [myByEvent, myReady]);
+  useEffect(() => {
+    if (eventsReady) saveJSON(EVENTS_KEY, events);
+  }, [events, eventsReady]);
 
   // Auto-recognise "me": if an event already has a player linked to this
   // device (claimed on a previous launch), adopt it without prompting.
