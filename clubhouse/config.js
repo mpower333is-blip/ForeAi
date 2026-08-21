@@ -7,5 +7,5 @@
 // Precedence on each page:  ?api=/?code= in the URL  >  saved (this device)  >  these defaults.
 window.FOREAI_DEFAULTS = {
   api: "https://foreai-backend.onrender.com", // the live ForeAi backend
-  code: "", // e.g. "EC5GLF"  (optional — pre-selects the event)
+  code: "3YG6JS", // ECS Golf Day — 15 Oct 2026 (pre-selects the event)
 };
