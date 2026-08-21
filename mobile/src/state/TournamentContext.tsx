@@ -1,8 +1,13 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { TEvent, TPlayer, TGroup, EventFormat, ContestType, SponsorTier } from "../lib/tournament";
 import { COURSES } from "../data/courses";
 import { tournamentApi } from "../services/tournamentApi";
-import { DEVICE_ID } from "./device";
+import { DEVICE_ID, initDeviceId } from "./device";
+import { loadJSON, saveJSON } from "../lib/storage";
+
+// Remembers which player is "me" in each event, so the app recognises you on
+// every launch instead of asking you to pick (or re-registering) each time.
+const MY_KEY = "foreai.myPlayers.v1";
 
 let idc = 0;
 export function newId(prefix: string): string {
@@ -31,6 +36,9 @@ type TournamentState = {
   joinByCode: (code: string) => Promise<TEvent | null>;
   refreshEvent: (id: string) => Promise<void>;
   registerSelf: (eventId: string, name: string, handicap: number) => Promise<TEvent | null>;
+  // Link this phone to an existing (pre-registered) player — "I am this player".
+  claimPlayer: (eventId: string, playerId: string) => Promise<TEvent | null>;
+  clearMyPlayer: (eventId: string) => void; // "not me" — forget the link on this device
   myPlayerId: (eventId: string) => string | undefined;
   // Heartbeat: mark this device's player live (+ optional GPS) so organisers
   // can see who's on the app and where each team is.
@@ -56,6 +64,35 @@ const Ctx = createContext<TournamentState | null>(null);
 export function TournamentProvider({ children }: { children: React.ReactNode }) {
   const [events, setEvents] = useState<TEvent[]>([]);
   const [myByEvent, setMyByEvent] = useState<Record<string, string>>({});
+  const [myReady, setMyReady] = useState(false);
+
+  // Hydrate the stable device id and the saved "who am I" map once on mount.
+  useEffect(() => {
+    initDeviceId();
+    loadJSON<Record<string, string>>(MY_KEY).then((saved) => {
+      if (saved) setMyByEvent(saved);
+      setMyReady(true);
+    });
+  }, []);
+
+  // Persist the "who am I" map whenever it changes (after the initial load).
+  useEffect(() => {
+    if (myReady) saveJSON(MY_KEY, myByEvent);
+  }, [myByEvent, myReady]);
+
+  // Auto-recognise "me": if an event already has a player linked to this
+  // device (claimed on a previous launch), adopt it without prompting.
+  useEffect(() => {
+    setMyByEvent((prev) => {
+      const additions: Record<string, string> = {};
+      for (const ev of events) {
+        if (prev[ev.id]) continue;
+        const mine = ev.players.find((p) => !!p.deviceId && p.deviceId === DEVICE_ID);
+        if (mine) additions[ev.id] = mine.id;
+      }
+      return Object.keys(additions).length ? { ...prev, ...additions } : prev;
+    });
+  }, [events]);
 
   const getEvent = (id: string) => events.find((e) => e.id === id);
   const myPlayerId = (eventId: string) => myByEvent[eventId];
@@ -217,6 +254,30 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       if (mine) setMyByEvent((prev) => ({ ...prev, [eventId]: mine.id }));
     }
     return ev;
+  };
+
+  // Link this phone to an existing player. Optimistically remember the choice
+  // (so the UI updates instantly and survives a restart) then tell the server
+  // to record the device so presence/GPS and the office know who this is.
+  const claimPlayer: TournamentState["claimPlayer"] = async (eventId, playerId) => {
+    setMyByEvent((prev) => ({ ...prev, [eventId]: playerId }));
+    const ev = getEvent(eventId);
+    if (ev?.remote) {
+      return runRemote(tournamentApi.claimPlayer(eventId, playerId, DEVICE_ID));
+    }
+    return ev ?? null;
+  };
+
+  const clearMyPlayer: TournamentState["clearMyPlayer"] = (eventId) => {
+    const mine = myByEvent[eventId];
+    setMyByEvent((prev) => {
+      const next = { ...prev };
+      delete next[eventId];
+      return next;
+    });
+    // Best-effort: release the link on the server so the slot is free again.
+    const ev = getEvent(eventId);
+    if (ev?.remote && mine) runRemote(tournamentApi.claimPlayer(eventId, mine, null));
   };
 
   const pingPresence: TournamentState["pingPresence"] = (eventId, playerId, coord) => {
@@ -415,6 +476,8 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     joinByCode,
     refreshEvent,
     registerSelf,
+    claimPlayer,
+    clearMyPlayer,
     myPlayerId,
     pingPresence,
     getEvent,

@@ -12,7 +12,6 @@ import {
   CourseSummary,
 } from "../services/golfCourseApi";
 import { useTournament } from "../state/TournamentContext";
-import { useProfile } from "../state/ProfileContext";
 import { useLocation } from "../hooks/useLocation";
 import CourseMap from "../components/CourseMap";
 import { IS_EVENT, PRESET_EVENT_CODE } from "../config/appVariant";
@@ -62,9 +61,8 @@ export default function EventsScreen() {
 // ---------------------------------------------------------------------------
 
 function EventList({ onOpen }: { onOpen: (id: string) => void }) {
-  const { events, createEvent, createEcsGolfDay, createEcsGolfDayLive, createSharedEvent, joinByCode, registerSelf } =
+  const { events, createEvent, createEcsGolfDay, createEcsGolfDayLive, createSharedEvent, joinByCode } =
     useTournament();
-  const { name: profileName, handicap: profileHcp } = useProfile();
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -77,8 +75,6 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
   const [shared, setShared] = useState(true);
   const [shotgun, setShotgun] = useState(false);
   const [joinCode, setJoinCode] = useState("");
-  const [joinName, setJoinName] = useState(profileName);
-  const [joinHcp, setJoinHcp] = useState(profileHcp);
   const [courseQuery, setCourseQuery] = useState("");
   const [onlineCourses, setOnlineCourses] = useState<CourseSummary[]>([]);
   const [courseSearching, setCourseSearching] = useState(false);
@@ -179,10 +175,6 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
 
   const join = async () => {
     setError("");
-    if (!joinName.trim()) {
-      setError("Enter your name so you're on the tee sheet and leaderboard.");
-      return;
-    }
     setBusy(true);
     const ev = await joinByCode(joinCode);
     if (!ev) {
@@ -190,8 +182,9 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
       setError("No event found for that code (or the server is unreachable).");
       return;
     }
-    // Sign yourself in as a player the moment you join with the code.
-    await registerSelf(ev.id, joinName.trim(), joinHcp);
+    // Don't create a new player — the event opens and you pick your name from
+    // the players already registered (the "Who are you?" card). That link is
+    // remembered, so you're never re-registered on the next launch.
     setBusy(false);
     setJoining(false);
     setJoinCode("");
@@ -239,8 +232,8 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
         <Card>
           <Text style={styles.formTitle}>Join the golf day</Text>
           <Text style={styles.hint}>
-            Enter the code the organiser shared, plus your name — you'll be added to the field
-            straight away.
+            Enter the code the organiser shared. Once it opens, tap your name to link this phone
+            to your player.
           </Text>
           <TextField
             label="Join code"
@@ -248,8 +241,6 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
             onChangeText={(v) => setJoinCode(v.toUpperCase())}
             placeholder="ABC123"
           />
-          <TextField label="Your name" value={joinName} onChangeText={setJoinName} placeholder="You" />
-          <Stepper label="Your handicap" value={joinHcp} onChange={setJoinHcp} step={1} min={0} max={54} unit="" />
           <View style={styles.formRow}>
             <Button label={busy ? "Joining…" : "Join"} onPress={join} style={{ flex: 1 }} />
             <Button label="Cancel" variant="ghost" onPress={() => setJoining(false)} style={{ flex: 1 }} />
@@ -521,6 +512,8 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
         </Card>
       ) : null}
 
+      {event.remote && <IdentityCard event={event} />}
+
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -549,14 +542,77 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
   );
 }
 
+// "Who are you?" — on a shared event you pick your name from the players already
+// registered (via the website / office / main app) and this phone is linked to
+// that player. The link is remembered, so you're recognised on every launch
+// instead of registering again.
+function IdentityCard({ event }: { event: TEvent }) {
+  const { myPlayerId, claimPlayer, clearMyPlayer } = useTournament();
+  const meId = myPlayerId(event.id);
+  const me = event.players.find((p) => p.id === meId);
+
+  const teamOf = (pid: string) => {
+    const gi = event.groups.findIndex((g) => g.playerIds.includes(pid));
+    return gi >= 0 ? `Team ${gi + 1}` : null;
+  };
+
+  if (meId && me) {
+    return (
+      <Card accent>
+        <Text style={styles.formTitle}>You're playing as</Text>
+        <View style={styles.identityRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.identityName}>{me.name}</Text>
+            <Text style={styles.hint}>
+              HCP {me.handicap}
+              {teamOf(me.id) ? ` · ${teamOf(me.id)}` : ""} · this phone is linked
+            </Text>
+          </View>
+          <Button label="Not you?" variant="ghost" onPress={() => clearMyPlayer(event.id)} />
+        </View>
+      </Card>
+    );
+  }
+
+  return (
+    <Card accent>
+      <Text style={styles.formTitle}>Who are you?</Text>
+      <Text style={styles.hint}>Tap your name to link this phone to your player.</Text>
+      {event.players.length === 0 ? (
+        <Text style={styles.empty}>
+          No players registered yet. Teams are added on the website or by the organiser.
+        </Text>
+      ) : (
+        event.players.map((p) => {
+          const linkedElsewhere = !!p.deviceId;
+          return (
+            <TouchableOpacity
+              key={p.id}
+              activeOpacity={0.85}
+              onPress={() => claimPlayer(event.id, p.id)}
+              style={styles.pickRow}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pickName}>{p.name}</Text>
+                <Text style={styles.pickMeta}>
+                  HCP {p.handicap}
+                  {teamOf(p.id) ? ` · ${teamOf(p.id)}` : ""}
+                  {linkedElsewhere ? " · linked" : ""}
+                </Text>
+              </View>
+              <Text style={styles.pickPick}>{linkedElsewhere ? "This is me ›" : "I'm here ›"}</Text>
+            </TouchableOpacity>
+          );
+        })
+      )}
+    </Card>
+  );
+}
+
 function PlayersTab({ event }: { event: TEvent }) {
-  const { addPlayer, removePlayer, registerSelf, myPlayerId } = useTournament();
-  const { name: profileName, handicap: profileHcp } = useProfile();
+  const { addPlayer, removePlayer, myPlayerId } = useTournament();
   const [name, setName] = useState("");
   const [hcp, setHcp] = useState(18);
-  const [meName, setMeName] = useState(profileName);
-  const [meHcp, setMeHcp] = useState(profileHcp);
-  const [busy, setBusy] = useState(false);
 
   const meId = myPlayerId(event.id);
 
@@ -567,28 +623,10 @@ function PlayersTab({ event }: { event: TEvent }) {
     setHcp(18);
   };
 
-  const joinAsSelf = async () => {
-    if (!meName.trim()) return;
-    setBusy(true);
-    await registerSelf(event.id, meName.trim(), meHcp);
-    setBusy(false);
-    setMeName("");
-  };
-
   return (
     <>
-      {/* Anyone can sign themselves in, but only the main app / office / website
-          can add or remove OTHER players. */}
-      {event.remote && !meId && (
-        <Card accent>
-          <Text style={styles.formTitle}>Join as a player</Text>
-          <Text style={styles.hint}>Add yourself to this event from your phone.</Text>
-          <TextField label="Your name" value={meName} onChangeText={setMeName} placeholder="You" />
-          <Stepper label="Your handicap" value={meHcp} onChange={setMeHcp} step={1} min={0} max={54} unit="" />
-          <Button label={busy ? "Joining…" : "Register me"} onPress={joinAsSelf} />
-        </Card>
-      )}
-
+      {/* Identifying yourself is done via the "Who are you?" card at the top.
+          Only the main app / office / website can add or remove players. */}
       {!IS_EVENT && (
         <Card>
           <Text style={styles.formTitle}>{event.remote ? "Add another player" : "Register player"}</Text>
@@ -1277,6 +1315,20 @@ const styles = StyleSheet.create({
   playerRight: { flexDirection: "row", alignItems: "center", gap: 14 },
   playerHcp: { color: colors.textMuted, fontSize: 14 },
   remove: { color: colors.negative, fontSize: 14, fontWeight: "600" },
+
+  identityRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  identityName: { color: colors.text, fontSize: 20, fontWeight: "800" },
+  pickRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  pickName: { color: colors.text, fontSize: 16, fontWeight: "700" },
+  pickMeta: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  pickPick: { color: colors.accent, fontSize: 14, fontWeight: "800" },
 
   groupHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
   groupTime: { color: colors.accent, fontSize: 18, fontWeight: "800" },

@@ -64,6 +64,10 @@ export const tournamentApi = {
   assignPlayer: (id: string, playerId: string, groupId: string | null) =>
     req<TEvent>(`/${id}/players/${playerId}`, "PATCH", { groupId }).then(tag),
 
+  // Link (or, with deviceId null, unlink) this device to an existing player.
+  claimPlayer: (id: string, playerId: string, deviceId: string | null) =>
+    req<TEvent>(`/${id}/players/${playerId}/claim`, "PUT", { deviceId }).then(tag),
+
   addGroup: (id: string) => req<TEvent>(`/${id}/groups`, "POST", {}).then(tag),
 
   removeGroup: (id: string, groupId: string) =>

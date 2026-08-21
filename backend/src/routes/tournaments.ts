@@ -201,6 +201,26 @@ router.patch("/:id/players/:playerId", async (req, res) => {
   await respondWithEvent(req.params.id, res);
 });
 
+// Link this device to an existing (pre-registered) player — "I am this player".
+// Sending a null/empty deviceId releases the link instead. A device can only be
+// linked to one player per event, so any prior link for this device is cleared
+// first (one phone = one player).
+router.put("/:id/players/:playerId/claim", async (req, res) => {
+  const raw = (req.body ?? {}).deviceId;
+  const deviceId = raw ? String(raw) : null;
+  if (deviceId) {
+    await prisma.tournamentPlayer.updateMany({
+      where: { tournamentId: req.params.id, deviceId },
+      data: { deviceId: null },
+    });
+  }
+  await prisma.tournamentPlayer.update({
+    where: { id: req.params.playerId },
+    data: { deviceId },
+  });
+  await respondWithEvent(req.params.id, res);
+});
+
 router.post("/:id/groups", async (req, res) => {
   const count = await prisma.tournamentGroup.count({ where: { tournamentId: req.params.id } });
   await prisma.tournamentGroup.create({
