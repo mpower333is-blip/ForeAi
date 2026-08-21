@@ -45,6 +45,8 @@
   .radios label{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--border);
     padding:12px;border-radius:10px;flex:1 1 130px;min-width:0;margin:0;cursor:pointer;color:var(--text);font-weight:600}
   .radios input{flex:none;width:18px;height:18px;margin:0}
+  .phone-sel{margin-top:6px;color:var(--muted)}
+  .team .note{color:var(--faint);font-size:12px;line-height:1.6;margin:2px 0 4px}
   .btn{display:block;width:100%;text-align:center;border:none;cursor:pointer;
     background:linear-gradient(135deg,#B6FF8E,#8DFF6B,#46C85A);color:#052012;font-weight:800;font-size:16px;
     padding:15px;border-radius:14px;margin-top:16px}
@@ -189,13 +191,19 @@
   function renderTeams(){
     var n = parseInt(sel.value,10)||1, host=document.getElementById('teams'), html='';
     for (var t=1;t<=n;t++){
-      html += `<div class="team"><h4>Team ${t}</h4>`;
+      html += `<div class="team"><h4>Team ${t}</h4>
+        <div class="note">Tell us each player's phone so we can add them to the free app test — iPhones via TestFlight, Android via a download link. After the golf day the app goes live on the App Store &amp; Google Play.</div>`;
       for (var p=1;p<=4;p++){
         html += `<label>Player ${p}${p===1?' <span class="req">*</span>':''}</label>
           <div class="grid3" style="grid-template-columns:2fr 1fr">
             <input data-team="${t}" data-role="name" placeholder="Name & surname" />
             <input data-team="${t}" data-role="hcp" type="number" placeholder="H/cap" />
-          </div>`;
+          </div>
+          <select class="phone-sel" data-team="${t}" data-role="phone" aria-label="Phone type for player ${p}">
+            <option value="">📱 Phone for the golf-day app? (optional)</option>
+            <option value="apple">🍎 iPhone / iPad (Apple)</option>
+            <option value="android">🤖 Android</option>
+          </select>`;
       }
       html += `</div>`;
     }
@@ -293,15 +301,28 @@
       var players=[];
       var names=f.querySelectorAll('[data-team="'+t+'"][data-role="name"]');
       var hcps=f.querySelectorAll('[data-team="'+t+'"][data-role="hcp"]');
+      var phones=f.querySelectorAll('[data-team="'+t+'"][data-role="phone"]');
       names.forEach(function(inp,idx){
-        if(inp.value.trim()) players.push({name:inp.value.trim(), handicap:Number(hcps[idx] && hcps[idx].value)||0});
+        if(inp.value.trim()) players.push({
+          name:inp.value.trim(),
+          handicap:Number(hcps[idx] && hcps[idx].value)||0,
+          phone:(phones[idx] && phones[idx].value)||''
+        });
       });
       teams.push({players:players});
     }
     var playerCount = teams.reduce(function(s,tm){return s + tm.players.length;}, 0);
     if(playerCount===0){show('msg-team',false,'Add at least one player.');return;}
+    // Tally phone platforms so the organiser can size the app test roll-out.
+    var phoneCounts = {apple:0, android:0, unknown:0};
+    teams.forEach(function(tm){ tm.players.forEach(function(pl){
+      phoneCounts[pl.phone==='apple'?'apple':pl.phone==='android'?'android':'unknown']++;
+    }); });
     b.teamCount=n; b.teams=teams;
     b.playerCount = playerCount;
+    b.phoneApple = phoneCounts.apple;
+    b.phoneAndroid = phoneCounts.android;
+    b.phoneUnknown = phoneCounts.unknown;
     b.perPlayer = PER_PLAYER;
     b.amount = playerCount * PER_PLAYER; // pay only for players entered
     submit('team',b,'msg-team');

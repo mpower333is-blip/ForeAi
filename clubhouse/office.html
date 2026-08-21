@@ -164,15 +164,32 @@
   }
   function refresh(){ load(false); }
 
+  // Tally phone platforms across every registered player (for the app test).
+  function phoneTally(){
+    var t={apple:0, android:0, unknown:0};
+    REGS.filter(r=>r.type==='team').forEach(function(r){
+      var teams=Array.isArray((r.payload||{}).teams)?r.payload.teams:[];
+      teams.forEach(function(tm){ (tm.players||[]).forEach(function(pl){
+        t[pl.phone==='apple'?'apple':pl.phone==='android'?'android':'unknown']++;
+      }); });
+    });
+    return t;
+  }
+  function phoneIcon(v){ return v==='apple'?'🍎':v==='android'?'🤖':''; }
+
   function render(){
     // tiles
     var teams=REGS.filter(r=>r.type==='team'), holes=REGS.filter(r=>r.type==='hole'), prizes=REGS.filter(r=>r.type==='prize');
     var players=teams.reduce((s,r)=>s+teamCount(r)*4,0);
     var expected=REGS.reduce((s,r)=>s+amountFor(r),0);
     var received=REGS.filter(r=>r.status==='paid'||r.status==='confirmed').reduce((s,r)=>s+amountFor(r),0);
+    var ph=phoneTally();
     var tiles=[
       ['Team entries', teams.length, ''],
       ['Players', players, ''],
+      ['🍎 Apple (TestFlight)', ph.apple, 'sky'],
+      ['🤖 Android (APK)', ph.android, 'lime'],
+      ['Phone not set', ph.unknown, ''],
       ['Hole sponsors', holes.length, ''],
       ['Prize sponsors', prizes.length, ''],
       ['Expected', money(expected), 'gold'],
@@ -180,7 +197,7 @@
       ['Outstanding', money(expected-received), 'red'],
     ];
     document.getElementById('tiles').innerHTML = tiles.map(function(t){
-      var c = t[2]==='gold'?'var(--gold)':t[2]==='lime'?'var(--lime)':t[2]==='red'?'var(--red)':'var(--text)';
+      var c = t[2]==='gold'?'var(--gold)':t[2]==='lime'?'var(--lime)':t[2]==='red'?'var(--red)':t[2]==='sky'?'var(--sky)':'var(--text)';
       return '<div class="tile"><div class="k">'+t[0]+'</div><div class="v" style="color:'+c+'">'+t[1]+'</div></div>';
     }).join('');
 
@@ -204,7 +221,7 @@
     if(r.type==='team'){
       var teams=Array.isArray(p.teams)?p.teams:[];
       detail = '<div class="players">'+teams.map(function(t,ti){
-        return (t.players||[]).map(function(pl){ return '<div class="pl">T'+(ti+1)+': '+esc(pl.name)+(pl.handicap?(' ('+pl.handicap+')'):'')+'</div>'; }).join('');
+        return (t.players||[]).map(function(pl){ var ic=phoneIcon(pl.phone); return '<div class="pl">T'+(ti+1)+': '+esc(pl.name)+(pl.handicap?(' ('+pl.handicap+')'):'')+(ic?(' '+ic):'')+'</div>'; }).join('');
       }).join('')+'</div>';
     } else if(r.type==='hole'){
       detail = '<div class="meta">Hole preference: <b>'+(p.holePreference||'any')+'</b></div>';
@@ -243,14 +260,18 @@
   }
 
   function exportCsv(){
-    var cols=['type','company','contactPerson','cell','email','regNumber','vatNumber','address','city','postalCode','details','amount','reference','status','submitted'];
+    var cols=['type','company','contactPerson','cell','email','regNumber','vatNumber','address','city','postalCode','details','apple','android','amount','reference','status','submitted'];
     var lines=[cols.join(',')];
     REGS.forEach(function(r){
       var p=r.payload||{};
-      var details = r.type==='team' ? (teamCount(r)+' team(s): '+ (Array.isArray(p.teams)?p.teams.map(function(t){return (t.players||[]).map(function(x){return x.name;}).join('/');}).join(' | '):''))
+      var details = r.type==='team' ? (teamCount(r)+' team(s): '+ (Array.isArray(p.teams)?p.teams.map(function(t){return (t.players||[]).map(function(x){return x.name+(x.phone?(' ['+x.phone+']'):'');}).join('/');}).join(' | '):''))
         : r.type==='hole' ? ('hole pref '+(p.holePreference||'any'))
         : (p.prizeType==='cash'?('cash '+(p.cashAmount||'')):('items '+((p.prizes||[]).join('/'))));
-      var vals=[r.type,r.company,r.contactPerson,r.cell,r.email,r.regNumber,r.vatNumber,r.address,r.city,r.postalCode,details,amountFor(r),'ECS Golf Day - '+r.company,r.status,r.createdAt];
+      var apple=0, android=0;
+      if(r.type==='team' && Array.isArray(p.teams)){
+        p.teams.forEach(function(t){ (t.players||[]).forEach(function(x){ if(x.phone==='apple')apple++; else if(x.phone==='android')android++; }); });
+      }
+      var vals=[r.type,r.company,r.contactPerson,r.cell,r.email,r.regNumber,r.vatNumber,r.address,r.city,r.postalCode,details,apple,android,amountFor(r),'ECS Golf Day - '+r.company,r.status,r.createdAt];
       lines.push(vals.map(function(v){ v=(v==null?'':String(v)); return '"'+v.replace(/"/g,'""')+'"'; }).join(','));
     });
     var blob=new Blob([lines.join('\n')],{type:'text/csv'});
