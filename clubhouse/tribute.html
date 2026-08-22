@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Thank You — ECS Golf Day for Lyla</title>
+<!-- A shareable "thank you" wall: Lyla's photo and every sponsor's logo.
+     Reads the live event (sponsors + causePhoto) from the backend by join
+     code (?code=... or config.js). Read-only celebration page. -->
+<style>
+  :root{--bg:#06170F;--panel:#10261C;--panel2:#16362A;--border:#204636;
+    --lime:#8DFF6B;--gold:#FFD36A;--text:#F4FBF6;--muted:#C2D2C6;--faint:#87A092;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text);
+    background:radial-gradient(120% 55% at 80% 0%, rgba(141,255,107,0.14), transparent 60%),
+      linear-gradient(160deg,#134E32,#0C3222 55%,#06170F);min-height:100vh;padding:26px 16px 60px}
+  .wrap{max-width:720px;margin:0 auto}
+  .ecs{display:flex;justify-content:center;margin-bottom:16px}
+  .ecs img{width:190px;background:#fff;padding:10px 16px;border-radius:14px}
+  .hero{display:flex;gap:18px;align-items:center;background:var(--panel);border:1px solid var(--border);
+    border-radius:22px;padding:18px;margin-bottom:16px}
+  .hero img{width:120px;height:150px;object-fit:cover;border-radius:14px;flex:none;background:var(--panel2)}
+  .heart{color:var(--lime);font-weight:800;font-size:13px;letter-spacing:1px}
+  .hname{font-size:26px;font-weight:800;margin:2px 0 6px}
+  .cause{color:var(--muted);font-size:14px;line-height:1.5}
+  h2{text-align:center;font-size:22px;margin:26px 0 4px}
+  .sub{text-align:center;color:var(--muted);font-size:14px;margin-bottom:18px;line-height:1.5}
+  .tier{color:var(--gold);text-transform:uppercase;letter-spacing:1px;font-size:12px;font-weight:800;
+    text-align:center;margin:22px 0 12px}
+  .grid{display:flex;flex-wrap:wrap;justify-content:center;gap:14px}
+  .logo{background:#fff;border-radius:14px;padding:10px;width:130px;height:100px;display:flex;
+    align-items:center;justify-content:center}
+  .logo img{max-width:100%;max-height:100%;object-fit:contain}
+  .noimg{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:14px;
+    padding:14px 18px;font-weight:700;font-size:15px}
+  .foot{color:var(--faint);font-size:13px;text-align:center;margin-top:30px;line-height:1.7}
+  .msg{color:var(--muted);text-align:center;padding:30px}
+  a{color:var(--lime)}
+</style>
+<script src="config.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="ecs"><img src="ecs-logo.png" alt="ECS Engine Control Systems" /></div>
+    <div id="content"><div class="msg">Loading the thank-you wall…</div></div>
+    <div class="foot">
+      ECS Golf Day · Kempton Park Golf Club · 15 October 2026<br/>
+      Thank you for being part of Lyla's journey. 💚
+    </div>
+  </div>
+
+<script>
+  var q = new URLSearchParams(location.search);
+  var D = (window.FOREAI_DEFAULTS||{});
+  var CFG = { api:(q.get('api')||D.api||'').replace(/\/$/,''), code:(q.get('code')||D.code||'').toUpperCase() };
+
+  function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+
+  function tierBlock(title, list){
+    if(!list.length) return '';
+    var items = list.map(function(s){
+      return s.logo
+        ? '<div class="logo"><img src="'+s.logo+'" alt="'+esc(s.name)+'"/></div>'
+        : '<div class="noimg">'+esc(s.name)+'</div>';
+    }).join('');
+    return '<div class="tier">'+title+'</div><div class="grid">'+items+'</div>';
+  }
+
+  function render(ev){
+    var sponsors = ev.sponsors || [];
+    var photo = ev.causePhoto || 'lyla-roux.jpg';
+    var cause = ev.cause || 'Proudly supporting Lyla Roux in her fight against ALK-positive Anaplastic Large Cell Lymphoma.';
+    var byTier = function(t){ return sponsors.filter(function(s){return s.tier===t;}); };
+    var html =
+      '<div class="hero"><img src="'+esc(photo)+'" alt="Lyla Roux"/>'+
+        '<div><div class="heart">💚 IN SUPPORT OF</div><div class="hname">Lyla Roux</div>'+
+        '<div class="cause">'+esc(cause)+'</div></div></div>'+
+      '<h2>Thank you to our sponsors</h2>'+
+      '<div class="sub">Every one of these companies helped make the day possible — and helped Lyla.</div>'+
+      tierBlock('Title sponsor', byTier('title'))+
+      tierBlock('Hole sponsors', byTier('hole'))+
+      tierBlock('Prize sponsors', byTier('prize'))+
+      tierBlock('Sponsors', byTier('general'));
+    if(sponsors.length===0){
+      html += '<div class="msg">Sponsor logos will appear here as companies come on board.</div>';
+    }
+    document.getElementById('content').innerHTML = html;
+  }
+
+  (function(){
+    if(!CFG.api || !CFG.code){
+      // No live event configured — still show Lyla and the message.
+      render({ sponsors: [] });
+      return;
+    }
+    fetch(CFG.api+'/tournaments/code/'+CFG.code)
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(ev){ render(ev || { sponsors: [] }); })
+      .catch(function(){ render({ sponsors: [] }); });
+  })();
+</script>
+</body>
+</html>
