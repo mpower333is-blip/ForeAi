@@ -192,7 +192,7 @@
     var n = parseInt(sel.value,10)||1, host=document.getElementById('teams'), html='';
     for (var t=1;t<=n;t++){
       html += `<div class="team"><h4>Team ${t}</h4>
-        <div class="note">Tell us each player's phone so we can add them to the free app test — iPhones via TestFlight, Android via a download link. After the golf day the app goes live on the App Store &amp; Google Play.</div>`;
+        <div class="note">Tell us each player's phone so we know which download link to send them for the golf-day app — iPhones get a TestFlight link, Android gets an APK link.</div>`;
       for (var p=1;p<=4;p++){
         html += `<label>Player ${p}${p===1?' <span class="req">*</span>':''}</label>
           <div class="grid3" style="grid-template-columns:2fr 1fr">
