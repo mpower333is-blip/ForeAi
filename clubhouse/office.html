@@ -230,6 +230,9 @@
         ? '<div class="meta">Cash prize: <b>'+esc(p.cashAmount||'')+'</b></div>'
         : '<div class="meta">Item prize(s): <b>'+esc((p.prizes||[]).join(', ')||'—')+'</b></div>';
     }
+    if((r.type==='hole'||r.type==='prize') && p.logo){
+      detail += '<div style="margin-top:8px"><img src="'+p.logo+'" alt="logo" style="height:60px;background:#fff;border-radius:8px;padding:5px"/></div>';
+    }
     var contact='<div class="meta"><b>'+esc(r.contactPerson||'')+'</b> · '+esc(r.cell||'')+' · '+esc(r.email||'')
       +'<br>'+[r.regNumber?('Reg '+esc(r.regNumber)):'', r.vatNumber?('VAT '+esc(r.vatNumber)):'', esc([r.address,r.city,r.postalCode].filter(Boolean).join(', '))].filter(Boolean).join(' · ')+'</div>';
     var amt=amountFor(r);

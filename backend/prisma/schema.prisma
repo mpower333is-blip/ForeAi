@@ -84,6 +84,7 @@ model Tournament {
   intervalMin Int      @default(10)
   shotgun     Boolean  @default(false)
   cause       String?
+  causePhoto  String?  // photo of the person/cause the day supports (data URL)
 
   players       TournamentPlayer[]
   groups        TournamentGroup[]
@@ -217,6 +218,7 @@ model TournamentSponsor {
   tier         String // "title" | "hole" | "prize" | "general"
   hole         Int?   // for hole sponsors
   message      String?
+  logo         String? // the sponsor's logo as a data URL (uploaded on registration)
 
   createdAt    DateTime @default(now())
 }

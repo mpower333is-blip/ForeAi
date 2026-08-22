@@ -44,12 +44,14 @@ function serialize(t: NonNullable<LoadedTournament>) {
     intervalMin: t.intervalMin,
     shotgun: t.shotgun,
     cause: t.cause,
+    causePhoto: t.causePhoto,
     sponsors: t.sponsors.map((s) => ({
       id: s.id,
       name: s.name,
       tier: s.tier,
       hole: s.hole,
       message: s.message,
+      logo: s.logo,
     })),
     players: t.players.map((p) => ({
       id: p.id,
@@ -134,7 +136,7 @@ router.get("/code/:code", async (req, res) => {
 
 // Update event settings.
 router.patch("/:id", async (req, res) => {
-  const { name, format, firstTeeMin, intervalMin, shotgun, cause } = req.body;
+  const { name, format, firstTeeMin, intervalMin, shotgun, cause, causePhoto } = req.body;
   await prisma.tournament.update({
     where: { id: req.params.id },
     data: {
@@ -144,6 +146,7 @@ router.patch("/:id", async (req, res) => {
       ...(intervalMin != null ? { intervalMin } : {}),
       ...(shotgun != null ? { shotgun: !!shotgun } : {}),
       ...(cause !== undefined ? { cause } : {}),
+      ...(causePhoto !== undefined ? { causePhoto } : {}),
     },
   });
   await respondWithEvent(req.params.id, res);
@@ -256,7 +259,7 @@ router.put("/:id/scores", async (req, res) => {
 
 // Add a sponsor.
 router.post("/:id/sponsors", async (req, res) => {
-  const { name, tier, hole, message } = req.body;
+  const { name, tier, hole, message, logo } = req.body;
   if (!name || !tier) return res.status(400).json({ error: "name and tier are required" });
   await prisma.tournamentSponsor.create({
     data: {
@@ -265,6 +268,7 @@ router.post("/:id/sponsors", async (req, res) => {
       tier,
       hole: hole ?? null,
       message: message ?? null,
+      logo: logo ?? null,
     },
   });
   await respondWithEvent(req.params.id, res);
@@ -341,6 +345,7 @@ router.post("/code/:code/register/hole-sponsor", async (req, res) => {
       tier: "hole",
       hole: b.holePreference != null && b.holePreference !== "" ? Number(b.holePreference) : null,
       message: contactMessage(b) || null,
+      logo: typeof b.logo === "string" && b.logo.startsWith("data:") ? b.logo : null,
     },
   });
   await prisma.tournamentRegistration.create({
@@ -366,6 +371,7 @@ router.post("/code/:code/register/prize-sponsor", async (req, res) => {
       name: b.company,
       tier: "prize",
       message: [prizeBits, contactMessage(b)].filter(Boolean).join(" — ") || null,
+      logo: typeof b.logo === "string" && b.logo.startsWith("data:") ? b.logo : null,
     },
   });
   await prisma.tournamentRegistration.create({
