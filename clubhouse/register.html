@@ -195,10 +195,7 @@
         <div class="note">Tell us each player's phone so we know which download link to send them for the golf-day app — iPhones get a TestFlight link, Android gets an APK link.</div>`;
       for (var p=1;p<=4;p++){
         html += `<label>Player ${p}${p===1?' <span class="req">*</span>':''}</label>
-          <div class="grid3" style="grid-template-columns:2fr 1fr">
-            <input data-team="${t}" data-role="name" placeholder="Name & surname" />
-            <input data-team="${t}" data-role="hcp" type="number" placeholder="H/cap" />
-          </div>
+          <input data-team="${t}" data-role="name" placeholder="Name & surname" />
           <select class="phone-sel" data-team="${t}" data-role="phone" aria-label="Phone type for player ${p}">
             <option value="">📱 Phone for the golf-day app? (optional)</option>
             <option value="apple">🍎 iPhone / iPad (Apple)</option>
@@ -300,12 +297,11 @@
     for(var t=1;t<=n;t++){
       var players=[];
       var names=f.querySelectorAll('[data-team="'+t+'"][data-role="name"]');
-      var hcps=f.querySelectorAll('[data-team="'+t+'"][data-role="hcp"]');
       var phones=f.querySelectorAll('[data-team="'+t+'"][data-role="phone"]');
       names.forEach(function(inp,idx){
         if(inp.value.trim()) players.push({
           name:inp.value.trim(),
-          handicap:Number(hcps[idx] && hcps[idx].value)||0,
+          handicap:0,
           phone:(phones[idx] && phones[idx].value)||''
         });
       });
