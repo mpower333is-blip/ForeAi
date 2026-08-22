@@ -32,6 +32,7 @@ import {
   shotgunStartHole,
   SponsorTier,
   sponsorTierLabel,
+  holeSponsor,
   isPlayerLive,
   groupLiveCount,
 } from "../lib/tournament";
@@ -995,6 +996,19 @@ function formatLabel(f: string): string {
   return f === "stroke" ? "Stroke play" : f === "stableford" ? "Stableford" : "4-Ball Scramble";
 }
 
+// Shows the hole's sponsor (logo + name) on the scoring card, linking each
+// sponsor to their hole on the day.
+function HoleSponsorLine({ event, hole }: { event: TEvent; hole: number }) {
+  const s = holeSponsor(event, hole);
+  if (!s) return null;
+  return (
+    <View style={styles.holeSponsorRow}>
+      {s.logo ? <Image source={{ uri: s.logo }} style={styles.holeSponsorLogo} resizeMode="contain" /> : null}
+      <Text style={styles.holeSponsorText}>Hole sponsored by {s.name}</Text>
+    </View>
+  );
+}
+
 function ScoreEntry({
   event,
   groupId,
@@ -1017,6 +1031,7 @@ function ScoreEntry({
       <Text style={styles.scoreTitle}>
         Hole {hole} • Par {holeInfo.par} • {holeInfo.yards} yds
       </Text>
+      <HoleSponsorLine event={event} hole={hole} />
       {group.playerIds.map((pid) => {
         const player = event.players.find((p) => p.id === pid);
         if (!player) return null;
@@ -1071,6 +1086,7 @@ function TeamScoreEntry({
       <Text style={styles.scoreTitle}>
         Hole {hole} • Par {holeInfo.par} • {holeInfo.yards} yds
       </Text>
+      <HoleSponsorLine event={event} hole={hole} />
       <View style={styles.scorePlayer}>
         <Text style={styles.scoreName}>Team score</Text>
         <View style={styles.scoreControls}>
@@ -1378,6 +1394,9 @@ const styles = StyleSheet.create({
   causePhoto: { width: 76, height: 96, borderRadius: 12, backgroundColor: colors.surface },
 
   sponsorLogo: { width: 40, height: 40, borderRadius: 8, backgroundColor: "#fff", marginRight: 10 },
+  holeSponsorRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 2 },
+  holeSponsorLogo: { width: 26, height: 26, borderRadius: 6, backgroundColor: "#fff" },
+  holeSponsorText: { color: colors.gold, fontSize: 12, fontWeight: "700" },
   wallCard: { alignItems: "center" },
   wallPhoto: { width: 120, height: 150, borderRadius: 14, marginBottom: 10, backgroundColor: colors.surface },
   wallTitle: { color: colors.text, fontSize: 18, fontWeight: "800", textAlign: "center" },
