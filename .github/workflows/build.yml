@@ -16,6 +16,8 @@ jobs:
     env:
       EXPO_PUBLIC_GOLF_API_KEY: ${{ secrets.EXPO_PUBLIC_GOLF_API_KEY }}
       EXPO_PUBLIC_GOLFAPI_KEY: ${{ secrets.EXPO_PUBLIC_GOLFAPI_KEY }}
+      EXPO_PUBLIC_RC_IOS_KEY: ${{ secrets.EXPO_PUBLIC_RC_IOS_KEY }}
+      EXPO_PUBLIC_RC_ANDROID_KEY: ${{ secrets.EXPO_PUBLIC_RC_ANDROID_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +61,8 @@ jobs:
     env:
       EXPO_PUBLIC_GOLF_API_KEY: ${{ secrets.EXPO_PUBLIC_GOLF_API_KEY }}
       EXPO_PUBLIC_GOLFAPI_KEY: ${{ secrets.EXPO_PUBLIC_GOLFAPI_KEY }}
+      EXPO_PUBLIC_RC_IOS_KEY: ${{ secrets.EXPO_PUBLIC_RC_IOS_KEY }}
+      EXPO_PUBLIC_RC_ANDROID_KEY: ${{ secrets.EXPO_PUBLIC_RC_ANDROID_KEY }}
       EXPO_PUBLIC_APP_VARIANT: ${{ matrix.variant }}
     steps:
       - uses: actions/checkout@v4

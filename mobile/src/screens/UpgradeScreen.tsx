@@ -1,9 +1,10 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, Linking, Platform, Alert } from "react-native";
 import { Screen, Card, Button, Chip, IconChip } from "../components/ui";
 import { StoreButtons, shareApp } from "../components/Upsell";
-import { colors, spacing, radius, type } from "../theme";
+import { colors, spacing, type } from "../theme";
 import { usePlan } from "../state/PlanContext";
+import type { SubPackage } from "../services/purchases";
 import {
   PACKAGE_NAME,
   PACKAGE_PRICE,
@@ -11,8 +12,31 @@ import {
   PRO_FEATURES,
 } from "../config/appConfig";
 
+// Required on a subscription paywall by both App Store and Play Store.
+const PRIVACY_URL = "https://foreai.co.za/privacy.html";
+const TERMS_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
+
+function periodLabel(p: SubPackage["period"]): string {
+  return p === "monthly" ? "Monthly" : p === "annual" ? "Annual" : "Subscribe";
+}
+
 export default function UpgradeScreen({ navigation }: any) {
-  const { isPro, purchase, restore } = usePlan();
+  const { isPro, configured, packages, purchasePackage, restore } = usePlan();
+  const [busy, setBusy] = useState(false);
+
+  const run = async (fn: () => Promise<void>) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await fn();
+    } catch (e: any) {
+      Alert.alert("Purchase problem", e?.message || "Could not complete the purchase. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const hasPlans = configured && packages.length > 0;
 
   return (
     <Screen>
@@ -21,20 +45,51 @@ export default function UpgradeScreen({ navigation }: any) {
         <Text style={styles.title}>{PACKAGE_NAME}</Text>
         <Text style={styles.subtitle}>
           {isPro
-            ? "You've unlocked the full package. Enjoy every feature — thanks for supporting ForeAi!"
-            : "Try the demo free. Unlock the full game-improvement toolkit when you're ready."}
+            ? "You're subscribed to the full package. Enjoy every feature — thanks for supporting ForeAi!"
+            : "Try the demo free. Subscribe to unlock the full game-improvement toolkit."}
         </Text>
       </View>
 
       {!isPro && (
         <Card accent>
-          <View style={styles.priceRow}>
-            <Text style={styles.price}>{PACKAGE_PRICE}</Text>
-            <Chip label="ONE-OFF" tone="gold" />
-          </View>
-          <Text style={styles.priceHint}>Unlock everything below on this device.</Text>
-          <Button label={`Unlock ${PACKAGE_NAME}`} icon="🔓" onPress={purchase} />
-          <Button variant="ghost" label="Restore purchase" onPress={restore} />
+          {hasPlans ? (
+            <>
+              <Text style={styles.priceHint}>Choose a plan — cancel anytime.</Text>
+              {packages.map((pkg) => (
+                <View key={pkg.id} style={styles.planRow}>
+                  <Button
+                    label={`${periodLabel(pkg.period)} — ${pkg.priceString}`}
+                    icon="🔓"
+                    variant={pkg.period === "monthly" ? "ghost" : undefined}
+                    onPress={() => run(() => purchasePackage(pkg))}
+                    style={{ flex: 1 }}
+                  />
+                  {pkg.period === "annual" && <Chip label="BEST VALUE" tone="gold" />}
+                </View>
+              ))}
+              <Button variant="ghost" label={busy ? "Please wait…" : "Restore purchase"} onPress={() => run(restore)} />
+              <LegalNote />
+            </>
+          ) : (
+            <>
+              <View style={styles.priceRow}>
+                <Text style={styles.price}>{PACKAGE_PRICE}</Text>
+                <Chip label={configured ? "SUBSCRIPTION" : "DEMO"} tone="gold" />
+              </View>
+              <Text style={styles.priceHint}>
+                {configured
+                  ? "Loading plans from the store…"
+                  : "Test unlock — no charge (store billing isn't set up yet)."}
+              </Text>
+              <Button
+                label={busy ? "Please wait…" : `Unlock ${PACKAGE_NAME}`}
+                icon="🔓"
+                onPress={() => run(() => purchasePackage(packages[0] ?? ({} as SubPackage)))}
+              />
+              <Button variant="ghost" label="Restore purchase" onPress={() => run(restore)} />
+              {configured && <LegalNote />}
+            </>
+          )}
         </Card>
       )}
 
@@ -70,6 +125,28 @@ export default function UpgradeScreen({ navigation }: any) {
   );
 }
 
+// Auto-renew disclosure + Terms/Privacy links — mandatory on the paywall.
+function LegalNote() {
+  const store = Platform.OS === "ios" ? "Apple ID" : "Google Play";
+  return (
+    <View style={styles.legalWrap}>
+      <Text style={styles.legal}>
+        Payment is charged to your {store} account. Subscriptions renew automatically unless cancelled at
+        least 24 hours before the end of the period. Manage or cancel anytime in your {store} account settings.
+      </Text>
+      <View style={styles.legalLinks}>
+        <Text style={styles.link} onPress={() => Linking.openURL(TERMS_URL)}>
+          Terms of Use
+        </Text>
+        <Text style={styles.legalDot}>·</Text>
+        <Text style={styles.link} onPress={() => Linking.openURL(PRIVACY_URL)}>
+          Privacy Policy
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 function FeatureRow({ label, tone }: { label: string; tone: "free" | "pro" | "on" }) {
   const mark = tone === "pro" ? "🔒" : "✓";
   const color = tone === "pro" ? colors.textFaint : colors.accent;
@@ -88,7 +165,14 @@ const styles = StyleSheet.create({
 
   priceRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   price: { color: colors.gold, fontSize: 44, fontWeight: "800" },
-  priceHint: { color: colors.textMuted, fontSize: 14, marginTop: 4, marginBottom: 4 },
+  priceHint: { color: colors.textMuted, fontSize: 14, marginTop: 4, marginBottom: 8 },
+  planRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
+
+  legalWrap: { marginTop: 10 },
+  legal: { color: colors.textFaint, fontSize: 11, lineHeight: 16 },
+  legalLinks: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 8 },
+  legalDot: { color: colors.textFaint, fontSize: 12 },
+  link: { color: colors.accent, fontSize: 12, fontWeight: "700" },
 
   groupHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   groupTitle: { color: colors.text, fontSize: 17, fontWeight: "800", marginBottom: 10 },
