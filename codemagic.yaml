@@ -114,6 +114,8 @@ workflows:
       node: 20
       xcode: latest
       cocoapods: default
+      groups:
+        - ios_signing   # Codemagic group holding IOS_DIST_KEY (+ optional EXPO_PUBLIC_RC_IOS_KEY)
       vars:
         EXPO_PUBLIC_APP_VARIANT: "full"
         BUNDLE_ID: "com.foreai.mobile"
@@ -177,32 +179,36 @@ workflows:
         script: |
           set -e
           keychain initialize
-          # Self-heal: delete every existing iOS distribution certificate (they are
-          # orphaned — their private keys only lived on ephemeral runners) so we
-          # never hit Apple's 2-certificate cap. Visible + guarded.
-          echo "== Clearing existing iOS distribution certificates =="
-          app-store-connect certificates list --type DISTRIBUTION IOS_DISTRIBUTION --json > /tmp/certs.json 2>/tmp/certs.err || cat /tmp/certs.err || true
-          CIDS=$(jq -r '(if type=="object" and has("data") then .data else . end)[]?.id // empty' /tmp/certs.json 2>/dev/null || true)
-          echo "Distribution certs found: ${CIDS:-none}"
-          for CID in $CIDS; do
-            echo "Deleting distribution cert $CID"
-            app-store-connect certificates delete "$CID" --ignore-not-found || echo "  (delete failed for $CID)"
-          done
-          # Generate a PKCS#8 RSA private key — the format the CLI accepts.
-          # `openssl genrsa` alone emits PKCS#1, which the tool silently ignores
-          # → "Cannot create resource without certificate private key".
+          # Reuse ONE persistent distribution certificate across every build and
+          # BOTH apps, so a build never revokes a cert that an already-uploaded
+          # binary was signed with — that churn caused ITMS-90035 Invalid Signature.
+          # IOS_DIST_KEY is the base64 of a PKCS#8 private key (a Codemagic secure
+          # env var). fetch-signing-files reuses the certificate matching this key,
+          # or creates it once. No per-build create/delete of certificates.
           CERT_KEY=/tmp/ios_distribution_key.pem
-          openssl genrsa 2048 | openssl pkcs8 -topk8 -nocrypt -out "$CERT_KEY"
+          echo "$IOS_DIST_KEY" | openssl base64 -d -A > "$CERT_KEY"
           echo "Private key: $(wc -c < "$CERT_KEY") bytes"
-          # Create the iOS distribution certificate (from this key) AND the App
-          # Store provisioning profile for $BUNDLE_ID, saving both so we can sign.
-          # Retry on Apple's transient 500s (common right after a cert revoke).
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --platform IOS \
-            --type IOS_APP_STORE \
-            --certificate-key=@file:"$CERT_KEY" \
-            --api-server-error-retries 10 \
-            --create
+          fetch_signing() {
+            app-store-connect fetch-signing-files "$BUNDLE_ID" \
+              --platform IOS \
+              --type IOS_APP_STORE \
+              --certificate-key=@file:"$CERT_KEY" \
+              --api-server-error-retries 10 \
+              --create
+          }
+          # Normally this reuses our persistent cert. Only on the very first run —
+          # when our cert doesn't exist yet AND the account is already at Apple's
+          # 2-cert cap with old orphaned certs — do we clear those orphans once and
+          # retry. Once our cert exists it is always reused, so this never revokes it.
+          if ! fetch_signing; then
+            echo "== Cert missing and cap reached — clearing orphaned distribution certs once =="
+            app-store-connect certificates list --type DISTRIBUTION IOS_DISTRIBUTION --json > /tmp/certs.json 2>/dev/null || true
+            for CID in $(jq -r '(if type=="object" and has("data") then .data else . end)[]?.id // empty' /tmp/certs.json 2>/dev/null); do
+              echo "Deleting orphaned distribution cert $CID"
+              app-store-connect certificates delete "$CID" --ignore-not-found || true
+            done
+            fetch_signing
+          fi
           keychain add-certificates
           # Run from mobile/ios so use-profiles configures THIS Xcode project
           # (the app lives in a monorepo subfolder, not the repo root).
@@ -250,6 +256,8 @@ workflows:
       node: 20
       xcode: latest
       cocoapods: default
+      groups:
+        - ios_signing   # Codemagic group holding IOS_DIST_KEY (+ optional EXPO_PUBLIC_RC_IOS_KEY)
       vars:
         EXPO_PUBLIC_APP_VARIANT: "event"
         BUNDLE_ID: "com.foreai.event"
@@ -313,32 +321,36 @@ workflows:
         script: |
           set -e
           keychain initialize
-          # Self-heal: delete every existing iOS distribution certificate (they are
-          # orphaned — their private keys only lived on ephemeral runners) so we
-          # never hit Apple's 2-certificate cap. Visible + guarded.
-          echo "== Clearing existing iOS distribution certificates =="
-          app-store-connect certificates list --type DISTRIBUTION IOS_DISTRIBUTION --json > /tmp/certs.json 2>/tmp/certs.err || cat /tmp/certs.err || true
-          CIDS=$(jq -r '(if type=="object" and has("data") then .data else . end)[]?.id // empty' /tmp/certs.json 2>/dev/null || true)
-          echo "Distribution certs found: ${CIDS:-none}"
-          for CID in $CIDS; do
-            echo "Deleting distribution cert $CID"
-            app-store-connect certificates delete "$CID" --ignore-not-found || echo "  (delete failed for $CID)"
-          done
-          # Generate a PKCS#8 RSA private key — the format the CLI accepts.
-          # `openssl genrsa` alone emits PKCS#1, which the tool silently ignores
-          # → "Cannot create resource without certificate private key".
+          # Reuse ONE persistent distribution certificate across every build and
+          # BOTH apps, so a build never revokes a cert that an already-uploaded
+          # binary was signed with — that churn caused ITMS-90035 Invalid Signature.
+          # IOS_DIST_KEY is the base64 of a PKCS#8 private key (a Codemagic secure
+          # env var). fetch-signing-files reuses the certificate matching this key,
+          # or creates it once. No per-build create/delete of certificates.
           CERT_KEY=/tmp/ios_distribution_key.pem
-          openssl genrsa 2048 | openssl pkcs8 -topk8 -nocrypt -out "$CERT_KEY"
+          echo "$IOS_DIST_KEY" | openssl base64 -d -A > "$CERT_KEY"
           echo "Private key: $(wc -c < "$CERT_KEY") bytes"
-          # Create the iOS distribution certificate (from this key) AND the App
-          # Store provisioning profile for $BUNDLE_ID, saving both so we can sign.
-          # Retry on Apple's transient 500s (common right after a cert revoke).
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --platform IOS \
-            --type IOS_APP_STORE \
-            --certificate-key=@file:"$CERT_KEY" \
-            --api-server-error-retries 10 \
-            --create
+          fetch_signing() {
+            app-store-connect fetch-signing-files "$BUNDLE_ID" \
+              --platform IOS \
+              --type IOS_APP_STORE \
+              --certificate-key=@file:"$CERT_KEY" \
+              --api-server-error-retries 10 \
+              --create
+          }
+          # Normally this reuses our persistent cert. Only on the very first run —
+          # when our cert doesn't exist yet AND the account is already at Apple's
+          # 2-cert cap with old orphaned certs — do we clear those orphans once and
+          # retry. Once our cert exists it is always reused, so this never revokes it.
+          if ! fetch_signing; then
+            echo "== Cert missing and cap reached — clearing orphaned distribution certs once =="
+            app-store-connect certificates list --type DISTRIBUTION IOS_DISTRIBUTION --json > /tmp/certs.json 2>/dev/null || true
+            for CID in $(jq -r '(if type=="object" and has("data") then .data else . end)[]?.id // empty' /tmp/certs.json 2>/dev/null); do
+              echo "Deleting orphaned distribution cert $CID"
+              app-store-connect certificates delete "$CID" --ignore-not-found || true
+            done
+            fetch_signing
+          fi
           keychain add-certificates
           # Run from mobile/ios so use-profiles configures THIS Xcode project
           # (the app lives in a monorepo subfolder, not the repo root).
