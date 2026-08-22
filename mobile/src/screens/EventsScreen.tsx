@@ -48,6 +48,11 @@ const EVENT_LOGOS: Record<string, any> = {
   ecs: require("../../assets/ecs-logo.png"),
 };
 
+// Bundled beneficiary photo per event (used when the backend has no causePhoto).
+const CAUSE_PHOTOS: Record<string, any> = {
+  ecs: require("../../assets/lyla-roux.jpg"),
+};
+
 export default function EventsScreen() {
   const { events } = useTournament();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -521,7 +526,21 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
       {event.cause ? (
         <Card accent>
           <Text style={styles.causeHeart}>💚 Fundraiser</Text>
-          <Text style={styles.causeText}>{event.cause}</Text>
+          {(() => {
+            const isEcs =
+              event.logoKey === "ecs" || /\becs\b/i.test(event.name) || /lyla/i.test(event.cause ?? "");
+            const causeImg = event.causePhoto
+              ? { uri: event.causePhoto }
+              : isEcs
+              ? CAUSE_PHOTOS.ecs
+              : null;
+            return (
+              <View style={styles.causeRow}>
+                {causeImg && <Image source={causeImg} style={styles.causePhoto} resizeMode="cover" />}
+                <Text style={[styles.causeText, causeImg ? { flex: 1 } : null]}>{event.cause}</Text>
+              </View>
+            );
+          })()}
         </Card>
       ) : null}
 
@@ -1248,10 +1267,15 @@ function SponsorsTab({ event }: { event: TEvent }) {
             <Text style={styles.formTitle}>{sponsorTierLabel(t)}s</Text>
             {list.map((s) => (
               <View key={s.id} style={styles.playerRow}>
-                <Text style={styles.playerName}>
-                  {s.name}
-                  {s.tier === "hole" && s.hole ? <Text style={styles.hint}>{`  ·  Hole ${s.hole}`}</Text> : null}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                  {s.logo ? (
+                    <Image source={{ uri: s.logo }} style={styles.sponsorLogo} resizeMode="contain" />
+                  ) : null}
+                  <Text style={styles.playerName}>
+                    {s.name}
+                    {s.tier === "hole" && s.hole ? <Text style={styles.hint}>{`  ·  Hole ${s.hole}`}</Text> : null}
+                  </Text>
+                </View>
                 {canEdit && (
                   <TouchableOpacity onPress={() => removeSponsor(event.id, s.id)}>
                     <Text style={styles.remove}>Remove</Text>
@@ -1262,7 +1286,40 @@ function SponsorsTab({ event }: { event: TEvent }) {
           </Card>
         );
       })}
+
+      <ThankYouWall event={event} />
     </>
+  );
+}
+
+// A tribute wall: the beneficiary's photo and every sponsor's logo, to thank
+// them all on the day.
+function ThankYouWall({ event }: { event: TEvent }) {
+  const sponsors = event.sponsors ?? [];
+  if (sponsors.length === 0) return null;
+  const isEcs =
+    event.logoKey === "ecs" || /\becs\b/i.test(event.name) || /lyla/i.test(event.cause ?? "");
+  const causeImg = event.causePhoto ? { uri: event.causePhoto } : isEcs ? CAUSE_PHOTOS.ecs : null;
+  const beneficiary = /lyla/i.test(event.cause ?? "") ? "Lyla" : "our cause";
+  return (
+    <Card>
+      <View style={styles.wallCard}>
+        {causeImg && <Image source={causeImg} style={styles.wallPhoto} resizeMode="cover" />}
+        <Text style={styles.wallTitle}>Thank you — for {beneficiary} 💚</Text>
+        <Text style={styles.wallBody}>Every one of these sponsors helped make the day possible.</Text>
+        <View style={styles.wallGrid}>
+          {sponsors.map((s) =>
+            s.logo ? (
+              <Image key={s.id} source={{ uri: s.logo }} style={styles.wallLogo} resizeMode="contain" />
+            ) : (
+              <Text key={s.id} style={styles.wallName}>
+                {s.name}
+              </Text>
+            )
+          )}
+        </View>
+      </View>
+    </Card>
   );
 }
 
@@ -1317,6 +1374,17 @@ const styles = StyleSheet.create({
   },
   causeHeart: { color: colors.accent, fontSize: 13, fontWeight: "800", letterSpacing: 1 },
   causeText: { color: colors.text, fontSize: 16, fontWeight: "600", lineHeight: 22, marginTop: 4 },
+  causeRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 6 },
+  causePhoto: { width: 76, height: 96, borderRadius: 12, backgroundColor: colors.surface },
+
+  sponsorLogo: { width: 40, height: 40, borderRadius: 8, backgroundColor: "#fff", marginRight: 10 },
+  wallCard: { alignItems: "center" },
+  wallPhoto: { width: 120, height: 150, borderRadius: 14, marginBottom: 10, backgroundColor: colors.surface },
+  wallTitle: { color: colors.text, fontSize: 18, fontWeight: "800", textAlign: "center" },
+  wallBody: { color: colors.textMuted, fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 4, marginBottom: 12 },
+  wallGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10 },
+  wallLogo: { width: 72, height: 72, borderRadius: 10, backgroundColor: "#fff" },
+  wallName: { color: colors.textFaint, fontSize: 12, fontWeight: "700", paddingHorizontal: 10, paddingVertical: 8 },
   tabActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   tabText: { color: colors.textMuted, fontWeight: "700" },
   tabTextActive: { color: "#062012" },

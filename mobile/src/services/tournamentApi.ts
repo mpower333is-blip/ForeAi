@@ -44,12 +44,14 @@ export const tournamentApi = {
 
   update: (
     id: string,
-    patch: Partial<Pick<TEvent, "name" | "format" | "firstTeeMin" | "intervalMin" | "shotgun" | "cause">>
+    patch: Partial<
+      Pick<TEvent, "name" | "format" | "firstTeeMin" | "intervalMin" | "shotgun" | "cause" | "causePhoto">
+    >
   ) => req<TEvent>(`/${id}`, "PATCH", patch).then(tag),
 
   addSponsor: (
     id: string,
-    sponsor: { name: string; tier: string; hole?: number | null; message?: string | null }
+    sponsor: { name: string; tier: string; hole?: number | null; message?: string | null; logo?: string | null }
   ) => req<TEvent>(`/${id}/sponsors`, "POST", sponsor).then(tag),
 
   removeSponsor: (id: string, sponsorId: string) =>

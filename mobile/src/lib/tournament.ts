@@ -50,6 +50,7 @@ export type Sponsor = {
   tier: SponsorTier;
   hole?: number | null;
   message?: string | null;
+  logo?: string | null; // data URL uploaded on registration
 };
 
 export type TEvent = {
@@ -70,6 +71,7 @@ export type TEvent = {
   contestResults?: Record<string, Record<string, number>>; // [contestId][playerId] = yards
   // Fundraiser branding.
   cause?: string | null; // e.g. "Supporting Lyla Roux vs ALK+ ALCL"
+  causePhoto?: string | null; // photo of the beneficiary (data URL, from the backend)
   sponsors?: Sponsor[];
   logoKey?: string; // key into the bundled event-logo registry (e.g. "ecs")
   // Multi-device fields — present only for events hosted on the backend.
