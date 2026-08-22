@@ -221,7 +221,7 @@
     if(r.type==='team'){
       var teams=Array.isArray(p.teams)?p.teams:[];
       detail = '<div class="players">'+teams.map(function(t,ti){
-        return (t.players||[]).map(function(pl){ var ic=phoneIcon(pl.phone); var dv=pl.device?(' · '+esc(pl.device)):''; return '<div class="pl">T'+(ti+1)+': '+esc(pl.name)+(pl.handicap?(' ('+pl.handicap+')'):'')+(ic?(' '+ic):'')+dv+'</div>'; }).join('');
+        return (t.players||[]).map(function(pl){ var ic=phoneIcon(pl.phone); return '<div class="pl">T'+(ti+1)+': '+esc(pl.name)+(pl.handicap?(' ('+pl.handicap+')'):'')+(ic?(' '+ic):'')+'</div>'; }).join('');
       }).join('')+'</div>';
     } else if(r.type==='hole'){
       detail = '<div class="meta">Hole preference: <b>'+(p.holePreference||'any')+'</b></div>';
@@ -264,7 +264,7 @@
     var lines=[cols.join(',')];
     REGS.forEach(function(r){
       var p=r.payload||{};
-      var details = r.type==='team' ? (teamCount(r)+' team(s): '+ (Array.isArray(p.teams)?p.teams.map(function(t){return (t.players||[]).map(function(x){return x.name+(x.phone?(' ['+x.phone+(x.device?(' '+x.device):'')+']'):(x.device?(' ['+x.device+']'):''));}).join('/');}).join(' | '):''))
+      var details = r.type==='team' ? (teamCount(r)+' team(s): '+ (Array.isArray(p.teams)?p.teams.map(function(t){return (t.players||[]).map(function(x){return x.name+(x.phone?(' ['+x.phone+']'):'');}).join('/');}).join(' | '):''))
         : r.type==='hole' ? ('hole pref '+(p.holePreference||'any'))
         : (p.prizeType==='cash'?('cash '+(p.cashAmount||'')):('items '+((p.prizes||[]).join('/'))));
       var apple=0, android=0;

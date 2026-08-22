@@ -199,14 +199,11 @@
             <input data-team="${t}" data-role="name" placeholder="Name & surname" />
             <input data-team="${t}" data-role="hcp" type="number" placeholder="H/cap" />
           </div>
-          <div class="grid2">
-            <select class="phone-sel" data-team="${t}" data-role="phone" aria-label="Phone type for player ${p}">
-              <option value="">📱 Phone type? (optional)</option>
-              <option value="apple">🍎 iPhone / iPad</option>
-              <option value="android">🤖 Android</option>
-            </select>
-            <input data-team="${t}" data-role="device" placeholder="Model e.g. iPhone 13" aria-label="Phone model for player ${p}" />
-          </div>`;
+          <select class="phone-sel" data-team="${t}" data-role="phone" aria-label="Phone type for player ${p}">
+            <option value="">📱 Phone for the golf-day app? (optional)</option>
+            <option value="apple">🍎 iPhone / iPad (Apple)</option>
+            <option value="android">🤖 Android</option>
+          </select>`;
       }
       html += `</div>`;
     }
@@ -305,13 +302,11 @@
       var names=f.querySelectorAll('[data-team="'+t+'"][data-role="name"]');
       var hcps=f.querySelectorAll('[data-team="'+t+'"][data-role="hcp"]');
       var phones=f.querySelectorAll('[data-team="'+t+'"][data-role="phone"]');
-      var devices=f.querySelectorAll('[data-team="'+t+'"][data-role="device"]');
       names.forEach(function(inp,idx){
         if(inp.value.trim()) players.push({
           name:inp.value.trim(),
           handicap:Number(hcps[idx] && hcps[idx].value)||0,
-          phone:(phones[idx] && phones[idx].value)||'',
-          device:(devices[idx] && devices[idx].value.trim())||''
+          phone:(phones[idx] && phones[idx].value)||''
         });
       });
       teams.push({players:players});
