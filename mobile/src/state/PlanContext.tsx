@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { FeatureKey, FREE_FEATURE_KEYS } from "../config/appConfig";
 import { IS_EVENT } from "../config/appVariant";
+import { useTournament } from "./TournamentContext";
 import { loadJSON, saveJSON } from "../lib/storage";
 import {
   purchasesConfigured,
@@ -44,6 +45,10 @@ type PlanState = {
 const Ctx = createContext<PlanState | null>(null);
 
 export function PlanProvider({ children }: { children: React.ReactNode }) {
+  // While the player is in a golf day they've joined, the whole app is unlocked
+  // so everyone can try every feature on the day; personal use afterwards needs
+  // the subscription.
+  const { inLiveEvent } = useTournament();
   // Live entitlement from RevenueCat (used when configured).
   const [entitledPro, setEntitledPro] = useState(false);
   // Local demo unlock (used when NOT configured), persisted to this device.
@@ -76,7 +81,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     return () => unsub();
   }, []);
 
-  const isPro = IS_EVENT || (purchasesConfigured ? entitledPro : demoPro);
+  const isPro = IS_EVENT || inLiveEvent || (purchasesConfigured ? entitledPro : demoPro);
 
   const value = useMemo<PlanState>(() => {
     const grantDemo = () => setDemoPro(true);

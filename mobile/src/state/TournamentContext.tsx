@@ -11,6 +11,10 @@ const MY_KEY = "foreai.myPlayers.v1";
 // Caches the events you've joined/created so the app reopens straight into them
 // on the next launch instead of asking for the join code again.
 const EVENTS_KEY = "foreai.events.v1";
+// Events THIS device created — the organiser. Only the organiser can edit an
+// event's setup (players / tee sheet / sponsors / games); everyone else who
+// joins can view and score only.
+const ORGANISER_KEY = "foreai.organiser.v1";
 
 let idc = 0;
 export function newId(prefix: string): string {
@@ -43,6 +47,11 @@ type TournamentState = {
   claimPlayer: (eventId: string, playerId: string) => Promise<TEvent | null>;
   clearMyPlayer: (eventId: string) => void; // "not me" — forget the link on this device
   myPlayerId: (eventId: string) => string | undefined;
+  // True if THIS device created the event (organiser) — gates setup editing.
+  isOrganiser: (eventId: string) => boolean;
+  // True while the player is in a golf day they've joined — used to unlock the
+  // full app "for the day" so everyone can try every feature.
+  inLiveEvent: boolean;
   // Heartbeat: mark this device's player live (+ optional GPS) so organisers
   // can see who's on the app and where each team is.
   pingPresence: (eventId: string, playerId: string, coord?: { lat: number; lng: number }) => void;
@@ -67,8 +76,17 @@ const Ctx = createContext<TournamentState | null>(null);
 export function TournamentProvider({ children }: { children: React.ReactNode }) {
   const [events, setEvents] = useState<TEvent[]>([]);
   const [myByEvent, setMyByEvent] = useState<Record<string, string>>({});
+  const [organiserIds, setOrganiserIds] = useState<string[]>([]);
   const [myReady, setMyReady] = useState(false);
   const [eventsReady, setEventsReady] = useState(false);
+  const [orgReady, setOrgReady] = useState(false);
+
+  const isOrganiser = (eventId: string) => organiserIds.includes(eventId);
+  const markOrganiser = (eventId: string) =>
+    setOrganiserIds((prev) => (prev.includes(eventId) ? prev : [...prev, eventId]));
+
+  // Unlock the full app while the player is in a golf day they've joined.
+  const inLiveEvent = events.some((e) => e.remote && !!myByEvent[e.id]);
 
   // Hydrate the device id, the saved "who am I" map, and the cached events once
   // on mount. Cached events open instantly (also works offline); remote ones are
@@ -88,15 +106,22 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       }
       setEventsReady(true);
     });
+    loadJSON<string[]>(ORGANISER_KEY).then((saved) => {
+      if (saved) setOrganiserIds(saved);
+      setOrgReady(true);
+    });
   }, []);
 
-  // Persist the "who am I" map and the events cache whenever they change.
+  // Persist the "who am I" map, events cache and organiser list on change.
   useEffect(() => {
     if (myReady) saveJSON(MY_KEY, myByEvent);
   }, [myByEvent, myReady]);
   useEffect(() => {
     if (eventsReady) saveJSON(EVENTS_KEY, events);
   }, [events, eventsReady]);
+  useEffect(() => {
+    if (orgReady) saveJSON(ORGANISER_KEY, organiserIds);
+  }, [organiserIds, orgReady]);
 
   // Auto-recognise "me": if an event already has a player linked to this
   // device (claimed on a previous launch), adopt it without prompting.
@@ -153,6 +178,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       remote: false,
     };
     setEvents((prev) => [ev, ...prev]);
+    markOrganiser(ev.id);
     return ev;
   };
 
@@ -200,11 +226,12 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       remote: false,
     };
     setEvents((prev) => [ev, ...prev]);
+    markOrganiser(ev.id);
     return ev;
   };
 
-  const createSharedEvent: TournamentState["createSharedEvent"] = (input) =>
-    runRemote(
+  const createSharedEvent: TournamentState["createSharedEvent"] = async (input) => {
+    const ev = await runRemote(
       tournamentApi.create({
         name: input.name || "New Event",
         courseId: input.courseId || COURSES[0].id,
@@ -214,6 +241,9 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         shotgun: !!input.shotgun,
       })
     );
+    if (ev) markOrganiser(ev.id);
+    return ev;
+  };
 
   // Create the ECS Golf Day on the backend (so it has a shareable join code) and
   // apply its branding — cause, title/hole/prize sponsors and side games. Real
@@ -231,6 +261,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     );
     if (!created) return null;
     const id = created.id;
+    markOrganiser(id);
     let ev: TEvent = created;
     const step = async (p: Promise<TEvent | null>) => {
       const r = await runRemote(p);
@@ -497,6 +528,8 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     claimPlayer,
     clearMyPlayer,
     myPlayerId,
+    isOrganiser,
+    inLiveEvent,
     pingPresence,
     getEvent,
     updateEvent,

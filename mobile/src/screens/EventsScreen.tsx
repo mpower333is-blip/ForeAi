@@ -623,11 +623,12 @@ function IdentityCard({ event }: { event: TEvent }) {
 }
 
 function PlayersTab({ event }: { event: TEvent }) {
-  const { addPlayer, removePlayer, myPlayerId } = useTournament();
+  const { addPlayer, removePlayer, myPlayerId, isOrganiser } = useTournament();
   const [name, setName] = useState("");
   const [hcp, setHcp] = useState(18);
 
   const meId = myPlayerId(event.id);
+  const canEdit = isOrganiser(event.id); // only the organiser edits setup
 
   const add = () => {
     if (!name.trim()) return;
@@ -639,8 +640,8 @@ function PlayersTab({ event }: { event: TEvent }) {
   return (
     <>
       {/* Identifying yourself is done via the "Who are you?" card at the top.
-          Only the main app / office / website can add or remove players. */}
-      {!IS_EVENT && (
+          Only the organiser (who created the event) can add or remove players. */}
+      {canEdit && (
         <Card>
           <Text style={styles.formTitle}>{event.remote ? "Add another player" : "Register player"}</Text>
           <TextField label="Name" value={name} onChangeText={setName} placeholder="Player name" />
@@ -660,7 +661,7 @@ function PlayersTab({ event }: { event: TEvent }) {
             </Text>
             <View style={styles.playerRight}>
               <Text style={styles.playerHcp}>HCP {p.handicap}</Text>
-              {!IS_EVENT && (
+              {canEdit && (
                 <TouchableOpacity onPress={() => removePlayer(event.id, p.id)}>
                   <Text style={styles.remove}>Remove</Text>
                 </TouchableOpacity>
@@ -674,17 +675,18 @@ function PlayersTab({ event }: { event: TEvent }) {
 }
 
 function TeesTab({ event }: { event: TEvent }) {
-  const { addGroup, removeGroup, togglePlayerInGroup, updateEvent } = useTournament();
+  const { addGroup, removeGroup, togglePlayerInGroup, updateEvent, isOrganiser } = useTournament();
   const assigned = new Set(event.groups.flatMap((g) => g.playerIds));
   const unassigned = event.players.filter((p) => !assigned.has(p.id));
+  const canEdit = isOrganiser(event.id);
 
   return (
     <>
-      {/* The tee sheet and groups are built in the main app, the office page and
-          the website. The event build shows them read-only. */}
+      {/* The tee sheet and groups are set by the organiser (or the office page
+          and website). Everyone else who joins sees them read-only. */}
       <Card>
         <Text style={styles.formTitle}>Tee sheet</Text>
-        {IS_EVENT ? (
+        {!canEdit ? (
           <Text style={styles.hint}>
             {event.shotgun
               ? `Shotgun start at ${hhmm(event.firstTeeMin)}.`
@@ -715,7 +717,7 @@ function TeesTab({ event }: { event: TEvent }) {
         )}
       </Card>
 
-      {!IS_EVENT && unassigned.length > 0 && (
+      {canEdit && unassigned.length > 0 && (
         <Card>
           <Text style={styles.hint}>
             Unassigned: {unassigned.map((p) => p.name).join(", ")}. Tap a player below to add them to
@@ -732,14 +734,14 @@ function TeesTab({ event }: { event: TEvent }) {
                 ? `⛳ Group ${i + 1} · Start hole ${shotgunStartHole(i)}`
                 : `⛳ ${groupTeeTime(event, i)}`}
             </Text>
-            {!IS_EVENT && (
+            {canEdit && (
               <TouchableOpacity onPress={() => removeGroup(event.id, g.id)}>
                 <Text style={styles.remove}>Remove</Text>
               </TouchableOpacity>
             )}
           </View>
           <Text style={styles.hint}>
-            {IS_EVENT
+            {!canEdit
               ? event.format === "scramble"
                 ? `Team ${i + 1}`
                 : "Group"
@@ -748,13 +750,13 @@ function TeesTab({ event }: { event: TEvent }) {
               : "Tap players to add/remove from this group"}
           </Text>
           <View style={styles.chipWrap}>
-            {(IS_EVENT ? event.players.filter((p) => g.playerIds.includes(p.id)) : event.players).map((p) => {
+            {(!canEdit ? event.players.filter((p) => g.playerIds.includes(p.id)) : event.players).map((p) => {
               const inGroup = g.playerIds.includes(p.id);
               const elsewhere = !inGroup && assigned.has(p.id);
               return (
                 <TouchableOpacity
                   key={p.id}
-                  disabled={IS_EVENT}
+                  disabled={!canEdit}
                   onPress={() => togglePlayerInGroup(event.id, g.id, p.id)}
                   style={[
                     styles.chip,
@@ -780,11 +782,12 @@ function TeesTab({ event }: { event: TEvent }) {
 }
 
 function LiveTab({ event }: { event: TEvent }) {
-  const { setScore, myPlayerId } = useTournament();
+  const { setScore, myPlayerId, isOrganiser } = useTournament();
   const course = getCourse(event.courseId);
   const [scoringGroup, setScoringGroup] = useState<string | null>(null);
   const isScramble = event.format === "scramble";
   const meId = myPlayerId(event.id);
+  const canEdit = isOrganiser(event.id);
 
   const now = Date.now();
   const livePlayers = event.players.filter((p) => isPlayerLive(p, now));
@@ -833,7 +836,7 @@ function LiveTab({ event }: { event: TEvent }) {
         </Text>
         {event.groups.length === 0 && (
           <Text style={styles.empty}>
-            {IS_EVENT ? "The tee sheet hasn't been set up yet." : "Set up groups in the Tees tab."}
+            {!canEdit ? "The tee sheet hasn't been set up yet." : "Set up groups in the Tees tab."}
           </Text>
         )}
         {event.groups.map((g, i) => {
@@ -1069,17 +1072,18 @@ function TeamScoreEntry({
 }
 
 function GamesTab({ event }: { event: TEvent }) {
-  const { addContest, removeContest, setContestResult } = useTournament();
+  const { addContest, removeContest, setContestResult, isOrganiser } = useTournament();
   const [type, setType] = useState<ContestType>("closest");
   const [hole, setHole] = useState(3);
   const [openId, setOpenId] = useState<string | null>(null);
   const contests = event.contests ?? [];
+  const canEdit = isOrganiser(event.id); // organiser sets up games; anyone records results
 
   return (
     <>
-      {/* Side games are set up in the main app / office / website. The event
-          build can still record each player's result on the day. */}
-      {!IS_EVENT && (
+      {/* Side games are set up by the organiser; anyone in the event can still
+          record each player's result on the day. */}
+      {canEdit && (
         <Card>
           <Text style={styles.formTitle}>Add a side game</Text>
           <Segmented
@@ -1099,7 +1103,7 @@ function GamesTab({ event }: { event: TEvent }) {
       {contests.length === 0 && (
         <Card>
           <Text style={styles.empty}>
-            {IS_EVENT
+            {!canEdit
               ? "No side games for this golf day."
               : "No side games yet. Add closest-to-the-pin on the par-3s or a longest-drive hole."}
           </Text>
@@ -1118,7 +1122,7 @@ function GamesTab({ event }: { event: TEvent }) {
                   <Text style={styles.contestName}>{contestName(c)}</Text>
                   <Text style={styles.hint}>Hole {c.hole} · {contestUnit(c)}</Text>
                 </View>
-                {!IS_EVENT && (
+                {canEdit && (
                   <TouchableOpacity onPress={() => removeContest(event.id, c.id)}>
                     <Text style={styles.remove}>Remove</Text>
                   </TouchableOpacity>
@@ -1167,11 +1171,12 @@ function GamesTab({ event }: { event: TEvent }) {
 }
 
 function SponsorsTab({ event }: { event: TEvent }) {
-  const { addSponsor, removeSponsor, updateEvent } = useTournament();
+  const { addSponsor, removeSponsor, updateEvent, isOrganiser } = useTournament();
   const [name, setName] = useState("");
   const [tier, setTier] = useState<SponsorTier>("hole");
   const [hole, setHole] = useState(1);
   const [cause, setCause] = useState(event.cause ?? "");
+  const canEdit = isOrganiser(event.id);
 
   const sponsors = event.sponsors ?? [];
   const add = () => {
@@ -1184,9 +1189,9 @@ function SponsorsTab({ event }: { event: TEvent }) {
 
   return (
     <>
-      {/* Cause and sponsors are managed from the main app / office / website.
-          The event build shows them read-only to thank everyone on the day. */}
-      {IS_EVENT ? (
+      {/* Cause and sponsors are managed by the organiser (or office / website).
+          Everyone else sees them read-only to thank the sponsors on the day. */}
+      {!canEdit ? (
         event.cause ? (
           <Card>
             <Text style={styles.formTitle}>The cause</Text>
@@ -1247,7 +1252,7 @@ function SponsorsTab({ event }: { event: TEvent }) {
                   {s.name}
                   {s.tier === "hole" && s.hole ? <Text style={styles.hint}>{`  ·  Hole ${s.hole}`}</Text> : null}
                 </Text>
-                {!IS_EVENT && (
+                {canEdit && (
                   <TouchableOpacity onPress={() => removeSponsor(event.id, s.id)}>
                     <Text style={styles.remove}>Remove</Text>
                   </TouchableOpacity>

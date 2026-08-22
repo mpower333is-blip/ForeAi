@@ -168,19 +168,21 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" />
-        <PlanProvider>
         <ProfileProvider>
         <CourseCoordsProvider>
         <RoundProvider>
           <TournamentProvider>
-            <GamesProvider>
-              <Root />
-            </GamesProvider>
+            {/* Plan sits inside Tournament so a live golf day can unlock the
+                full app "for the day" (see PlanContext). */}
+            <PlanProvider>
+              <GamesProvider>
+                <Root />
+              </GamesProvider>
+            </PlanProvider>
           </TournamentProvider>
         </RoundProvider>
         </CourseCoordsProvider>
         </ProfileProvider>
-        </PlanProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
