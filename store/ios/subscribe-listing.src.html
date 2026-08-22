@@ -1,0 +1,45 @@
+<!doctype html><html><head><meta charset="utf-8"/>
+<style>
+  :root{--bg:#06170F;--surface:#10261C;--border:#204636;--accent:#8DFF6B;--gold:#FFD36A;
+    --text:#F4FBF6;--muted:#C2D2C6;--faint:#87A092;--onAccent:#052012;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:430px;height:932px}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text);
+    background:radial-gradient(120% 55% at 80% 0%, rgba(141,255,107,0.16), transparent 60%),
+      linear-gradient(160deg,#134E32,#0C3222 55%,#06170F);padding:46px 22px 22px;text-align:center}
+  .cap1{font-size:42px;font-weight:800;letter-spacing:-1px;line-height:1.05}
+  .cap2{font-size:42px;font-weight:800;letter-spacing:-1px;line-height:1.05;color:var(--accent);margin-bottom:26px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:20px;margin-bottom:14px;text-align:left}
+  .card.accent{border-color:rgba(141,255,107,0.55);background:linear-gradient(180deg,rgba(141,255,107,0.06),var(--surface))}
+  .hint{color:var(--muted);font-size:15px;margin-bottom:14px}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;border-radius:14px;font-size:17px;font-weight:800;padding:15px;margin-bottom:12px}
+  .btn.fill{background:linear-gradient(135deg,#B6FF8E,#8DFF6B,#46C85A);color:var(--onAccent)}
+  .btn.ghost{background:transparent;border:1.5px solid var(--border);color:var(--accent)}
+  .planRow{display:flex;align-items:center;gap:10px}
+  .planRow .btn{flex:1;margin-bottom:12px}
+  .chip{font-size:11px;font-weight:800;letter-spacing:.5px;padding:5px 9px;border-radius:999px;background:rgba(255,211,106,0.16);color:var(--gold);white-space:nowrap}
+  .restore{color:var(--accent);text-align:center;font-weight:800;font-size:15px;padding:6px}
+  .legal{color:var(--faint);font-size:11px;line-height:15px;margin-top:6px;text-align:center}
+  .row{display:flex;gap:10px;align-items:center;padding:6px 0}
+  .mark{color:var(--accent);font-weight:800;font-size:16px;width:18px}
+  .rowT{font-size:15px}
+</style></head>
+<body>
+  <div class="cap1">Unlock the full game</div>
+  <div class="cap2">Monthly or annual</div>
+
+  <div class="card accent">
+    <div class="hint">Choose a plan — cancel anytime.</div>
+    <div class="planRow"><div class="btn ghost">🔓 Monthly — R 99.00</div></div>
+    <div class="planRow"><div class="btn fill">🔓 Annual — R 799.00</div><div class="chip">BEST VALUE</div></div>
+    <div class="restore">Restore purchase</div>
+    <div class="legal">Auto-renews unless cancelled 24h before the period ends · Terms · Privacy</div>
+  </div>
+
+  <div class="card">
+    <div class="row"><div class="mark">✓</div><div class="rowT">Live round tracking &amp; scorecard</div></div>
+    <div class="row"><div class="mark">✓</div><div class="rowT">AI Caddie that learns your distances</div></div>
+    <div class="row"><div class="mark">✓</div><div class="rowT">GPS rangefinder — front / mid / back</div></div>
+    <div class="row"><div class="mark">✓</div><div class="rowT">Strokes-gained stats &amp; strategy</div></div>
+  </div>
+</body></html>
