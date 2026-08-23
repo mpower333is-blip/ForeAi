@@ -9,18 +9,42 @@ This is a **separate native Android project** from `../mobile` (which is the
 Expo/React Native phone app). It is **not** built by the Expo prebuild or the
 GitHub Actions APK workflow — open and build it in Android Studio.
 
-## Requirements
-- Android Studio (Ladybug or newer)
-- A Wear OS emulator (Device Manager → add a Wear OS device) or a real watch in
-  developer/ADB mode
+> Wear OS only (Pixel Watch, Galaxy Watch 4+, TicWatch, …). It does **not** run
+> on an Apple Watch.
 
-## Open & run
+## Build it — no computer needed (Codemagic)
+You build the phone apps in Codemagic; the watch app builds there too.
+1. Codemagic → **Start new build** → workflow **`foreai-watch-android`**.
+2. It emails you (and offers to download) **`app-debug.apk`** — the installable
+   watch app. No Android Studio, no ADB, no signing setup.
+
+Then get that APK onto the watch — two phone-only ways:
+
+**A) Google Play internal testing (smoothest, recommended)**
+Publish the watch app to the Play Console **internal testing** track once. After
+that, open the app's Play listing on your phone (the phone app's **Set up your
+watch** screen has the button + QR) and tap **Install on watch** — Google
+installs it straight to your paired watch. Rebuilds just re-upload to the track.
+> Ask and we can wire Codemagic to auto-publish the AAB to that track (needs a
+> Google Play service-account key).
+
+**B) Wireless ADB from your phone (for the debug APK, no computer)**
+Install an ADB-over-Wi-Fi app on your phone (e.g. **Bugjaeger** from Play).
+On the watch: Settings → System → About → tap Build number 7× → Developer
+options → turn on **Wireless debugging**. In the phone app, pair to the watch's
+IP/port, then install the `app-debug.apk` from step 2. Fiddly the first time,
+but fully phone-only.
+
+## Or build & run from Android Studio (if you have a computer)
 1. Android Studio → **Open** → select this `wear/` folder (not the repo root).
-2. Let Gradle sync. Versions here are a known-good, stable set (AGP 8.5.2,
-   Kotlin 1.9.24, Compose BOM 2024.06.00); accept any upgrade Studio suggests.
-3. Pick a Wear OS emulator/device and **Run** the `app` module.
-4. On the watch: pick your name → use **− / +** to set your score for the hole →
-   it syncs to the leaderboard. **‹ / ›** move between holes.
+2. Let Gradle sync (AGP 8.5.2, Kotlin 1.9.24, Compose BOM 2024.06.00).
+3. Pick a Wear OS emulator/device and **Run** the `app` module (a real watch
+   needs Developer options → ADB/Wireless debugging on, paired over `adb`).
+
+## On the watch
+Pick your name → the app joins the golf day. **− / +** set your score (syncs to
+the leaderboard), **‹ / ›** change holes, tap the club chip to pick a club, and
+**＋ Log shot** logs a shot. Grant location for green distances.
 
 > The first request can take ~30s while the free backend cold-starts.
 

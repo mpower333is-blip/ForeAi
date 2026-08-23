@@ -5,8 +5,9 @@
 # android/ and ios/ folders in CI from mobile/app.config.js.
 #
 # ── WORKFLOWS ──  (Codemagic → Start new build → pick one)
-#   foreai-android   ForeAi → app-release.apk   (sideloadable, no setup)
-#   foreai-ios       ForeAi → TestFlight / .ipa  (needs Apple setup*)
+#   foreai-android         ForeAi phone → app-release.apk   (sideloadable, no setup)
+#   foreai-watch-android   ForeAi watch → app-debug.apk     (Wear OS, sideloadable)
+#   foreai-ios             ForeAi phone → TestFlight / .ipa (needs Apple setup*)
 #
 # ── * ONE-TIME iOS SETUP (foreai-ios only) ──
 #   1. In Codemagic: Teams (or your personal account) → Integrations →
@@ -52,6 +53,39 @@ workflows:
           ./gradlew assembleRelease --no-daemon
     artifacts:
       - mobile/android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ─────────────────────────── WEAR OS ───────────────────────────
+  # Builds the standalone Wear OS watch app (../wear) into an installable debug
+  # APK. No Android Studio / computer needed — download the APK from the build
+  # and get it onto the watch (see wear/README.md → "Get it on your watch").
+  foreai-watch-android:
+    name: ForeAi Watch — Wear OS APK
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      java: 17
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Build the Wear OS debug APK
+        script: |
+          cd wear
+          # The wear project has no committed Gradle wrapper jar; fetch the
+          # pinned Gradle (8.7, matching gradle-wrapper.properties) and build
+          # with it directly — deterministic and self-contained.
+          curl -sSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle.zip
+          unzip -q -o /tmp/gradle.zip -d "$HOME/gradle-dist"
+          "$HOME/gradle-dist/gradle-8.7/bin/gradle" :app:assembleDebug --no-daemon
+    artifacts:
+      - wear/app/build/outputs/**/*.apk
     publishing:
       email:
         recipients:
