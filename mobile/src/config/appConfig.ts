@@ -20,7 +20,10 @@ export const WEAR_APK_URL = "https://foreai.co.za/foreai-watch.apk";
 
 // The full package (unlocks everything beyond the free demo).
 export const PACKAGE_NAME = "ForeAi Pro";
-export const PACKAGE_PRICE = "R199"; // once-off — adjust to your pricing
+// Demo-only fallback price (shown when store billing isn't configured). The real
+// paywall uses live store prices from RevenueCat — set those in Play Console:
+// Monthly R99 · Annual R799.
+export const PACKAGE_PRICE = "R99/mo";
 
 // What each tier includes (shown on the paywall).
 export const FREE_FEATURES = [
