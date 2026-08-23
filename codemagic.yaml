@@ -26,6 +26,46 @@
 #   installs on any phone once "install unknown apps" is allowed.
 
 workflows:
+  # ───────────── ONE-TIME — generate the Play upload keystore ─────────────
+  # Run this ONCE (Codemagic has Java, so you need no computer). It creates an
+  # upload keystore and outputs three files in the build artifacts:
+  #   upload.keystore            keep this safe FOREVER (needed for every update)
+  #   upload.keystore.b64.txt    paste its contents into env var CM_KEYSTORE
+  #   keystore-credentials.txt   the passwords + alias to paste into the env vars
+  # Then add these to a secure env-var group named `google_play`:
+  #   CM_KEYSTORE           = contents of upload.keystore.b64.txt
+  #   CM_KEYSTORE_PASSWORD  = KEYSTORE_PASSWORD from keystore-credentials.txt
+  #   CM_KEY_ALIAS          = foreai
+  #   CM_KEY_PASSWORD       = KEY_PASSWORD from keystore-credentials.txt
+  # After that, never run this workflow again — use foreai-android-play.
+  make-upload-keystore:
+    name: One-time — make Play upload keystore
+    instance_type: linux_x2
+    max_build_duration: 15
+    scripts:
+      - name: Generate the keystore
+        script: |
+          KS_PASS=$(openssl rand -hex 16)
+          keytool -genkeypair -v \
+            -keystore upload.keystore -alias foreai \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$KS_PASS" -keypass "$KS_PASS" \
+            -dname "CN=ForeAi, OU=ForeAi, O=ForeAi, L=Kempton Park, ST=Gauteng, C=ZA"
+          base64 -w0 upload.keystore > upload.keystore.b64.txt
+          printf "KEYSTORE_PASSWORD=%s\nKEY_ALIAS=foreai\nKEY_PASSWORD=%s\n" "$KS_PASS" "$KS_PASS" > keystore-credentials.txt
+          echo "Keystore created. Download the 3 artifacts and follow the header of codemagic.yaml."
+    artifacts:
+      - upload.keystore
+      - upload.keystore.b64.txt
+      - keystore-credentials.txt
+    publishing:
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
   # ─────────────────────────── ANDROID ───────────────────────────
   foreai-android:
     name: ForeAi — Android APK
