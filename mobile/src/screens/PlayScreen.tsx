@@ -52,6 +52,7 @@ export default function PlayScreen({ navigation }: any) {
   const [distance, setDistance] = useState(hole.yards);
   const [surface, setSurface] = useState<Surface>("tee");
   const [wind, setWind] = useState(0);
+  const [elevation, setElevation] = useState(0); // yards up(+)/down(-) to the target
   const [result, setResult] = useState(140); // distance remaining after the shot
 
   // On-course GPS: tee/pin marks per hole feed the rangefinder.
@@ -75,11 +76,12 @@ export default function PlayScreen({ navigation }: any) {
         {
           yardage: distance,
           windSpeed: wind,
+          elevation,
           lie: surface === "green" ? "fairway" : (surface as Lie),
         },
         effectiveBag
       ),
-    [distance, wind, surface, effectiveBag]
+    [distance, wind, elevation, surface, effectiveBag]
   );
 
   const lieForSurface = (s: Surface): Lie =>
@@ -192,6 +194,15 @@ export default function PlayScreen({ navigation }: any) {
           min={-40}
           max={40}
           unit="mph"
+        />
+        <Stepper
+          label="Elevation (+ up / − down)"
+          value={elevation}
+          onChange={setElevation}
+          step={2}
+          min={-40}
+          max={40}
+          unit="yds"
         />
         <Stepper
           label="Distance remaining after shot"
