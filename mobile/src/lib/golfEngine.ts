@@ -4,6 +4,8 @@
 // connection. The backend mirrors this logic for persistence + cross-device
 // sync, but the caddie, strategy and strokes-gained features never *require* it.
 
+import { ydToM } from "./units";
+
 // ---------------------------------------------------------------------------
 // Player bag — default carry distances (yards). Users can tune these in Profile.
 // ---------------------------------------------------------------------------
@@ -109,14 +111,16 @@ export function recommendClub(
 
   const notes: string[] = [];
   if (c.windSpeed && Math.abs(c.windSpeed) >= 8) {
+    const dM = ydToM(target - c.yardage);
     notes.push(
       c.windSpeed > 0
-        ? `Playing ${target - c.yardage > 0 ? "+" : ""}${target - c.yardage} yds into the wind`
-        : `Downwind — plays ${target - c.yardage} yds shorter`
+        ? `Playing ${dM > 0 ? "+" : ""}${dM} m into the wind`
+        : `Downwind — plays ${dM} m shorter`
     );
   }
   if (c.elevation && Math.abs(c.elevation) >= 5) {
-    notes.push(c.elevation > 0 ? `Uphill +${c.elevation} yds` : `Downhill ${c.elevation} yds`);
+    const eM = ydToM(c.elevation);
+    notes.push(c.elevation > 0 ? `Uphill +${eM} m` : `Downhill ${eM} m`);
   }
   if (c.lie && c.lie !== "fairway" && c.lie !== "tee") {
     notes.push(`${c.lie} lie — take extra club, swing smooth`);

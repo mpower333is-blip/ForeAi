@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView
 import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, TextField, EmptyState } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { COURSES, getCourse, searchCourses, hasCourse } from "../data/courses";
+import { ydToM } from "../lib/units";
 import {
   searchOnline,
   fetchCourse,
@@ -1029,7 +1030,7 @@ function ScoreEntry({
   return (
     <View style={styles.scoreBox}>
       <Text style={styles.scoreTitle}>
-        Hole {hole} • Par {holeInfo.par} • {holeInfo.yards} yds
+        Hole {hole} • Par {holeInfo.par} • {ydToM(holeInfo.yards)} m
       </Text>
       <HoleSponsorLine event={event} hole={hole} />
       {group.playerIds.map((pid) => {
@@ -1084,7 +1085,7 @@ function TeamScoreEntry({
   return (
     <View style={styles.scoreBox}>
       <Text style={styles.scoreTitle}>
-        Hole {hole} • Par {holeInfo.par} • {holeInfo.yards} yds
+        Hole {hole} • Par {holeInfo.par} • {ydToM(holeInfo.yards)} m
       </Text>
       <HoleSponsorLine event={event} hole={hole} />
       <View style={styles.scorePlayer}>
@@ -1166,7 +1167,7 @@ function GamesTab({ event }: { event: TEvent }) {
             </TouchableOpacity>
 
             <Text style={styles.leaderLine}>
-              {leader ? `🏆 ${leader.player.name} — ${leader.value} yds` : "No results in yet"}
+              {leader ? `🏆 ${leader.player.name} — ${leader.value} m` : "No results in yet"}
             </Text>
 
             {open && (

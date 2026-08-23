@@ -267,7 +267,7 @@ export function contestName(c: Contest): string {
 }
 
 export function contestUnit(c: Contest): string {
-  return c.type === "closest" ? "yds from pin" : "yds";
+  return c.type === "closest" ? "m from pin" : "m";
 }
 
 export function holeSponsor(event: TEvent, hole: number): Sponsor | undefined {

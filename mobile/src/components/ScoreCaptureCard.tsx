@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { colors, radius, spacing } from "../theme";
 import { Hole } from "../data/courses";
 import { strokesReceivedOnHole, stablefordPoints } from "../lib/golfEngine";
+import { ydToM } from "../lib/units";
 
 // Score-Capture-style per-hole entry: PAR, strokes received (dots), big gross
 // with +/-, live NET and Stableford POINTS, PICKUP/CLEAR, and a tap-for-map
@@ -78,7 +79,7 @@ export default function ScoreCaptureCard({
           <Text style={styles.actionText}>Clear ↺</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.action, styles.mapAction]} onPress={onTapMap}>
-          <Text style={styles.mapText}>🗺 {hole.yards} yds</Text>
+          <Text style={styles.mapText}>🗺 {ydToM(hole.yards)} m</Text>
         </TouchableOpacity>
       </View>
     </View>

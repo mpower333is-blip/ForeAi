@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, radius, spacing, type, shadow, gradients } from "../theme";
+import { ydToM, mToYd, DIST_UNIT } from "../lib/units";
 
 export function Screen({ children }: { children: React.ReactNode }) {
   return (
@@ -362,6 +363,37 @@ export function Stepper({
         </TouchableOpacity>
       </View>
     </View>
+  );
+}
+
+// A distance stepper that stores YARDS but shows/edits METRES. `value`, `onChange`,
+// `min` and `max` are all in yards — identical to Stepper — so callers keep their
+// yard-based state and the golf engine sees yards, while the player sees metres.
+export function MetreStepper({
+  label,
+  value,
+  onChange,
+  stepM = 5,
+  min = 0,
+  max = 9999,
+}: {
+  label: string;
+  value: number; // yards
+  onChange: (yards: number) => void;
+  stepM?: number; // step size in metres
+  min?: number; // yards
+  max?: number; // yards
+}) {
+  return (
+    <Stepper
+      label={label}
+      value={ydToM(value)}
+      onChange={(m) => onChange(mToYd(m))}
+      step={stepM}
+      min={ydToM(min)}
+      max={ydToM(max)}
+      unit={DIST_UNIT}
+    />
   );
 }
 

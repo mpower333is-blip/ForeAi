@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { Screen, Card, Button, Segmented, Stepper, StatTile } from "../components/ui";
+import { Screen, Card, Button, Segmented, Stepper, MetreStepper, StatTile } from "../components/ui";
 import { colors, spacing, type } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { useLocation } from "../hooks/useLocation";
@@ -8,6 +8,7 @@ import HoleGps, { HoleMarks } from "../components/HoleGps";
 import ScoreCaptureCard from "../components/ScoreCaptureCard";
 import StatsEntry from "../components/StatsEntry";
 import { Coord, compass8 } from "../lib/geo";
+import { ydToM } from "../lib/units";
 import { fetchWeather, windForShot } from "../services/weather";
 import { IS_EVENT } from "../config/appVariant";
 import {
@@ -169,7 +170,7 @@ export default function PlayScreen({ navigation }: any) {
         <View>
           <Text style={styles.holeLabel}>Hole {hole.number}</Text>
           <Text style={styles.holeMeta}>
-            Par {hole.par} • {hole.yards} yds
+            Par {hole.par} • {ydToM(hole.yards)} m
           </Text>
         </View>
         <View style={styles.navBtns}>
@@ -203,7 +204,7 @@ export default function PlayScreen({ navigation }: any) {
         <View style={styles.recRow}>
           <Text style={styles.recClub}>{rec.club}</Text>
           <View style={styles.recRight}>
-            <Text style={styles.recYards}>plays {rec.playingYards} yds</Text>
+            <Text style={styles.recYards}>plays {ydToM(rec.playingYards)} m</Text>
             <Text style={[styles.recConf, confColor(rec.confidence)]}>
               {rec.confidence} confidence
             </Text>
@@ -217,7 +218,7 @@ export default function PlayScreen({ navigation }: any) {
       </Card>
 
       <Card>
-        <Stepper label="Distance to target" value={distance} onChange={setDistance} step={5} unit="yds" />
+        <MetreStepper label="Distance to target" value={distance} onChange={setDistance} stepM={5} />
         <Segmented label="Lie" options={SURFACES} value={surface} onChange={setSurface} />
         <Button
           variant="ghost"
@@ -234,21 +235,19 @@ export default function PlayScreen({ navigation }: any) {
           max={40}
           unit="mph"
         />
-        <Stepper
+        <MetreStepper
           label="Elevation (+ up / − down)"
           value={elevation}
           onChange={setElevation}
-          step={2}
+          stepM={2}
           min={-40}
           max={40}
-          unit="yds"
         />
-        <Stepper
+        <MetreStepper
           label="Distance remaining after shot"
           value={result}
           onChange={setResult}
-          step={5}
-          unit="yds"
+          stepM={5}
         />
         <View style={styles.logRow}>
           <Button label="Log Shot" onPress={() => onLogShot(false)} style={{ flex: 1 }} />
@@ -274,7 +273,7 @@ export default function PlayScreen({ navigation }: any) {
           {holeShots.map((s, i) => (
             <View key={s.id} style={styles.shotLine}>
               <Text style={styles.shotText}>
-                {i + 1}. {s.club} · {s.startYards}→{s.holed ? "🏁" : `${s.endYards} yds`}
+                {i + 1}. {s.club} · {ydToM(s.startYards)}→{s.holed ? "🏁" : `${ydToM(s.endYards)} m`}
               </Text>
               <Text style={[styles.shotSG, { color: s.strokesGained >= 0 ? colors.positive : colors.negative }]}>
                 {signed(s.strokesGained)}

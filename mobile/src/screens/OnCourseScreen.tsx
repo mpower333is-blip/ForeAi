@@ -5,7 +5,8 @@ import { colors, spacing, radius, type } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { useCourseCoords, HolePointKey } from "../state/CourseCoordsContext";
 import { useLocation } from "../hooks/useLocation";
-import { greenDistances, bearingDegrees, compass8 } from "../lib/geo";
+import { greenDistancesMeters, bearingDegrees, compass8 } from "../lib/geo";
+import { ydToM } from "../lib/units";
 
 // On-course GPS: which hole you're on, how far to the green (front / middle /
 // back), and an arrow to the green. Plus a capture mode: stand at each point and
@@ -27,7 +28,7 @@ export default function OnCourseScreen({ navigation }: any) {
   const hasGps = !!pin;
 
   const fmb =
-    loc.coord && pin ? greenDistances(loc.coord, { greenFront, green: green ?? pin, greenBack }) : null;
+    loc.coord && pin ? greenDistancesMeters(loc.coord, { greenFront, green: green ?? pin, greenBack }) : null;
   const bearing = loc.coord && pin ? bearingDegrees(loc.coord, pin) : null;
   const arrowDeg = bearing != null ? (bearing - (loc.heading ?? 0) + 360) % 360 : null;
 
@@ -62,7 +63,7 @@ export default function OnCourseScreen({ navigation }: any) {
           </TouchableOpacity>
           <View style={styles.holeMid}>
             <Text style={styles.holeNo}>Hole {hole.number}</Text>
-            <Text style={styles.holeMeta}>Par {hole.par} · {hole.yards} yds · SI {hole.si}</Text>
+            <Text style={styles.holeMeta}>Par {hole.par} · {ydToM(hole.yards)} m · SI {hole.si}</Text>
           </View>
           <TouchableOpacity style={styles.navBtn} onPress={() => goHole(1)}>
             <Text style={styles.navTxt}>›</Text>
@@ -134,7 +135,7 @@ export default function OnCourseScreen({ navigation }: any) {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.bigDist}>
-                  {fmb?.middle ?? "–"} <Text style={styles.unit}>yds</Text>
+                  {fmb?.middle ?? "–"} <Text style={styles.unit}>m</Text>
                 </Text>
                 <Text style={styles.bearingTxt}>
                   {bearing != null ? `Head ${compass8(bearing)}` : "Locating…"}

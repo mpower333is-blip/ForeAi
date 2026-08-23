@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { Screen, ScreenHeader, Card, Button, Stepper } from "../components/ui";
+import { Screen, ScreenHeader, Card, Button, MetreStepper } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
+import { ydToM } from "../lib/units";
 import {
   GAMES,
   GameId,
@@ -103,7 +104,7 @@ function ClosestGame({ onBack }: { onBack: () => void }) {
       {phase === "setup" && (
         <Card>
           <Text style={styles.instr}>Pick a target distance, then hit 5 shots. Points for how close you finish.</Text>
-          <Stepper label="Target distance" value={target} onChange={setTarget} step={5} min={40} max={230} unit="yds" />
+          <MetreStepper label="Target distance" value={target} onChange={setTarget} stepM={5} min={40} max={230} />
           <Button label="Start" onPress={start} />
           {best.closest != null && <Text style={styles.bestLine}>Best: {best.closest} / 500</Text>}
         </Card>
@@ -112,13 +113,13 @@ function ClosestGame({ onBack }: { onBack: () => void }) {
       {phase === "playing" && (
         <>
           <Card accent>
-            <Text style={styles.bigTarget}>{target} yds</Text>
+            <Text style={styles.bigTarget}>{ydToM(target)} m</Text>
             <Text style={styles.subTarget}>
               Shot {shots.length + 1} of {TOTAL_SHOTS} · {total} pts so far
             </Text>
           </Card>
           <Card>
-            <Stepper label="Where did it finish?" value={result} onChange={setResult} step={2} min={5} max={320} unit="yds" />
+            <MetreStepper label="Where did it finish?" value={result} onChange={setResult} stepM={2} min={5} max={320} />
             <Text style={styles.preview}>
               {proximityPoints(target, result)} pts · {proximityLabel(target, result)}
             </Text>
@@ -189,13 +190,13 @@ function TargetGame({ onBack }: { onBack: () => void }) {
       {phase === "playing" && (
         <>
           <Card accent>
-            <Text style={styles.bigTarget}>{seq[i]} yds</Text>
+            <Text style={styles.bigTarget}>{ydToM(seq[i])} m</Text>
             <Text style={styles.subTarget}>
               Target {i + 1} of {seq.length} · {total} pts
             </Text>
           </Card>
           <Card>
-            <Stepper label="Where did it finish?" value={result} onChange={setResult} step={2} min={5} max={320} unit="yds" />
+            <MetreStepper label="Where did it finish?" value={result} onChange={setResult} stepM={2} min={5} max={320} />
             <Text style={styles.preview}>
               {proximityPoints(seq[i], result)} pts · {proximityLabel(seq[i], result)}
             </Text>
@@ -276,9 +277,9 @@ function LongDriveGame({ onBack }: { onBack: () => void }) {
     <Screen>
       <GameHeader title="💥 Long Drive" onBack={onBack} />
       <Card accent>
-        <Text style={styles.bigTarget}>{sessionBest || "–"}</Text>
+        <Text style={styles.bigTarget}>{sessionBest ? ydToM(sessionBest) : "–"}</Text>
         <Text style={styles.subTarget}>
-          session best (yds){best.longdrive ? ` · all-time ${best.longdrive}` : ""}
+          session best (m){best.longdrive ? ` · all-time ${ydToM(best.longdrive)}` : ""}
         </Text>
       </Card>
       <Card>
@@ -294,7 +295,7 @@ function LongDriveGame({ onBack }: { onBack: () => void }) {
           <Text style={styles.listTitle}>This session</Text>
           {attempts.map((y, i) => (
             <Text key={i} style={styles.shotItem}>
-              {y} yds {y === sessionBest ? "  ⭐" : ""}
+              {ydToM(y)} m {y === sessionBest ? "  ⭐" : ""}
             </Text>
           ))}
         </Card>

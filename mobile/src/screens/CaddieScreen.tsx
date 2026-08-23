@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Screen, ScreenHeader, Card, Button, Segmented, Stepper } from "../components/ui";
+import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, MetreStepper } from "../components/ui";
 import { DemoBanner } from "../components/Upsell";
 import { colors, spacing, radius } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { useLocation } from "../hooks/useLocation";
 import { fetchWeather } from "../services/weather";
 import { compass8 } from "../lib/geo";
+import { ydToM } from "../lib/units";
 import {
   recommendClub,
   Lie,
@@ -112,7 +113,7 @@ export default function CaddieScreen({ navigation }: any) {
 
       <Card accent>
         <Text style={styles.club}>{rec.club}</Text>
-        <Text style={styles.plays}>plays {rec.playingYards} yds</Text>
+        <Text style={styles.plays}>plays {ydToM(rec.playingYards)} m</Text>
 
         <View style={styles.badgeRow}>
           <View style={[styles.confPill, { borderColor: confTone }]}>
@@ -138,7 +139,7 @@ export default function CaddieScreen({ navigation }: any) {
         <View style={styles.window}>
           <Text style={styles.windowText}>
             🎯 Expect to finish within{" "}
-            <Text style={{ color: colors.accent, fontWeight: "800" }}>±{window} yds</Text> of target
+            <Text style={{ color: colors.accent, fontWeight: "800" }}>±{ydToM(window)} m</Text> of target
           </Text>
         </View>
 
@@ -158,16 +159,15 @@ export default function CaddieScreen({ navigation }: any) {
           onPress={useLiveWeather}
         />
         {wxNote && <Text style={styles.wxNote}>{wxNote}</Text>}
-        <Stepper label="Distance to pin" value={yardage} onChange={setYardage} step={5} min={20} max={320} unit="yds" />
+        <MetreStepper label="Distance to pin" value={yardage} onChange={setYardage} stepM={5} min={20} max={320} />
         <Stepper label="Wind (+ into / − down)" value={wind} onChange={setWind} step={2} min={-40} max={40} unit="mph" />
-        <Stepper
+        <MetreStepper
           label="Elevation (+ up / − down)"
           value={elevation}
           onChange={setElevation}
-          step={2}
+          stepM={2}
           min={-40}
           max={40}
-          unit="yds"
         />
         <Stepper label="Temperature" value={temp} onChange={setTemp} step={5} min={20} max={110} unit="°F" />
         <Segmented label="Lie" options={LIES} value={lie} onChange={setLie} />
@@ -185,10 +185,10 @@ export default function CaddieScreen({ navigation }: any) {
             <Text style={styles.distName}>{r.name}</Text>
             <View style={styles.distRight}>
               {r.samples > 0 && (
-                <Text style={styles.distDisp}>±{r.dispersion}</Text>
+                <Text style={styles.distDisp}>±{ydToM(r.dispersion!)}</Text>
               )}
               <Text style={[styles.distCarry, r.samples > 0 && { color: colors.accent }]}>
-                {r.carry} yds
+                {ydToM(r.carry)} m
               </Text>
               <Text style={styles.distTag}>{r.samples > 0 ? `${r.samples} shots` : "default"}</Text>
             </View>

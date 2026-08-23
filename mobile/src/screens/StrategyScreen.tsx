@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Screen, ScreenHeader, Card, Segmented, Stepper } from "../components/ui";
+import { Screen, ScreenHeader, Card, Segmented, MetreStepper } from "../components/ui";
 import { colors, spacing } from "../theme";
 import { courseStrategy, StrategyInput } from "../lib/golfEngine";
 
@@ -59,7 +59,7 @@ export default function StrategyScreen({ navigation }: any) {
       </Card>
 
       <Card>
-        <Stepper label="Hole length" value={parYards} onChange={setParYards} step={5} min={100} max={620} unit="yds" />
+        <MetreStepper label="Hole length" value={parYards} onChange={setParYards} stepM={5} min={100} max={620} />
         <Segmented label="Hazard" options={HAZARDS} value={hazard} onChange={setHazard} />
         <Segmented label="Pin position" options={PINS} value={pin} onChange={setPin} />
         <Segmented label="Your typical miss" options={MISSES} value={miss} onChange={setMiss} />

@@ -43,6 +43,11 @@ export function metersToYards(m: number): number {
   return Math.round(m * M_TO_YARDS);
 }
 
+// Straight-line distance in whole metres.
+export function distanceMeters(a: Coord, b: Coord): number {
+  return Math.round(haversineMeters(a, b));
+}
+
 // Front/Middle/Back-of-green distances (yards) from a position — the classic
 // rangefinder readout (Score Capture's B / M / F).
 export function greenDistances(
@@ -53,5 +58,17 @@ export function greenDistances(
     front: hole.greenFront ? distanceYards(from, hole.greenFront) : undefined,
     middle: hole.green ? distanceYards(from, hole.green) : undefined,
     back: hole.greenBack ? distanceYards(from, hole.greenBack) : undefined,
+  };
+}
+
+// Same readout, in metres — the app plays in metres.
+export function greenDistancesMeters(
+  from: Coord,
+  hole: { greenFront?: Coord; green?: Coord; greenBack?: Coord }
+): { front?: number; middle?: number; back?: number } {
+  return {
+    front: hole.greenFront ? distanceMeters(from, hole.greenFront) : undefined,
+    middle: hole.green ? distanceMeters(from, hole.green) : undefined,
+    back: hole.greenBack ? distanceMeters(from, hole.greenBack) : undefined,
   };
 }

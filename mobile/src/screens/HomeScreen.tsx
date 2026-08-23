@@ -8,6 +8,7 @@ import { usePlan } from "../state/PlanContext";
 import { useProfile } from "../state/ProfileContext";
 import { PACKAGE_NAME } from "../config/appConfig";
 import { signed } from "../lib/golfEngine";
+import { ydToM } from "../lib/units";
 
 // A feature card with an icon chip, headline, blurb and CTA.
 function FeatureCard({
@@ -99,7 +100,7 @@ export default function HomeScreen({ navigation }: any) {
           hint={shots.length ? `${shots.length} shots logged` : "No shots yet"}
           tone={totalStrokesGained < 0 ? "negative" : "accent"}
         />
-        <StatTile label="Current Hole" value={`${hole.number}`} hint={`Par ${hole.par} • ${hole.yards} yds`} tone="neutral" />
+        <StatTile label="Current Hole" value={`${hole.number}`} hint={`Par ${hole.par} • ${ydToM(hole.yards)} m`} tone="neutral" />
         <StatTile
           label="Strong Suit"
           value={best && best.value !== 0 ? best.label.split(" ")[0] : "—"}
