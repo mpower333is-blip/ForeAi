@@ -7,7 +7,8 @@ import { useLocation } from "../hooks/useLocation";
 import HoleGps, { HoleMarks } from "../components/HoleGps";
 import ScoreCaptureCard from "../components/ScoreCaptureCard";
 import StatsEntry from "../components/StatsEntry";
-import { Coord } from "../lib/geo";
+import { Coord, compass8 } from "../lib/geo";
+import { fetchWeather, windForShot } from "../services/weather";
 import { IS_EVENT } from "../config/appVariant";
 import {
   recommendClub,
@@ -53,6 +54,9 @@ export default function PlayScreen({ navigation }: any) {
   const [surface, setSurface] = useState<Surface>("tee");
   const [wind, setWind] = useState(0);
   const [elevation, setElevation] = useState(0); // yards up(+)/down(-) to the target
+  const [temp, setTemp] = useState(70); // °F, filled by live weather
+  const [wxNote, setWxNote] = useState<string | null>(null);
+  const [wxBusy, setWxBusy] = useState(false);
   const [result, setResult] = useState(140); // distance remaining after the shot
 
   // On-course GPS: tee/pin marks per hole feed the rangefinder.
@@ -77,12 +81,41 @@ export default function PlayScreen({ navigation }: any) {
           yardage: distance,
           windSpeed: wind,
           elevation,
+          temperature: temp,
           lie: surface === "green" ? "fairway" : (surface as Lie),
         },
         effectiveBag
       ),
-    [distance, wind, elevation, surface, effectiveBag]
+    [distance, wind, elevation, temp, surface, effectiveBag]
   );
+
+  // Live weather: fill temperature, and — because we're on the course — turn the
+  // wind into a real head/tail component along the line to the pin when we have
+  // a pin GPS mark. Without a pin mark we fall back to the raw wind speed.
+  const useLiveWeather = async () => {
+    if (wxBusy) return;
+    const here = loc.coord;
+    if (!here) {
+      setWxNote("Turn on location to use live weather.");
+      return;
+    }
+    setWxBusy(true);
+    const w = await fetchWeather(here);
+    setWxBusy(false);
+    if (!w) {
+      setWxNote("Couldn't reach the weather service — check your connection.");
+      return;
+    }
+    setTemp(w.tempF);
+    const pin = pinMarks[gpsKey];
+    if (pin) {
+      setWind(windForShot(w, here, pin));
+      setWxNote(`${w.windMph} mph from ${compass8(w.windFromDeg)} · ${w.tempF}°F — head/tail set for this pin`);
+    } else {
+      setWind(w.windMph);
+      setWxNote(`${w.windMph} mph from ${compass8(w.windFromDeg)} · ${w.tempF}°F — mark the pin for auto head/tail`);
+    }
+  };
 
   const lieForSurface = (s: Surface): Lie =>
     s === "green" ? "fairway" : (s as Lie);
@@ -186,6 +219,12 @@ export default function PlayScreen({ navigation }: any) {
       <Card>
         <Stepper label="Distance to target" value={distance} onChange={setDistance} step={5} unit="yds" />
         <Segmented label="Lie" options={SURFACES} value={surface} onChange={setSurface} />
+        <Button
+          variant="ghost"
+          label={wxBusy ? "Getting weather…" : "🌤 Use live weather"}
+          onPress={useLiveWeather}
+        />
+        {wxNote && <Text style={styles.wxNote}>{wxNote}</Text>}
         <Stepper
           label="Wind (+ into / − down)"
           value={wind}
@@ -372,6 +411,7 @@ const styles = StyleSheet.create({
   recConf: { fontSize: 13, fontWeight: "700", marginTop: 2 },
   recNote: { color: colors.textMuted, fontSize: 14, marginTop: 6, lineHeight: 20 },
 
+  wxNote: { color: colors.accent, fontSize: 13, fontWeight: "600", marginTop: 8, marginBottom: 2 },
   logRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   grid: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
   sectionTitle: { ...(type.h2 as any), color: colors.text },
