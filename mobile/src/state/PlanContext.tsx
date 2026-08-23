@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { FeatureKey, FREE_FEATURE_KEYS } from "../config/appConfig";
 import { useTournament } from "./TournamentContext";
 import { loadJSON, saveJSON } from "../lib/storage";
@@ -34,6 +34,7 @@ type PlanState = {
   // Real subscriptions
   configured: boolean; // true = live billing, false = demo unlock
   packages: SubPackage[]; // monthly / annual, with localized store prices
+  refreshPackages: () => Promise<void>; // re-fetch from the store (new subs can lag)
   purchasePackage: (pkg: SubPackage) => Promise<void>;
   restore: () => Promise<void>;
   // Back-compat helpers
@@ -67,17 +68,35 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     if (ready && !purchasesConfigured) saveJSON(KEY, { plan: demoPro ? "pro" : "demo" });
   }, [demoPro, ready]);
 
-  // Wire up RevenueCat once.
+  const refreshPackages = useCallback(async () => {
+    if (!purchasesConfigured) return;
+    const pkgs = await getPackages();
+    setPackages(pkgs);
+  }, []);
+
+  // Wire up RevenueCat once. New store products can take a while to appear, so
+  // retry the package fetch a few times before giving up.
   useEffect(() => {
     if (!purchasesConfigured) return;
     let unsub = () => {};
+    let cancelled = false;
     (async () => {
       await initPurchases();
+      if (cancelled) return;
       setEntitledPro(await currentIsPro());
-      setPackages(await getPackages());
       unsub = addProListener(setEntitledPro);
+      for (let i = 0; i < 5 && !cancelled; i++) {
+        const pkgs = await getPackages();
+        if (cancelled) return;
+        setPackages(pkgs);
+        if (pkgs.length > 0) break;
+        await new Promise((r) => setTimeout(r, 3000));
+      }
     })();
-    return () => unsub();
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, []);
 
   const isPro = inLiveEvent || (purchasesConfigured ? entitledPro : demoPro);
@@ -90,6 +109,9 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         grantDemo();
         return;
       }
+      if (!pkg || !pkg.raw) {
+        throw new Error("Plans are still loading from the store — please try again in a moment.");
+      }
       const ok = await buyPackage(pkg.raw);
       if (ok) setEntitledPro(true);
     };
@@ -100,6 +122,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       hasFeature: (f) => isPro || FREE_FEATURE_KEYS.includes(f),
       configured: purchasesConfigured,
       packages,
+      refreshPackages,
       purchasePackage,
       restore: async () => {
         if (!purchasesConfigured) {
@@ -118,7 +141,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         setEntitledPro(false);
       },
     };
-  }, [isPro, packages]);
+  }, [isPro, packages, refreshPackages]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

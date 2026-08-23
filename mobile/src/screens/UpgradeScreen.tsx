@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Linking, Platform, Alert } from "react-native";
 import { Screen, Card, Button, Chip, IconChip } from "../components/ui";
 import { StoreButtons, shareApp } from "../components/Upsell";
@@ -21,8 +21,13 @@ function periodLabel(p: SubPackage["period"]): string {
 }
 
 export default function UpgradeScreen({ navigation }: any) {
-  const { isPro, configured, packages, purchasePackage, restore } = usePlan();
+  const { isPro, configured, packages, refreshPackages, purchasePackage, restore } = usePlan();
   const [busy, setBusy] = useState(false);
+
+  // Re-check the store for plans whenever the paywall opens (new subs can lag).
+  useEffect(() => {
+    refreshPackages().catch(() => {});
+  }, [refreshPackages]);
 
   const run = async (fn: () => Promise<void>) => {
     if (busy) return;
@@ -31,6 +36,16 @@ export default function UpgradeScreen({ navigation }: any) {
       await fn();
     } catch (e: any) {
       Alert.alert("Purchase problem", e?.message || "Could not complete the purchase. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reload = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await refreshPackages();
     } finally {
       setBusy(false);
     }
@@ -70,24 +85,37 @@ export default function UpgradeScreen({ navigation }: any) {
               <Button variant="ghost" label={busy ? "Please wait…" : "Restore purchase"} onPress={() => run(restore)} />
               <LegalNote />
             </>
-          ) : (
+          ) : configured ? (
+            // Billing is live, but the store hasn't returned the plans yet.
+            // Never try to "buy nothing" — offer a retry while they load.
             <>
               <View style={styles.priceRow}>
                 <Text style={styles.price}>{PACKAGE_PRICE}</Text>
-                <Chip label={configured ? "SUBSCRIPTION" : "DEMO"} tone="gold" />
+                <Chip label="SUBSCRIPTION" tone="gold" />
               </View>
               <Text style={styles.priceHint}>
-                {configured
-                  ? "Loading plans from the store…"
-                  : "Test unlock — no charge (store billing isn't set up yet)."}
+                {busy
+                  ? "Checking the store for plans…"
+                  : "Plans aren't showing yet — new subscriptions can take a little while to appear. Tap retry."}
               </Text>
+              <Button label={busy ? "Checking…" : "↻ Retry"} onPress={reload} />
+              <Button variant="ghost" label="Restore purchase" onPress={() => run(restore)} />
+              <LegalNote />
+            </>
+          ) : (
+            // Demo mode — no billing key. Local test unlock (no charge).
+            <>
+              <View style={styles.priceRow}>
+                <Text style={styles.price}>{PACKAGE_PRICE}</Text>
+                <Chip label="DEMO" tone="gold" />
+              </View>
+              <Text style={styles.priceHint}>Test unlock — no charge (store billing isn't set up yet).</Text>
               <Button
                 label={busy ? "Please wait…" : `Unlock ${PACKAGE_NAME}`}
                 icon="🔓"
-                onPress={() => run(() => purchasePackage(packages[0] ?? ({} as SubPackage)))}
+                onPress={() => run(() => purchasePackage({} as SubPackage))}
               />
               <Button variant="ghost" label="Restore purchase" onPress={() => run(restore)} />
-              {configured && <LegalNote />}
             </>
           )}
         </Card>
