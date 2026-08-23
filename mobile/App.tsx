@@ -34,6 +34,7 @@ import CourseSelectScreen from "./src/screens/CourseSelectScreen";
 import CoursePreviewScreen from "./src/screens/CoursePreviewScreen";
 import GamesScreen from "./src/screens/GamesScreen";
 import UpgradeScreen from "./src/screens/UpgradeScreen";
+import WatchSetupScreen from "./src/screens/WatchSetupScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -141,6 +142,7 @@ function Root() {
             (it's also the "Course" tab in the event app). */}
         <Stack.Screen name="Survey" component={OnCourseScreen} />
         <Stack.Screen name="CourseSelect" component={CourseSelectScreen} />
+        <Stack.Screen name="WatchSetup" component={WatchSetupScreen} />
         <Stack.Screen name="Upgrade" component={UpgradeScreen} />
         {/* Keeps the native header (it has no in-screen ScreenHeader). */}
         <Stack.Screen name="CoursePreview" component={CoursePreviewScreen} options={{ headerShown: true, title: "Course Preview" }} />

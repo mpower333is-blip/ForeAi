@@ -10,6 +10,14 @@ export const PLAY_STORE_URL =
 // This is the hosted landing page (clubhouse/get.html) on the ForeAi domain.
 export const LANDING_URL = "https://foreai.co.za/get.html";
 
+// The Wear OS companion app (see ../../wear). Package id from wear/app build.
+export const WEAR_PACKAGE = "com.foreai.wear";
+export const WEAR_PLAY_URL =
+  "https://play.google.com/store/apps/details?id=com.foreai.wear";
+// Direct APK download for sideloading before the watch app is on the Play Store.
+// Host the built wear APK here (e.g. on the ForeAi domain) and update this URL.
+export const WEAR_APK_URL = "https://foreai.co.za/foreai-watch.apk";
+
 // The full package (unlocks everything beyond the free demo).
 export const PACKAGE_NAME = "ForeAi Pro";
 export const PACKAGE_PRICE = "R199"; // once-off — adjust to your pricing
