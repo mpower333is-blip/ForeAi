@@ -269,6 +269,11 @@ export default function PlayScreen({ navigation }: any) {
             {` · ${auto.swingsThisHole} swings`}
           </Text>
         )}
+        <Button
+          variant="ghost"
+          label="⌚ Set up your watch"
+          onPress={() => navigation.navigate("WatchSetup")}
+        />
       </Card>
 
       {/* Strokes-gained shot tracking: AI Caddie recommendation + shot log. */}
