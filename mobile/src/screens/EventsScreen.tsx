@@ -69,8 +69,7 @@ export default function EventsScreen() {
 // ---------------------------------------------------------------------------
 
 function EventList({ onOpen }: { onOpen: (id: string) => void }) {
-  const { events, createEvent, createEcsGolfDay, createEcsGolfDayLive, createSharedEvent, joinByCode } =
-    useTournament();
+  const { events, createEvent, createSharedEvent, joinByCode } = useTournament();
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -155,20 +154,6 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
     onOpen(id);
   };
 
-  // One tap: create the ECS Golf Day on the backend (with a join code) + branding.
-  const loadEcsLive = async () => {
-    if (busy) return;
-    setError("");
-    setBusy(true);
-    const ev = await createEcsGolfDayLive();
-    setBusy(false);
-    if (ev) onOpen(ev.id);
-    else
-      setError(
-        "Couldn't reach the backend to create a live event. Check your connection and try again — or load the offline demo below."
-      );
-  };
-
   const join = async () => {
     setError("");
     setBusy(true);
@@ -192,25 +177,10 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
       <ScreenHeader title="Events" subtitle="Run a tournament or a golf day — players, tee times, live scoring." />
 
       {!creating && !joining && (
-        <>
-          <View style={styles.formRow}>
-            <Button label="+ New event" onPress={() => setCreating(true)} style={{ flex: 1 }} />
-            <Button label="Join by code" variant="ghost" onPress={() => setJoining(true)} style={{ flex: 1 }} />
-          </View>
-          {events.length === 0 && (
-            <>
-              <Button
-                label={busy ? "Creating…" : "🏁 Create the ECS Golf Day (gets a join code)"}
-                onPress={loadEcsLive}
-              />
-              <Button
-                label="💚 Load ECS demo (offline, no code)"
-                variant="ghost"
-                onPress={() => onOpen(createEcsGolfDay().id)}
-              />
-            </>
-          )}
-        </>
+        <View style={styles.formRow}>
+          <Button label="+ New event" onPress={() => setCreating(true)} style={{ flex: 1 }} />
+          <Button label="Join by code" variant="ghost" onPress={() => setJoining(true)} style={{ flex: 1 }} />
+        </View>
       )}
 
       {error !== "" && (
