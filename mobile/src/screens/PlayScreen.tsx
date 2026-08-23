@@ -7,6 +7,7 @@ import { useLocation } from "../hooks/useLocation";
 import HoleGps, { HoleMarks } from "../components/HoleGps";
 import ScoreCaptureCard from "../components/ScoreCaptureCard";
 import StatsEntry from "../components/StatsEntry";
+import { useAutoShotTracker } from "../hooks/useAutoShotTracker";
 import { Coord, compass8 } from "../lib/geo";
 import { ydToM, mphToKmh, fToC } from "../lib/units";
 import { fetchWeather, windForShot } from "../services/weather";
@@ -73,6 +74,19 @@ export default function PlayScreen({ navigation }: any) {
   };
 
   const holeShots = shotsForHole(currentHole);
+
+  // Hands-free automatic shot logging. When on, the phone (in your pocket) or a
+  // paired watch detects each swing and GPS reconstructs the shot — no tapping.
+  const [autoTrack, setAutoTrack] = useState(false);
+  const auto = useAutoShotTracker({
+    enabled: autoTrack,
+    hole: currentHole,
+    coord: loc.coord,
+    greenCoord: hole.green,
+    bag: effectiveBag,
+    selectedClub: null, // inferred from carry; the watch will set this later
+    onShot: (s) => logShot(s),
+  });
 
   const rec = useMemo(
     () =>
@@ -193,6 +207,37 @@ export default function PlayScreen({ navigation }: any) {
           setSurface("fairway");
         }}
       />
+
+      <Card>
+        <View style={styles.autoRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.autoTitle}>🎯 Auto-track shots</Text>
+            <Text style={styles.autoHint}>
+              {autoTrack
+                ? auto.sensorOk === false
+                  ? "Motion sensor unavailable on this device."
+                  : !loc.coord
+                  ? "Waiting for GPS… turn on location."
+                  : auto.awaitingMove
+                  ? "Swing detected — walk to your ball and swing again to log it."
+                  : "On. Keep your phone in your pocket (or use your ForeAi watch)."
+                : "Hands-free: each swing + your GPS logs the shot and its club automatically."}
+            </Text>
+          </View>
+          <Button
+            label={autoTrack ? "On" : "Off"}
+            variant={autoTrack ? "primary" : "ghost"}
+            onPress={() => setAutoTrack((v) => !v)}
+          />
+        </View>
+        {autoTrack && (
+          <Text style={styles.autoStat}>
+            {auto.shotsThisHole} shot{auto.shotsThisHole === 1 ? "" : "s"} this hole
+            {auto.lastCarryYards != null ? ` · last ${ydToM(auto.lastCarryYards)} m` : ""}
+            {` · ${auto.swingsThisHole} swings`}
+          </Text>
+        )}
+      </Card>
 
       {/* Strokes-gained shot tracking: AI Caddie recommendation + shot log. */}
       <Card accent>
@@ -404,6 +449,10 @@ const styles = StyleSheet.create({
   recNote: { color: colors.textMuted, fontSize: 14, marginTop: 6, lineHeight: 20 },
 
   wxNote: { color: colors.accent, fontSize: 13, fontWeight: "600", marginTop: 8, marginBottom: 2 },
+  autoRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  autoTitle: { color: colors.text, fontSize: 16, fontWeight: "800" },
+  autoHint: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 2 },
+  autoStat: { color: colors.accent, fontSize: 13, fontWeight: "700", marginTop: spacing.sm },
   logRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   grid: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
   sectionTitle: { ...(type.h2 as any), color: colors.text },

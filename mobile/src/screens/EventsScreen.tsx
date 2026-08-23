@@ -354,13 +354,11 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
         </Card>
       )}
 
-      {events.length === 0 && !creating && (
+      {events.length === 0 && !creating && !joining && (
         <EmptyState
           emoji="🏆"
           title="No golf days yet"
-          body="Create one to register players, set tee times, and follow everyone live as they move around the course — or join an existing one with its code."
-          actionLabel="+ New event"
-          onAction={() => setCreating(true)}
+          body="Use the buttons above: create a new event to register players and score live, or join an existing one with its code."
         />
       )}
 
