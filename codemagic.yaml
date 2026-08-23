@@ -5,10 +5,12 @@
 # android/ and ios/ folders in CI from mobile/app.config.js.
 #
 # ── WORKFLOWS ──  (Codemagic → Start new build → pick one)
-#   foreai-android         ForeAi phone → app-release.apk   (sideloadable, no setup)
 #   foreai-android-play    ForeAi phone → app-release.aab   (Play Store + RevenueCat)
 #   foreai-watch-android   ForeAi watch → app-debug.apk     (Wear OS, sideloadable)
 #   foreai-ios             ForeAi phone → TestFlight / .ipa (needs Apple setup*)
+#
+# (The one-time keystore generator and the sideload-APK workflow were removed
+#  once the Play upload keystore was set up — the app now ships through Play.)
 #
 # ── * ONE-TIME iOS SETUP (foreai-ios only) ──
 #   1. In Codemagic: Teams (or your personal account) → Integrations →
@@ -26,82 +28,6 @@
 #   installs on any phone once "install unknown apps" is allowed.
 
 workflows:
-  # ───────────── ONE-TIME — generate the Play upload keystore ─────────────
-  # Run this ONCE (Codemagic has Java, so you need no computer). It creates an
-  # upload keystore and outputs three files in the build artifacts:
-  #   upload.keystore            keep this safe FOREVER (needed for every update)
-  #   upload.keystore.b64.txt    paste its contents into env var CM_KEYSTORE
-  #   keystore-credentials.txt   the passwords + alias to paste into the env vars
-  # Then add these to a secure env-var group named `google_play`:
-  #   CM_KEYSTORE           = contents of upload.keystore.b64.txt
-  #   CM_KEYSTORE_PASSWORD  = KEYSTORE_PASSWORD from keystore-credentials.txt
-  #   CM_KEY_ALIAS          = foreai
-  #   CM_KEY_PASSWORD       = KEY_PASSWORD from keystore-credentials.txt
-  # After that, never run this workflow again — use foreai-android-play.
-  make-upload-keystore:
-    name: One-time — make Play upload keystore
-    instance_type: linux_x2
-    max_build_duration: 15
-    scripts:
-      - name: Generate the keystore
-        script: |
-          KS_PASS=$(openssl rand -hex 16)
-          keytool -genkeypair -v \
-            -keystore upload.keystore -alias foreai \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass "$KS_PASS" -keypass "$KS_PASS" \
-            -dname "CN=ForeAi, OU=ForeAi, O=ForeAi, L=Kempton Park, ST=Gauteng, C=ZA"
-          base64 -w0 upload.keystore > upload.keystore.b64.txt
-          printf "KEYSTORE_PASSWORD=%s\nKEY_ALIAS=foreai\nKEY_PASSWORD=%s\n" "$KS_PASS" "$KS_PASS" > keystore-credentials.txt
-          echo "Keystore created. Download the 3 artifacts and follow the header of codemagic.yaml."
-    artifacts:
-      - upload.keystore
-      - upload.keystore.b64.txt
-      - keystore-credentials.txt
-    publishing:
-      email:
-        recipients:
-          - mpower333is@gmail.com
-        notify:
-          success: true
-          failure: true
-
-  # ─────────────────────────── ANDROID ───────────────────────────
-  foreai-android:
-    name: ForeAi — Android APK
-    instance_type: linux_x2
-    max_build_duration: 60
-    environment:
-      node: 20
-      java: 17
-    cache:
-      cache_paths:
-        - $HOME/.npm
-        - $HOME/.gradle/caches
-    scripts:
-      - name: Install JS dependencies
-        script: |
-          cd mobile
-          npm install
-      - name: Generate native Android project (expo prebuild)
-        script: |
-          cd mobile
-          npx expo prebuild --platform android --no-install
-      - name: Build release APK
-        script: |
-          cd mobile/android
-          chmod +x ./gradlew
-          ./gradlew assembleRelease --no-daemon
-    artifacts:
-      - mobile/android/app/build/outputs/**/*.apk
-    publishing:
-      email:
-        recipients:
-          - mpower333is@gmail.com
-        notify:
-          success: true
-          failure: true
-
   # ───────────────── ANDROID — Play Store (signed AAB) ────────────
   # Produces a Play-signed .aab for Google Play (Play Billing / RevenueCat need
   # the app distributed through Play). Needs a `google_play` env group with:
