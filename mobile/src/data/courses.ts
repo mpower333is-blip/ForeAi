@@ -113,6 +113,13 @@ function buildLayout(parTotal: number, totalYards?: number): Hole[] {
 // prettier-ignore
 const RAW_COURSES: Raw[] = [
   { id: "kempton-park", name: "Kempton Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.1016, lng: 28.236 },
+  // East Rand courses we're surveying — layout is a placeholder until we
+  // capture each hole's GPS on-site (and drop in the real scorecard). Centres
+  // are approximate, just to sort them nearest-first and centre the map.
+  { id: "serengeti-serengeti", name: "Serengeti — Serengeti", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.021, lng: 28.418 },
+  { id: "serengeti-masai", name: "Serengeti — Masai", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.021, lng: 28.418 },
+  { id: "modderfontein", name: "Modderfontein Golf Club", town: "Modderfontein", province: "Gauteng", par: 72, lat: -26.093, lng: 28.164 },
+  { id: "avion-park", name: "Avion Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.123, lng: 28.219 },
 ];
 
 // Exact hole-by-hole cards where we have the real numbers. Par and yardage are
