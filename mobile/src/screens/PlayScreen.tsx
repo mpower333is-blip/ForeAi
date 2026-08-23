@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { Screen, Card, Button, Segmented, Stepper, MetreStepper, StatTile } from "../components/ui";
+import { Screen, Card, Button, Segmented, MetreStepper, KmhStepper, StatTile } from "../components/ui";
 import { colors, spacing, type } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { useLocation } from "../hooks/useLocation";
@@ -8,7 +8,7 @@ import HoleGps, { HoleMarks } from "../components/HoleGps";
 import ScoreCaptureCard from "../components/ScoreCaptureCard";
 import StatsEntry from "../components/StatsEntry";
 import { Coord, compass8 } from "../lib/geo";
-import { ydToM } from "../lib/units";
+import { ydToM, mphToKmh, fToC } from "../lib/units";
 import { fetchWeather, windForShot } from "../services/weather";
 import { IS_EVENT } from "../config/appVariant";
 import {
@@ -111,10 +111,10 @@ export default function PlayScreen({ navigation }: any) {
     const pin = pinMarks[gpsKey];
     if (pin) {
       setWind(windForShot(w, here, pin));
-      setWxNote(`${w.windMph} mph from ${compass8(w.windFromDeg)} · ${w.tempF}°F — head/tail set for this pin`);
+      setWxNote(`${mphToKmh(w.windMph)} km/h from ${compass8(w.windFromDeg)} · ${fToC(w.tempF)}°C — head/tail set for this pin`);
     } else {
       setWind(w.windMph);
-      setWxNote(`${w.windMph} mph from ${compass8(w.windFromDeg)} · ${w.tempF}°F — mark the pin for auto head/tail`);
+      setWxNote(`${mphToKmh(w.windMph)} km/h from ${compass8(w.windFromDeg)} · ${fToC(w.tempF)}°C — mark the pin for auto head/tail`);
     }
   };
 
@@ -226,14 +226,13 @@ export default function PlayScreen({ navigation }: any) {
           onPress={useLiveWeather}
         />
         {wxNote && <Text style={styles.wxNote}>{wxNote}</Text>}
-        <Stepper
+        <KmhStepper
           label="Wind (+ into / − down)"
           value={wind}
           onChange={setWind}
-          step={2}
+          stepKmh={3}
           min={-40}
           max={40}
-          unit="mph"
         />
         <MetreStepper
           label="Elevation (+ up / − down)"

@@ -27,3 +27,23 @@ export const DIST_UNIT = "m";
 export function fmtDist(yd: number): string {
   return `${ydToM(yd)} ${DIST_UNIT}`;
 }
+
+// Wind — the golf engine and the weather API work in mph; South Africa uses
+// km/h, so wind is converted at the display/input edge just like distance.
+export const KMH_PER_MPH = 1.60934;
+export function mphToKmh(mph: number): number {
+  return Math.round(mph * KMH_PER_MPH);
+}
+export function kmhToMph(kmh: number): number {
+  return Math.round(kmh / KMH_PER_MPH);
+}
+export const WIND_UNIT = "km/h";
+
+// Temperature — engine baseline is °F; players see °C.
+export function fToC(f: number): number {
+  return Math.round(((f - 32) * 5) / 9);
+}
+export function cToF(c: number): number {
+  return Math.round((c * 9) / 5 + 32);
+}
+export const TEMP_UNIT = "°C";

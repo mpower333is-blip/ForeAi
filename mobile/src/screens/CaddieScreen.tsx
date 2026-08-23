@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, MetreStepper } from "../components/ui";
+import { Screen, ScreenHeader, Card, Button, Segmented, MetreStepper, KmhStepper, CelsiusStepper } from "../components/ui";
 import { DemoBanner } from "../components/Upsell";
 import { colors, spacing, radius } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { useLocation } from "../hooks/useLocation";
 import { fetchWeather } from "../services/weather";
 import { compass8 } from "../lib/geo";
-import { ydToM } from "../lib/units";
+import { ydToM, mphToKmh, fToC } from "../lib/units";
 import {
   recommendClub,
   Lie,
@@ -53,7 +53,7 @@ export default function CaddieScreen({ navigation }: any) {
     }
     setTemp(w.tempF);
     setWind(w.windMph);
-    setWxNote(`${w.windMph} mph from ${compass8(w.windFromDeg)} · ${w.tempF}°F — set + into / − down`);
+    setWxNote(`${mphToKmh(w.windMph)} km/h from ${compass8(w.windFromDeg)} · ${fToC(w.tempF)}°C — set + into / − down`);
   };
 
   const rec = useMemo(
@@ -160,7 +160,7 @@ export default function CaddieScreen({ navigation }: any) {
         />
         {wxNote && <Text style={styles.wxNote}>{wxNote}</Text>}
         <MetreStepper label="Distance to pin" value={yardage} onChange={setYardage} stepM={5} min={20} max={320} />
-        <Stepper label="Wind (+ into / − down)" value={wind} onChange={setWind} step={2} min={-40} max={40} unit="mph" />
+        <KmhStepper label="Wind (+ into / − down)" value={wind} onChange={setWind} stepKmh={3} min={-40} max={40} />
         <MetreStepper
           label="Elevation (+ up / − down)"
           value={elevation}
@@ -169,7 +169,7 @@ export default function CaddieScreen({ navigation }: any) {
           min={-40}
           max={40}
         />
-        <Stepper label="Temperature" value={temp} onChange={setTemp} step={5} min={20} max={110} unit="°F" />
+        <CelsiusStepper label="Temperature" value={temp} onChange={setTemp} stepC={2} min={20} max={110} />
         <Segmented label="Lie" options={LIES} value={lie} onChange={setLie} />
       </Card>
 
