@@ -8,6 +8,7 @@ import { DemoBanner } from "../components/Upsell";
 import { colors, spacing, radius } from "../theme";
 import { detectSwing, Sample } from "../lib/swingDetector";
 import { buildReport, SwingReport, Grade } from "../lib/swingCoach";
+import { mphToKmh } from "../lib/units";
 
 type Phase = "idle" | "armed" | "done";
 
@@ -206,7 +207,7 @@ function ReportView({ report }: { report: SwingReport }) {
             <Text style={styles.headline}>{report.headline}</Text>
             <Text style={styles.subline}>{report.tempoClass}</Text>
             {report.estSpeedMph !== null && (
-              <Text style={styles.speed}>~{report.estSpeedMph} mph swing (est.)</Text>
+              <Text style={styles.speed}>~{mphToKmh(report.estSpeedMph)} km/h swing (est.)</Text>
             )}
           </View>
         </View>
