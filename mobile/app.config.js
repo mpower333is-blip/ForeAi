@@ -35,6 +35,11 @@ export default {
     },
     android: {
       package: "com.foreai.mobile",
+      // Play requires a higher versionCode on every upload. In CI we set
+      // ANDROID_VERSION_CODE to the Codemagic build number; locally it's 1.
+      versionCode: process.env.ANDROID_VERSION_CODE
+        ? Number(process.env.ANDROID_VERSION_CODE)
+        : 1,
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#06170F",

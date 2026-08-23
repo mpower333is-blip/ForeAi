@@ -6,6 +6,7 @@
 #
 # ── WORKFLOWS ──  (Codemagic → Start new build → pick one)
 #   foreai-android         ForeAi phone → app-release.apk   (sideloadable, no setup)
+#   foreai-android-play    ForeAi phone → app-release.aab   (Play Store + RevenueCat)
 #   foreai-watch-android   ForeAi watch → app-debug.apk     (Wear OS, sideloadable)
 #   foreai-ios             ForeAi phone → TestFlight / .ipa (needs Apple setup*)
 #
@@ -53,6 +54,60 @@ workflows:
           ./gradlew assembleRelease --no-daemon
     artifacts:
       - mobile/android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ───────────────── ANDROID — Play Store (signed AAB) ────────────
+  # Produces a Play-signed .aab for Google Play (Play Billing / RevenueCat need
+  # the app distributed through Play). Needs a `google_play` env group with:
+  #   CM_KEYSTORE            base64 of your upload keystore  (see setup guide)
+  #   CM_KEYSTORE_PASSWORD   keystore password
+  #   CM_KEY_ALIAS           key alias
+  #   CM_KEY_PASSWORD        key password
+  #   EXPO_PUBLIC_RC_ANDROID_KEY   RevenueCat Android SDK key (goog_…)
+  # Upload the .aab to Play Console (Internal testing). Full walkthrough:
+  #   store/android/play-revenuecat-setup.md
+  foreai-android-play:
+    name: ForeAi — Android AAB (Play + RevenueCat)
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      node: 20
+      java: 17
+      groups:
+        - google_play
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Install JS dependencies
+        script: |
+          cd mobile
+          npm install
+      - name: Generate native Android project (expo prebuild)
+        script: |
+          cd mobile
+          export ANDROID_VERSION_CODE=${BUILD_NUMBER:-1}
+          npx expo prebuild --platform android --no-install
+      - name: Decode the upload keystore
+        script: |
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/mobile/android/app/upload.keystore"
+      - name: Build the signed AAB
+        script: |
+          cd mobile/android
+          ./gradlew bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$PWD/app/upload.keystore" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+    artifacts:
+      - mobile/android/app/build/outputs/**/*.aab
     publishing:
       email:
         recipients:
