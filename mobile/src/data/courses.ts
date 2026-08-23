@@ -34,6 +34,31 @@ export type Course = {
   center?: Coord; // course GPS centre, for the satellite view
 };
 
+// Tee boxes. Our bundled hole yardages represent the standard men's (white)
+// tee; the other tees are scaled from it until we have a course's real per-tee
+// scorecard. Par and stroke index don't change with the tee; GPS distances are
+// measured live, so they're always exact regardless of tee.
+export type TeeId = "red" | "white" | "blue" | "pro";
+export type Tee = { id: TeeId; name: string; who: string; factor: number };
+export const TEES: Tee[] = [
+  { id: "red", name: "Red", who: "Ladies", factor: 0.85 },
+  { id: "white", name: "White", who: "Men's", factor: 1.0 },
+  { id: "blue", name: "Blue", who: "Championship", factor: 1.06 },
+  { id: "pro", name: "Pro", who: "Back", factor: 1.12 },
+];
+export const DEFAULT_TEE: TeeId = "white";
+
+export function teeFactor(id: TeeId): number {
+  return TEES.find((t) => t.id === id)?.factor ?? 1;
+}
+
+// Scale a course's hole yardages to the chosen tee (par / SI / GPS untouched).
+export function holesForTee(holes: Hole[], id: TeeId): Hole[] {
+  const f = teeFactor(id);
+  if (f === 1) return holes;
+  return holes.map((h) => ({ ...h, yards: Math.round((h.yards * f) / 5) * 5 }));
+}
+
 type Raw = {
   id: string;
   name: string;

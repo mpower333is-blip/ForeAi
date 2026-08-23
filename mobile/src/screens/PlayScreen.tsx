@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Screen, Card, Button, Segmented, MetreStepper, KmhStepper, StatTile } from "../components/ui";
 import { colors, spacing, type } from "../theme";
@@ -8,6 +8,7 @@ import HoleGps, { HoleMarks } from "../components/HoleGps";
 import ScoreCaptureCard from "../components/ScoreCaptureCard";
 import StatsEntry from "../components/StatsEntry";
 import { useAutoShotTracker } from "../hooks/useAutoShotTracker";
+import { TEES } from "../data/courses";
 import { Coord, compass8 } from "../lib/geo";
 import { ydToM, mphToKmh, fToC } from "../lib/units";
 import { fetchWeather, windForShot } from "../services/weather";
@@ -47,6 +48,8 @@ export default function PlayScreen({ navigation }: any) {
     holeStats,
     setHoleStat,
     bag,
+    teeId,
+    setTee,
   } = useRound();
 
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
@@ -74,6 +77,13 @@ export default function PlayScreen({ navigation }: any) {
   };
 
   const holeShots = shotsForHole(currentHole);
+
+  // When you switch tees, the hole length changes — reset the caddie's target
+  // to the new tee's yardage for this hole.
+  useEffect(() => {
+    setDistance(hole.yards);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teeId]);
 
   // Hands-free automatic shot logging. When on, the phone (in your pocket) or a
   // paired watch detects each swing and GPS reconstructs the shot — no tapping.
@@ -179,6 +189,26 @@ export default function PlayScreen({ navigation }: any) {
         </View>
       </View>
 
+      <View style={styles.teeRow}>
+        <Text style={styles.teeLabel}>Tees</Text>
+        <View style={styles.teeChips}>
+          {TEES.map((t) => {
+            const on = t.id === teeId;
+            return (
+              <TouchableOpacity
+                key={t.id}
+                onPress={() => setTee(t.id)}
+                style={[styles.teeChip, on && styles.teeChipOn]}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.teeChipName, on && styles.teeChipNameOn]}>{t.name}</Text>
+                <Text style={[styles.teeChipWho, on && styles.teeChipWhoOn]}>{t.who}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.holeLabel}>Hole {hole.number}</Text>
@@ -214,14 +244,16 @@ export default function PlayScreen({ navigation }: any) {
             <Text style={styles.autoTitle}>🎯 Auto-track shots</Text>
             <Text style={styles.autoHint}>
               {autoTrack
-                ? auto.sensorOk === false
-                  ? "Motion sensor unavailable on this device."
+                ? auto.micOk === false
+                  ? "Microphone off — enable it so the app can hear the ball strike."
                   : !loc.coord
                   ? "Waiting for GPS… turn on location."
                   : auto.awaitingMove
-                  ? "Swing detected — walk to your ball and swing again to log it."
-                  : "On. Keep your phone in your pocket (or use your ForeAi watch)."
-                : "Hands-free: each swing + your GPS logs the shot and its club automatically."}
+                  ? "Strike heard — walk to your ball and hit again to log it."
+                  : auto.listening
+                  ? "Listening for the ball strike. Keep the phone in your pocket (or use your ForeAi watch)."
+                  : "Starting the microphone…"
+                : "Hands-free: the app listens for the ball strike (not practice swings) and uses GPS to log the shot and its club."}
             </Text>
           </View>
           <Button
@@ -481,6 +513,24 @@ const styles = StyleSheet.create({
   courseName: { color: colors.text, fontSize: 15, fontWeight: "700", flexShrink: 1, marginRight: 8 },
   courseActions: { flexDirection: "row", gap: 16 },
   courseChange: { color: colors.accent, fontSize: 14, fontWeight: "600" },
+
+  teeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
+  teeLabel: { color: colors.textMuted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1 },
+  teeChips: { flexDirection: "row", gap: 6, flex: 1 },
+  teeChip: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  teeChipOn: { borderColor: colors.accent, backgroundColor: colors.surfaceAlt },
+  teeChipName: { color: colors.textMuted, fontSize: 13, fontWeight: "800" },
+  teeChipNameOn: { color: colors.accent },
+  teeChipWho: { color: colors.textFaint, fontSize: 10 },
+  teeChipWhoOn: { color: colors.text },
 
   cardTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm },
   scoreTotal: { color: colors.text, fontSize: 18, fontWeight: "800" },

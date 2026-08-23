@@ -24,6 +24,8 @@ export default {
           "ForeAi uses the camera to frame your swing and give you posture feedback.",
         NSMotionUsageDescription:
           "ForeAi uses motion sensors to detect your swing and measure its tempo.",
+        NSMicrophoneUsageDescription:
+          "ForeAi listens for the sound of your ball strike to log shots automatically.",
         NSLocationWhenInUseUsageDescription:
           "ForeAi uses your location to show distances to the pin while you play.",
         // The app only uses standard HTTPS encryption — declare it exempt so
@@ -39,6 +41,7 @@ export default {
       },
       permissions: [
         "CAMERA",
+        "RECORD_AUDIO",
         "HIGH_SAMPLING_RATE_SENSORS",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
@@ -61,6 +64,13 @@ export default {
         {
           locationWhenInUsePermission:
             "ForeAi uses your location to show distances to the pin while you play.",
+        },
+      ],
+      [
+        "expo-av",
+        {
+          microphonePermission:
+            "ForeAi listens for the sound of your ball strike to log shots automatically.",
         },
       ],
     ],

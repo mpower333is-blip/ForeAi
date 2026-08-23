@@ -3,6 +3,7 @@ import { Accelerometer } from "expo-sensors";
 import { Coord, distanceYards } from "../lib/geo";
 import { Club } from "../lib/golfEngine";
 import { Surface, Lie } from "../lib/golfEngine";
+import { useShotAudio } from "./useShotAudio";
 
 // Hands-free automatic shot logging — the "Arccos without hardware" engine.
 //
@@ -35,15 +36,18 @@ export type AutoShotInput = {
 
 export type AutoTrackerStatus = {
   sensorOk: boolean | null;
-  active: boolean; // listener running
-  swingsThisHole: number; // swings detected on the current hole
-  shotsThisHole: number; // completed (logged) shots this hole
+  micOk: boolean | null; // microphone permission / availability
+  listening: boolean; // mic is actively listening for the strike
+  active: boolean; // motion listener running
+  swingsThisHole: number; // swing motions detected on the current hole
+  shotsThisHole: number; // confirmed (logged) shots this hole
   lastCarryYards: number | null; // carry of the most recent logged shot
-  awaitingMove: boolean; // a swing is marked, waiting for you to reach the ball
+  awaitingMove: boolean; // a strike is marked, waiting for you to reach the ball
 };
 
-const IMPACT_G = 0.8; // spike magnitude that counts as an impact (gravity removed)
-const REFRACTORY_MS = 2500; // ignore further spikes for this long after one
+const SWING_G = 0.75; // motion spike that counts as a swing (gravity removed)
+const REFRACTORY_MS = 2000; // ignore further confirmed hits for this long
+const CORROBORATE_MS = 1500; // a crack counts if you swung within this window
 const MIN_MOVE_YARDS = 12; // a real shot moves you at least this far
 const SAMPLE_MS = 20;
 
@@ -84,12 +88,13 @@ export function useAutoShotTracker({
   const [shotsThisHole, setShotsThisHole] = useState(0);
   const [lastCarryYards, setLastCarryYards] = useState<number | null>(null);
 
-  // The last accepted swing location + the surface we were on there. `null`
-  // until the first swing of the hole is marked.
+  // The last accepted strike location + the surface we were on there. `null`
+  // until the first strike of the hole is marked.
   const lastLocRef = useRef<Coord | null>(null);
   const shotIndexRef = useRef(0); // shots logged on this hole (0 = still on the tee)
   const awaitingRef = useRef(false);
-  const lastImpactRef = useRef(0);
+  const lastHitRef = useRef(0); // time of the last confirmed hit (refractory)
+  const lastSwingRef = useRef(0); // time of the last swing MOTION (corroborates a crack)
 
   // Keep the latest inputs in refs so the accelerometer callback (registered
   // once) always sees current values without re-subscribing on every GPS tick.
@@ -123,75 +128,95 @@ export function useAutoShotTracker({
       .catch(() => setSensorOk(false));
   }, []);
 
+  // A confirmed ball strike (a crack that you actually swung at). Runs the GPS
+  // segment logic: mark this spot; the shot from the PREVIOUS spot is now
+  // complete, so log it.
+  const confirmHitRef = useRef<() => void>(() => {});
+  confirmHitRef.current = () => {
+    const here = coordRef.current;
+    if (!here) return; // no GPS fix — can't place the shot
+    const now = Date.now();
+    if (now - lastHitRef.current < REFRACTORY_MS) return;
+    lastHitRef.current = now;
+
+    const prev = lastLocRef.current;
+    if (!prev) {
+      // First strike of the hole (the tee shot leaves from here).
+      lastLocRef.current = here;
+      awaitingRef.current = true;
+      setAwaiting(true);
+      return;
+    }
+
+    const carry = distanceYards(prev, here);
+    if (carry < MIN_MOVE_YARDS) {
+      // You haven't moved yet — a re-detected strike. Ignore.
+      return;
+    }
+
+    // Complete the shot that started at `prev` and ended here.
+    const green = greenRef.current;
+    const startYards = green ? distanceYards(prev, green) : carry;
+    const endYards = green ? distanceYards(here, green) : 0;
+    const onTee = shotIndexRef.current === 0;
+    const club = clubRef.current || inferClub(carry, bagRef.current);
+
+    onShotRef.current({
+      hole,
+      club,
+      startYards,
+      startSurface: onTee ? "tee" : "fairway",
+      endYards,
+      endSurface: endYards <= 30 ? "green" : "fairway",
+      lie: onTee ? "tee" : "fairway",
+      holed: false,
+    });
+
+    lastLocRef.current = here;
+    shotIndexRef.current += 1;
+    awaitingRef.current = true;
+    setAwaiting(true);
+    setShotsThisHole((n) => n + 1);
+    setLastCarryYards(carry);
+  };
+
+  // Microphone: fires on the crack of club-on-ball. A crack only counts as a
+  // shot if you actually swung just before it (corroboration) — or if it's a
+  // very loud, unmistakable strike. Practice swings make motion but no crack;
+  // a partner's nearby strike makes a crack but no swing of yours.
+  const { micOk, listening } = useShotAudio(enabled, (c) => {
+    const now = Date.now();
+    const swungRecently = now - lastSwingRef.current < CORROBORATE_MS;
+    if (swungRecently || c.strong) confirmHitRef.current();
+  });
+
   useEffect(() => {
     if (!enabled) {
       setActive(false);
       return;
     }
-    let sub: { remove: () => void } | null = null;
-
-    const onSwing = () => {
-      const here = coordRef.current;
-      if (!here) return; // no GPS fix — can't place the shot
-      const prev = lastLocRef.current;
-      setSwingsThisHole((n) => n + 1);
-
-      if (!prev) {
-        // First swing of the hole (the tee shot leaves from here).
-        lastLocRef.current = here;
-        awaitingRef.current = true;
-        setAwaiting(true);
-        return;
-      }
-
-      const carry = distanceYards(prev, here);
-      if (carry < MIN_MOVE_YARDS) {
-        // No real movement — a practice swing or a re-detected impact. Ignore,
-        // but keep the anchor fresh so a tiny drift doesn't accumulate.
-        return;
-      }
-
-      // Complete the shot that started at `prev` and ended here.
-      const green = greenRef.current;
-      const startYards = green ? distanceYards(prev, green) : carry;
-      const endYards = green ? distanceYards(here, green) : 0;
-      const onTee = shotIndexRef.current === 0;
-      const club = clubRef.current || inferClub(carry, bagRef.current);
-
-      onShotRef.current({
-        hole,
-        club,
-        startYards,
-        startSurface: onTee ? "tee" : "fairway",
-        endYards,
-        endSurface: endYards <= 30 ? "green" : "fairway",
-        lie: onTee ? "tee" : "fairway",
-        holed: false,
-      });
-
-      lastLocRef.current = here;
-      shotIndexRef.current += 1;
-      awaitingRef.current = true;
-      setAwaiting(true);
-      setShotsThisHole((n) => n + 1);
-      setLastCarryYards(carry);
-    };
-
+    // Motion listener only records that a swing happened — it never logs a shot
+    // on its own, so practice swings are harmless until a crack corroborates.
+    let lastCount = 0;
     const onSample = ({ x, y, z }: { x: number; y: number; z: number }) => {
       const mag = Math.abs(Math.sqrt(x * x + y * y + z * z) - 1);
-      const now = Date.now();
-      if (mag > IMPACT_G && now - lastImpactRef.current > REFRACTORY_MS) {
-        lastImpactRef.current = now;
-        onSwing();
+      if (mag > SWING_G) {
+        const now = Date.now();
+        lastSwingRef.current = now;
+        // One swing spans several samples over the threshold — count it once.
+        if (now - lastCount > 1000) {
+          lastCount = now;
+          setSwingsThisHole((n) => n + 1);
+        }
       }
     };
 
     Accelerometer.setUpdateInterval(SAMPLE_MS);
-    sub = Accelerometer.addListener(onSample);
+    const sub = Accelerometer.addListener(onSample);
     setActive(true);
 
     return () => {
-      sub?.remove();
+      sub.remove();
       setActive(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -199,6 +224,8 @@ export function useAutoShotTracker({
 
   return {
     sensorOk,
+    micOk,
+    listening,
     active,
     swingsThisHole,
     shotsThisHole,
