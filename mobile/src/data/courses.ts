@@ -229,8 +229,29 @@ const RAW_COURSES: Raw[] = [
   { id: "upington", name: "Upington", town: "Upington", province: "Northern Cape", par: 72 },
 ];
 
+// Exact hole-by-hole cards where we have the real numbers. Par and yardage are
+// course facts; stroke index is filled by difficulty where the official SI
+// isn't known. Yards are converted from the club's metre distances (× 1.09361).
+const EXACT_LAYOUTS: Record<string, { par: number; yards: number }[]> = {
+  // Kempton Park Golf Club — middle-of-green distances, OUT 1–9 / IN 10–18.
+  "kempton-park": [
+    { par: 5, yards: 576 }, { par: 4, yards: 341 }, { par: 4, yards: 386 },
+    { par: 4, yards: 386 }, { par: 3, yards: 197 }, { par: 4, yards: 420 },
+    { par: 4, yards: 382 }, { par: 5, yards: 430 }, { par: 3, yards: 171 },
+    { par: 4, yards: 376 }, { par: 3, yards: 125 }, { par: 5, yards: 467 },
+    { par: 5, yards: 450 }, { par: 4, yards: 350 }, { par: 4, yards: 420 },
+    { par: 4, yards: 358 }, { par: 3, yards: 176 }, { par: 4, yards: 394 },
+  ],
+};
+
+function exactLayout(rows: { par: number; yards: number }[]): Hole[] {
+  const si = assignStrokeIndex(rows);
+  return rows.map((r, i) => ({ number: i + 1, par: r.par, yards: r.yards, si: si[i] }));
+}
+
 export const COURSES: Course[] = RAW_COURSES.map((r) => {
-  const holes = buildLayout(r.par ?? 72, r.yards);
+  const exact = EXACT_LAYOUTS[r.id];
+  const holes = exact ? exactLayout(exact) : buildLayout(r.par ?? 72, r.yards);
   return {
     id: r.id,
     name: r.name,
@@ -238,7 +259,7 @@ export const COURSES: Course[] = RAW_COURSES.map((r) => {
     location: `${r.town}, ${r.province}`,
     par: holes.reduce((sum, h) => sum + h.par, 0),
     holes,
-    approxLayout: true,
+    approxLayout: exact ? false : true,
     center: r.lat != null && r.lng != null ? { lat: r.lat, lng: r.lng } : undefined,
   };
 });
