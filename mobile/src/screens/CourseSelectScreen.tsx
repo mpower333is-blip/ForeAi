@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Screen, ScreenHeader, TextField } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
-import { searchCourses, COURSES } from "../data/courses";
+import { coursesNearest, allCourses } from "../data/courses";
 import { useRound } from "../state/RoundContext";
+import { useLocation } from "../hooks/useLocation";
+import { useCourseCoords } from "../state/CourseCoordsContext";
 import { searchOnline, fetchCourse, isConfigured } from "../services/golfCourseApi";
 import {
   searchGolfApi,
@@ -19,13 +21,24 @@ export default function CourseSelectScreen({ navigation, route }: any) {
   const onPick: ((id: string) => void) | undefined = route?.params?.onPick;
   const selectedId: string = route?.params?.selectedId ?? courseId;
 
+  const loc = useLocation();
+  const { greensCaptured } = useCourseCoords();
   const [query, setQuery] = useState("");
   const [online, setOnline] = useState<Row[]>([]);
   const [searching, setSearching] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  const local = useMemo(() => searchCourses(query), [query]);
+  // Bundled/imported courses, ordered nearest-first by GPS, then filtered.
+  const local = useMemo(() => {
+    const nearby = coursesNearest(loc.coord);
+    const q = query.trim().toLowerCase();
+    if (!q) return nearby;
+    return nearby.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.location.toLowerCase().includes(q)
+    );
+  }, [query, loc.coord]);
+  const nearestId = loc.coord && local[0]?.distanceKm != null ? local[0].id : null;
   const gioOn = isGolfApiConfigured(); // preferred: real GPS + yardages
   const gcaOn = isConfigured(); // fallback: 30k courses
   const onlineOn = gioOn || gcaOn;
@@ -90,7 +103,7 @@ export default function CourseSelectScreen({ navigation, route }: any) {
             ? "Search real courses with GPS & yardages, or pick a bundled course."
             : gcaOn
             ? "Search 30,000+ courses worldwide, or pick a bundled course."
-            : `${COURSES.length} South African courses — search by name, town or province.`
+            : "Pick your course — nearest to you is shown first."
         }
       />
       <TextField
@@ -130,6 +143,9 @@ export default function CourseSelectScreen({ navigation, route }: any) {
         <Text style={styles.sectionTitle}>{onlineOn ? "Bundled (offline)" : "Courses"}</Text>
         {local.map((c) => {
           const active = c.id === selectedId;
+          const isNearest = c.id === nearestId;
+          const km = c.distanceKm;
+          const surveyed = greensCaptured(c.id); // holes with a green marked
           return (
             <TouchableOpacity
               key={c.id}
@@ -138,11 +154,18 @@ export default function CourseSelectScreen({ navigation, route }: any) {
               style={[styles.row, active && styles.rowActive]}
             >
               <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{c.name}</Text>
+                <View style={styles.nameRow}>
+                  <Text style={styles.name}>{c.name}</Text>
+                  {isNearest && <Text style={styles.nearBadge}>📍 Nearest</Text>}
+                </View>
                 <Text style={styles.meta}>
                   {c.location}
+                  {km != null ? `  ·  ${km < 10 ? km.toFixed(1) : Math.round(km)} km away` : ""}
                   {c.approxLayout ? "  · approx layout" : ""}
                 </Text>
+                {surveyed > 0 && (
+                  <Text style={styles.survey}>🛰 {surveyed}/{c.holes.length} greens marked</Text>
+                )}
               </View>
               <View style={styles.right}>
                 <Text style={styles.par}>Par {c.par}</Text>
@@ -184,7 +207,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   rowActive: { borderColor: colors.accent },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   name: { color: colors.text, fontSize: 16, fontWeight: "700" },
+  nearBadge: { color: colors.accent, fontSize: 12, fontWeight: "800" },
+  survey: { color: colors.accent, fontSize: 12, marginTop: 3, fontWeight: "600" },
   meta: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
   right: { alignItems: "flex-end", marginLeft: spacing.sm },
   par: { color: colors.textMuted, fontSize: 14 },
