@@ -1,9 +1,23 @@
 import React from "react";
 import { View, Text, StyleSheet, Linking, Platform } from "react-native";
+import QRCode from "react-native-qrcode-svg";
 import { Screen, ScreenHeader, Card, Button } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { useTournament } from "../state/TournamentContext";
 import { WEAR_PACKAGE, WEAR_PLAY_URL, WEAR_APK_URL } from "../config/appConfig";
+
+// A scannable QR on a white tile (QR codes need light background + dark modules
+// to scan reliably, whatever the app theme).
+function QrTile({ url, caption }: { url: string; caption: string }) {
+  return (
+    <View style={styles.qrWrap}>
+      <View style={styles.qrTile}>
+        <QRCode value={url} size={150} backgroundColor="#ffffff" color="#0b0b0b" />
+      </View>
+      <Text style={styles.qrCaption}>{caption}</Text>
+    </View>
+  );
+}
 
 // "Set up your watch" — get the ForeAi Wear OS app onto the player's watch.
 //
@@ -51,6 +65,7 @@ export default function WatchSetupScreen({ navigation }: any) {
           your watch.
         </Text>
         <Button label="📲 Open on the Play Store" onPress={openPlay} />
+        <QrTile url={WEAR_PLAY_URL} caption="Scan to open the watch app listing" />
         {Platform.OS === "ios" && (
           <Text style={styles.note}>
             Wear OS watches install from the Google Play Store. On an iPhone, do this step from the
@@ -68,6 +83,7 @@ export default function WatchSetupScreen({ navigation }: any) {
         <Text style={styles.step}>2. On the watch: Settings → Developer options → turn on ADB / Wireless debugging.</Text>
         <Text style={styles.step}>3. From a computer: <Text style={styles.mono}>adb connect &lt;watch-ip&gt;</Text> then <Text style={styles.mono}>adb install foreai-watch.apk</Text>.</Text>
         <Button label="⬇ Download the watch APK" variant="ghost" onPress={openApk} />
+        <QrTile url={WEAR_APK_URL} caption="Scan on a computer to download the APK" />
       </Card>
 
       <Card>
@@ -110,4 +126,7 @@ const styles = StyleSheet.create({
   codeLabel: { color: colors.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: 1 },
   code: { color: colors.accent, fontSize: 34, fontWeight: "800", letterSpacing: 4, marginTop: 4 },
   codeHint: { color: colors.textFaint, fontSize: 12, marginTop: 6, textAlign: "center" },
+  qrWrap: { alignItems: "center", marginTop: spacing.md },
+  qrTile: { backgroundColor: "#ffffff", padding: 12, borderRadius: radius.md },
+  qrCaption: { color: colors.textFaint, fontSize: 12, marginTop: 8, textAlign: "center" },
 });
