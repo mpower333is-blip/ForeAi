@@ -1,6 +1,11 @@
 package com.foreai.wear
 
 import android.app.Application
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -15,6 +20,14 @@ class RoundViewModel(app: Application) : AndroidViewModel(app) {
 
     private val prefs = app.getSharedPreferences("foreai_wear", 0)
     private val location = LocationProvider(app)
+    private val swing = SwingSensor(app)
+    private val vibrator: Vibrator? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (app.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            app.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
 
     var loading by mutableStateOf(true); private set
     var error by mutableStateOf<String?>(null); private set
@@ -28,6 +41,11 @@ class RoundViewModel(app: Application) : AndroidViewModel(app) {
     var currentLoc by mutableStateOf<LatLng?>(null); private set
     var accuracyM by mutableStateOf<Float?>(null); private set
     var locationOn by mutableStateOf(false); private set
+
+    // Stage 3 — the watch as the swing trigger.
+    var autoShots by mutableStateOf(false); private set
+    var shotsSent by mutableStateOf(0); private set
+    var lastMarkOk by mutableStateOf(true); private set
 
     init {
         connect(Config.PRESET_EVENT_CODE)
@@ -97,6 +115,35 @@ class RoundViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putString("club", name).apply()
     }
 
+    // Post a swing mark (club + watch GPS + hole) for the phone to log as a shot.
+    private fun sendMark(buzz: Boolean) {
+        val ev = event ?: return
+        val pid = myPlayerId ?: return
+        val loc = currentLoc
+        viewModelScope.launch {
+            val ok = Backend.postMark(ev.id, pid, selectedClub, viewingHole, loc?.lat, loc?.lng)
+            lastMarkOk = ok
+            if (ok) {
+                shotsSent += 1
+                if (buzz) buzz()
+            }
+        }
+    }
+
+    // Manual: tap after you hit — always a real shot, so buzz to confirm.
+    fun logShotNow() = sendMark(buzz = true)
+
+    // Auto (beta): every detected swing posts a mark. The phone de-dupes by
+    // movement, so practice swings at one spot collapse into a single shot.
+    fun toggleAuto() {
+        autoShots = !autoShots
+        if (autoShots) swing.start { sendMark(buzz = false) } else swing.stop()
+    }
+
+    private fun buzz() {
+        vibrator?.vibrate(VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
+    }
+
     fun prevHole() { if (viewingHole > 1) viewingHole -= 1 }
     fun nextHole() { if (viewingHole < 18) viewingHole += 1 }
 
@@ -128,6 +175,7 @@ class RoundViewModel(app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() {
         location.stop()
+        swing.stop()
         super.onCleared()
     }
 }

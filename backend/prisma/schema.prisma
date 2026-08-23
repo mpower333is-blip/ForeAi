@@ -92,6 +92,7 @@ model Tournament {
   contests      TournamentContest[]
   sponsors      TournamentSponsor[]
   registrations TournamentRegistration[]
+  shotMarks     TournamentShotMark[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -204,6 +205,27 @@ model TournamentContestResult {
   updatedAt  DateTime @updatedAt
 
   @@unique([contestId, playerId])
+}
+
+// Shot marks — the watch (worn on the wrist) posts a mark on each swing: its
+// GPS + the selected club + the hole. The phone polls these to log shots
+// hands-free even while it sits in the cart. Append-only, lightweight.
+model TournamentShotMark {
+  id           String @id @default(uuid())
+
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  playerId     String
+  hole         Int?
+  club         String?
+  lat          Float?
+  lng          Float?
+  source       String @default("watch") // "watch" | "phone"
+
+  createdAt    DateTime @default(now())
+
+  @@index([tournamentId, playerId, createdAt])
 }
 
 // Sponsors for a fundraiser golf day — title/hole/prize/general sponsors shown

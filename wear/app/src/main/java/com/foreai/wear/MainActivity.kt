@@ -190,6 +190,27 @@ private fun RoundView(vm: RoundViewModel, ev: WEvent, onPickClub: () -> Unit) {
             )
         }
 
+        // Shot logging — tap when you hit; posts club + GPS for the phone to log.
+        item {
+            Chip(
+                label = { Text("＋ Log shot") },
+                secondaryLabel = { Text("Shots sent: ${vm.shotsSent}${if (!vm.lastMarkOk) " • retry" else ""}") },
+                onClick = { vm.logShotNow() },
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                colors = ChipDefaults.primaryChipColors(),
+            )
+        }
+        item {
+            Chip(
+                label = { Text(if (vm.autoShots) "Auto: on" else "Auto: off") },
+                secondaryLabel = { Text("Detect swings (beta)") },
+                onClick = { vm.toggleAuto() },
+                modifier = Modifier.fillMaxWidth(),
+                colors = if (vm.autoShots) ChipDefaults.primaryChipColors()
+                else ChipDefaults.secondaryChipColors(),
+            )
+        }
+
         item { Spacer(Modifier.height(4.dp)) }
         item { Text(if (ev.format == "scramble") "Team score" else "Your score", style = MaterialTheme.typography.caption1) }
 

@@ -6,8 +6,10 @@
     <!-- Standalone: the watch reaches the ForeAi backend itself. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- For Stage 2 (GPS distances to the green). Harmless to declare now. -->
+    <!-- GPS distances to the green + shot marks. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Haptic confirmation when a shot is logged. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:allowBackup="true"

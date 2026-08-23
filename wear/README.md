@@ -50,12 +50,27 @@ GitHub Actions APK workflow — open and build it in Android Studio.
 > app → export → paste the coords into `Course.kt`). The mechanism is built;
 > it just needs the coordinates.
 
-## Next stages
-- **Stage 3 — the watch as the swing trigger:** detect the swing on the wrist
-  and tell the phone/backend "shot now" with the selected club, so the phone's
-  hands-free auto-logging tags the shot with the right club even with the phone
-  in the cart. (The phone's acoustic auto-logger already accepts a
-  `selectedClub`; this closes the loop.)
+### Stage 3 — the watch as the swing trigger
+- **＋ Log shot** button: tap when you hit — posts a *mark* (your club + the
+  watch's GPS + hole) to the backend and buzzes to confirm. Reliable, one tap.
+- **Auto (beta)** toggle: the wrist accelerometer detects swings and posts a
+  mark automatically. Practice swings can't be told apart on the wrist, so the
+  **phone de-dupes by movement** — repeated marks at one spot collapse into a
+  single shot once you've walked to your ball.
+- The **phone** (`useWatchShots` + `WatchShotSync`, mounted app-wide) polls
+  `GET /tournaments/:id/players/:pid/marks` while you're in a live event and
+  logs each mark as a shot in the round — so the caddie keeps learning with the
+  phone in the cart. Marks are stored via `POST …/marks`
+  (`TournamentShotMark`).
+
+> Deploy the backend (a `prisma db push` adds the `TournamentShotMark` table)
+> and rebuild the phone app for the phone side; rebuild the watch for the
+> trigger.
+
+## Later
+- Reconstruct proper front/middle/back strokes-gained on the phone using the
+  hole's green GPS once surveyed (marks already carry the hole).
+- Show the phone's logged-shot count back on the watch.
 
 ## Configuration
 `app/src/main/java/com/foreai/wear/Backend.kt` → `Config`:

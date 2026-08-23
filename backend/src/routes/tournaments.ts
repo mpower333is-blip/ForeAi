@@ -224,6 +224,54 @@ router.put("/:id/players/:playerId/claim", async (req, res) => {
   await respondWithEvent(req.params.id, res);
 });
 
+// Shot marks — the watch posts a swing mark (its GPS + the chosen club + hole)
+// as you play; the phone polls them to log shots hands-free with the phone in
+// the cart. Append-only and lightweight (no full-event serialization).
+router.post("/:id/players/:playerId/marks", async (req, res) => {
+  const { club, lat, lng, hole, source } = req.body ?? {};
+  try {
+    const mark = await prisma.tournamentShotMark.create({
+      data: {
+        tournamentId: req.params.id,
+        playerId: req.params.playerId,
+        club: club ? String(club) : null,
+        hole: typeof hole === "number" ? hole : null,
+        lat: typeof lat === "number" ? lat : null,
+        lng: typeof lng === "number" ? lng : null,
+        source: source ? String(source) : "watch",
+      },
+    });
+    res.json({ id: mark.id, createdAt: mark.createdAt });
+  } catch {
+    res.status(400).json({ ok: false });
+  }
+});
+
+router.get("/:id/players/:playerId/marks", async (req, res) => {
+  const since =
+    typeof req.query.since === "string" ? new Date(req.query.since) : null;
+  const marks = await prisma.tournamentShotMark.findMany({
+    where: {
+      tournamentId: req.params.id,
+      playerId: req.params.playerId,
+      ...(since && !isNaN(since.getTime()) ? { createdAt: { gt: since } } : {}),
+    },
+    orderBy: { createdAt: "asc" },
+    take: 200,
+  });
+  res.json(
+    marks.map((m) => ({
+      id: m.id,
+      hole: m.hole,
+      club: m.club,
+      lat: m.lat,
+      lng: m.lng,
+      source: m.source,
+      createdAt: m.createdAt,
+    }))
+  );
+});
+
 router.post("/:id/groups", async (req, res) => {
   const count = await prisma.tournamentGroup.count({ where: { tournamentId: req.params.id } });
   await prisma.tournamentGroup.create({

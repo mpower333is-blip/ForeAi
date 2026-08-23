@@ -105,6 +105,31 @@ object Backend {
             }
         }
 
+    // Post a swing mark (the watch's GPS + chosen club + hole). The phone polls
+    // these to log shots hands-free. Best-effort — returns true on 2xx.
+    suspend fun postMark(
+        eventId: String,
+        playerId: String,
+        club: String?,
+        hole: Int,
+        lat: Double?,
+        lng: Double?,
+    ): Boolean = withContext(Dispatchers.IO) {
+        val payload = JSONObject().put("hole", hole).put("source", "watch")
+        if (club != null) payload.put("club", club)
+        if (lat != null) payload.put("lat", lat)
+        if (lng != null) payload.put("lng", lng)
+        val req = Request.Builder()
+            .url("${Config.API_BASE}/tournaments/$eventId/players/$playerId/marks")
+            .post(payload.toString().toRequestBody(JSON))
+            .build()
+        try {
+            client.newCall(req).execute().use { res -> res.isSuccessful }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private fun parseEvent(o: JSONObject): WEvent {
         val players = mutableListOf<WPlayer>()
         o.optJSONArray("players")?.let { arr ->

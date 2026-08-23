@@ -14,6 +14,7 @@ import { PlanProvider, usePlan } from "./src/state/PlanContext";
 import { ProfileProvider, useProfile } from "./src/state/ProfileContext";
 import { CourseCoordsProvider } from "./src/state/CourseCoordsContext";
 import { UpgradeGate } from "./src/components/Upsell";
+import WatchShotSync from "./src/components/WatchShotSync";
 import { FeatureKey } from "./src/config/appConfig";
 import { APP_NAME } from "./src/config/appVariant";
 import { colors } from "./src/theme";
@@ -161,6 +162,7 @@ export default function App() {
                 full app "for the day" (see PlanContext). */}
             <PlanProvider>
               <GamesProvider>
+                <WatchShotSync />
                 <Root />
               </GamesProvider>
             </PlanProvider>
