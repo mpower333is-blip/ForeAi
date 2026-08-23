@@ -8,12 +8,13 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 
-// Drives the whole watch experience for Stage 1: connect to the event, remember
-// which player this watch is, and enter per-hole scores that sync to the
-// leaderboard the phones read.
+// Drives the watch experience: connect to the event, remember which player this
+// watch is, enter per-hole scores that sync to the phones' leaderboard, and —
+// Stage 2 — pick your club and read live GPS distances to the green.
 class RoundViewModel(app: Application) : AndroidViewModel(app) {
 
     private val prefs = app.getSharedPreferences("foreai_wear", 0)
+    private val location = LocationProvider(app)
 
     var loading by mutableStateOf(true); private set
     var error by mutableStateOf<String?>(null); private set
@@ -22,8 +23,39 @@ class RoundViewModel(app: Application) : AndroidViewModel(app) {
     var viewingHole by mutableStateOf(1); private set
     var busy by mutableStateOf(false); private set
 
+    // Stage 2 state.
+    var selectedClub by mutableStateOf(prefs.getString("club", null)); private set
+    var currentLoc by mutableStateOf<LatLng?>(null); private set
+    var accuracyM by mutableStateOf<Float?>(null); private set
+    var locationOn by mutableStateOf(false); private set
+
     init {
         connect(Config.PRESET_EVENT_CODE)
+    }
+
+    // The bundled card for the event's course.
+    private fun course(): WCourse = Courses.forId(event?.courseId)
+
+    fun holeInfo(): WHole {
+        val holes = course().holes
+        return holes.getOrNull(viewingHole - 1) ?: holes.first()
+    }
+
+    // Front / middle / back distances (metres) from the current fix to the green,
+    // or null when the course has no green GPS yet (survey pending) or no fix.
+    data class Dist(val front: Int?, val mid: Int?, val back: Int?, val hasGps: Boolean)
+
+    fun distances(): Dist {
+        val h = holeInfo()
+        val here = currentLoc
+        val pin = h.green ?: h.greenFront ?: h.greenBack
+        if (here == null || pin == null) return Dist(null, null, null, hasGps = pin != null)
+        return Dist(
+            front = h.greenFront?.let { distanceMeters(here, it) },
+            mid = (h.green ?: pin).let { distanceMeters(here, it) },
+            back = h.greenBack?.let { distanceMeters(here, it) },
+            hasGps = true,
+        )
     }
 
     fun connect(code: String) {
@@ -36,7 +68,6 @@ class RoundViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
             event = ev
-            // If our saved player is no longer in the event, forget it.
             if (myPlayerId != null && ev.players.none { it.id == myPlayerId }) setPlayer(null)
             myPlayerId?.let { viewingHole = ev.currentHole(it) }
         }
@@ -51,15 +82,29 @@ class RoundViewModel(app: Application) : AndroidViewModel(app) {
         if (id != null && ev != null) viewingHole = ev.currentHole(id)
     }
 
+    // Called from the Activity once location permission is granted.
+    fun startLocation() {
+        if (locationOn) return
+        location.start { latLng, acc ->
+            currentLoc = latLng
+            accuracyM = if (acc.isNaN()) null else acc
+        }
+        locationOn = location.hasPermission()
+    }
+
+    fun selectClub(name: String) {
+        selectedClub = name
+        prefs.edit().putString("club", name).apply()
+    }
+
     fun prevHole() { if (viewingHole > 1) viewingHole -= 1 }
     fun nextHole() { if (viewingHole < 18) viewingHole += 1 }
 
-    // The score currently shown for the hole in view (defaults to 4 until set —
-    // par-aware defaults arrive with Stage 2 once course data is on the watch).
+    // Defaults to the hole's par until a score is entered.
     fun displayedScore(): Int {
-        val ev = event ?: return 4
-        val pid = myPlayerId ?: return 4
-        return ev.scoreAt(ev.scoringIdFor(pid), viewingHole) ?: 4
+        val ev = event ?: return holeInfo().par
+        val pid = myPlayerId ?: return holeInfo().par
+        return ev.scoreAt(ev.scoringIdFor(pid), viewingHole) ?: holeInfo().par
     }
 
     fun bump(delta: Int) {
@@ -79,5 +124,10 @@ class RoundViewModel(app: Application) : AndroidViewModel(app) {
         val ev = event ?: return 0
         val pid = myPlayerId ?: return 0
         return ev.thruFor(ev.scoringIdFor(pid))
+    }
+
+    override fun onCleared() {
+        location.stop()
+        super.onCleared()
     }
 }

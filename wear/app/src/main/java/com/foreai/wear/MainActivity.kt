@@ -1,8 +1,12 @@
 package com.foreai.wear
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,10 +17,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.items
@@ -38,6 +50,20 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun RoundApp(vm: RoundViewModel = viewModel()) {
+    // Ask for location once, then keep the GPS running for the rangefinder.
+    val context = LocalContext.current
+    val permLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> if (granted) vm.startLocation() }
+    LaunchedEffect(Unit) {
+        val granted = ContextCompat.checkSelfPermission(
+            context, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted) vm.startLocation() else permLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+
+    var showClubs by remember { mutableStateOf(false) }
+
     Scaffold(timeText = { TimeText() }) {
         val ev = vm.event
         when {
@@ -45,7 +71,8 @@ fun RoundApp(vm: RoundViewModel = viewModel()) {
             vm.error != null && ev == null -> Centered { ErrorView(vm.error!!) { vm.retry() } }
             ev == null -> Centered { LoadingView() }
             vm.myPlayerId == null -> PlayerPicker(ev) { vm.setPlayer(it) }
-            else -> RoundView(vm, ev)
+            showClubs -> ClubPicker(vm.selectedClub) { vm.selectClub(it); showClubs = false }
+            else -> RoundView(vm, ev, onPickClub = { showClubs = true })
         }
     }
 }
@@ -98,13 +125,73 @@ private fun PlayerPicker(ev: WEvent, onPick: (String) -> Unit) {
 }
 
 @Composable
-private fun RoundView(vm: RoundViewModel, ev: WEvent) {
+private fun ClubPicker(selected: String?, onPick: (String) -> Unit) {
+    ScalingLazyColumn(horizontalAlignment = Alignment.CenterHorizontally) {
+        item { Text("Your club", style = MaterialTheme.typography.title3) }
+        items(DEFAULT_BAG) { c ->
+            Chip(
+                label = { Text(c.name) },
+                secondaryLabel = { Text("~${c.meters} m") },
+                onClick = { onPick(c.name) },
+                modifier = Modifier.fillMaxWidth(),
+                colors = if (c.name == selected) ChipDefaults.primaryChipColors()
+                else ChipDefaults.secondaryChipColors(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RoundView(vm: RoundViewModel, ev: WEvent, onPickClub: () -> Unit) {
     val me = ev.players.firstOrNull { it.id == vm.myPlayerId }
     val scoringId = ev.scoringIdFor(vm.myPlayerId!!)
     val total = ev.scores[scoringId]?.values?.sum() ?: 0
+    val h = vm.holeInfo()
+    val d = vm.distances()
 
     ScalingLazyColumn(horizontalAlignment = Alignment.CenterHorizontally) {
-        item { Text("Hole ${vm.viewingHole}", style = MaterialTheme.typography.title2) }
+        item { Text("Hole ${vm.viewingHole} · Par ${h.par}", style = MaterialTheme.typography.title2) }
+
+        // Distance to the green — the headline of the watch rangefinder.
+        item {
+            if (d.hasGps && d.mid != null) {
+                Text("${d.mid}", style = MaterialTheme.typography.display1, fontWeight = FontWeight.Bold)
+            } else {
+                Text("${h.meters}", style = MaterialTheme.typography.display2, fontWeight = FontWeight.Bold)
+            }
+        }
+        item {
+            val sub = when {
+                d.hasGps && d.mid != null -> {
+                    val fb = listOfNotNull(
+                        d.front?.let { "F $it" },
+                        d.back?.let { "B $it" },
+                    ).joinToString("   ")
+                    if (fb.isBlank()) "m to green" else "m   $fb"
+                }
+                d.hasGps -> "m • locating…"
+                else -> "m to centre • GPS after survey"
+            }
+            Text(sub, style = MaterialTheme.typography.caption2, textAlign = TextAlign.Center)
+        }
+        vm.accuracyM?.let { acc ->
+            item { Text("±${acc.toInt()}m", style = MaterialTheme.typography.caption3) }
+        }
+
+        // Club selection.
+        item {
+            Chip(
+                label = { Text(vm.selectedClub ?: "Pick your club") },
+                secondaryLabel = { Text(if (vm.selectedClub != null) "Change club" else "for this shot") },
+                onClick = onPickClub,
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                colors = if (vm.selectedClub != null) ChipDefaults.primaryChipColors()
+                else ChipDefaults.secondaryChipColors(),
+            )
+        }
+
+        item { Spacer(Modifier.height(4.dp)) }
+        item { Text(if (ev.format == "scramble") "Team score" else "Your score", style = MaterialTheme.typography.caption1) }
 
         // Score stepper: −  N  +
         item {
@@ -123,13 +210,6 @@ private fun RoundView(vm: RoundViewModel, ev: WEvent) {
                     Text("+", style = MaterialTheme.typography.title1)
                 }
             }
-        }
-
-        item {
-            Text(
-                if (ev.format == "scramble") "Team score" else "Your score",
-                style = MaterialTheme.typography.caption2,
-            )
         }
 
         // Hole navigation
