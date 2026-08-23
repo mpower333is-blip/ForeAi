@@ -15,7 +15,7 @@ import { ProfileProvider, useProfile } from "./src/state/ProfileContext";
 import { CourseCoordsProvider } from "./src/state/CourseCoordsContext";
 import { UpgradeGate } from "./src/components/Upsell";
 import { FeatureKey } from "./src/config/appConfig";
-import { IS_EVENT, APP_NAME } from "./src/config/appVariant";
+import { APP_NAME } from "./src/config/appVariant";
 import { colors } from "./src/theme";
 
 import Onboarding from "./src/screens/Onboarding";
@@ -76,7 +76,7 @@ const navTheme = {
 function Tabs() {
   return (
     <Tab.Navigator
-      initialRouteName={IS_EVENT ? "Events" : "Home"}
+      initialRouteName="Home"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
@@ -97,26 +97,11 @@ function Tabs() {
         ),
       })}
     >
-      {IS_EVENT ? (
-        // ECS Golf Day app — everything the players need on the day: run the
-        // event with live scoring, play a live round, and on-course GPS.
-        <>
-          <Tab.Screen name="Events" component={EventsScreen} options={{ title: "Golf Day" }} />
-          <Tab.Screen name="Play" component={PlayScreen} options={{ title: "Round" }} />
-          <Tab.Screen name="Course" component={OnCourseScreen} />
-          <Tab.Screen name="Coach" component={SwingScreen} />
-          <Tab.Screen name="Profile" component={ProfileScreen} />
-        </>
-      ) : (
-        // Full ForeAi app.
-        <>
-          <Tab.Screen name="Home" component={HomeScreen} />
-          <Tab.Screen name="Play" component={locked(PlayScreen, "round")} options={{ title: "Round" }} />
-          <Tab.Screen name="Coach" component={SwingScreen} />
-          <Tab.Screen name="Events" component={EventsScreen} />
-          <Tab.Screen name="Profile" component={ProfileScreen} />
-        </>
-      )}
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Play" component={locked(PlayScreen, "round")} options={{ title: "Round" }} />
+      <Tab.Screen name="Coach" component={SwingScreen} />
+      <Tab.Screen name="Events" component={EventsScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }

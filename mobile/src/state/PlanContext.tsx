@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { FeatureKey, FREE_FEATURE_KEYS } from "../config/appConfig";
-import { IS_EVENT } from "../config/appVariant";
 import { useTournament } from "./TournamentContext";
 import { loadJSON, saveJSON } from "../lib/storage";
 import {
@@ -68,9 +67,9 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     if (ready && !purchasesConfigured) saveJSON(KEY, { plan: demoPro ? "pro" : "demo" });
   }, [demoPro, ready]);
 
-  // Wire up RevenueCat once (skipped for the fully-unlocked event build).
+  // Wire up RevenueCat once.
   useEffect(() => {
-    if (IS_EVENT || !purchasesConfigured) return;
+    if (!purchasesConfigured) return;
     let unsub = () => {};
     (async () => {
       await initPurchases();
@@ -81,7 +80,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     return () => unsub();
   }, []);
 
-  const isPro = IS_EVENT || inLiveEvent || (purchasesConfigured ? entitledPro : demoPro);
+  const isPro = inLiveEvent || (purchasesConfigured ? entitledPro : demoPro);
 
   const value = useMemo<PlanState>(() => {
     const grantDemo = () => setDemoPro(true);

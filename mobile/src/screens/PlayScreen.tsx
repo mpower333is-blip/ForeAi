@@ -10,7 +10,6 @@ import StatsEntry from "../components/StatsEntry";
 import { Coord, compass8 } from "../lib/geo";
 import { ydToM, mphToKmh, fToC } from "../lib/units";
 import { fetchWeather, windForShot } from "../services/weather";
-import { IS_EVENT } from "../config/appVariant";
 import {
   recommendClub,
   Surface,
@@ -195,10 +194,7 @@ export default function PlayScreen({ navigation }: any) {
         }}
       />
 
-      {/* Strokes-gained shot tracking (AI Caddie + shot log) is a full-app
-          feature. The ECS Golf Day build keeps the Round tab to scoring only. */}
-      {!IS_EVENT && (
-      <>
+      {/* Strokes-gained shot tracking: AI Caddie recommendation + shot log. */}
       <Card accent>
         <Text style={styles.recTop}>AI Caddie says</Text>
         <View style={styles.recRow}>
@@ -280,8 +276,6 @@ export default function PlayScreen({ navigation }: any) {
             </View>
           ))}
         </Card>
-      )}
-      </>
       )}
 
       <Text style={styles.sectionTitle}>Score — hole {currentHole}</Text>

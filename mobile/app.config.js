@@ -1,29 +1,24 @@
-// Two build variants from one codebase (EXPO_PUBLIC_APP_VARIANT):
-//   default  → "ForeAi"        (full showcase app)
-//   "event"  → "ECS Golf Day"  (golf-day-only app, its own icon + package id)
-// Different ids so both can be installed side by side.
-const isEvent = process.env.EXPO_PUBLIC_APP_VARIANT === "event";
-
+// ForeAi — one app for iOS and Android, built from this one codebase.
 export default {
   expo: {
-    name: isEvent ? "ECS Golf Day" : "ForeAi",
-    slug: isEvent ? "ecs-golf-day" : "foreai",
+    name: "ForeAi",
+    slug: "foreai",
     version: "1.0.0",
     orientation: "portrait",
-    scheme: isEvent ? "ecsgolfday" : "foreai",
+    scheme: "foreai",
     userInterfaceStyle: "dark",
-    icon: isEvent ? "./assets/icon-event.png" : "./assets/icon.png",
+    icon: "./assets/icon.png",
     platforms: ["ios", "android", "web"],
     splash: {
-      image: isEvent ? "./assets/splash-icon-event.png" : "./assets/splash-icon.png",
+      image: "./assets/splash-icon.png",
       resizeMode: "contain",
-      backgroundColor: isEvent ? "#0A1B3A" : "#06170F",
+      backgroundColor: "#06170F",
     },
     ios: {
       // iPhone-first: avoids Apple's separate 13" iPad screenshot requirement.
       // (An iPhone app still runs on iPad in compatibility mode.)
       supportsTablet: false,
-      bundleIdentifier: isEvent ? "com.foreai.event" : "com.foreai.mobile",
+      bundleIdentifier: "com.foreai.mobile",
       infoPlist: {
         NSCameraUsageDescription:
           "ForeAi uses the camera to frame your swing and give you posture feedback.",
@@ -37,10 +32,10 @@ export default {
       },
     },
     android: {
-      package: isEvent ? "com.foreai.event" : "com.foreai.mobile",
+      package: "com.foreai.mobile",
       adaptiveIcon: {
-        foregroundImage: isEvent ? "./assets/adaptive-icon-event.png" : "./assets/adaptive-icon.png",
-        backgroundColor: isEvent ? "#0A1B3A" : "#06170F",
+        foregroundImage: "./assets/adaptive-icon.png",
+        backgroundColor: "#06170F",
       },
       permissions: [
         "CAMERA",

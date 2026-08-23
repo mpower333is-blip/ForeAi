@@ -15,7 +15,6 @@ import {
 import { useTournament } from "../state/TournamentContext";
 import { useLocation } from "../hooks/useLocation";
 import CourseMap from "../components/CourseMap";
-import { IS_EVENT, PRESET_EVENT_CODE } from "../config/appVariant";
 import {
   TEvent,
   EventFormat,
@@ -58,17 +57,6 @@ const CAUSE_PHOTOS: Record<string, any> = {
 export default function EventsScreen() {
   const { events } = useTournament();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  // Event build: as soon as an event is available (cached from last time or just
-  // joined), drop straight into it — no need to pick it from a one-item list.
-  // Only auto-opens once, so the back button still returns to the list.
-  const autoOpened = useRef(false);
-  useEffect(() => {
-    if (IS_EVENT && !autoOpened.current && !selectedId && events.length > 0) {
-      autoOpened.current = true;
-      setSelectedId(events[0].id);
-    }
-  }, [events, selectedId]);
 
   if (selectedId) {
     return <EventDetail eventId={selectedId} onBack={() => setSelectedId(null)} />;
@@ -167,18 +155,6 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
     onOpen(id);
   };
 
-  // Event app: if a join code is baked in (EXPO_PUBLIC_EVENT_CODE), auto-join it
-  // on launch so the app opens straight into the golf day.
-  const triedPreset = useRef(false);
-  useEffect(() => {
-    if (IS_EVENT && PRESET_EVENT_CODE && !triedPreset.current && events.length === 0) {
-      triedPreset.current = true;
-      joinByCode(PRESET_EVENT_CODE).then((ev) => {
-        if (ev) onOpen(ev.id);
-      });
-    }
-  }, [events.length]);
-
   // One tap: create the ECS Golf Day on the backend (with a join code) + branding.
   const loadEcsLive = async () => {
     if (busy) return;
@@ -217,16 +193,11 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
 
       {!creating && !joining && (
         <>
-          {/* The event build is view/score only — the golf day itself is created
-              and managed from the main app, the office page and the website.
-              Players just join by code to follow along and keep score. */}
           <View style={styles.formRow}>
-            {!IS_EVENT && (
-              <Button label="+ New event" onPress={() => setCreating(true)} style={{ flex: 1 }} />
-            )}
+            <Button label="+ New event" onPress={() => setCreating(true)} style={{ flex: 1 }} />
             <Button label="Join by code" variant="ghost" onPress={() => setJoining(true)} style={{ flex: 1 }} />
           </View>
-          {!IS_EVENT && events.length === 0 && (
+          {events.length === 0 && (
             <>
               <Button
                 label={busy ? "Creating…" : "🏁 Create the ECS Golf Day (gets a join code)"}
@@ -386,14 +357,10 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
       {events.length === 0 && !creating && (
         <EmptyState
           emoji="🏆"
-          title={IS_EVENT ? "Join the golf day" : "No golf days yet"}
-          body={
-            IS_EVENT
-              ? "Enter the join code from the organiser to see the tee sheet, follow the leaderboard live and keep score for your four-ball."
-              : "Create one to register players, set tee times, and follow everyone live as they move around the course."
-          }
-          actionLabel={IS_EVENT ? "Join by code" : "+ New event"}
-          onAction={() => (IS_EVENT ? setJoining(true) : setCreating(true))}
+          title="No golf days yet"
+          body="Create one to register players, set tee times, and follow everyone live as they move around the course — or join an existing one with its code."
+          actionLabel="+ New event"
+          onAction={() => setCreating(true)}
         />
       )}
 
@@ -437,7 +404,7 @@ type Tab = "players" | "tees" | "live" | "games" | "sponsors";
 function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void }) {
   const t = useTournament();
   const event = t.getEvent(eventId);
-  const [tab, setTab] = useState<Tab>(IS_EVENT ? "live" : "players");
+  const [tab, setTab] = useState<Tab>("players");
   const [, setCourseReady] = useState(0);
   const isRemote = !!event?.remote;
   const meId = t.myPlayerId(eventId);
