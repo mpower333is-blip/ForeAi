@@ -78,6 +78,16 @@ export default {
             "ForeAi listens for the sound of your ball strike to log shots automatically.",
         },
       ],
+      [
+        // Google Play requires apps to target Android 16 (API 36) from Aug 2026.
+        "expo-build-properties",
+        {
+          android: {
+            compileSdkVersion: 36,
+            targetSdkVersion: 36,
+          },
+        },
+      ],
     ],
     extra: {
       // EXPO_PUBLIC_API_URL is read directly in services/api.ts; set it in a
