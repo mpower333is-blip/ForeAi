@@ -11,9 +11,11 @@
 // The moment a key is present, the Unlock buttons make real store purchases.
 import { Platform } from "react-native";
 
-// The entitlement that means "Pro" in RevenueCat (create it as `pro` and attach
-// both the monthly and annual products to it).
-export const RC_ENTITLEMENT = "pro";
+// The entitlement that means "Pro" in RevenueCat. This MUST match the
+// entitlement identifier exactly as it appears in the RevenueCat dashboard
+// (Entitlements → Identifier). Ours is `foreai_pro`, with both the monthly
+// and annual products attached to it.
+export const RC_ENTITLEMENT = "foreai_pro";
 
 // Optional: pin a specific offering by identifier. Empty = RevenueCat's current.
 export const RC_OFFERING = "";
