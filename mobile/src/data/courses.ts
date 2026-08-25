@@ -198,9 +198,22 @@ const EXACT_LAYOUTS: Record<string, { par: number; yards: number }[]> = {
 
 // Partially-surveyed layouts: real holes where we've captured them, realistic
 // estimates for the rest. Flagged `approxLayout` so the app says so, and the
-// caddie always lets you set the exact distance on the tee. (Empty right now —
-// every surveyed course above has a full card.)
-const PARTIAL_LAYOUTS: Record<string, { par: number; yards: number }[]> = {};
+// caddie always lets you set the exact distance on the tee.
+const PARTIAL_LAYOUTS: Record<string, { par: number; yards: number }[]> = {
+  // Modderfontein Golf Club (18, par 72). OUT 1–9 captured middle-of-green
+  // (metres 387,395,153,388,404,339,375,465,166 → yards). IN 3–9 captured
+  // (362,459,147,390,317,358,334). IN 1–2 (holes 10–11) ESTIMATED — swap in
+  // the real card once surveyed.
+  "modderfontein": [
+    { par: 5, yards: 423 }, { par: 4, yards: 432 }, { par: 3, yards: 167 },
+    { par: 4, yards: 424 }, { par: 4, yards: 442 }, { par: 4, yards: 371 },
+    { par: 4, yards: 410 }, { par: 5, yards: 508 }, { par: 3, yards: 182 },
+    { par: 4, yards: 405 }, { par: 4, yards: 394 }, // 10–11 EST
+    { par: 4, yards: 396 }, { par: 5, yards: 502 }, { par: 3, yards: 161 },
+    { par: 4, yards: 426 }, { par: 4, yards: 347 }, { par: 4, yards: 391 },
+    { par: 4, yards: 365 },
+  ],
+};
 
 function exactLayout(rows: { par: number; yards: number }[]): Hole[] {
   const si = assignStrokeIndex(rows);
