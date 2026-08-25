@@ -141,8 +141,8 @@ const RAW_COURSES: Raw[] = [
   // East Rand courses we're surveying — layout is a placeholder until we
   // capture each hole's GPS on-site (and drop in the real scorecard). Centres
   // are approximate, just to sort them nearest-first and centre the map.
-  { id: "serengeti-serengeti", name: "Serengeti — Serengeti", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.021, lng: 28.418 },
-  { id: "serengeti-masai", name: "Serengeti — Masai", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.021, lng: 28.418 },
+  { id: "serengeti-serengeti", name: "Serengeti — Whistling Thorn", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.021, lng: 28.418 },
+  { id: "serengeti-masai", name: "Serengeti — Masai Mara", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.021, lng: 28.418 },
   { id: "modderfontein", name: "Modderfontein Golf Club", town: "Modderfontein", province: "Gauteng", par: 72, lat: -26.093, lng: 28.164 },
   { id: "avion-park", name: "Avion Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.123, lng: 28.219 },
 ];
@@ -169,6 +169,36 @@ const EXACT_LAYOUTS: Record<string, { par: number; yards: number }[]> = {
     { par: 5, yards: 449 }, { par: 4, yards: 306 }, { par: 4, yards: 346 },
     { par: 4, yards: 304 }, { par: 4, yards: 379 }, { par: 3, yards: 118 },
   ],
+  // Serengeti — Masai Mara (18, par 72). Full card captured on-course from the
+  // middle-of-green GPS distances (metres): front 1–9 = 364, 272, 503, 363,
+  // 153, 364, 385, 420, 179; back 10–18 = 340, 464, 181, 400, 263, 129, 507,
+  // 302, 406. Stored as yards (×1.09361) which round-trip back to those metres.
+  "serengeti-masai": [
+    { par: 4, yards: 398 }, { par: 4, yards: 297 }, { par: 5, yards: 550 },
+    { par: 4, yards: 397 }, { par: 3, yards: 167 }, { par: 4, yards: 398 },
+    { par: 4, yards: 421 }, { par: 5, yards: 459 }, { par: 3, yards: 196 },
+    { par: 4, yards: 372 }, { par: 5, yards: 507 }, { par: 3, yards: 198 },
+    { par: 4, yards: 437 }, { par: 4, yards: 288 }, { par: 3, yards: 141 },
+    { par: 5, yards: 554 }, { par: 4, yards: 330 }, { par: 4, yards: 444 },
+  ],
+};
+
+// Partially-surveyed layouts: real holes where we've captured them, realistic
+// estimates for the rest. Flagged `approxLayout` so the app says so, and the
+// caddie always lets you set the exact distance on the tee.
+const PARTIAL_LAYOUTS: Record<string, { par: number; yards: number }[]> = {
+  // Serengeti — Whistling Thorn (18, par 72). FRONT nine (1–9) captured on-
+  // course, middle-of-green metres: 252, 433, 172, 365, 315, 149, 475, 339,
+  // 406 → yards below. BACK nine (10–18) ESTIMATED (the reference app only
+  // exposes the front nine) — swap in the real card once surveyed.
+  "serengeti-serengeti": [
+    { par: 4, yards: 276 }, { par: 5, yards: 474 }, { par: 3, yards: 188 }, // 1–3 real
+    { par: 4, yards: 399 }, { par: 4, yards: 344 }, { par: 3, yards: 163 }, // 4–6 real
+    { par: 5, yards: 519 }, { par: 4, yards: 371 }, { par: 4, yards: 444 }, // 7–9 real
+    { par: 4, yards: 405 }, { par: 4, yards: 372 }, { par: 3, yards: 180 }, // 10–12 EST
+    { par: 5, yards: 525 }, { par: 4, yards: 388 }, { par: 4, yards: 427 }, // 13–15 EST
+    { par: 3, yards: 170 }, { par: 5, yards: 503 }, { par: 4, yards: 437 }, // 16–18 EST
+  ],
 };
 
 function exactLayout(rows: { par: number; yards: number }[]): Hole[] {
@@ -178,7 +208,9 @@ function exactLayout(rows: { par: number; yards: number }[]): Hole[] {
 
 export const COURSES: Course[] = RAW_COURSES.map((r) => {
   const exact = EXACT_LAYOUTS[r.id];
-  const holes = exact ? exactLayout(exact) : buildLayout(r.par ?? 72, r.yards);
+  const partial = PARTIAL_LAYOUTS[r.id];
+  const rows = exact ?? partial;
+  const holes = rows ? exactLayout(rows) : buildLayout(r.par ?? 72, r.yards);
   return {
     id: r.id,
     name: r.name,
@@ -186,6 +218,7 @@ export const COURSES: Course[] = RAW_COURSES.map((r) => {
     location: `${r.town}, ${r.province}`,
     par: holes.reduce((sum, h) => sum + h.par, 0),
     holes,
+    // Only a fully-captured card is exact; partial and generated are approximate.
     approxLayout: exact ? false : true,
     center: r.lat != null && r.lng != null ? { lat: r.lat, lng: r.lng } : undefined,
   };
