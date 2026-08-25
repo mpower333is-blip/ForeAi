@@ -15,29 +15,40 @@ GitHub Actions APK workflow — open and build it in Android Studio.
 ## Build it — no computer needed (Codemagic)
 You build the phone apps in Codemagic; the watch app builds there too.
 1. Codemagic → **Start new build** → workflow **`foreai-watch-android`**.
-2. It emails you (and offers to download) **`app-debug.apk`** — the installable
-   watch app. No Android Studio, no ADB, no signing setup.
+2. It emails you (and offers to download) a **Play-signed `app-release.aab`** —
+   ready to upload to Google Play. It's signed with the same upload keystore as
+   the phone app (the `google_play` env group), so no extra signing setup.
 
-Then get that APK onto the watch — two phone-only ways:
+## Publish to Play
+The watch app is a **separate package** (`com.foreai.wear`, not the phone's
+`com.foreai.mobile`) built by this standalone Gradle project, so on Google Play
+it's its **own app listing** with the **Wear OS** form factor — not bundled into
+the phone app.
 
-**A) Google Play internal testing (smoothest, recommended)**
-Publish the watch app to the Play Console **internal testing** track once. After
-that, open the app's Play listing on your phone (the phone app's **Set up your
-watch** screen has the button + QR) and tap **Install on watch** — Google
-installs it straight to your paired watch. Rebuilds just re-upload to the track.
-> Ask and we can wire Codemagic to auto-publish the AAB to that track (needs a
-> Google Play service-account key).
+1. **Play Console → Create app** → name "ForeAi Watch", app, free.
+2. In **App content / Store settings**, mark it a **Wear OS** app and complete
+   the usual gates (Data safety, content rating, privacy policy — reuse the
+   phone app's answers and `https://foreai.co.za/privacy.html`).
+3. **Testing → Internal testing → Create release** → upload the `app-release.aab`
+   from the build. Opt into **Play App Signing** when prompted (the upload key
+   is the shared keystore; Play manages the app signing key).
+4. Add yourself as an internal tester → open the opt-in link on your phone.
+5. **Install on the watch:** from the phone app's **Set up your watch** screen
+   (button + QR), or the watch's Play Store → your apps — Google installs it
+   straight to the paired watch.
 
-**B) Wireless ADB from your phone (for the debug APK, no computer)**
-Install an ADB-over-Wi-Fi app on your phone (e.g. **Bugjaeger** from Play).
-On the watch: Settings → System → About → tap Build number 7× → Developer
-options → turn on **Wireless debugging**. In the phone app, pair to the watch's
-IP/port, then install the `app-debug.apk` from step 2. Fiddly the first time,
-but fully phone-only.
+Wear listing needs **round-watch screenshots** (take them on a Wear OS emulator
+or your watch) and a short description. Rebuilds just re-upload to the track.
+> Ask and we can wire Codemagic to auto-publish the AAB to the internal track
+> (needs a Google Play service-account key — same idea as the phone app).
+
+> **Target API note:** the app targets **API 35** (Wear OS 5), Play's current
+> minimum for new apps. If the Console flags that it needs API 36 at upload,
+> say so and we'll do the (larger) bump to compileSdk 36 / AGP 8.7 / Gradle 8.9.
 
 ## Or build & run from Android Studio (if you have a computer)
 1. Android Studio → **Open** → select this `wear/` folder (not the repo root).
-2. Let Gradle sync (AGP 8.5.2, Kotlin 1.9.24, Compose BOM 2024.06.00).
+2. Let Gradle sync (AGP 8.6.1, Kotlin 1.9.24, Compose BOM 2024.06.00).
 3. Pick a Wear OS emulator/device and **Run** the `app` module (a real watch
    needs Developer options → ADB/Wireless debugging on, paired over `adb`).
 

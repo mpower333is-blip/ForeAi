@@ -6,7 +6,7 @@
 #
 # ── WORKFLOWS ──  (Codemagic → Start new build → pick one)
 #   foreai-android-play    ForeAi phone → app-release.aab   (Play Store + RevenueCat)
-#   foreai-watch-android   ForeAi watch → app-debug.apk     (Wear OS, sideloadable)
+#   foreai-watch-android   ForeAi watch → app-release.aab   (Wear OS, Play listing)
 #   foreai-ios             ForeAi phone → TestFlight / .ipa (needs Apple setup*)
 #
 # (The one-time keystore generator and the sideload-APK workflow were removed
@@ -83,30 +83,42 @@ workflows:
           failure: true
 
   # ─────────────────────────── WEAR OS ───────────────────────────
-  # Builds the standalone Wear OS watch app (../wear) into an installable debug
-  # APK. No Android Studio / computer needed — download the APK from the build
-  # and get it onto the watch (see wear/README.md → "Get it on your watch").
+  # Builds the standalone Wear OS watch app (../wear) into a Play-signed release
+  # .aab. Upload it to a SEPARATE Google Play app listing for `com.foreai.wear`
+  # (Wear OS form factor) — it's a different package from the phone app, so it
+  # gets its own listing. Reuses the same upload keystore as the phone via the
+  # `google_play` env group. Full steps: wear/README.md → "Publish to Play".
   foreai-watch-android:
-    name: ForeAi Watch — Wear OS APK
+    name: ForeAi Watch — Wear OS AAB (Play)
     instance_type: linux_x2
     max_build_duration: 60
     environment:
       java: 17
+      groups:
+        - google_play   # CM_KEYSTORE (+ password/alias) — the shared upload key
     cache:
       cache_paths:
         - $HOME/.gradle/caches
     scripts:
-      - name: Build the Wear OS debug APK
+      - name: Build the signed Wear OS release AAB
         script: |
           cd wear
+          # Play requires a higher versionCode on every upload.
+          export ANDROID_VERSION_CODE=${BUILD_NUMBER:-1}
+          # Decode the shared upload keystore (same one the phone app is signed
+          # with — one upload key can sign multiple apps).
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/wear/upload.keystore"
           # The wear project has no committed Gradle wrapper jar; fetch the
-          # pinned Gradle (8.7, matching gradle-wrapper.properties) and build
-          # with it directly — deterministic and self-contained.
+          # pinned Gradle (8.7, matching gradle-wrapper.properties) and build.
           curl -sSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle.zip
           unzip -q -o /tmp/gradle.zip -d "$HOME/gradle-dist"
-          "$HOME/gradle-dist/gradle-8.7/bin/gradle" :app:assembleDebug --no-daemon
+          "$HOME/gradle-dist/gradle-8.7/bin/gradle" :app:bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$CM_BUILD_DIR/wear/upload.keystore" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
     artifacts:
-      - wear/app/build/outputs/**/*.apk
+      - wear/app/build/outputs/**/*.aab
     publishing:
       email:
         recipients:

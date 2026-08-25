@@ -5,13 +5,16 @@ plugins {
 
 android {
     namespace = "com.foreai.wear"
-    compileSdk = 34
+    // API 35 (Android 15 / Wear OS 5) — Google Play's minimum target for new apps.
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.foreai.wear"
         minSdk = 30 // Wear OS 3+
-        targetSdk = 34
-        versionCode = 1
+        targetSdk = 35
+        // Play requires a higher versionCode on every upload. CI sets
+        // ANDROID_VERSION_CODE to the build number; locally it's 1.
+        versionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInt()
         versionName = "1.0"
     }
 
