@@ -75,6 +75,15 @@ workflows:
     artifacts:
       - mobile/android/app/build/outputs/**/*.aab
     publishing:
+      # Auto-upload the .aab to Play → Internal testing. Needs, in the
+      # `google_play` group, GCLOUD_SERVICE_ACCOUNT_CREDENTIALS = the FULL JSON
+      # of a Google Play service account that has been granted access in Play
+      # Console → Users and permissions (permission: "Release to testing tracks"
+      # / "Release apps to testing tracks"). The app listing must already exist.
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: false
       email:
         recipients:
           - mpower333is@gmail.com
@@ -120,6 +129,14 @@ workflows:
     artifacts:
       - wear/app/build/outputs/**/*.aab
     publishing:
+      # Auto-upload the watch .aab to its OWN Play app (com.foreai.wear) →
+      # Internal testing. Same service-account JSON as the phone workflow; that
+      # service account must also be granted access on the WATCH app's listing
+      # (or at account level). The com.foreai.wear listing must already exist.
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: false
       email:
         recipients:
           - mpower333is@gmail.com
