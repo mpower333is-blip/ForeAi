@@ -192,27 +192,25 @@ const EXACT_LAYOUTS: Record<string, { par: number; yards: number }[]> = {
     { par: 5, yards: 502 }, { par: 3, yards: 161 }, { par: 4, yards: 426 },
     { par: 4, yards: 347 }, { par: 4, yards: 391 }, { par: 4, yards: 365 },
   ],
-};
-
-// Partially-surveyed layouts: real holes where we've captured them, realistic
-// estimates for the rest. Flagged `approxLayout` so the app says so, and the
-// caddie always lets you set the exact distance on the tee.
-const PARTIAL_LAYOUTS: Record<string, { par: number; yards: number }[]> = {
   // Serengeti — Whistling Thorn: an 18-hole PAR-3 course (par 54, every hole
-  // par 3). BACK 10–18 captured on-course (tee-to-pin yards): 155, 210, 214,
-  // 173, 111, 265, 176, 312, 177 — some are long par 3s, but the course is
-  // all par 3. FRONT 1–9 ESTIMATED (par-3 lengths) — the earlier "front nine"
-  // data was full-length par 4/5 holes, so it was the wrong course; swap in
-  // the real Whistling Thorn front nine once surveyed.
+  // par 3). Full card captured on-course (tee-to-pin yards): FRONT 1–9 = 165,
+  // 166, 314, 192, 139, 235, 238, 172, 308; BACK 10–18 = 155, 210, 214, 173,
+  // 111, 265, 176, 312, 177. Some are long par 3s, but the course is all par 3.
   "serengeti-serengeti": [
-    { par: 3, yards: 145 }, { par: 3, yards: 168 }, { par: 3, yards: 122 }, // 1–9 EST
-    { par: 3, yards: 190 }, { par: 3, yards: 156 }, { par: 3, yards: 205 },
-    { par: 3, yards: 133 }, { par: 3, yards: 177 }, { par: 3, yards: 148 },
-    { par: 3, yards: 155 }, { par: 3, yards: 210 }, { par: 3, yards: 214 }, // 10–18 real
+    { par: 3, yards: 165 }, { par: 3, yards: 166 }, { par: 3, yards: 314 },
+    { par: 3, yards: 192 }, { par: 3, yards: 139 }, { par: 3, yards: 235 },
+    { par: 3, yards: 238 }, { par: 3, yards: 172 }, { par: 3, yards: 308 },
+    { par: 3, yards: 155 }, { par: 3, yards: 210 }, { par: 3, yards: 214 },
     { par: 3, yards: 173 }, { par: 3, yards: 111 }, { par: 3, yards: 265 },
     { par: 3, yards: 176 }, { par: 3, yards: 312 }, { par: 3, yards: 177 },
   ],
 };
+
+// Partially-surveyed layouts: real holes where we've captured them, realistic
+// estimates for the rest. Flagged `approxLayout` so the app says so, and the
+// caddie always lets you set the exact distance on the tee. (Empty right now —
+// every surveyed course above has a full card.)
+const PARTIAL_LAYOUTS: Record<string, { par: number; yards: number }[]> = {};
 
 function exactLayout(rows: { par: number; yards: number }[]): Hole[] {
   const si = assignStrokeIndex(rows);
