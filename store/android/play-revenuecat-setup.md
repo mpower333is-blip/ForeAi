@@ -4,7 +4,7 @@ Get ForeAi onto Google Play and turn on real subscriptions (Monthly + Annual)
 through RevenueCat. The app code is already wired — you only do store/CI setup.
 
 - **Package:** `com.foreai.mobile`
-- **Entitlement (RevenueCat):** `pro`
+- **Entitlement (RevenueCat):** `foreai_pro`
 - **Products:** one Monthly + one Annual subscription
 - **App reads:** `EXPO_PUBLIC_RC_ANDROID_KEY` (RevenueCat Android SDK key, `goog_…`)
 
@@ -94,7 +94,7 @@ https://app.revenuecat.com → your ForeAi project (or create it):
 1. **Add app → Google Play**, package `com.foreai.mobile`. Upload the service
    account **JSON** from step 7.
 2. **Products** → add `foreai_pro_monthly` and `foreai_pro_annual`.
-3. **Entitlements** → create **`pro`** → attach both products.
+3. **Entitlements** → create **`foreai_pro`** → attach both products.
 4. **Offerings** → in the **current** offering add two packages:
    Monthly → `foreai_pro_monthly`, Annual → `foreai_pro_annual`.
    (The paywall reads the current offering and shows both automatically.)
@@ -113,7 +113,7 @@ unlock" mode and never charges.)
   with a tester account (purchases only work for Play-installed builds).
 - Add your account under Play Console → **Setup → License testing** so purchases
   are free sandbox transactions.
-- Open **Upgrade** in the app → buy Monthly or Annual → it should unlock `pro`.
+- Open **Upgrade** in the app → buy Monthly or Annual → it should unlock `foreai_pro`.
   **Restore purchases** should re-unlock on a reinstall.
 
 ---
