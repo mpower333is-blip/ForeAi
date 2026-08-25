@@ -160,6 +160,15 @@ const EXACT_LAYOUTS: Record<string, { par: number; yards: number }[]> = {
     { par: 5, yards: 450 }, { par: 4, yards: 350 }, { par: 4, yards: 420 },
     { par: 4, yards: 358 }, { par: 3, yards: 176 }, { par: 4, yards: 394 },
   ],
+  // Avion Park Golf Club — a 9-hole course (par 35). Captured on-course from
+  // the middle-of-green GPS distances (metres → yards ×1.09361), which round-
+  // trip back to the exact metres the app displays: 265, 176, 333, 411, 280,
+  // 316, 278, 347, 108 m.
+  "avion-park": [
+    { par: 4, yards: 290 }, { par: 3, yards: 192 }, { par: 4, yards: 364 },
+    { par: 5, yards: 449 }, { par: 4, yards: 306 }, { par: 4, yards: 346 },
+    { par: 4, yards: 304 }, { par: 4, yards: 379 }, { par: 3, yards: 118 },
+  ],
 };
 
 function exactLayout(rows: { par: number; yards: number }[]): Hole[] {
