@@ -181,18 +181,16 @@ const EXACT_LAYOUTS: Record<string, { par: number; yards: number }[]> = {
     { par: 4, yards: 437 }, { par: 4, yards: 288 }, { par: 3, yards: 141 },
     { par: 5, yards: 554 }, { par: 4, yards: 330 }, { par: 4, yards: 444 },
   ],
-  // Serengeti — Whistling Thorn (18, par 65). FRONT 1–9 captured middle-of-green
-  // (metres 252,433,172,365,315,149,475,339,406 → yards). BACK 10–18 captured
-  // tee-to-pin (already in yards). The back-nine source labelled every hole
-  // "Par 3"; par is inferred from distance — the two drivable holes (15: 265y,
-  // 17: 312y) are par 4s. It's a short, par-3-heavy back nine (par 29).
-  "serengeti-serengeti": [
-    { par: 4, yards: 276 }, { par: 5, yards: 474 }, { par: 3, yards: 188 },
-    { par: 4, yards: 399 }, { par: 4, yards: 344 }, { par: 3, yards: 163 },
-    { par: 5, yards: 519 }, { par: 4, yards: 371 }, { par: 4, yards: 444 },
-    { par: 3, yards: 155 }, { par: 3, yards: 210 }, { par: 3, yards: 214 },
-    { par: 3, yards: 173 }, { par: 3, yards: 111 }, { par: 4, yards: 265 },
-    { par: 3, yards: 176 }, { par: 4, yards: 312 }, { par: 3, yards: 177 },
+  // Modderfontein Golf Club (18, par 72). Full card captured on-course, middle-
+  // of-green metres: OUT 1–9 = 387,395,153,388,404,339,375,465,166; IN 10–18 =
+  // 478,159,362,459,147,390,317,358,334. Stored as yards (×1.09361).
+  "modderfontein": [
+    { par: 5, yards: 423 }, { par: 4, yards: 432 }, { par: 3, yards: 167 },
+    { par: 4, yards: 424 }, { par: 4, yards: 442 }, { par: 4, yards: 371 },
+    { par: 4, yards: 410 }, { par: 5, yards: 508 }, { par: 3, yards: 182 },
+    { par: 5, yards: 523 }, { par: 3, yards: 174 }, { par: 4, yards: 396 },
+    { par: 5, yards: 502 }, { par: 3, yards: 161 }, { par: 4, yards: 426 },
+    { par: 4, yards: 347 }, { par: 4, yards: 391 }, { par: 4, yards: 365 },
   ],
 };
 
@@ -200,18 +198,19 @@ const EXACT_LAYOUTS: Record<string, { par: number; yards: number }[]> = {
 // estimates for the rest. Flagged `approxLayout` so the app says so, and the
 // caddie always lets you set the exact distance on the tee.
 const PARTIAL_LAYOUTS: Record<string, { par: number; yards: number }[]> = {
-  // Modderfontein Golf Club (18, par 72). OUT 1–9 captured middle-of-green
-  // (metres 387,395,153,388,404,339,375,465,166 → yards). IN 3–9 captured
-  // (362,459,147,390,317,358,334). IN 1–2 (holes 10–11) ESTIMATED — swap in
-  // the real card once surveyed.
-  "modderfontein": [
-    { par: 5, yards: 423 }, { par: 4, yards: 432 }, { par: 3, yards: 167 },
-    { par: 4, yards: 424 }, { par: 4, yards: 442 }, { par: 4, yards: 371 },
-    { par: 4, yards: 410 }, { par: 5, yards: 508 }, { par: 3, yards: 182 },
-    { par: 4, yards: 405 }, { par: 4, yards: 394 }, // 10–11 EST
-    { par: 4, yards: 396 }, { par: 5, yards: 502 }, { par: 3, yards: 161 },
-    { par: 4, yards: 426 }, { par: 4, yards: 347 }, { par: 4, yards: 391 },
-    { par: 4, yards: 365 },
+  // Serengeti — Whistling Thorn: an 18-hole PAR-3 course (par 54, every hole
+  // par 3). BACK 10–18 captured on-course (tee-to-pin yards): 155, 210, 214,
+  // 173, 111, 265, 176, 312, 177 — some are long par 3s, but the course is
+  // all par 3. FRONT 1–9 ESTIMATED (par-3 lengths) — the earlier "front nine"
+  // data was full-length par 4/5 holes, so it was the wrong course; swap in
+  // the real Whistling Thorn front nine once surveyed.
+  "serengeti-serengeti": [
+    { par: 3, yards: 145 }, { par: 3, yards: 168 }, { par: 3, yards: 122 }, // 1–9 EST
+    { par: 3, yards: 190 }, { par: 3, yards: 156 }, { par: 3, yards: 205 },
+    { par: 3, yards: 133 }, { par: 3, yards: 177 }, { par: 3, yards: 148 },
+    { par: 3, yards: 155 }, { par: 3, yards: 210 }, { par: 3, yards: 214 }, // 10–18 real
+    { par: 3, yards: 173 }, { par: 3, yards: 111 }, { par: 3, yards: 265 },
+    { par: 3, yards: 176 }, { par: 3, yards: 312 }, { par: 3, yards: 177 },
   ],
 };
 
