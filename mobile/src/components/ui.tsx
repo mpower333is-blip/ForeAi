@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radius, spacing, type, shadow, gradients } from "../theme";
 import {
   ydToM,
@@ -26,10 +27,12 @@ import {
 } from "../lib/units";
 
 export function Screen({ children }: { children: React.ReactNode }) {
+  // Push content below the status bar / notch so headers aren't cut off.
+  const insets = useSafeAreaInsets();
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.screenContent}
+      contentContainerStyle={[styles.screenContent, { paddingTop: insets.top + spacing.lg }]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >

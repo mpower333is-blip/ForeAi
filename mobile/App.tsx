@@ -2,7 +2,7 @@ import "react-native-gesture-handler";
 import React from "react";
 import { Text, View, StatusBar, ActivityIndicator, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -76,6 +76,9 @@ const navTheme = {
 };
 
 function Tabs() {
+  // Lift the tab bar above the Android navigation / gesture bar (and the iPhone
+  // home indicator) so the icons and labels aren't overlapped by the system UI.
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       initialRouteName="Home"
@@ -87,8 +90,8 @@ function Tabs() {
           backgroundColor: colors.bgElevated,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 66,
-          paddingBottom: 10,
+          height: 60 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
           paddingTop: 8,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: "700" },
