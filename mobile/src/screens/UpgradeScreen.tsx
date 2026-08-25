@@ -12,9 +12,11 @@ import {
   PRO_FEATURES,
 } from "../config/appConfig";
 
-// Required on a subscription paywall by both App Store and Play Store.
+// Required on a subscription paywall by both App Store and Play Store. Both are
+// self-hosted so the links work identically on iOS and Android (Apple also
+// accepts its standard EULA, but Google prefers your own Terms).
 const PRIVACY_URL = "https://foreai.co.za/privacy.html";
-const TERMS_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
+const TERMS_URL = "https://foreai.co.za/terms.html";
 
 function periodLabel(p: SubPackage["period"]): string {
   return p === "monthly" ? "Monthly" : p === "annual" ? "Annual" : "Subscribe";
@@ -116,6 +118,7 @@ export default function UpgradeScreen({ navigation }: any) {
                 onPress={() => run(() => purchasePackage({} as SubPackage))}
               />
               <Button variant="ghost" label="Restore purchase" onPress={() => run(restore)} />
+              <LegalNote />
             </>
           )}
         </Card>
