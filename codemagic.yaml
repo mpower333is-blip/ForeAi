@@ -80,6 +80,12 @@ workflows:
       # of a Google Play service account that has been granted access in Play
       # Console → Users and permissions (permission: "Release to testing tracks"
       # / "Release apps to testing tracks"). The app listing must already exist.
+      #
+      # CAVEAT once the Wear form factor is live in this same listing: an
+      # automated phone-only release serves only the phone AAB, dropping the
+      # watch AAB from the track. When both form factors are published, either
+      # do combined manual releases (phone + watch AAB together) or remove this
+      # auto-publish. Fine as-is until the watch form factor is added.
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: internal
@@ -92,11 +98,17 @@ workflows:
           failure: true
 
   # ─────────────────────────── WEAR OS ───────────────────────────
-  # Builds the standalone Wear OS watch app (../wear) into a Play-signed release
-  # .aab. Upload it to a SEPARATE Google Play app listing for `com.foreai.wear`
-  # (Wear OS form factor) — it's a different package from the phone app, so it
-  # gets its own listing. Reuses the same upload keystore as the phone via the
-  # `google_play` env group. Full steps: wear/README.md → "Publish to Play".
+  # Builds the Wear OS watch app (../wear) into a Play-signed release .aab. It
+  # shares the phone's applicationId (com.foreai.mobile), so on Play it's the
+  # **Wear OS form factor of the same app listing** — not a separate app.
+  # Reuses the same upload keystore as the phone via the `google_play` env group.
+  #
+  # NOT auto-published: a Play release serves exactly the AABs it contains, so an
+  # automated watch-only release would drop the phone AAB from the track (and a
+  # phone-only release would drop the watch). Upload the watch .aab MANUALLY into
+  # the com.foreai.mobile listing, in a release that also includes the current
+  # phone AAB. The watch changes rarely, so this is infrequent. Full steps:
+  # wear/README.md → "Publish to Play".
   foreai-watch-android:
     name: ForeAi Watch — Wear OS AAB (Play)
     instance_type: linux_x2
@@ -129,14 +141,9 @@ workflows:
     artifacts:
       - wear/app/build/outputs/**/*.aab
     publishing:
-      # Auto-upload the watch .aab to its OWN Play app (com.foreai.wear) →
-      # Internal testing. Same service-account JSON as the phone workflow; that
-      # service account must also be granted access on the WATCH app's listing
-      # (or at account level). The com.foreai.wear listing must already exist.
-      google_play:
-        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
-        submit_as_draft: false
+      # No auto-publish (see the note above): the watch AAB is uploaded manually
+      # into the com.foreai.mobile listing alongside the phone AAB. The build
+      # just emails you the signed .aab to upload.
       email:
         recipients:
           - mpower333is@gmail.com

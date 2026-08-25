@@ -4,12 +4,18 @@ plugins {
 }
 
 android {
+    // `namespace` is the code package (where the Kotlin sources + R/BuildConfig
+    // live) — kept as com.foreai.wear so the source tree doesn't move.
     namespace = "com.foreai.wear"
     // API 35 (Android 15 / Wear OS 5) — Google Play's minimum target for new apps.
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.foreai.wear"
+        // `applicationId` is the install identity Play matches on. It's set to
+        // the SAME id as the phone app so this AAB is delivered as the Wear OS
+        // form factor of the com.foreai.mobile listing (not a separate app).
+        // applicationId can differ from namespace — only the install id must match.
+        applicationId = "com.foreai.mobile"
         minSdk = 30 // Wear OS 3+
         targetSdk = 35
         // Play requires a higher versionCode on every upload. CI sets
