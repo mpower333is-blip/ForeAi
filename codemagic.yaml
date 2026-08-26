@@ -81,21 +81,12 @@ workflows:
     artifacts:
       - mobile/android/app/build/outputs/**/*.aab
     publishing:
-      # Auto-upload the .aab to Play → Internal testing. Needs, in the
-      # `google_play` group, GCLOUD_SERVICE_ACCOUNT_CREDENTIALS = the FULL JSON
-      # of a Google Play service account that has been granted access in Play
-      # Console → Users and permissions (permission: "Release to testing tracks"
-      # / "Release apps to testing tracks"). The app listing must already exist.
-      #
-      # CAVEAT once the Wear form factor is live in this same listing: an
-      # automated phone-only release serves only the phone AAB, dropping the
-      # watch AAB from the track. When both form factors are published, either
-      # do combined manual releases (phone + watch AAB together) or remove this
-      # auto-publish. Fine as-is until the watch form factor is added.
-      google_play:
-        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
-        submit_as_draft: false
+      # No auto-publish. The phone and watch share one Play listing, and every
+      # release must contain BOTH AABs, so releases are done manually: this build
+      # just emails you the signed phone .aab. Upload it to Play → Test and
+      # release → [track] → new release, together with the current watch .aab.
+      # (The `google_play` env group above is still used — it holds the signing
+      #  keystore; only the service-account auto-upload was removed.)
       email:
         recipients:
           - mpower333is@gmail.com
