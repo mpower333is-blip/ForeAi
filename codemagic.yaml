@@ -66,7 +66,10 @@ workflows:
       - name: Generate native Android project (expo prebuild)
         script: |
           cd mobile
-          export ANDROID_VERSION_CODE=${BUILD_NUMBER:-1}
+          # Phone versionCodes live in the 1000+ lane: clear of the low numbers
+          # burned during watch testing, and far below the watch's 90000+ range,
+          # so the two form factors never collide in the shared com.foreai.mobile app.
+          export ANDROID_VERSION_CODE=$((1000 + ${BUILD_NUMBER:-1}))
           npx expo prebuild --platform android --no-install
       - name: Decode the upload keystore
         script: |
