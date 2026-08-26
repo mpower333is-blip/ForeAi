@@ -11,15 +11,18 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        // `applicationId` is the install identity Play matches on. It's set to
-        // the SAME id as the phone app so this AAB is delivered as the Wear OS
-        // form factor of the com.foreai.mobile listing (not a separate app).
-        // applicationId can differ from namespace — only the install id must match.
-        applicationId = "com.foreai.mobile"
+        // `applicationId` is the install identity Play matches on. The watch
+        // ships as its OWN separate Play app (its own listing), so it uses its
+        // own package — distinct from the phone's com.foreai.mobile. This means
+        // the two apps have completely independent versionCode sequences and can
+        // never collide. applicationId can differ from namespace (kept as
+        // com.foreai.wear) — only the install id must be unique across Play.
+        applicationId = "com.foreai.watch"
         minSdk = 30 // Wear OS 3+
         targetSdk = 35
-        // Play requires a higher versionCode on every upload. CI sets
-        // ANDROID_VERSION_CODE to the build number; locally it's 1.
+        // Its own app → its own versionCode space (no offset needed). Play just
+        // requires each upload to increase. CI sets ANDROID_VERSION_CODE to the
+        // build number; locally it's 1. versionName "1.0" is the shown version.
         versionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInt()
         versionName = "1.0"
     }

@@ -19,35 +19,32 @@ You build the phone apps in Codemagic; the watch app builds there too.
    ready to upload to Google Play. It's signed with the same upload keystore as
    the phone app (the `google_play` env group), so no extra signing setup.
 
-## Publish to Play — Wear OS form factor of the phone app
-The watch app shares the phone app's `applicationId` (**`com.foreai.mobile`**),
-so on Google Play it's the **Wear OS form factor of the same listing** — users
-find one "ForeAi" app and each device gets the right build. It is NOT a separate
-app. (The AAB declares `android.hardware.type.watch`, so Play routes it to
-watches; the phone AAB goes to phones.)
+## Publish to Play — the watch is its own separate app
+The watch ships as a **standalone Play app** with its own package
+(**`com.foreai.watch`**) and its own listing — separate from the phone app
+(`com.foreai.mobile`). Because they are two different apps, they have completely
+independent `versionCode` sequences and can **never interfere** with each other.
+(The AAB declares `android.hardware.type.watch`, so it's a Wear OS app.)
 
-1. Open the existing **ForeAi** app in Play Console (the phone listing).
-2. **Test and release → (Advanced settings →) Form factors → Add form factor →
-   Wear OS** — follow the Wear OS setup; add at least one **round-watch
+1. In Play Console, **create a new app** (e.g. "ForeAi Watch"). Its package is
+   locked to `com.foreai.watch` by the first AAB you upload — so upload the watch
+   build here, not into the phone app.
+2. **Test and release → Closed testing (Wear OS) → Create new release** and
+   upload the watch `app-release.aab`. Opt into **Play App Signing** (the same
+   upload key already signs it).
+3. Complete the app's **"Set up your app"** checklist (privacy policy, data
+   safety, content rating, target audience, store listing) — Play blocks the
+   first rollout until these are done. Add at least one **round-watch
    screenshot** (from a Wear OS emulator or your watch).
-3. **Internal testing → Create new release** and upload the watch
-   `app-release.aab`. **Include the current phone AAB in the same release** —
-   see the caveat below. Opt into **Play App Signing** (same upload key).
-4. Roll out → open the opt-in link on the phone paired to your watch.
-5. **Install on the watch:** from the phone app's **Set up your watch** screen
-   (button + QR), or the watch's Play Store → your apps — Google installs the
-   watch build straight to the paired watch.
+4. **Review release → Start rollout.** Open the opt-in link, then install on the
+   watch from its Play Store → your apps (Google pushes it to the paired watch).
 
-### ⚠️ One-listing release rule
-A Play release serves **exactly the AABs it contains**. Because the phone and
-watch are built by two separate pipelines:
-- A **watch-only** release drops the phone AAB from the track (and vice-versa).
-- So publish both form factors **in the same release** — upload the watch AAB
-  **alongside the current phone AAB**.
-- The **phone workflow auto-publishes** to the internal track. Once the watch
-  form factor is live, either do **combined manual releases** (phone + watch
-  together) or turn off the phone auto-publish and always upload both. The watch
-  changes rarely, so this is infrequent.
+### Version numbering
+Each upload just needs a **higher `versionCode`** than the last — the build sets
+it from the Codemagic build number automatically. The shown version is
+`versionName` (**1.0**). The internal `versionCode` doesn't have to start at 1;
+it only has to keep increasing. The phone app's numbers are irrelevant here —
+different app, different sequence.
 
 > **Target API note:** the app targets **API 35** (Wear OS 5), Play's current
 > minimum for new apps. If the Console flags that it needs API 36 at upload,
