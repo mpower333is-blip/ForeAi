@@ -120,10 +120,10 @@ workflows:
       - name: Build the signed Wear OS release AAB
         script: |
           cd wear
-          # The watch is its own Play app (com.foreai.watch) with an independent
-          # versionCode space, so no offset is needed — just use the build number
-          # (Play only requires each upload to increase).
-          export ANDROID_VERSION_CODE=${BUILD_NUMBER:-1}
+          # Offset the versionCode into the 90000+ range so every upload sits
+          # above any code already used in the Play app (low numbers like 1 were
+          # already consumed). Each rebuild bumps BUILD_NUMBER, so it keeps rising.
+          export ANDROID_VERSION_CODE=$((90000 + ${BUILD_NUMBER:-1}))
           # Decode the shared upload keystore (same key the phone app is signed
           # with — one upload key can sign multiple apps).
           echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/wear/upload.keystore"
