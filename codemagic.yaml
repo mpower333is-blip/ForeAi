@@ -6,15 +6,15 @@
 #
 # ── WORKFLOWS ──  (Codemagic → Start new build → pick one)
 #   foreai-android-play    ForeAi phone → app-release.aab   (Play Store + RevenueCat)
-#   foreai-watch-android   ForeAi watch → app-release.aab   (Wear OS, own app)
+#   foreai-watch-android   ForeAi watch → app-release.aab   (Wear OS form factor)
 #   foreai-ios             ForeAi phone → TestFlight / .ipa (needs Apple setup*)
 #
-# The phone and watch are TWO SEPARATE Play apps:
-#   • phone → com.foreai.mobile   (its own listing + versionCode sequence)
-#   • watch → com.foreai.watch    (its own listing + versionCode sequence)
-# They never interfere, so each just uses the build number as its versionCode.
-# Play does NOT generate the watch from the phone build — you build and upload
-# each app separately, to its own listing.
+# The phone and watch are ONE Play app (com.foreai.mobile). In Play you choose
+# the form factor — "mobile" or "Wear OS" — per release, and upload the matching
+# bundle. Both bundles carry the SAME package (com.foreai.mobile), so their
+# versionCodes must be unique: the watch build offsets its code into the 90000+
+# range so it never collides with the phone's low numbers. Play does NOT generate
+# the watch from the phone build — you build and upload each bundle yourself.
 #
 # (The keystore generator and the sideload-APK workflow were removed once the
 #  Play upload keystore was set up — the app now ships through Play.)
@@ -97,14 +97,13 @@ workflows:
 
   # ─────────────────────────── WEAR OS ───────────────────────────
   # Builds the Wear OS watch app (../wear) into a Play-signed release .aab. The
-  # watch is its OWN separate Play app (applicationId com.foreai.watch, its own
-  # listing) — NOT a form factor of the phone app. That gives it an independent
-  # versionCode sequence, so it can never collide with the phone's. Reuses the
-  # same upload keystore as the phone via the `google_play` env group (one upload
-  # key can sign multiple apps).
+  # watch ships inside the SAME Play app as the phone (applicationId
+  # com.foreai.mobile) as its **Wear OS form factor** — in Play you pick "Wear OS"
+  # when creating the release and upload this bundle. Reuses the same upload
+  # keystore as the phone via the `google_play` env group.
   #
-  # Upload the emailed .aab to the com.foreai.watch app's own Wear OS track.
-  # Steps: wear/README.md → "Publish to Play".
+  # Its versionCode is offset into the 90000+ range so it stays unique against the
+  # phone's low numbers in the shared app. Steps: wear/README.md → "Publish to Play".
   foreai-watch-android:
     name: ForeAi Watch — Wear OS AAB (Play)
     instance_type: linux_x2

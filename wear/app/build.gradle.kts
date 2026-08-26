@@ -12,17 +12,17 @@ android {
 
     defaultConfig {
         // `applicationId` is the install identity Play matches on. The watch
-        // ships as its OWN separate Play app (its own listing), so it uses its
-        // own package — distinct from the phone's com.foreai.mobile. This means
-        // the two apps have completely independent versionCode sequences and can
-        // never collide. applicationId can differ from namespace (kept as
-        // com.foreai.wear) — only the install id must be unique across Play.
-        applicationId = "com.foreai.watch"
+        // ships inside the SAME Play app as the phone (com.foreai.mobile), as its
+        // Wear OS form factor — in Play you pick "mobile" or "Wear OS" per
+        // release, and the watch bundle must carry the phone's package to be
+        // accepted. applicationId can differ from namespace (kept as
+        // com.foreai.wear) — only the install id must match the app.
+        applicationId = "com.foreai.mobile"
         minSdk = 30 // Wear OS 3+
         targetSdk = 35
-        // Its own app → its own versionCode space (no offset needed). Play just
-        // requires each upload to increase. CI sets ANDROID_VERSION_CODE to the
-        // build number; locally it's 1. versionName "1.0" is the shown version.
+        // Same app as the phone → versionCodes must be unique across both. CI
+        // offsets the watch into the 90000+ range (see codemagic.yaml) so it
+        // never collides with the phone's low numbers. versionName is shown as 1.0.
         versionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInt()
         versionName = "1.0"
     }
