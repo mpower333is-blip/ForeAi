@@ -6,12 +6,17 @@
 #
 # ── WORKFLOWS ──  (Codemagic → Start new build → pick one)
 #   foreai-android-play    ForeAi phone → app-release.aab   (Play Store + RevenueCat)
+#   foreai-watch-android   ForeAi watch → app-release.aab   (Wear OS, same listing)
 #   foreai-ios             ForeAi phone → TestFlight / .ipa (needs Apple setup*)
 #
-# (The keystore generator, the sideload-APK workflow, and the Wear OS build were
-#  removed to keep CI to the two shipping app builds. The Wear OS project still
-#  lives in ../wear — build it in Android Studio, or re-add its workflow when
-#  needed; see wear/README.md.)
+# Play does NOT generate the watch build from the phone build — you build both.
+# The phone and watch AABs share applicationId (com.foreai.mobile), so BOTH go
+# into the SAME Play release; Play delivers the watch bundle to watches and the
+# phone bundle to phones. They just need different versionCodes (handled: the
+# watch build offsets its versionCode into a high range so it never collides).
+#
+# (The keystore generator and the sideload-APK workflow were removed once the
+#  Play upload keystore was set up — the app now ships through Play.)
 #
 # ── * ONE-TIME iOS SETUP (foreai-ios only) ──
 #   1. In Codemagic: Teams (or your personal account) → Integrations →
@@ -91,6 +96,61 @@ workflows:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: internal
         submit_as_draft: false
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ─────────────────────────── WEAR OS ───────────────────────────
+  # Builds the Wear OS watch app (../wear) into a Play-signed release .aab. It
+  # shares the phone's applicationId (com.foreai.mobile), so on Play it's the
+  # **Wear OS form factor of the same app listing** — not a separate app. Reuses
+  # the same upload keystore as the phone via the `google_play` env group.
+  #
+  # NOT auto-published: a Play release serves exactly the AABs it contains, so an
+  # automated watch-only release would drop the phone AAB (and vice-versa). Add
+  # the watch .aab MANUALLY to the com.foreai.mobile release that also holds the
+  # current phone AAB — Play then delivers each bundle to the right device. Steps:
+  # wear/README.md → "Publish to Play".
+  foreai-watch-android:
+    name: ForeAi Watch — Wear OS AAB (Play)
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      java: 17
+      groups:
+        - google_play   # CM_KEYSTORE (+ password/alias) — the shared upload key
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Build the signed Wear OS release AAB
+        script: |
+          cd wear
+          # Phone + watch share applicationId (com.foreai.mobile) and go in the
+          # SAME Play release, so their versionCodes must differ. Offset the
+          # watch into a high range (90000+) so it never collides with the
+          # phone's small, incrementing versionCode.
+          export ANDROID_VERSION_CODE=$((90000 + ${BUILD_NUMBER:-1}))
+          # Decode the shared upload keystore (same key the phone app is signed
+          # with — one upload key can sign multiple apps).
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/wear/upload.keystore"
+          # The wear project has no committed Gradle wrapper jar; fetch the
+          # pinned Gradle (8.7, matching gradle-wrapper.properties) and build.
+          curl -sSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle.zip
+          unzip -q -o /tmp/gradle.zip -d "$HOME/gradle-dist"
+          "$HOME/gradle-dist/gradle-8.7/bin/gradle" :app:bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$CM_BUILD_DIR/wear/upload.keystore" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+    artifacts:
+      - wear/app/build/outputs/**/*.aab
+    publishing:
+      # No auto-publish (see note above): the watch AAB is emailed to you and
+      # uploaded manually into the com.foreai.mobile release beside the phone AAB.
       email:
         recipients:
           - mpower333is@gmail.com
