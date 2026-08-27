@@ -278,6 +278,26 @@ workflows:
             echo "============================================================="
           fi
           exit $RC
+      - name: Verify the IPA is distribution-signed (pre-empt ITMS-90035)
+        script: |
+          cd mobile/ios
+          IPA=$(find build/ios/ipa -name "*.ipa" | head -1)
+          echo "IPA: $IPA"
+          WORK=$(mktemp -d)
+          unzip -q "$IPA" -d "$WORK"
+          APP=$(find "$WORK/Payload" -maxdepth 1 -name "*.app" | head -1)
+          echo "===== codesign authorities ====="
+          codesign -dvvv "$APP" 2>&1 | grep -i "^Authority=" || true
+          # App Store binaries must be signed by an "Apple/iPhone Distribution"
+          # cert. A development or ad-hoc cert is what triggers ITMS-90035 on
+          # upload — catch it here and fail the build instead of days later.
+          if codesign -dvvv "$APP" 2>&1 | grep -qiE "^Authority=(Apple|iPhone) Distribution"; then
+            echo "OK: IPA is distribution-signed."
+          else
+            echo "ERROR: IPA is NOT distribution-signed — Apple would reject it as ITMS-90035."
+            echo "Check that IOS_DIST_KEY is an Apple Distribution key and use-profiles applied the App Store profile."
+            exit 1
+          fi
     artifacts:
       - mobile/ios/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
