@@ -37,6 +37,9 @@ function serialize(t: NonNullable<LoadedTournament>) {
   return {
     id: t.id,
     code: t.code,
+    // Never expose the PIN itself — only whether one is set, so clients know to
+    // ask for it before admin actions.
+    hasAdminPin: t.adminPin != null && t.adminPin !== "",
     name: t.name,
     courseId: t.courseId,
     format: t.format,
@@ -85,10 +88,36 @@ async function respondWithEvent(id: string, res: any) {
   res.json(serialize(t));
 }
 
+// Reject an admin action unless it carries the event's PIN. Backward-compatible:
+// if the event has no PIN set (legacy/unset), the action is allowed. Once a PIN
+// is set, the `x-admin-pin` header must match. Returns true if the request may
+// proceed; otherwise it has already sent a 403 and the caller should return.
+function requireAdminPin(t: { adminPin: string | null }, req: any, res: any): boolean {
+  if (!t.adminPin) return true; // no PIN configured yet — open
+  const given = String(req.header("x-admin-pin") ?? req.body?.adminPin ?? "");
+  if (given && given === t.adminPin) return true;
+  res.status(403).json({ error: "Admin PIN required", needsPin: true });
+  return false;
+}
+
+// Load the tournament by :id and enforce its admin PIN. Returns true if the
+// request may proceed (already responded 403/404 otherwise).
+async function gateAdmin(req: any, res: any): Promise<boolean> {
+  const t = await prisma.tournament.findUnique({
+    where: { id: req.params.id },
+    select: { adminPin: true },
+  });
+  if (!t) {
+    res.status(404).json({ error: "Tournament not found" });
+    return false;
+  }
+  return requireAdminPin(t, req, res);
+}
+
 // Create an event, returning a join code that other devices use.
 router.post("/", async (req, res) => {
   try {
-    const { name, courseId, format, firstTeeMin, intervalMin, shotgun } = req.body;
+    const { name, courseId, format, firstTeeMin, intervalMin, shotgun, adminPin } = req.body;
     if (!name || !courseId) {
       return res.status(400).json({ error: "name and courseId are required" });
     }
@@ -106,6 +135,7 @@ router.post("/", async (req, res) => {
             firstTeeMin: firstTeeMin ?? 480,
             intervalMin: intervalMin ?? 10,
             shotgun: !!shotgun,
+            adminPin: adminPin ? String(adminPin) : null,
           },
         });
       } catch {
@@ -134,8 +164,30 @@ router.get("/code/:code", async (req, res) => {
   res.json(serialize(t));
 });
 
+// Set or change the organiser admin PIN. If no PIN is set yet, this claims it
+// (first organiser to set it). If one is already set, the current PIN must be
+// supplied (header x-admin-pin or body.currentPin) to change it.
+router.put("/:id/admin-pin", async (req, res) => {
+  const t = await prisma.tournament.findUnique({
+    where: { id: req.params.id },
+    select: { adminPin: true },
+  });
+  if (!t) return res.status(404).json({ error: "Tournament not found" });
+  const newPin = String(req.body?.pin ?? "").trim();
+  if (!/^\d{4,8}$/.test(newPin)) {
+    return res.status(400).json({ error: "PIN must be 4–8 digits" });
+  }
+  if (t.adminPin) {
+    const given = String(req.header("x-admin-pin") ?? req.body?.currentPin ?? "");
+    if (given !== t.adminPin) return res.status(403).json({ error: "Current PIN required", needsPin: true });
+  }
+  await prisma.tournament.update({ where: { id: req.params.id }, data: { adminPin: newPin } });
+  await respondWithEvent(req.params.id, res);
+});
+
 // Update event settings.
 router.patch("/:id", async (req, res) => {
+  if (!(await gateAdmin(req, res))) return;
   const { name, format, firstTeeMin, intervalMin, shotgun, cause, causePhoto } = req.body;
   await prisma.tournament.update({
     where: { id: req.params.id },
@@ -307,6 +359,7 @@ router.put("/:id/scores", async (req, res) => {
 
 // Add a sponsor.
 router.post("/:id/sponsors", async (req, res) => {
+  if (!(await gateAdmin(req, res))) return;
   const { name, tier, hole, message, logo } = req.body;
   if (!name || !tier) return res.status(400).json({ error: "name and tier are required" });
   await prisma.tournamentSponsor.create({
@@ -323,6 +376,7 @@ router.post("/:id/sponsors", async (req, res) => {
 });
 
 router.delete("/:id/sponsors/:sponsorId", async (req, res) => {
+  if (!(await gateAdmin(req, res))) return;
   await prisma.tournamentSponsor.delete({ where: { id: req.params.sponsorId } });
   await respondWithEvent(req.params.id, res);
 });
@@ -439,6 +493,7 @@ router.get("/:id/registrations", async (req, res) => {
 
 // Office: update a submission's workflow status (new | paid | confirmed).
 router.patch("/:id/registrations/:regId", async (req, res) => {
+  if (!(await gateAdmin(req, res))) return;
   const { status } = req.body ?? {};
   const allowed = ["new", "paid", "confirmed"];
   if (!allowed.includes(status)) {
@@ -454,6 +509,7 @@ router.patch("/:id/registrations/:regId", async (req, res) => {
 // Office: remove a submission. If it imported a sponsor (hole/prize), delete that
 // too so the board doesn't keep showing a sponsor whose entry was removed.
 router.delete("/:id/registrations/:regId", async (req, res) => {
+  if (!(await gateAdmin(req, res))) return;
   const reg = await prisma.tournamentRegistration.findUnique({ where: { id: req.params.regId } });
   if (reg?.sponsorId) {
     await prisma.tournamentSponsor.delete({ where: { id: reg.sponsorId } }).catch(() => {});

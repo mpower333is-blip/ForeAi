@@ -15,6 +15,9 @@ const EVENTS_KEY = "foreai.events.v1";
 // event's setup (players / tee sheet / sponsors / games); everyone else who
 // joins can view and score only.
 const ORGANISER_KEY = "foreai.organiser.v1";
+// Organiser admin PINs, per event, remembered on this device so admin writes
+// (edit sponsors / cause / registrations) carry the PIN the backend requires.
+const PIN_KEY = "foreai.eventPins.v1";
 
 let idc = 0;
 export function newId(prefix: string): string {
@@ -30,6 +33,7 @@ type CreateInput = {
   intervalMin: number;
   date: string;
   shotgun?: boolean;
+  adminPin?: string; // organiser PIN set at creation (shared events)
 };
 
 type TournamentState = {
@@ -72,6 +76,11 @@ type TournamentState = {
   setContestResult: (eventId: string, contestId: string, playerId: string, value: number) => void;
   addSponsor: (eventId: string, name: string, tier: SponsorTier, hole?: number, message?: string) => void;
   removeSponsor: (eventId: string, sponsorId: string) => void;
+  // Organiser admin PIN (per event, remembered on this device so admin writes
+  // carry it). eventPin returns the stored PIN; setEventPin sets/changes it on
+  // the backend and remembers it here.
+  eventPin: (eventId: string) => string | undefined;
+  setEventPin: (eventId: string, pin: string) => Promise<TEvent | null>;
 };
 
 const Ctx = createContext<TournamentState | null>(null);
@@ -80,9 +89,11 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   const [events, setEvents] = useState<TEvent[]>([]);
   const [myByEvent, setMyByEvent] = useState<Record<string, string>>({});
   const [organiserIds, setOrganiserIds] = useState<string[]>([]);
+  const [pinByEvent, setPinByEvent] = useState<Record<string, string>>({});
   const [myReady, setMyReady] = useState(false);
   const [eventsReady, setEventsReady] = useState(false);
   const [orgReady, setOrgReady] = useState(false);
+  const [pinReady, setPinReady] = useState(false);
 
   const isOrganiser = (eventId: string) => organiserIds.includes(eventId);
   const markOrganiser = (eventId: string) =>
@@ -113,6 +124,10 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       if (saved) setOrganiserIds(saved);
       setOrgReady(true);
     });
+    loadJSON<Record<string, string>>(PIN_KEY).then((saved) => {
+      if (saved) setPinByEvent(saved);
+      setPinReady(true);
+    });
   }, []);
 
   // Persist the "who am I" map, events cache and organiser list on change.
@@ -125,6 +140,9 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (orgReady) saveJSON(ORGANISER_KEY, organiserIds);
   }, [organiserIds, orgReady]);
+  useEffect(() => {
+    if (pinReady) saveJSON(PIN_KEY, pinByEvent);
+  }, [pinByEvent, pinReady]);
 
   // Auto-recognise "me": if an event already has a player linked to this
   // device (claimed on a previous launch), adopt it without prompting.
@@ -234,6 +252,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   };
 
   const createSharedEvent: TournamentState["createSharedEvent"] = async (input) => {
+    const pin = input.adminPin && /^\d{4,8}$/.test(input.adminPin) ? input.adminPin : undefined;
     const ev = await runRemote(
       tournamentApi.create({
         name: input.name || "New Event",
@@ -242,9 +261,14 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         firstTeeMin: input.firstTeeMin,
         intervalMin: input.intervalMin,
         shotgun: !!input.shotgun,
+        adminPin: pin,
       })
     );
-    if (ev) markOrganiser(ev.id);
+    if (ev) {
+      markOrganiser(ev.id);
+      // Remember the PIN on this device so admin writes carry it.
+      if (pin) setPinByEvent((prev) => ({ ...prev, [ev.id]: pin }));
+    }
     return ev;
   };
 
@@ -353,14 +377,18 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     const ev = getEvent(id);
     if (ev?.remote) {
       runRemote(
-        tournamentApi.update(id, {
-          name: patch.name,
-          format: patch.format,
-          firstTeeMin: patch.firstTeeMin,
-          intervalMin: patch.intervalMin,
-          shotgun: patch.shotgun,
-          cause: patch.cause,
-        })
+        tournamentApi.update(
+          id,
+          {
+            name: patch.name,
+            format: patch.format,
+            firstTeeMin: patch.firstTeeMin,
+            intervalMin: patch.intervalMin,
+            shotgun: patch.shotgun,
+            cause: patch.cause,
+          },
+          pinByEvent[id]
+        )
       );
       return;
     }
@@ -508,7 +536,9 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   const addSponsor: TournamentState["addSponsor"] = (eventId, name, tier, hole, message) => {
     const ev = getEvent(eventId);
     if (ev?.remote) {
-      runRemote(tournamentApi.addSponsor(eventId, { name, tier, hole: hole ?? null, message: message ?? null }));
+      runRemote(
+        tournamentApi.addSponsor(eventId, { name, tier, hole: hole ?? null, message: message ?? null }, pinByEvent[eventId])
+      );
       return;
     }
     localMutate(eventId, (e) => ({
@@ -520,10 +550,30 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   const removeSponsor: TournamentState["removeSponsor"] = (eventId, sponsorId) => {
     const ev = getEvent(eventId);
     if (ev?.remote) {
-      runRemote(tournamentApi.removeSponsor(eventId, sponsorId));
+      runRemote(tournamentApi.removeSponsor(eventId, sponsorId, pinByEvent[eventId]));
       return;
     }
     localMutate(eventId, (e) => ({ ...e, sponsors: (e.sponsors ?? []).filter((s) => s.id !== sponsorId) }));
+  };
+
+  const eventPin: TournamentState["eventPin"] = (eventId) => pinByEvent[eventId];
+
+  // Set/change the organiser PIN on a remote event and remember it on this
+  // device so future admin writes carry it. Remembers the PIN locally even for
+  // a local (offline) event.
+  const setEventPin: TournamentState["setEventPin"] = async (eventId, pin) => {
+    const ev = getEvent(eventId);
+    let result: TEvent | null = ev ?? null;
+    if (ev?.remote) {
+      // Use the stored PIN as "current" to CHANGE it; if none is stored, pass the
+      // entered PIN as current too — that validates it (a correct PIN is a no-op
+      // set and gets remembered; a wrong one 403s and isn't stored).
+      const current = pinByEvent[eventId] || pin;
+      result = await runRemote(tournamentApi.setAdminPin(eventId, pin, current));
+      if (!result) return null; // wrong current PIN or offline — don't store a bad PIN
+    }
+    setPinByEvent((prev) => ({ ...prev, [eventId]: pin }));
+    return result;
   };
 
   const value: TournamentState = {
@@ -556,6 +606,8 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     setContestResult,
     addSponsor,
     removeSponsor,
+    eventPin,
+    setEventPin,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

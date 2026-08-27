@@ -81,6 +81,7 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
   const [interval, setInterval] = useState(10);
   const [shared, setShared] = useState(true);
   const [shotgun, setShotgun] = useState(false);
+  const [adminPin, setAdminPin] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [courseQuery, setCourseQuery] = useState("");
   const [onlineCourses, setOnlineCourses] = useState<CourseSummary[]>([]);
@@ -133,6 +134,7 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
       intervalMin: interval,
       date: "",
       shotgun,
+      adminPin: shared && /^\d{4,8}$/.test(adminPin.trim()) ? adminPin.trim() : undefined,
     };
     if (shared) {
       setBusy(true);
@@ -151,6 +153,7 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
   const finishCreate = (id: string) => {
     setCreating(false);
     setName("");
+    setAdminPin("");
     onOpen(id);
   };
 
@@ -316,6 +319,22 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
               ? "Players join from their own phones with a code and scores sync live."
               : "Everything stays on this device — good with no signal."}
           </Text>
+
+          {shared && (
+            <>
+              <TextField
+                label="Organiser PIN (4–8 digits)"
+                value={adminPin}
+                onChangeText={(v) => setAdminPin(v.replace(/[^0-9]/g, "").slice(0, 8))}
+                placeholder="e.g. 4789"
+                keyboardType="number-pad"
+              />
+              <Text style={styles.hint}>
+                People join with the code; only someone with this PIN can approve/remove
+                registrations or edit sponsors. Optional, but recommended.
+              </Text>
+            </>
+          )}
 
           <View style={styles.formRow}>
             <Button label={busy ? "Creating…" : "Create"} onPress={create} style={{ flex: 1 }} />
@@ -1162,12 +1181,24 @@ function GamesTab({ event }: { event: TEvent }) {
 }
 
 function SponsorsTab({ event }: { event: TEvent }) {
-  const { addSponsor, removeSponsor, updateEvent, isOrganiser } = useTournament();
+  const { addSponsor, removeSponsor, updateEvent, isOrganiser, eventPin, setEventPin } = useTournament();
   const [name, setName] = useState("");
   const [tier, setTier] = useState<SponsorTier>("hole");
   const [hole, setHole] = useState(1);
   const [cause, setCause] = useState(event.cause ?? "");
+  const [pin, setPin] = useState(eventPin(event.id) ?? "");
+  const [pinMsg, setPinMsg] = useState("");
   const canEdit = isOrganiser(event.id);
+
+  const savePin = async () => {
+    setPinMsg("");
+    if (!/^\d{4,8}$/.test(pin.trim())) {
+      setPinMsg("PIN must be 4–8 digits.");
+      return;
+    }
+    const ok = await setEventPin(event.id, pin.trim());
+    setPinMsg(ok ? "Admin PIN saved on this event." : "Couldn't save — wrong current PIN, or offline.");
+  };
 
   const sponsors = event.sponsors ?? [];
   const add = () => {
@@ -1222,6 +1253,25 @@ function SponsorsTab({ event }: { event: TEvent }) {
             {tier === "hole" && <Stepper label="Hole" value={hole} onChange={setHole} step={1} min={1} max={18} unit="" />}
             <Button label="Add sponsor" onPress={add} />
           </Card>
+
+          {event.remote && (
+            <Card>
+              <Text style={styles.formTitle}>Admin PIN</Text>
+              <Text style={styles.hint}>
+                People join with the code. Only someone with this PIN can approve/remove
+                registrations or edit sponsors — on the office website and here. Set it once.
+              </Text>
+              <TextField
+                label={event.hasAdminPin ? "Change PIN (4–8 digits)" : "Set a PIN (4–8 digits)"}
+                value={pin}
+                onChangeText={(v) => setPin(v.replace(/[^0-9]/g, "").slice(0, 8))}
+                placeholder="e.g. 4789"
+                keyboardType="number-pad"
+              />
+              <Button label="Save PIN" onPress={savePin} />
+              {pinMsg ? <Text style={styles.hint}>{pinMsg}</Text> : null}
+            </Card>
+          )}
         </>
       )}
 

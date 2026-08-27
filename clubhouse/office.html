@@ -103,6 +103,7 @@
 
   <!-- dashboard -->
   <div id="dash" style="display:none">
+    <div id="adminBar"></div>
     <div class="tiles" id="tiles"></div>
     <div class="tabs" id="tabs">
       <div class="tab on" data-f="all">All</div>
@@ -125,7 +126,8 @@
   var q=new URLSearchParams(location.search);
   var D=(window.FOREAI_DEFAULTS||{});
   var CFG={ api:(q.get('api')||lsGet('ecs_api')||D.api||'').replace(/\/$/,''),
-            code:(q.get('code')||lsGet('ecs_code')||D.code||'').toUpperCase() };
+            code:(q.get('code')||lsGet('ecs_code')||D.code||'').toUpperCase(),
+            pin:'' };
   var EVENT=null, REGS=[], FILTER='all';
   var TEAM_FEE=4000, HOLE_FEE=2000;
 
@@ -152,6 +154,7 @@
       var er=await fetch(CFG.api+'/tournaments/code/'+CFG.code);
       if(!er.ok){ throw new Error('Event not found for code '+CFG.code); }
       EVENT=await er.json();
+      loadPin();
       var rr=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations');
       REGS = rr.ok ? await rr.json() : [];
       lsSet('ecs_api',CFG.api); lsSet('ecs_code',CFG.code);
@@ -181,6 +184,7 @@
   function phoneIcon(v){ return v==='apple'?'🍎':v==='android'?'🤖':''; }
 
   function render(){
+    renderAdminBar();
     // tiles
     var teams=REGS.filter(r=>r.type==='team'), holes=REGS.filter(r=>r.type==='hole'), prizes=REGS.filter(r=>r.type==='prize');
     var players=teams.reduce((s,r)=>s+teamCount(r)*4,0);
@@ -238,7 +242,7 @@
   async function delSponsor(id){
     if(!confirm('Remove this sponsor from the board?')) return;
     try{
-      var r=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/sponsors/'+id,{method:'DELETE'});
+      var r=await authFetch(CFG.api+'/tournaments/'+EVENT.id+'/sponsors/'+id,{method:'DELETE'});
       if(r.ok){ EVENT=await r.json(); render(); }
     }catch(e){}
   }
@@ -279,16 +283,62 @@
       +'</div>';
   }
 
+  // ---- admin PIN --------------------------------------------------------
+  function loadPin(){ CFG.pin = lsGet('ecs_pin_'+CFG.code) || ''; }
+  function savePin(p){ CFG.pin=p; lsSet('ecs_pin_'+CFG.code, p); }
+  // fetch that carries the admin PIN; on a 403 it asks for the PIN once and retries.
+  async function authFetch(url, opts){
+    opts = opts||{}; opts.headers = Object.assign({}, opts.headers||{});
+    if(CFG.pin) opts.headers['x-admin-pin']=CFG.pin;
+    var r = await fetch(url, opts);
+    if(r.status===403){
+      var p = prompt('Enter the organiser admin PIN to make changes:');
+      if(p==null) return r;
+      savePin(p.trim()); opts.headers['x-admin-pin']=CFG.pin;
+      r = await fetch(url, opts);
+      if(!r.ok){ alert('That PIN was not accepted.'); }
+    }
+    return r;
+  }
+  async function setAdminPin(){
+    var cur = EVENT.hasAdminPin ? (CFG.pin || (prompt('Enter the CURRENT PIN:')||'').trim()) : '';
+    var np = (prompt(EVENT.hasAdminPin ? 'Enter a NEW admin PIN (4–8 digits):'
+      : 'Set an admin PIN (4–8 digits). Only people with this PIN can approve, delete or edit.')||'').trim();
+    if(!np) return;
+    if(!/^\d{4,8}$/.test(np)){ alert('PIN must be 4–8 digits.'); return; }
+    try{
+      var r=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/admin-pin',{method:'PUT',
+        headers:{'Content-Type':'application/json','x-admin-pin':cur},
+        body:JSON.stringify({pin:np,currentPin:cur})});
+      if(r.ok){ savePin(np); EVENT=await r.json(); alert('Admin PIN saved.'); render(); }
+      else { var e=await r.json().catch(function(){return {};}); alert(e.error||'Could not set the PIN.'); }
+    }catch(e){ alert('Could not set the PIN.'); }
+  }
+  function renderAdminBar(){
+    var bar=document.getElementById('adminBar'); if(!bar||!EVENT) return;
+    if(EVENT.hasAdminPin){
+      var unlocked = !!CFG.pin;
+      bar.innerHTML = '<div class="card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+        +'<span>'+(unlocked?'🔓 Admin unlocked on this device':'🔒 Admin locked — enter the PIN to make changes')+'</span>'
+        +(unlocked?'':'<button class="btn" onclick="(async()=>{var p=(prompt(\'Enter the organiser admin PIN:\')||\'\').trim(); if(p){savePin(p); render();}})()">Unlock</button>')
+        +'<button class="sbtn" onclick="setAdminPin()">Change PIN</button></div>';
+    } else {
+      bar.innerHTML = '<div class="card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+        +'<span style="color:var(--gold)">⚠️ No admin PIN set — anyone with the code can make changes.</span>'
+        +'<button class="btn" onclick="setAdminPin()">Set admin PIN</button></div>';
+    }
+  }
+
   async function setStatus(id,status){
     try{
-      var r=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:status})});
+      var r=await authFetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:status})});
       if(r.ok){ var row=REGS.find(x=>x.id===id); if(row) row.status=status; render(); }
     }catch(e){}
   }
   async function delReg(id){
     if(!confirm('Delete this submission? Any sponsor it added on the board is removed too.')) return;
     try{
-      var r=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations/'+id,{method:'DELETE'});
+      var r=await authFetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations/'+id,{method:'DELETE'});
       if(r.ok){ await load(false); } // reload so cascade-removed sponsors drop off the board too
     }catch(e){}
   }

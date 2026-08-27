@@ -76,7 +76,11 @@ model Club {
 
 model Tournament {
   id          String   @id @default(uuid())
-  code        String   @unique // short human-friendly join code
+  code        String   @unique // short human-friendly join code (players use this)
+  // Organiser admin PIN. Separate from the public join code: the code lets people
+  // JOIN/register + view; changing anything (approve/delete registrations, edit
+  // sponsors/settings) requires this PIN. Null = no PIN set yet (open, legacy).
+  adminPin    String?
   name        String
   courseId    String            // id from the app's course catalog
   format      String   @default("stroke") // "stroke" | "stableford"

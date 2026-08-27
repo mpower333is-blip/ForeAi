@@ -8,11 +8,14 @@
 import { API_BASE } from "./api";
 import { TEvent } from "../lib/tournament";
 
-async function req<T>(path: string, method: string, body?: unknown): Promise<T | null> {
+async function req<T>(path: string, method: string, body?: unknown, pin?: string | null): Promise<T | null> {
   try {
+    const headers: Record<string, string> = {};
+    if (body) headers["Content-Type"] = "application/json";
+    if (pin) headers["x-admin-pin"] = pin; // organiser PIN for admin-gated writes
     const res = await fetch(`${API_BASE}/tournaments${path}`, {
       method,
-      headers: body ? { "Content-Type": "application/json" } : undefined,
+      headers: Object.keys(headers).length ? headers : undefined,
       body: body ? JSON.stringify(body) : undefined,
     });
     if (!res.ok) return null;
@@ -35,7 +38,13 @@ export const tournamentApi = {
     firstTeeMin: number;
     intervalMin: number;
     shotgun?: boolean;
+    adminPin?: string | null; // set the organiser PIN at creation
   }) => req<TEvent>("", "POST", input).then(tag),
+
+  // Set/change the organiser admin PIN. currentPin is required to change one
+  // that's already set.
+  setAdminPin: (id: string, pin: string, currentPin?: string | null) =>
+    req<TEvent>(`/${id}/admin-pin`, "PUT", { pin, currentPin }, currentPin).then(tag),
 
   get: (id: string) => req<TEvent>(`/${id}`, "GET").then(tag),
 
@@ -46,16 +55,18 @@ export const tournamentApi = {
     id: string,
     patch: Partial<
       Pick<TEvent, "name" | "format" | "firstTeeMin" | "intervalMin" | "shotgun" | "cause" | "causePhoto">
-    >
-  ) => req<TEvent>(`/${id}`, "PATCH", patch).then(tag),
+    >,
+    pin?: string | null
+  ) => req<TEvent>(`/${id}`, "PATCH", patch, pin).then(tag),
 
   addSponsor: (
     id: string,
-    sponsor: { name: string; tier: string; hole?: number | null; message?: string | null; logo?: string | null }
-  ) => req<TEvent>(`/${id}/sponsors`, "POST", sponsor).then(tag),
+    sponsor: { name: string; tier: string; hole?: number | null; message?: string | null; logo?: string | null },
+    pin?: string | null
+  ) => req<TEvent>(`/${id}/sponsors`, "POST", sponsor, pin).then(tag),
 
-  removeSponsor: (id: string, sponsorId: string) =>
-    req<TEvent>(`/${id}/sponsors/${sponsorId}`, "DELETE").then(tag),
+  removeSponsor: (id: string, sponsorId: string, pin?: string | null) =>
+    req<TEvent>(`/${id}/sponsors/${sponsorId}`, "DELETE", undefined, pin).then(tag),
 
   addPlayer: (id: string, player: { name: string; handicap: number; deviceId?: string; groupId?: string | null }) =>
     req<TEvent>(`/${id}/players`, "POST", player).then(tag),

@@ -76,6 +76,7 @@ export type TEvent = {
   logoKey?: string; // key into the bundled event-logo registry (e.g. "ecs")
   // Multi-device fields — present only for events hosted on the backend.
   code?: string; // join code shared with other devices
+  hasAdminPin?: boolean; // whether an organiser admin PIN is set (the PIN itself is never sent)
   remote?: boolean; // true when this event is synced with the server
 };
 
