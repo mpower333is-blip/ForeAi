@@ -112,6 +112,7 @@
       <div class="tab" data-f="unpaid">Outstanding</div>
     </div>
     <div id="list"></div>
+    <div id="sponsorsBox" style="margin-top:18px"></div>
   </div>
 </div>
 
@@ -210,8 +211,36 @@
       return r.type===FILTER;
     });
     var host=document.getElementById('list');
-    if(!rows.length){ host.innerHTML='<div class="empty">No submissions'+(FILTER!=='all'?' in this view':' yet')+'.</div>'; return; }
-    host.innerHTML = rows.map(cardHTML).join('');
+    if(!rows.length){ host.innerHTML='<div class="empty">No submissions'+(FILTER!=='all'?' in this view':' yet')+'.</div>'; }
+    else { host.innerHTML = rows.map(cardHTML).join(''); }
+    renderSponsors();
+  }
+
+  // Sponsors on the board (incl. seeded "tap to edit" placeholders and any
+  // duplicates). These can be removed directly here — handy for the leftovers
+  // that aren't tied to a submission.
+  function renderSponsors(){
+    var box=document.getElementById('sponsorsBox');
+    var sponsors=(EVENT&&Array.isArray(EVENT.sponsors))?EVENT.sponsors:[];
+    if(!sponsors.length){ box.innerHTML=''; return; }
+    var rows=sponsors.map(function(s){
+      var where = s.tier==='hole' && s.hole ? (' · Hole '+s.hole) : '';
+      var placeholder = /tap to edit/i.test(s.name||'');
+      return '<div class="status" style="justify-content:space-between">'
+        +'<span class="lbl" style="flex:1">'+esc(s.name)+' <span style="opacity:.6">('+esc(s.tier)+where+')</span>'
+        + (placeholder?' <span style="color:var(--gold)">placeholder</span>':'') +'</span>'
+        +'<button class="del" onclick="delSponsor(\''+s.id+'\')">Remove</button></div>';
+    }).join('');
+    box.innerHTML='<div class="card"><div class="rowtop"><span class="company">Sponsors on the board</span></div>'
+      +'<div class="hint" style="margin:2px 0 8px">Remove any that aren\'t real — placeholders or duplicates.</div>'
+      + rows + '</div>';
+  }
+  async function delSponsor(id){
+    if(!confirm('Remove this sponsor from the board?')) return;
+    try{
+      var r=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/sponsors/'+id,{method:'DELETE'});
+      if(r.ok){ EVENT=await r.json(); render(); }
+    }catch(e){}
   }
 
   function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
@@ -257,10 +286,10 @@
     }catch(e){}
   }
   async function delReg(id){
-    if(!confirm('Delete this submission? (Players/sponsors already imported are not removed.)')) return;
+    if(!confirm('Delete this submission? Any sponsor it added on the board is removed too.')) return;
     try{
       var r=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations/'+id,{method:'DELETE'});
-      if(r.ok){ REGS=REGS.filter(x=>x.id!==id); render(); }
+      if(r.ok){ await load(false); } // reload so cascade-removed sponsors drop off the board too
     }catch(e){}
   }
 

@@ -120,6 +120,10 @@ model TournamentRegistration {
   payload       String  @db.Text // JSON: type-specific extras (teams/players, holePref, prizes…)
   status        String  @default("new") // office workflow: new | paid | confirmed
 
+  // If this submission created a sponsor (hole/prize), its id — so deleting the
+  // submission in the office also removes the sponsor it imported (no orphans).
+  sponsorId     String?
+
   createdAt    DateTime @default(now())
 }
 

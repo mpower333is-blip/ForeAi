@@ -386,7 +386,7 @@ router.post("/code/:code/register/hole-sponsor", async (req, res) => {
   const b = req.body ?? {};
   if (!b.company) return res.status(400).json({ error: "Company name is required" });
 
-  await prisma.tournamentSponsor.create({
+  const holeSponsor = await prisma.tournamentSponsor.create({
     data: {
       tournamentId: t.id,
       name: b.company,
@@ -397,7 +397,7 @@ router.post("/code/:code/register/hole-sponsor", async (req, res) => {
     },
   });
   await prisma.tournamentRegistration.create({
-    data: { tournamentId: t.id, type: "hole", ...regColumns(b), payload: JSON.stringify(b) },
+    data: { tournamentId: t.id, type: "hole", ...regColumns(b), sponsorId: holeSponsor.id, payload: JSON.stringify(b) },
   });
   res.json({ ok: true });
 });
@@ -413,7 +413,7 @@ router.post("/code/:code/register/prize-sponsor", async (req, res) => {
     b.prizeType === "cash"
       ? `Cash: ${b.cashAmount ?? ""}`.trim()
       : (Array.isArray(b.prizes) ? b.prizes.filter(Boolean).join(", ") : "") || "Item prize";
-  await prisma.tournamentSponsor.create({
+  const prizeSponsor = await prisma.tournamentSponsor.create({
     data: {
       tournamentId: t.id,
       name: b.company,
@@ -423,7 +423,7 @@ router.post("/code/:code/register/prize-sponsor", async (req, res) => {
     },
   });
   await prisma.tournamentRegistration.create({
-    data: { tournamentId: t.id, type: "prize", ...regColumns(b), payload: JSON.stringify(b) },
+    data: { tournamentId: t.id, type: "prize", ...regColumns(b), sponsorId: prizeSponsor.id, payload: JSON.stringify(b) },
   });
   res.json({ ok: true });
 });
@@ -451,8 +451,13 @@ router.patch("/:id/registrations/:regId", async (req, res) => {
   res.json({ ...row, payload: safeJson(row.payload) });
 });
 
-// Office: remove a submission (does not remove already-imported players/sponsors).
+// Office: remove a submission. If it imported a sponsor (hole/prize), delete that
+// too so the board doesn't keep showing a sponsor whose entry was removed.
 router.delete("/:id/registrations/:regId", async (req, res) => {
+  const reg = await prisma.tournamentRegistration.findUnique({ where: { id: req.params.regId } });
+  if (reg?.sponsorId) {
+    await prisma.tournamentSponsor.delete({ where: { id: reg.sponsorId } }).catch(() => {});
+  }
   await prisma.tournamentRegistration.delete({ where: { id: req.params.regId } });
   res.json({ ok: true });
 });
