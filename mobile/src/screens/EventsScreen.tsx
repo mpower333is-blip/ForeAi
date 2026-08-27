@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Image } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Image, Alert } from "react-native";
 import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, TextField, EmptyState } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { COURSES, getCourse, searchCourses, hasCourse } from "../data/courses";
@@ -69,7 +69,7 @@ export default function EventsScreen() {
 // ---------------------------------------------------------------------------
 
 function EventList({ onOpen }: { onOpen: (id: string) => void }) {
-  const { events, createEvent, createSharedEvent, joinByCode } = useTournament();
+  const { events, createEvent, createSharedEvent, joinByCode, leaveEvent } = useTournament();
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -332,10 +332,30 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
         />
       )}
 
+      {events.length > 0 && !creating && !joining && (
+        <Text style={styles.leaveHint}>Press and hold an event to leave it.</Text>
+      )}
+
       {events.map((e) => {
         const course = getCourse(e.courseId);
         return (
-          <TouchableOpacity key={e.id} activeOpacity={0.85} onPress={() => onOpen(e.id)}>
+          <TouchableOpacity
+            key={e.id}
+            activeOpacity={0.85}
+            onPress={() => onOpen(e.id)}
+            onLongPress={() =>
+              Alert.alert(
+                "Leave this event?",
+                e.remote
+                  ? `"${e.name}" will be removed from this device. You can re-join anytime with the code ${e.code}.`
+                  : `"${e.name}" is a local event and will be deleted from this device.`,
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Leave", style: "destructive", onPress: () => leaveEvent(e.id) },
+                ]
+              )
+            }
+          >
             <Card>
               <View style={styles.cardTitleRow}>
                 <Text style={styles.eventName}>{e.name}</Text>
@@ -1281,6 +1301,7 @@ const styles = StyleSheet.create({
   formRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   empty: { color: colors.textMuted, fontSize: 15, lineHeight: 22 },
   hint: { color: colors.textFaint, fontSize: 13, marginBottom: spacing.sm },
+  leaveHint: { color: colors.textFaint, fontSize: 12, marginBottom: spacing.sm, textAlign: "center" },
 
   courseRow: {
     flexDirection: "row",

@@ -46,6 +46,9 @@ type TournamentState = {
   // Link this phone to an existing (pre-registered) player — "I am this player".
   claimPlayer: (eventId: string, playerId: string) => Promise<TEvent | null>;
   clearMyPlayer: (eventId: string) => void; // "not me" — forget the link on this device
+  // Remove an event from THIS device's list (leave it). The remote event still
+  // exists on the backend — re-join with its code to bring it back.
+  leaveEvent: (eventId: string) => void;
   myPlayerId: (eventId: string) => string | undefined;
   // True if THIS device created the event (organiser) — gates setup editing.
   isOrganiser: (eventId: string) => boolean;
@@ -329,6 +332,14 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     if (ev?.remote && mine) runRemote(tournamentApi.claimPlayer(eventId, mine, null));
   };
 
+  // Leave an event: drop it from this device's list and clear its local links.
+  // The remote event lives on — re-join with the code to bring it back.
+  const leaveEvent: TournamentState["leaveEvent"] = (eventId) => {
+    clearMyPlayer(eventId);
+    setOrganiserIds((prev) => prev.filter((id) => id !== eventId));
+    setEvents((prev) => prev.filter((e) => e.id !== eventId));
+  };
+
   const pingPresence: TournamentState["pingPresence"] = (eventId, playerId, coord) => {
     const ev = getEvent(eventId);
     if (!ev?.remote || !playerId) return;
@@ -527,6 +538,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     registerSelf,
     claimPlayer,
     clearMyPlayer,
+    leaveEvent,
     myPlayerId,
     isOrganiser,
     inLiveEvent,
