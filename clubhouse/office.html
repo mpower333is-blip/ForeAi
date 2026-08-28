@@ -68,6 +68,8 @@
   <script src="config.js"></script>
 </head>
 <body>
+<a href="index.html" class="foreai-back" onclick="if(window.history.length>1){window.history.back();return false;}">‹ Back</a>
+<style>.foreai-back{position:fixed;top:14px;left:14px;z-index:99999;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(6,23,15,0.72);color:#8DFF6B;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;text-decoration:none;border:1px solid rgba(141,255,107,0.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,0.3)}.foreai-back:hover{background:rgba(141,255,107,0.16)}</style>
 <div class="wrap">
   <header>
     <span class="logo">
@@ -101,6 +103,7 @@
 
   <!-- dashboard -->
   <div id="dash" style="display:none">
+    <div id="adminBar"></div>
     <div class="tiles" id="tiles"></div>
     <div class="tabs" id="tabs">
       <div class="tab on" data-f="all">All</div>
@@ -110,6 +113,7 @@
       <div class="tab" data-f="unpaid">Outstanding</div>
     </div>
     <div id="list"></div>
+    <div id="sponsorsBox" style="margin-top:18px"></div>
   </div>
 </div>
 
@@ -122,7 +126,8 @@
   var q=new URLSearchParams(location.search);
   var D=(window.FOREAI_DEFAULTS||{});
   var CFG={ api:(q.get('api')||lsGet('ecs_api')||D.api||'').replace(/\/$/,''),
-            code:(q.get('code')||lsGet('ecs_code')||D.code||'').toUpperCase() };
+            code:(q.get('code')||lsGet('ecs_code')||D.code||'').toUpperCase(),
+            pin:'' };
   var EVENT=null, REGS=[], FILTER='all';
   var TEAM_FEE=4000, HOLE_FEE=2000;
 
@@ -149,6 +154,7 @@
       var er=await fetch(CFG.api+'/tournaments/code/'+CFG.code);
       if(!er.ok){ throw new Error('Event not found for code '+CFG.code); }
       EVENT=await er.json();
+      loadPin();
       var rr=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations');
       REGS = rr.ok ? await rr.json() : [];
       lsSet('ecs_api',CFG.api); lsSet('ecs_code',CFG.code);
@@ -164,15 +170,33 @@
   }
   function refresh(){ load(false); }
 
+  // Tally phone platforms across every registered player (for the app test).
+  function phoneTally(){
+    var t={apple:0, android:0, unknown:0};
+    REGS.filter(r=>r.type==='team').forEach(function(r){
+      var teams=Array.isArray((r.payload||{}).teams)?r.payload.teams:[];
+      teams.forEach(function(tm){ (tm.players||[]).forEach(function(pl){
+        t[pl.phone==='apple'?'apple':pl.phone==='android'?'android':'unknown']++;
+      }); });
+    });
+    return t;
+  }
+  function phoneIcon(v){ return v==='apple'?'🍎':v==='android'?'🤖':''; }
+
   function render(){
+    renderAdminBar();
     // tiles
     var teams=REGS.filter(r=>r.type==='team'), holes=REGS.filter(r=>r.type==='hole'), prizes=REGS.filter(r=>r.type==='prize');
     var players=teams.reduce((s,r)=>s+teamCount(r)*4,0);
     var expected=REGS.reduce((s,r)=>s+amountFor(r),0);
     var received=REGS.filter(r=>r.status==='paid'||r.status==='confirmed').reduce((s,r)=>s+amountFor(r),0);
+    var ph=phoneTally();
     var tiles=[
       ['Team entries', teams.length, ''],
       ['Players', players, ''],
+      ['🍎 Apple (TestFlight)', ph.apple, 'sky'],
+      ['🤖 Android (APK)', ph.android, 'lime'],
+      ['Phone not set', ph.unknown, ''],
       ['Hole sponsors', holes.length, ''],
       ['Prize sponsors', prizes.length, ''],
       ['Expected', money(expected), 'gold'],
@@ -180,7 +204,7 @@
       ['Outstanding', money(expected-received), 'red'],
     ];
     document.getElementById('tiles').innerHTML = tiles.map(function(t){
-      var c = t[2]==='gold'?'var(--gold)':t[2]==='lime'?'var(--lime)':t[2]==='red'?'var(--red)':'var(--text)';
+      var c = t[2]==='gold'?'var(--gold)':t[2]==='lime'?'var(--lime)':t[2]==='red'?'var(--red)':t[2]==='sky'?'var(--sky)':'var(--text)';
       return '<div class="tile"><div class="k">'+t[0]+'</div><div class="v" style="color:'+c+'">'+t[1]+'</div></div>';
     }).join('');
 
@@ -191,8 +215,36 @@
       return r.type===FILTER;
     });
     var host=document.getElementById('list');
-    if(!rows.length){ host.innerHTML='<div class="empty">No submissions'+(FILTER!=='all'?' in this view':' yet')+'.</div>'; return; }
-    host.innerHTML = rows.map(cardHTML).join('');
+    if(!rows.length){ host.innerHTML='<div class="empty">No submissions'+(FILTER!=='all'?' in this view':' yet')+'.</div>'; }
+    else { host.innerHTML = rows.map(cardHTML).join(''); }
+    renderSponsors();
+  }
+
+  // Sponsors on the board (incl. seeded "tap to edit" placeholders and any
+  // duplicates). These can be removed directly here — handy for the leftovers
+  // that aren't tied to a submission.
+  function renderSponsors(){
+    var box=document.getElementById('sponsorsBox');
+    var sponsors=(EVENT&&Array.isArray(EVENT.sponsors))?EVENT.sponsors:[];
+    if(!sponsors.length){ box.innerHTML=''; return; }
+    var rows=sponsors.map(function(s){
+      var where = s.tier==='hole' && s.hole ? (' · Hole '+s.hole) : '';
+      var placeholder = /tap to edit/i.test(s.name||'');
+      return '<div class="status" style="justify-content:space-between">'
+        +'<span class="lbl" style="flex:1">'+esc(s.name)+' <span style="opacity:.6">('+esc(s.tier)+where+')</span>'
+        + (placeholder?' <span style="color:var(--gold)">placeholder</span>':'') +'</span>'
+        +'<button class="del" onclick="delSponsor(\''+s.id+'\')">Remove</button></div>';
+    }).join('');
+    box.innerHTML='<div class="card"><div class="rowtop"><span class="company">Sponsors on the board</span></div>'
+      +'<div class="hint" style="margin:2px 0 8px">Remove any that aren\'t real — placeholders or duplicates.</div>'
+      + rows + '</div>';
+  }
+  async function delSponsor(id){
+    if(!confirm('Remove this sponsor from the board?')) return;
+    try{
+      var r=await authFetch(CFG.api+'/tournaments/'+EVENT.id+'/sponsors/'+id,{method:'DELETE'});
+      if(r.ok){ EVENT=await r.json(); render(); }
+    }catch(e){}
   }
 
   function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
@@ -204,7 +256,7 @@
     if(r.type==='team'){
       var teams=Array.isArray(p.teams)?p.teams:[];
       detail = '<div class="players">'+teams.map(function(t,ti){
-        return (t.players||[]).map(function(pl){ return '<div class="pl">T'+(ti+1)+': '+esc(pl.name)+(pl.handicap?(' ('+pl.handicap+')'):'')+'</div>'; }).join('');
+        return (t.players||[]).map(function(pl){ var ic=phoneIcon(pl.phone); return '<div class="pl">T'+(ti+1)+': '+esc(pl.name)+(pl.handicap?(' ('+pl.handicap+')'):'')+(ic?(' '+ic):'')+'</div>'; }).join('');
       }).join('')+'</div>';
     } else if(r.type==='hole'){
       detail = '<div class="meta">Hole preference: <b>'+(p.holePreference||'any')+'</b></div>';
@@ -212,6 +264,9 @@
       detail = p.prizeType==='cash'
         ? '<div class="meta">Cash prize: <b>'+esc(p.cashAmount||'')+'</b></div>'
         : '<div class="meta">Item prize(s): <b>'+esc((p.prizes||[]).join(', ')||'—')+'</b></div>';
+    }
+    if((r.type==='hole'||r.type==='prize') && p.logo){
+      detail += '<div style="margin-top:8px"><img src="'+p.logo+'" alt="logo" style="height:60px;background:#fff;border-radius:8px;padding:5px"/></div>';
     }
     var contact='<div class="meta"><b>'+esc(r.contactPerson||'')+'</b> · '+esc(r.cell||'')+' · '+esc(r.email||'')
       +'<br>'+[r.regNumber?('Reg '+esc(r.regNumber)):'', r.vatNumber?('VAT '+esc(r.vatNumber)):'', esc([r.address,r.city,r.postalCode].filter(Boolean).join(', '))].filter(Boolean).join(' · ')+'</div>';
@@ -228,29 +283,79 @@
       +'</div>';
   }
 
+  // ---- admin PIN --------------------------------------------------------
+  function loadPin(){ CFG.pin = lsGet('ecs_pin_'+CFG.code) || ''; }
+  function savePin(p){ CFG.pin=p; lsSet('ecs_pin_'+CFG.code, p); }
+  // fetch that carries the admin PIN; on a 403 it asks for the PIN once and retries.
+  async function authFetch(url, opts){
+    opts = opts||{}; opts.headers = Object.assign({}, opts.headers||{});
+    if(CFG.pin) opts.headers['x-admin-pin']=CFG.pin;
+    var r = await fetch(url, opts);
+    if(r.status===403){
+      var p = prompt('Enter the organiser admin PIN to make changes:');
+      if(p==null) return r;
+      savePin(p.trim()); opts.headers['x-admin-pin']=CFG.pin;
+      r = await fetch(url, opts);
+      if(!r.ok){ alert('That PIN was not accepted.'); }
+    }
+    return r;
+  }
+  async function setAdminPin(){
+    var cur = EVENT.hasAdminPin ? (CFG.pin || (prompt('Enter the CURRENT PIN:')||'').trim()) : '';
+    var np = (prompt(EVENT.hasAdminPin ? 'Enter a NEW admin PIN (4–8 digits):'
+      : 'Set an admin PIN (4–8 digits). Only people with this PIN can approve, delete or edit.')||'').trim();
+    if(!np) return;
+    if(!/^\d{4,8}$/.test(np)){ alert('PIN must be 4–8 digits.'); return; }
+    try{
+      var r=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/admin-pin',{method:'PUT',
+        headers:{'Content-Type':'application/json','x-admin-pin':cur},
+        body:JSON.stringify({pin:np,currentPin:cur})});
+      if(r.ok){ savePin(np); EVENT=await r.json(); alert('Admin PIN saved.'); render(); }
+      else { var e=await r.json().catch(function(){return {};}); alert(e.error||'Could not set the PIN.'); }
+    }catch(e){ alert('Could not set the PIN.'); }
+  }
+  function renderAdminBar(){
+    var bar=document.getElementById('adminBar'); if(!bar||!EVENT) return;
+    if(EVENT.hasAdminPin){
+      var unlocked = !!CFG.pin;
+      bar.innerHTML = '<div class="card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+        +'<span>'+(unlocked?'🔓 Admin unlocked on this device':'🔒 Admin locked — enter the PIN to make changes')+'</span>'
+        +(unlocked?'':'<button class="btn" onclick="(async()=>{var p=(prompt(\'Enter the organiser admin PIN:\')||\'\').trim(); if(p){savePin(p); render();}})()">Unlock</button>')
+        +'<button class="sbtn" onclick="setAdminPin()">Change PIN</button></div>';
+    } else {
+      bar.innerHTML = '<div class="card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+        +'<span style="color:var(--gold)">⚠️ No admin PIN set — anyone with the code can make changes.</span>'
+        +'<button class="btn" onclick="setAdminPin()">Set admin PIN</button></div>';
+    }
+  }
+
   async function setStatus(id,status){
     try{
-      var r=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:status})});
+      var r=await authFetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:status})});
       if(r.ok){ var row=REGS.find(x=>x.id===id); if(row) row.status=status; render(); }
     }catch(e){}
   }
   async function delReg(id){
-    if(!confirm('Delete this submission? (Players/sponsors already imported are not removed.)')) return;
+    if(!confirm('Delete this submission? Any sponsor it added on the board is removed too.')) return;
     try{
-      var r=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations/'+id,{method:'DELETE'});
-      if(r.ok){ REGS=REGS.filter(x=>x.id!==id); render(); }
+      var r=await authFetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations/'+id,{method:'DELETE'});
+      if(r.ok){ await load(false); } // reload so cascade-removed sponsors drop off the board too
     }catch(e){}
   }
 
   function exportCsv(){
-    var cols=['type','company','contactPerson','cell','email','regNumber','vatNumber','address','city','postalCode','details','amount','reference','status','submitted'];
+    var cols=['type','company','contactPerson','cell','email','regNumber','vatNumber','address','city','postalCode','details','apple','android','amount','reference','status','submitted'];
     var lines=[cols.join(',')];
     REGS.forEach(function(r){
       var p=r.payload||{};
-      var details = r.type==='team' ? (teamCount(r)+' team(s): '+ (Array.isArray(p.teams)?p.teams.map(function(t){return (t.players||[]).map(function(x){return x.name;}).join('/');}).join(' | '):''))
+      var details = r.type==='team' ? (teamCount(r)+' team(s): '+ (Array.isArray(p.teams)?p.teams.map(function(t){return (t.players||[]).map(function(x){return x.name+(x.phone?(' ['+x.phone+']'):'');}).join('/');}).join(' | '):''))
         : r.type==='hole' ? ('hole pref '+(p.holePreference||'any'))
         : (p.prizeType==='cash'?('cash '+(p.cashAmount||'')):('items '+((p.prizes||[]).join('/'))));
-      var vals=[r.type,r.company,r.contactPerson,r.cell,r.email,r.regNumber,r.vatNumber,r.address,r.city,r.postalCode,details,amountFor(r),'ECS Golf Day - '+r.company,r.status,r.createdAt];
+      var apple=0, android=0;
+      if(r.type==='team' && Array.isArray(p.teams)){
+        p.teams.forEach(function(t){ (t.players||[]).forEach(function(x){ if(x.phone==='apple')apple++; else if(x.phone==='android')android++; }); });
+      }
+      var vals=[r.type,r.company,r.contactPerson,r.cell,r.email,r.regNumber,r.vatNumber,r.address,r.city,r.postalCode,details,apple,android,amountFor(r),'ECS Golf Day - '+r.company,r.status,r.createdAt];
       lines.push(vals.map(function(v){ v=(v==null?'':String(v)); return '"'+v.replace(/"/g,'""')+'"'; }).join(','));
     });
     var blob=new Blob([lines.join('\n')],{type:'text/csv'});

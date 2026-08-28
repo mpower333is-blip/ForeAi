@@ -1,13 +1,17 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { Screen, Card, Button, Segmented, Stepper, StatTile } from "../components/ui";
+import { Screen, Card, Button, Segmented, MetreStepper, KmhStepper, StatTile } from "../components/ui";
 import { colors, spacing, type } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { useLocation } from "../hooks/useLocation";
 import HoleGps, { HoleMarks } from "../components/HoleGps";
 import ScoreCaptureCard from "../components/ScoreCaptureCard";
 import StatsEntry from "../components/StatsEntry";
-import { Coord } from "../lib/geo";
+import { useAutoShotTracker } from "../hooks/useAutoShotTracker";
+import { TEES } from "../data/courses";
+import { Coord, compass8 } from "../lib/geo";
+import { ydToM, mphToKmh, fToC } from "../lib/units";
+import { fetchWeather, windForShot } from "../services/weather";
 import {
   recommendClub,
   Surface,
@@ -44,6 +48,8 @@ export default function PlayScreen({ navigation }: any) {
     holeStats,
     setHoleStat,
     bag,
+    teeId,
+    setTee,
   } = useRound();
 
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
@@ -51,6 +57,10 @@ export default function PlayScreen({ navigation }: any) {
   const [distance, setDistance] = useState(hole.yards);
   const [surface, setSurface] = useState<Surface>("tee");
   const [wind, setWind] = useState(0);
+  const [elevation, setElevation] = useState(0); // yards up(+)/down(-) to the target
+  const [temp, setTemp] = useState(70); // °F, filled by live weather
+  const [wxNote, setWxNote] = useState<string | null>(null);
+  const [wxBusy, setWxBusy] = useState(false);
   const [result, setResult] = useState(140); // distance remaining after the shot
 
   // On-course GPS: tee/pin marks per hole feed the rangefinder.
@@ -68,18 +78,68 @@ export default function PlayScreen({ navigation }: any) {
 
   const holeShots = shotsForHole(currentHole);
 
+  // When you switch tees, the hole length changes — reset the caddie's target
+  // to the new tee's yardage for this hole.
+  useEffect(() => {
+    setDistance(hole.yards);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teeId]);
+
+  // Hands-free automatic shot logging. When on, the phone (in your pocket) or a
+  // paired watch detects each swing and GPS reconstructs the shot — no tapping.
+  const [autoTrack, setAutoTrack] = useState(false);
+  const auto = useAutoShotTracker({
+    enabled: autoTrack,
+    hole: currentHole,
+    coord: loc.coord,
+    greenCoord: hole.green,
+    bag: effectiveBag,
+    selectedClub: null, // inferred from carry; the watch will set this later
+    onShot: (s) => logShot(s),
+  });
+
   const rec = useMemo(
     () =>
       recommendClub(
         {
           yardage: distance,
           windSpeed: wind,
+          elevation,
+          temperature: temp,
           lie: surface === "green" ? "fairway" : (surface as Lie),
         },
         effectiveBag
       ),
-    [distance, wind, surface, effectiveBag]
+    [distance, wind, elevation, temp, surface, effectiveBag]
   );
+
+  // Live weather: fill temperature, and — because we're on the course — turn the
+  // wind into a real head/tail component along the line to the pin when we have
+  // a pin GPS mark. Without a pin mark we fall back to the raw wind speed.
+  const useLiveWeather = async () => {
+    if (wxBusy) return;
+    const here = loc.coord;
+    if (!here) {
+      setWxNote("Turn on location to use live weather.");
+      return;
+    }
+    setWxBusy(true);
+    const w = await fetchWeather(here);
+    setWxBusy(false);
+    if (!w) {
+      setWxNote("Couldn't reach the weather service — check your connection.");
+      return;
+    }
+    setTemp(w.tempF);
+    const pin = pinMarks[gpsKey];
+    if (pin) {
+      setWind(windForShot(w, here, pin));
+      setWxNote(`${mphToKmh(w.windMph)} km/h from ${compass8(w.windFromDeg)} · ${fToC(w.tempF)}°C — head/tail set for this pin`);
+    } else {
+      setWind(w.windMph);
+      setWxNote(`${mphToKmh(w.windMph)} km/h from ${compass8(w.windFromDeg)} · ${fToC(w.tempF)}°C — mark the pin for auto head/tail`);
+    }
+  };
 
   const lieForSurface = (s: Surface): Lie =>
     s === "green" ? "fairway" : (s as Lie);
@@ -129,11 +189,31 @@ export default function PlayScreen({ navigation }: any) {
         </View>
       </View>
 
+      <View style={styles.teeRow}>
+        <Text style={styles.teeLabel}>Tees</Text>
+        <View style={styles.teeChips}>
+          {TEES.map((t) => {
+            const on = t.id === teeId;
+            return (
+              <TouchableOpacity
+                key={t.id}
+                onPress={() => setTee(t.id)}
+                style={[styles.teeChip, on && styles.teeChipOn]}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.teeChipName, on && styles.teeChipNameOn]}>{t.name}</Text>
+                <Text style={[styles.teeChipWho, on && styles.teeChipWhoOn]}>{t.who}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.holeLabel}>Hole {hole.number}</Text>
           <Text style={styles.holeMeta}>
-            Par {hole.par} • {hole.yards} yds
+            Par {hole.par} • {ydToM(hole.yards)} m
           </Text>
         </View>
         <View style={styles.navBtns}>
@@ -158,12 +238,51 @@ export default function PlayScreen({ navigation }: any) {
         }}
       />
 
+      <Card>
+        <View style={styles.autoRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.autoTitle}>🎯 Auto-track shots</Text>
+            <Text style={styles.autoHint}>
+              {autoTrack
+                ? auto.micOk === false
+                  ? "Microphone off — enable it so the app can hear the ball strike."
+                  : !loc.coord
+                  ? "Waiting for GPS… turn on location."
+                  : auto.awaitingMove
+                  ? "Strike heard — walk to your ball and hit again to log it."
+                  : auto.listening
+                  ? "Listening for the ball strike. Keep the phone in your pocket (or use your ForeAi watch)."
+                  : "Starting the microphone…"
+                : "Hands-free: the app listens for the ball strike (not practice swings) and uses GPS to log the shot and its club."}
+            </Text>
+          </View>
+          <Button
+            label={autoTrack ? "On" : "Off"}
+            variant={autoTrack ? "primary" : "ghost"}
+            onPress={() => setAutoTrack((v) => !v)}
+          />
+        </View>
+        {autoTrack && (
+          <Text style={styles.autoStat}>
+            {auto.shotsThisHole} shot{auto.shotsThisHole === 1 ? "" : "s"} this hole
+            {auto.lastCarryYards != null ? ` · last ${ydToM(auto.lastCarryYards)} m` : ""}
+            {` · ${auto.swingsThisHole} swings`}
+          </Text>
+        )}
+        <Button
+          variant="ghost"
+          label="⌚ Set up your watch"
+          onPress={() => navigation.navigate("WatchSetup")}
+        />
+      </Card>
+
+      {/* Strokes-gained shot tracking: AI Caddie recommendation + shot log. */}
       <Card accent>
         <Text style={styles.recTop}>AI Caddie says</Text>
         <View style={styles.recRow}>
           <Text style={styles.recClub}>{rec.club}</Text>
           <View style={styles.recRight}>
-            <Text style={styles.recYards}>plays {rec.playingYards} yds</Text>
+            <Text style={styles.recYards}>plays {ydToM(rec.playingYards)} m</Text>
             <Text style={[styles.recConf, confColor(rec.confidence)]}>
               {rec.confidence} confidence
             </Text>
@@ -177,23 +296,35 @@ export default function PlayScreen({ navigation }: any) {
       </Card>
 
       <Card>
-        <Stepper label="Distance to target" value={distance} onChange={setDistance} step={5} unit="yds" />
+        <MetreStepper label="Distance to target" value={distance} onChange={setDistance} stepM={5} />
         <Segmented label="Lie" options={SURFACES} value={surface} onChange={setSurface} />
-        <Stepper
+        <Button
+          variant="ghost"
+          label={wxBusy ? "Getting weather…" : "🌤 Use live weather"}
+          onPress={useLiveWeather}
+        />
+        {wxNote && <Text style={styles.wxNote}>{wxNote}</Text>}
+        <KmhStepper
           label="Wind (+ into / − down)"
           value={wind}
           onChange={setWind}
-          step={2}
+          stepKmh={3}
           min={-40}
           max={40}
-          unit="mph"
         />
-        <Stepper
+        <MetreStepper
+          label="Elevation (+ up / − down)"
+          value={elevation}
+          onChange={setElevation}
+          stepM={2}
+          min={-40}
+          max={40}
+        />
+        <MetreStepper
           label="Distance remaining after shot"
           value={result}
           onChange={setResult}
-          step={5}
-          unit="yds"
+          stepM={5}
         />
         <View style={styles.logRow}>
           <Button label="Log Shot" onPress={() => onLogShot(false)} style={{ flex: 1 }} />
@@ -219,7 +350,7 @@ export default function PlayScreen({ navigation }: any) {
           {holeShots.map((s, i) => (
             <View key={s.id} style={styles.shotLine}>
               <Text style={styles.shotText}>
-                {i + 1}. {s.club} · {s.startYards}→{s.holed ? "🏁" : `${s.endYards} yds`}
+                {i + 1}. {s.club} · {ydToM(s.startYards)}→{s.holed ? "🏁" : `${ydToM(s.endYards)} m`}
               </Text>
               <Text style={[styles.shotSG, { color: s.strokesGained >= 0 ? colors.positive : colors.negative }]}>
                 {signed(s.strokesGained)}
@@ -354,6 +485,11 @@ const styles = StyleSheet.create({
   recConf: { fontSize: 13, fontWeight: "700", marginTop: 2 },
   recNote: { color: colors.textMuted, fontSize: 14, marginTop: 6, lineHeight: 20 },
 
+  wxNote: { color: colors.accent, fontSize: 13, fontWeight: "600", marginTop: 8, marginBottom: 2 },
+  autoRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  autoTitle: { color: colors.text, fontSize: 16, fontWeight: "800" },
+  autoHint: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 2 },
+  autoStat: { color: colors.accent, fontSize: 13, fontWeight: "700", marginTop: spacing.sm },
   logRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   grid: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
   sectionTitle: { ...(type.h2 as any), color: colors.text },
@@ -382,6 +518,24 @@ const styles = StyleSheet.create({
   courseName: { color: colors.text, fontSize: 15, fontWeight: "700", flexShrink: 1, marginRight: 8 },
   courseActions: { flexDirection: "row", gap: 16 },
   courseChange: { color: colors.accent, fontSize: 14, fontWeight: "600" },
+
+  teeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
+  teeLabel: { color: colors.textMuted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1 },
+  teeChips: { flexDirection: "row", gap: 6, flex: 1 },
+  teeChip: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  teeChipOn: { borderColor: colors.accent, backgroundColor: colors.surfaceAlt },
+  teeChipName: { color: colors.textMuted, fontSize: 13, fontWeight: "800" },
+  teeChipNameOn: { color: colors.accent },
+  teeChipWho: { color: colors.textFaint, fontSize: 10 },
+  teeChipWhoOn: { color: colors.text },
 
   cardTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm },
   scoreTotal: { color: colors.text, fontSize: 18, fontWeight: "800" },

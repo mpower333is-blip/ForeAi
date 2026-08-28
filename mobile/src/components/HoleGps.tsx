@@ -2,7 +2,8 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Card, Button } from "./ui";
 import { colors, spacing, radius } from "../theme";
-import { Coord, distanceYards, greenDistances } from "../lib/geo";
+import { Coord, distanceYards, greenDistancesMeters } from "../lib/geo";
+import { ydToM } from "../lib/units";
 import { LocationState } from "../hooks/useLocation";
 
 export type HoleMarks = { tee?: Coord; pin?: Coord };
@@ -55,7 +56,7 @@ export default function HoleGps({
   // green GPS and we have a live fix.
   const fmb =
     coord && greenFront && greenBack
-      ? greenDistances(coord, { greenFront, green: greenCoord, greenBack })
+      ? greenDistancesMeters(coord, { greenFront, green: greenCoord, greenBack })
       : null;
 
   const teeToPin =
@@ -84,38 +85,38 @@ export default function HoleGps({
           <View style={styles.distCol}>
             <Text style={styles.distLabel}>Front</Text>
             <Text style={styles.distValueSm}>{fmb.front ?? "–"}</Text>
-            <Text style={styles.distUnit}>yds</Text>
+            <Text style={styles.distUnit}>m</Text>
           </View>
           <View style={[styles.distCol, styles.distColMid]}>
             <Text style={styles.distLabel}>Middle</Text>
             <Text style={[styles.distValue, { color: colors.accent }]}>{fmb.middle ?? "–"}</Text>
-            <Text style={styles.distUnit}>yds · auto GPS</Text>
+            <Text style={styles.distUnit}>m · auto GPS</Text>
           </View>
           <View style={styles.distCol}>
             <Text style={styles.distLabel}>Back</Text>
             <Text style={styles.distValueSm}>{fmb.back ?? "–"}</Text>
-            <Text style={styles.distUnit}>yds</Text>
+            <Text style={styles.distUnit}>m</Text>
           </View>
         </View>
       ) : (
         <View style={styles.distRow}>
           <View style={styles.distCol}>
             <Text style={styles.distLabel}>Tee → Pin</Text>
-            <Text style={styles.distValue}>{teeToPin}</Text>
-            <Text style={styles.distUnit}>yds{marks.pin && marks.tee ? " (gps)" : ""}</Text>
+            <Text style={styles.distValue}>{ydToM(teeToPin)}</Text>
+            <Text style={styles.distUnit}>m{marks.pin && marks.tee ? " (gps)" : ""}</Text>
           </View>
           <View style={styles.distCol}>
             <Text style={styles.distLabel}>To Pin now</Text>
             <Text style={[styles.distValue, { color: colors.accent }]}>
-              {toPin != null ? toPin : "–"}
+              {toPin != null ? ydToM(toPin) : "–"}
             </Text>
             <Text style={styles.distUnit}>
               {source === "auto"
-                ? "yds · auto GPS"
+                ? "m · auto GPS"
                 : source === "pin"
-                ? "yds (gps)"
+                ? "m (gps)"
                 : source === "estimate"
-                ? "yds (est)"
+                ? "m (est)"
                 : "mark to start"}
             </Text>
           </View>
@@ -144,13 +145,13 @@ export default function HoleGps({
       )}
 
       {toPin != null && (
-        <Button label={`Play from here → ${toPin} yds`} onPress={() => onPlayFromHere(toPin!)} />
+        <Button label={`Play from here → ${ydToM(toPin)} m`} onPress={() => onPlayFromHere(toPin!)} />
       )}
 
       <Text style={styles.note}>
         {greenCoord
           ? "Distance to the pin is automatic from this course's GPS data."
-          : "No GPS map for this course, so distances calibrate from the tee/pin you mark — mark the pin from the green once for exact yardage."}
+          : "No GPS map for this course, so distances calibrate from the tee/pin you mark — mark the pin from the green once for exact distance."}
       </Text>
     </Card>
   );

@@ -12,13 +12,27 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radius, spacing, type, shadow, gradients } from "../theme";
+import {
+  ydToM,
+  mToYd,
+  DIST_UNIT,
+  mphToKmh,
+  kmhToMph,
+  WIND_UNIT,
+  fToC,
+  cToF,
+  TEMP_UNIT,
+} from "../lib/units";
 
 export function Screen({ children }: { children: React.ReactNode }) {
+  // Push content below the status bar / notch so headers aren't cut off.
+  const insets = useSafeAreaInsets();
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.screenContent}
+      contentContainerStyle={[styles.screenContent, { paddingTop: insets.top + spacing.lg }]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
@@ -362,6 +376,95 @@ export function Stepper({
         </TouchableOpacity>
       </View>
     </View>
+  );
+}
+
+// A distance stepper that stores YARDS but shows/edits METRES. `value`, `onChange`,
+// `min` and `max` are all in yards — identical to Stepper — so callers keep their
+// yard-based state and the golf engine sees yards, while the player sees metres.
+export function MetreStepper({
+  label,
+  value,
+  onChange,
+  stepM = 5,
+  min = 0,
+  max = 9999,
+}: {
+  label: string;
+  value: number; // yards
+  onChange: (yards: number) => void;
+  stepM?: number; // step size in metres
+  min?: number; // yards
+  max?: number; // yards
+}) {
+  return (
+    <Stepper
+      label={label}
+      value={ydToM(value)}
+      onChange={(m) => onChange(mToYd(m))}
+      step={stepM}
+      min={ydToM(min)}
+      max={ydToM(max)}
+      unit={DIST_UNIT}
+    />
+  );
+}
+
+// A wind stepper that stores MPH (what the engine wants) but shows/edits km/h.
+export function KmhStepper({
+  label,
+  value,
+  onChange,
+  stepKmh = 5,
+  min = 0,
+  max = 9999,
+}: {
+  label: string;
+  value: number; // mph
+  onChange: (mph: number) => void;
+  stepKmh?: number;
+  min?: number; // mph
+  max?: number; // mph
+}) {
+  return (
+    <Stepper
+      label={label}
+      value={mphToKmh(value)}
+      onChange={(k) => onChange(kmhToMph(k))}
+      step={stepKmh}
+      min={mphToKmh(min)}
+      max={mphToKmh(max)}
+      unit={WIND_UNIT}
+    />
+  );
+}
+
+// A temperature stepper that stores °F (engine baseline) but shows/edits °C.
+export function CelsiusStepper({
+  label,
+  value,
+  onChange,
+  stepC = 2,
+  min = 0,
+  max = 9999,
+}: {
+  label: string;
+  value: number; // °F
+  onChange: (f: number) => void;
+  stepC?: number;
+  min?: number; // °F
+  max?: number; // °F
+}) {
+  return (
+    <Stepper
+      label={label}
+      value={fToC(value)}
+      onChange={(c) => onChange(cToF(c))}
+      step={stepC}
+      min={fToC(min)}
+      max={fToC(max)}
+      unit={TEMP_UNIT}
+    />
   );
 }
 

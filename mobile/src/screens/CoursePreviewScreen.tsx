@@ -6,6 +6,7 @@ import { getCourse, frontNinePar, backNinePar } from "../data/courses";
 import { useRound } from "../state/RoundContext";
 import HoleDiagram from "../components/HoleDiagram";
 import SatelliteHole from "../components/SatelliteHole";
+import { ydToM } from "../lib/units";
 
 export default function CoursePreviewScreen({ navigation, route }: any) {
   const { courseId, setCourse, setCurrentHole } = useRound();
@@ -95,7 +96,7 @@ export default function CoursePreviewScreen({ navigation, route }: any) {
 
       <View style={styles.grid}>
         <StatTile label="Par" value={`${hole.par}`} tone="neutral" />
-        <StatTile label="Yards" value={`${hole.yards}`} />
+        <StatTile label="Metres" value={`${ydToM(hole.yards)}`} />
         <StatTile label="Stroke Index" value={`${hole.si}`} tone="neutral" />
       </View>
 

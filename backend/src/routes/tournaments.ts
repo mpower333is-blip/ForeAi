@@ -37,6 +37,9 @@ function serialize(t: NonNullable<LoadedTournament>) {
   return {
     id: t.id,
     code: t.code,
+    // Never expose the PIN itself — only whether one is set, so clients know to
+    // ask for it before admin actions.
+    hasAdminPin: t.adminPin != null && t.adminPin !== "",
     name: t.name,
     courseId: t.courseId,
     format: t.format,
@@ -44,12 +47,14 @@ function serialize(t: NonNullable<LoadedTournament>) {
     intervalMin: t.intervalMin,
     shotgun: t.shotgun,
     cause: t.cause,
+    causePhoto: t.causePhoto,
     sponsors: t.sponsors.map((s) => ({
       id: s.id,
       name: s.name,
       tier: s.tier,
       hole: s.hole,
       message: s.message,
+      logo: s.logo,
     })),
     players: t.players.map((p) => ({
       id: p.id,
@@ -57,6 +62,9 @@ function serialize(t: NonNullable<LoadedTournament>) {
       handicap: p.handicap,
       deviceId: p.deviceId,
       groupId: p.groupId,
+      lastSeen: p.lastSeen ? p.lastSeen.getTime() : null,
+      lat: p.lat,
+      lng: p.lng,
     })),
     groups: t.groups.map((g) => ({
       id: g.id,
@@ -80,10 +88,36 @@ async function respondWithEvent(id: string, res: any) {
   res.json(serialize(t));
 }
 
+// Reject an admin action unless it carries the event's PIN. Backward-compatible:
+// if the event has no PIN set (legacy/unset), the action is allowed. Once a PIN
+// is set, the `x-admin-pin` header must match. Returns true if the request may
+// proceed; otherwise it has already sent a 403 and the caller should return.
+function requireAdminPin(t: { adminPin: string | null }, req: any, res: any): boolean {
+  if (!t.adminPin) return true; // no PIN configured yet — open
+  const given = String(req.header("x-admin-pin") ?? req.body?.adminPin ?? "");
+  if (given && given === t.adminPin) return true;
+  res.status(403).json({ error: "Admin PIN required", needsPin: true });
+  return false;
+}
+
+// Load the tournament by :id and enforce its admin PIN. Returns true if the
+// request may proceed (already responded 403/404 otherwise).
+async function gateAdmin(req: any, res: any): Promise<boolean> {
+  const t = await prisma.tournament.findUnique({
+    where: { id: req.params.id },
+    select: { adminPin: true },
+  });
+  if (!t) {
+    res.status(404).json({ error: "Tournament not found" });
+    return false;
+  }
+  return requireAdminPin(t, req, res);
+}
+
 // Create an event, returning a join code that other devices use.
 router.post("/", async (req, res) => {
   try {
-    const { name, courseId, format, firstTeeMin, intervalMin, shotgun } = req.body;
+    const { name, courseId, format, firstTeeMin, intervalMin, shotgun, adminPin } = req.body;
     if (!name || !courseId) {
       return res.status(400).json({ error: "name and courseId are required" });
     }
@@ -101,6 +135,7 @@ router.post("/", async (req, res) => {
             firstTeeMin: firstTeeMin ?? 480,
             intervalMin: intervalMin ?? 10,
             shotgun: !!shotgun,
+            adminPin: adminPin ? String(adminPin) : null,
           },
         });
       } catch {
@@ -129,9 +164,31 @@ router.get("/code/:code", async (req, res) => {
   res.json(serialize(t));
 });
 
+// Set or change the organiser admin PIN. If no PIN is set yet, this claims it
+// (first organiser to set it). If one is already set, the current PIN must be
+// supplied (header x-admin-pin or body.currentPin) to change it.
+router.put("/:id/admin-pin", async (req, res) => {
+  const t = await prisma.tournament.findUnique({
+    where: { id: req.params.id },
+    select: { adminPin: true },
+  });
+  if (!t) return res.status(404).json({ error: "Tournament not found" });
+  const newPin = String(req.body?.pin ?? "").trim();
+  if (!/^\d{4,8}$/.test(newPin)) {
+    return res.status(400).json({ error: "PIN must be 4–8 digits" });
+  }
+  if (t.adminPin) {
+    const given = String(req.header("x-admin-pin") ?? req.body?.currentPin ?? "");
+    if (given !== t.adminPin) return res.status(403).json({ error: "Current PIN required", needsPin: true });
+  }
+  await prisma.tournament.update({ where: { id: req.params.id }, data: { adminPin: newPin } });
+  await respondWithEvent(req.params.id, res);
+});
+
 // Update event settings.
 router.patch("/:id", async (req, res) => {
-  const { name, format, firstTeeMin, intervalMin, shotgun, cause } = req.body;
+  if (!(await gateAdmin(req, res))) return;
+  const { name, format, firstTeeMin, intervalMin, shotgun, cause, causePhoto } = req.body;
   await prisma.tournament.update({
     where: { id: req.params.id },
     data: {
@@ -141,6 +198,7 @@ router.patch("/:id", async (req, res) => {
       ...(intervalMin != null ? { intervalMin } : {}),
       ...(shotgun != null ? { shotgun: !!shotgun } : {}),
       ...(cause !== undefined ? { cause } : {}),
+      ...(causePhoto !== undefined ? { causePhoto } : {}),
     },
   });
   await respondWithEvent(req.params.id, res);
@@ -167,6 +225,28 @@ router.delete("/:id/players/:playerId", async (req, res) => {
   await respondWithEvent(req.params.id, res);
 });
 
+// Heartbeat: a player's phone marks itself "live" and (optionally) shares its
+// GPS position. Called every ~40s while the event is open so the organiser can
+// see who's on the app and roughly where each team is. Kept lightweight — the
+// 6-second full-state poll is what fans the presence out to other devices.
+router.put("/:id/players/:playerId/ping", async (req, res) => {
+  const { lat, lng } = req.body ?? {};
+  try {
+    await prisma.tournamentPlayer.update({
+      where: { id: req.params.playerId },
+      data: {
+        lastSeen: new Date(),
+        ...(typeof lat === "number" ? { lat } : {}),
+        ...(typeof lng === "number" ? { lng } : {}),
+      },
+    });
+    res.json({ ok: true });
+  } catch {
+    // Player may have been removed — don't error the heartbeat.
+    res.json({ ok: false });
+  }
+});
+
 // Assign / unassign a player to a group (groupId null = unassigned).
 router.patch("/:id/players/:playerId", async (req, res) => {
   await prisma.tournamentPlayer.update({
@@ -174,6 +254,74 @@ router.patch("/:id/players/:playerId", async (req, res) => {
     data: { groupId: req.body.groupId ?? null },
   });
   await respondWithEvent(req.params.id, res);
+});
+
+// Link this device to an existing (pre-registered) player — "I am this player".
+// Sending a null/empty deviceId releases the link instead. A device can only be
+// linked to one player per event, so any prior link for this device is cleared
+// first (one phone = one player).
+router.put("/:id/players/:playerId/claim", async (req, res) => {
+  const raw = (req.body ?? {}).deviceId;
+  const deviceId = raw ? String(raw) : null;
+  if (deviceId) {
+    await prisma.tournamentPlayer.updateMany({
+      where: { tournamentId: req.params.id, deviceId },
+      data: { deviceId: null },
+    });
+  }
+  await prisma.tournamentPlayer.update({
+    where: { id: req.params.playerId },
+    data: { deviceId },
+  });
+  await respondWithEvent(req.params.id, res);
+});
+
+// Shot marks — the watch posts a swing mark (its GPS + the chosen club + hole)
+// as you play; the phone polls them to log shots hands-free with the phone in
+// the cart. Append-only and lightweight (no full-event serialization).
+router.post("/:id/players/:playerId/marks", async (req, res) => {
+  const { club, lat, lng, hole, source } = req.body ?? {};
+  try {
+    const mark = await prisma.tournamentShotMark.create({
+      data: {
+        tournamentId: req.params.id,
+        playerId: req.params.playerId,
+        club: club ? String(club) : null,
+        hole: typeof hole === "number" ? hole : null,
+        lat: typeof lat === "number" ? lat : null,
+        lng: typeof lng === "number" ? lng : null,
+        source: source ? String(source) : "watch",
+      },
+    });
+    res.json({ id: mark.id, createdAt: mark.createdAt });
+  } catch {
+    res.status(400).json({ ok: false });
+  }
+});
+
+router.get("/:id/players/:playerId/marks", async (req, res) => {
+  const since =
+    typeof req.query.since === "string" ? new Date(req.query.since) : null;
+  const marks = await prisma.tournamentShotMark.findMany({
+    where: {
+      tournamentId: req.params.id,
+      playerId: req.params.playerId,
+      ...(since && !isNaN(since.getTime()) ? { createdAt: { gt: since } } : {}),
+    },
+    orderBy: { createdAt: "asc" },
+    take: 200,
+  });
+  res.json(
+    marks.map((m) => ({
+      id: m.id,
+      hole: m.hole,
+      club: m.club,
+      lat: m.lat,
+      lng: m.lng,
+      source: m.source,
+      createdAt: m.createdAt,
+    }))
+  );
 });
 
 router.post("/:id/groups", async (req, res) => {
@@ -211,7 +359,8 @@ router.put("/:id/scores", async (req, res) => {
 
 // Add a sponsor.
 router.post("/:id/sponsors", async (req, res) => {
-  const { name, tier, hole, message } = req.body;
+  if (!(await gateAdmin(req, res))) return;
+  const { name, tier, hole, message, logo } = req.body;
   if (!name || !tier) return res.status(400).json({ error: "name and tier are required" });
   await prisma.tournamentSponsor.create({
     data: {
@@ -220,12 +369,14 @@ router.post("/:id/sponsors", async (req, res) => {
       tier,
       hole: hole ?? null,
       message: message ?? null,
+      logo: logo ?? null,
     },
   });
   await respondWithEvent(req.params.id, res);
 });
 
 router.delete("/:id/sponsors/:sponsorId", async (req, res) => {
+  if (!(await gateAdmin(req, res))) return;
   await prisma.tournamentSponsor.delete({ where: { id: req.params.sponsorId } });
   await respondWithEvent(req.params.id, res);
 });
@@ -289,17 +440,18 @@ router.post("/code/:code/register/hole-sponsor", async (req, res) => {
   const b = req.body ?? {};
   if (!b.company) return res.status(400).json({ error: "Company name is required" });
 
-  await prisma.tournamentSponsor.create({
+  const holeSponsor = await prisma.tournamentSponsor.create({
     data: {
       tournamentId: t.id,
       name: b.company,
       tier: "hole",
       hole: b.holePreference != null && b.holePreference !== "" ? Number(b.holePreference) : null,
       message: contactMessage(b) || null,
+      logo: typeof b.logo === "string" && b.logo.startsWith("data:") ? b.logo : null,
     },
   });
   await prisma.tournamentRegistration.create({
-    data: { tournamentId: t.id, type: "hole", ...regColumns(b), payload: JSON.stringify(b) },
+    data: { tournamentId: t.id, type: "hole", ...regColumns(b), sponsorId: holeSponsor.id, payload: JSON.stringify(b) },
   });
   res.json({ ok: true });
 });
@@ -315,16 +467,17 @@ router.post("/code/:code/register/prize-sponsor", async (req, res) => {
     b.prizeType === "cash"
       ? `Cash: ${b.cashAmount ?? ""}`.trim()
       : (Array.isArray(b.prizes) ? b.prizes.filter(Boolean).join(", ") : "") || "Item prize";
-  await prisma.tournamentSponsor.create({
+  const prizeSponsor = await prisma.tournamentSponsor.create({
     data: {
       tournamentId: t.id,
       name: b.company,
       tier: "prize",
       message: [prizeBits, contactMessage(b)].filter(Boolean).join(" — ") || null,
+      logo: typeof b.logo === "string" && b.logo.startsWith("data:") ? b.logo : null,
     },
   });
   await prisma.tournamentRegistration.create({
-    data: { tournamentId: t.id, type: "prize", ...regColumns(b), payload: JSON.stringify(b) },
+    data: { tournamentId: t.id, type: "prize", ...regColumns(b), sponsorId: prizeSponsor.id, payload: JSON.stringify(b) },
   });
   res.json({ ok: true });
 });
@@ -340,6 +493,7 @@ router.get("/:id/registrations", async (req, res) => {
 
 // Office: update a submission's workflow status (new | paid | confirmed).
 router.patch("/:id/registrations/:regId", async (req, res) => {
+  if (!(await gateAdmin(req, res))) return;
   const { status } = req.body ?? {};
   const allowed = ["new", "paid", "confirmed"];
   if (!allowed.includes(status)) {
@@ -352,8 +506,14 @@ router.patch("/:id/registrations/:regId", async (req, res) => {
   res.json({ ...row, payload: safeJson(row.payload) });
 });
 
-// Office: remove a submission (does not remove already-imported players/sponsors).
+// Office: remove a submission. If it imported a sponsor (hole/prize), delete that
+// too so the board doesn't keep showing a sponsor whose entry was removed.
 router.delete("/:id/registrations/:regId", async (req, res) => {
+  if (!(await gateAdmin(req, res))) return;
+  const reg = await prisma.tournamentRegistration.findUnique({ where: { id: req.params.regId } });
+  if (reg?.sponsorId) {
+    await prisma.tournamentSponsor.delete({ where: { id: reg.sponsorId } }).catch(() => {});
+  }
   await prisma.tournamentRegistration.delete({ where: { id: req.params.regId } });
   res.json({ ok: true });
 });

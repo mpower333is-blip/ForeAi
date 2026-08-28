@@ -2,7 +2,7 @@ import "react-native-gesture-handler";
 import React from "react";
 import { Text, View, StatusBar, ActivityIndicator, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -12,12 +12,15 @@ import { TournamentProvider } from "./src/state/TournamentContext";
 import { GamesProvider } from "./src/state/GamesContext";
 import { PlanProvider, usePlan } from "./src/state/PlanContext";
 import { ProfileProvider, useProfile } from "./src/state/ProfileContext";
+import { CourseCoordsProvider } from "./src/state/CourseCoordsContext";
 import { UpgradeGate } from "./src/components/Upsell";
+import WatchShotSync from "./src/components/WatchShotSync";
 import { FeatureKey } from "./src/config/appConfig";
-import { IS_EVENT, APP_NAME } from "./src/config/appVariant";
+import { APP_NAME } from "./src/config/appVariant";
 import { colors } from "./src/theme";
 
 import Onboarding from "./src/screens/Onboarding";
+import OnCourseScreen from "./src/screens/OnCourseScreen";
 
 import HomeScreen from "./src/screens/HomeScreen";
 import PlayScreen from "./src/screens/PlayScreen";
@@ -31,6 +34,7 @@ import CourseSelectScreen from "./src/screens/CourseSelectScreen";
 import CoursePreviewScreen from "./src/screens/CoursePreviewScreen";
 import GamesScreen from "./src/screens/GamesScreen";
 import UpgradeScreen from "./src/screens/UpgradeScreen";
+import WatchSetupScreen from "./src/screens/WatchSetupScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -52,6 +56,7 @@ function locked(Comp: React.ComponentType<any>, feature: FeatureKey) {
 const ICONS: Record<string, string> = {
   Home: "⛳",
   Play: "🏌️",
+  Course: "📍",
   Coach: "🎥",
   Caddie: "🎒",
   Events: "🏆",
@@ -71,9 +76,12 @@ const navTheme = {
 };
 
 function Tabs() {
+  // Lift the tab bar above the Android navigation / gesture bar (and the iPhone
+  // home indicator) so the icons and labels aren't overlapped by the system UI.
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
-      initialRouteName={IS_EVENT ? "Events" : "Home"}
+      initialRouteName="Home"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
@@ -82,8 +90,8 @@ function Tabs() {
           backgroundColor: colors.bgElevated,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 66,
-          paddingBottom: 10,
+          height: 60 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
           paddingTop: 8,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: "700" },
@@ -94,24 +102,11 @@ function Tabs() {
         ),
       })}
     >
-      {IS_EVENT ? (
-        // ECS Golf Day app — golf-day only.
-        <>
-          <Tab.Screen name="Events" component={EventsScreen} options={{ title: "Golf Day" }} />
-          <Tab.Screen name="Coach" component={SwingScreen} />
-          <Tab.Screen name="Caddie" component={CaddieScreen} />
-          <Tab.Screen name="Profile" component={ProfileScreen} />
-        </>
-      ) : (
-        // Full ForeAi app.
-        <>
-          <Tab.Screen name="Home" component={HomeScreen} />
-          <Tab.Screen name="Play" component={locked(PlayScreen, "round")} options={{ title: "Round" }} />
-          <Tab.Screen name="Coach" component={SwingScreen} />
-          <Tab.Screen name="Events" component={EventsScreen} />
-          <Tab.Screen name="Profile" component={ProfileScreen} />
-        </>
-      )}
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Play" component={locked(PlayScreen, "round")} options={{ title: "Round" }} />
+      <Tab.Screen name="Coach" component={SwingScreen} />
+      <Tab.Screen name="Events" component={EventsScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
@@ -139,13 +134,18 @@ function Root() {
         }}
       >
         <Stack.Screen name="Tabs" component={Tabs} />
-        {/* Nested feature screens (surfaced from Home cards and the Profile hub).
-            In the event app, Caddie is a tab, and the Pro-only screens are omitted. */}
-        {!IS_EVENT && <Stack.Screen name="Caddie" component={CaddieScreen} />}
-        {!IS_EVENT && <Stack.Screen name="Stats" component={locked(StatsScreen, "stats")} />}
-        {!IS_EVENT && <Stack.Screen name="Strategy" component={locked(StrategyScreen, "strategy")} />}
-        {!IS_EVENT && <Stack.Screen name="Games" component={locked(GamesScreen, "games")} />}
+        {/* Nested feature screens (surfaced from Home cards, the Round screen and
+            the Profile hub). Registered in both builds — the event build is fully
+            unlocked, so the Round screen's links to these all work on the day. */}
+        <Stack.Screen name="Caddie" component={CaddieScreen} />
+        <Stack.Screen name="Stats" component={locked(StatsScreen, "stats")} />
+        <Stack.Screen name="Strategy" component={locked(StrategyScreen, "strategy")} />
+        <Stack.Screen name="Games" component={locked(GamesScreen, "games")} />
+        {/* On-course GPS + coordinate survey, reachable from Home in the full app
+            (it's also the "Course" tab in the event app). */}
+        <Stack.Screen name="Survey" component={OnCourseScreen} />
         <Stack.Screen name="CourseSelect" component={CourseSelectScreen} />
+        <Stack.Screen name="WatchSetup" component={WatchSetupScreen} />
         <Stack.Screen name="Upgrade" component={UpgradeScreen} />
         {/* Keeps the native header (it has no in-screen ScreenHeader). */}
         <Stack.Screen name="CoursePreview" component={CoursePreviewScreen} options={{ headerShown: true, title: "Course Preview" }} />
@@ -159,17 +159,22 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" />
-        <PlanProvider>
         <ProfileProvider>
+        <CourseCoordsProvider>
         <RoundProvider>
           <TournamentProvider>
-            <GamesProvider>
-              <Root />
-            </GamesProvider>
+            {/* Plan sits inside Tournament so a live golf day can unlock the
+                full app "for the day" (see PlanContext). */}
+            <PlanProvider>
+              <GamesProvider>
+                <WatchShotSync />
+                <Root />
+              </GamesProvider>
+            </PlanProvider>
           </TournamentProvider>
         </RoundProvider>
+        </CourseCoordsProvider>
         </ProfileProvider>
-        </PlanProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

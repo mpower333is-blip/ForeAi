@@ -13,7 +13,7 @@ import {
   strokesReceivedOnHole,
   stablefordPoints,
 } from "../lib/golfEngine";
-import { COURSES, Course, Hole, getCourse } from "../data/courses";
+import { COURSES, Course, Hole, getCourse, hasCourse, TeeId, DEFAULT_TEE, holesForTee } from "../data/courses";
 import { useProfile } from "./ProfileContext";
 
 export type { Hole } from "../data/courses";
@@ -55,6 +55,8 @@ type RoundState = {
   courseId: string;
   courseName: string;
   course: Hole[];
+  teeId: TeeId;
+  setTee: (id: TeeId) => void;
   selectedCourse: Course;
   currentHole: number;
   bag: Club[];
@@ -98,8 +100,12 @@ function makeId() {
 }
 
 export function RoundProvider({ children }: { children: React.ReactNode }) {
-  const [courseId, setCourseId] = useState(COURSES[0].id);
+  // Default to Kempton Park (the ECS Golf Day home course, and COURSES[0]).
+  const [courseId, setCourseId] = useState(
+    hasCourse("kempton-park") ? "kempton-park" : COURSES[0].id
+  );
   const [currentHole, setCurrentHole] = useState(1);
+  const [teeId, setTee] = useState<TeeId>(DEFAULT_TEE);
   const [bag, setBag] = useState<Club[]>(DEFAULT_BAG);
   const [shots, setShots] = useState<LoggedShot[]>([]);
   const [scores, setScores] = useState<Record<number, number>>({});
@@ -113,6 +119,11 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   const [calibrationHoles, setCalibrationHoles] = useState(0);
 
   const selectedCourse = useMemo(() => getCourse(courseId), [courseId]);
+  // Hole yardages scaled to the selected tee (par / SI / GPS unchanged).
+  const teeHoles = useMemo(
+    () => holesForTee(selectedCourse.holes, teeId),
+    [selectedCourse, teeId]
+  );
 
   const setCourse = (id: string) => {
     setCourseId(id);
@@ -234,7 +245,9 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   const value: RoundState = {
     courseId,
     courseName: selectedCourse.name,
-    course: selectedCourse.holes,
+    course: teeHoles,
+    teeId,
+    setTee,
     selectedCourse,
     currentHole,
     bag,

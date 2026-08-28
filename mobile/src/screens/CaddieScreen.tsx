@@ -1,9 +1,13 @@
 import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Screen, ScreenHeader, Card, Segmented, Stepper } from "../components/ui";
+import { Screen, ScreenHeader, Card, Button, Segmented, MetreStepper, KmhStepper, CelsiusStepper } from "../components/ui";
 import { DemoBanner } from "../components/Upsell";
 import { colors, spacing, radius } from "../theme";
 import { useRound } from "../state/RoundContext";
+import { useLocation } from "../hooks/useLocation";
+import { fetchWeather } from "../services/weather";
+import { compass8 } from "../lib/geo";
+import { ydToM, mphToKmh, fToC } from "../lib/units";
 import {
   recommendClub,
   Lie,
@@ -22,11 +26,35 @@ const LIES: { key: Lie; label: string }[] = [
 
 export default function CaddieScreen({ navigation }: any) {
   const { effectiveBag, learned, calibrationHoles, isCalibrated } = useRound();
+  const loc = useLocation();
   const [yardage, setYardage] = useState(155);
   const [wind, setWind] = useState(0);
   const [elevation, setElevation] = useState(0);
   const [lie, setLie] = useState<Lie>("fairway");
   const [temp, setTemp] = useState(70);
+  const [wxNote, setWxNote] = useState<string | null>(null);
+  const [wxBusy, setWxBusy] = useState(false);
+
+  // Pull live temperature + wind from the player's location. Off-course there's
+  // no target line, so we fill temperature and the wind speed, and note the
+  // direction — the player sets + into / − down for the shot they're facing.
+  const useLiveWeather = async () => {
+    if (wxBusy) return;
+    if (!loc.coord) {
+      setWxNote("Turn on location to use live weather.");
+      return;
+    }
+    setWxBusy(true);
+    const w = await fetchWeather(loc.coord);
+    setWxBusy(false);
+    if (!w) {
+      setWxNote("Couldn't reach the weather service — check your connection.");
+      return;
+    }
+    setTemp(w.tempF);
+    setWind(w.windMph);
+    setWxNote(`${mphToKmh(w.windMph)} km/h from ${compass8(w.windFromDeg)} · ${fToC(w.tempF)}°C — set + into / − down`);
+  };
 
   const rec = useMemo(
     () =>
@@ -85,7 +113,7 @@ export default function CaddieScreen({ navigation }: any) {
 
       <Card accent>
         <Text style={styles.club}>{rec.club}</Text>
-        <Text style={styles.plays}>plays {rec.playingYards} yds</Text>
+        <Text style={styles.plays}>plays {ydToM(rec.playingYards)} m</Text>
 
         <View style={styles.badgeRow}>
           <View style={[styles.confPill, { borderColor: confTone }]}>
@@ -111,7 +139,7 @@ export default function CaddieScreen({ navigation }: any) {
         <View style={styles.window}>
           <Text style={styles.windowText}>
             🎯 Expect to finish within{" "}
-            <Text style={{ color: colors.accent, fontWeight: "800" }}>±{window} yds</Text> of target
+            <Text style={{ color: colors.accent, fontWeight: "800" }}>±{ydToM(window)} m</Text> of target
           </Text>
         </View>
 
@@ -125,18 +153,23 @@ export default function CaddieScreen({ navigation }: any) {
       </Card>
 
       <Card>
-        <Stepper label="Distance to pin" value={yardage} onChange={setYardage} step={5} min={20} max={320} unit="yds" />
-        <Stepper label="Wind (+ into / − down)" value={wind} onChange={setWind} step={2} min={-40} max={40} unit="mph" />
-        <Stepper
+        <Button
+          variant="ghost"
+          label={wxBusy ? "Getting weather…" : "🌤 Use live weather"}
+          onPress={useLiveWeather}
+        />
+        {wxNote && <Text style={styles.wxNote}>{wxNote}</Text>}
+        <MetreStepper label="Distance to pin" value={yardage} onChange={setYardage} stepM={5} min={20} max={320} />
+        <KmhStepper label="Wind (+ into / − down)" value={wind} onChange={setWind} stepKmh={3} min={-40} max={40} />
+        <MetreStepper
           label="Elevation (+ up / − down)"
           value={elevation}
           onChange={setElevation}
-          step={2}
+          stepM={2}
           min={-40}
           max={40}
-          unit="yds"
         />
-        <Stepper label="Temperature" value={temp} onChange={setTemp} step={5} min={20} max={110} unit="°F" />
+        <CelsiusStepper label="Temperature" value={temp} onChange={setTemp} stepC={2} min={20} max={110} />
         <Segmented label="Lie" options={LIES} value={lie} onChange={setLie} />
       </Card>
 
@@ -152,10 +185,10 @@ export default function CaddieScreen({ navigation }: any) {
             <Text style={styles.distName}>{r.name}</Text>
             <View style={styles.distRight}>
               {r.samples > 0 && (
-                <Text style={styles.distDisp}>±{r.dispersion}</Text>
+                <Text style={styles.distDisp}>±{ydToM(r.dispersion!)}</Text>
               )}
               <Text style={[styles.distCarry, r.samples > 0 && { color: colors.accent }]}>
-                {r.carry} yds
+                {ydToM(r.carry)} m
               </Text>
               <Text style={styles.distTag}>{r.samples > 0 ? `${r.samples} shots` : "default"}</Text>
             </View>
@@ -210,6 +243,7 @@ const styles = StyleSheet.create({
   notes: { marginTop: spacing.md },
   note: { color: colors.textMuted, fontSize: 15, lineHeight: 22 },
 
+  wxNote: { color: colors.accent, fontSize: 13, fontWeight: "600", marginTop: 8, marginBottom: 4 },
   sectionTitle: { fontSize: 20, fontWeight: "700", color: colors.text, marginBottom: 4 },
   hint: { color: colors.textFaint, fontSize: 13, marginBottom: spacing.sm },
   distRow: {

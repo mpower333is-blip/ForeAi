@@ -16,6 +16,8 @@ jobs:
     env:
       EXPO_PUBLIC_GOLF_API_KEY: ${{ secrets.EXPO_PUBLIC_GOLF_API_KEY }}
       EXPO_PUBLIC_GOLFAPI_KEY: ${{ secrets.EXPO_PUBLIC_GOLFAPI_KEY }}
+      EXPO_PUBLIC_RC_IOS_KEY: ${{ secrets.EXPO_PUBLIC_RC_IOS_KEY }}
+      EXPO_PUBLIC_RC_ANDROID_KEY: ${{ secrets.EXPO_PUBLIC_RC_ANDROID_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +61,8 @@ jobs:
     env:
       EXPO_PUBLIC_GOLF_API_KEY: ${{ secrets.EXPO_PUBLIC_GOLF_API_KEY }}
       EXPO_PUBLIC_GOLFAPI_KEY: ${{ secrets.EXPO_PUBLIC_GOLFAPI_KEY }}
+      EXPO_PUBLIC_RC_IOS_KEY: ${{ secrets.EXPO_PUBLIC_RC_IOS_KEY }}
+      EXPO_PUBLIC_RC_ANDROID_KEY: ${{ secrets.EXPO_PUBLIC_RC_ANDROID_KEY }}
       EXPO_PUBLIC_APP_VARIANT: ${{ matrix.variant }}
     steps:
       - uses: actions/checkout@v4
@@ -95,3 +99,43 @@ jobs:
           name: foreai-${{ matrix.variant }}-apk
           path: mobile/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+
+  # Publish both APKs to a single, stable "test-latest" GitHub release so the
+  # download page + QR code always point at the newest build (no re-uploading).
+  # Direct, public, no-login URLs:
+  #   .../releases/download/test-latest/ECS-Golf-Day.apk
+  #   .../releases/download/test-latest/ForeAi.apk
+  release:
+    name: Publish test APKs
+    needs: [android]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/claude/golf-ai-app-6ccl88'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Rename APKs for download
+        run: |
+          mkdir -p out
+          cp artifacts/foreai-event-apk/*.apk "out/ECS-Golf-Day.apk"
+          cp artifacts/foreai-full-apk/*.apk  "out/ForeAi.apk"
+          ls -la out
+
+      - name: Publish rolling test release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: test-latest
+          name: ForeAi — test builds (latest)
+          prerelease: true
+          body: |
+            Latest installable test builds. Open on an Android phone and allow
+            "install unknown apps".
+
+            • **ECS Golf Day** — `ECS-Golf-Day.apk` (the golf-day app)
+            • **ForeAi** — `ForeAi.apk` (the full app)
+
+            iOS testing is via TestFlight (Apple requires it for beta testers).
+          files: out/*.apk

@@ -10,7 +10,7 @@
 // To make a course exact, replace its generated holes with the official card
 // (or wire a licensed course-data API and hydrate from it).
 
-import { Coord } from "../lib/geo";
+import { Coord, haversineMeters } from "../lib/geo";
 
 export type Hole = {
   number: number;
@@ -33,6 +33,31 @@ export type Course = {
   approxLayout?: boolean;
   center?: Coord; // course GPS centre, for the satellite view
 };
+
+// Tee boxes. Our bundled hole yardages represent the standard men's (white)
+// tee; the other tees are scaled from it until we have a course's real per-tee
+// scorecard. Par and stroke index don't change with the tee; GPS distances are
+// measured live, so they're always exact regardless of tee.
+export type TeeId = "red" | "white" | "blue" | "pro";
+export type Tee = { id: TeeId; name: string; who: string; factor: number };
+export const TEES: Tee[] = [
+  { id: "red", name: "Red", who: "Ladies", factor: 0.85 },
+  { id: "white", name: "White", who: "Men's", factor: 1.0 },
+  { id: "blue", name: "Blue", who: "Championship", factor: 1.06 },
+  { id: "pro", name: "Pro", who: "Back", factor: 1.12 },
+];
+export const DEFAULT_TEE: TeeId = "white";
+
+export function teeFactor(id: TeeId): number {
+  return TEES.find((t) => t.id === id)?.factor ?? 1;
+}
+
+// Scale a course's hole yardages to the chosen tee (par / SI / GPS untouched).
+export function holesForTee(holes: Hole[], id: TeeId): Hole[] {
+  const f = teeFactor(id);
+  if (f === 1) return holes;
+  return holes.map((h) => ({ ...h, yards: Math.round((h.yards * f) / 5) * 5 }));
+}
 
 type Raw = {
   id: string;
@@ -106,131 +131,97 @@ function buildLayout(parTotal: number, totalYards?: number): Hole[] {
   }));
 }
 
+// Bundled offline course(s). We ship the event's home course only — Kempton
+// Park Golf Club — with its exact scorecard. Any other course is found live
+// through the Golf Course API search (real GPS + yardages) and registered at
+// runtime, so the app isn't tied to a hard-coded national list.
 // prettier-ignore
 const RAW_COURSES: Raw[] = [
-  // ---- Western Cape ----
-  { id: "fancourt-links", name: "Fancourt — The Links", town: "George", province: "Western Cape", par: 73, yards: 7200 },
-  { id: "fancourt-montagu", name: "Fancourt — Montagu", town: "George", province: "Western Cape", par: 72 },
-  { id: "fancourt-outeniqua", name: "Fancourt — Outeniqua", town: "George", province: "Western Cape", par: 72 },
-  { id: "pearl-valley", name: "Pearl Valley (Els)", town: "Paarl", province: "Western Cape", par: 72, yards: 7000 },
-  { id: "erinvale", name: "Erinvale", town: "Somerset West", province: "Western Cape", par: 72 },
-  { id: "steenberg", name: "Steenberg", town: "Cape Town", province: "Western Cape", par: 72 },
-  { id: "royal-cape", name: "Royal Cape", town: "Cape Town", province: "Western Cape", par: 72 },
-  { id: "milnerton", name: "Milnerton", town: "Cape Town", province: "Western Cape", par: 72 },
-  { id: "king-david-mowbray", name: "King David Mowbray", town: "Cape Town", province: "Western Cape", par: 72 },
-  { id: "clovelly", name: "Clovelly", town: "Cape Town", province: "Western Cape", par: 71 },
-  { id: "westlake", name: "Westlake", town: "Cape Town", province: "Western Cape", par: 72 },
-  { id: "atlantic-beach", name: "Atlantic Beach", town: "Melkbosstrand", province: "Western Cape", par: 72 },
-  { id: "arabella", name: "Arabella", town: "Kleinmond", province: "Western Cape", par: 72, yards: 6900 },
-  { id: "pinnacle-point", name: "Pinnacle Point", town: "Mossel Bay", province: "Western Cape", par: 71 },
-  { id: "oubaai", name: "Oubaai", town: "George", province: "Western Cape", par: 72 },
-  { id: "simola", name: "Simola", town: "Knysna", province: "Western Cape", par: 72 },
-  { id: "pezula", name: "Pezula", town: "Knysna", province: "Western Cape", par: 72 },
-  { id: "goose-valley", name: "Goose Valley", town: "Plettenberg Bay", province: "Western Cape", par: 72 },
-  { id: "plettenberg-bay", name: "Plettenberg Bay", town: "Plettenberg Bay", province: "Western Cape", par: 72 },
-  { id: "hermanus", name: "Hermanus", town: "Hermanus", province: "Western Cape", par: 73 },
-  { id: "de-zalze", name: "De Zalze", town: "Stellenbosch", province: "Western Cape", par: 72 },
-  { id: "devonvale", name: "Devonvale", town: "Stellenbosch", province: "Western Cape", par: 72 },
-  { id: "stellenbosch", name: "Stellenbosch", town: "Stellenbosch", province: "Western Cape", par: 72 },
-  { id: "paarl", name: "Paarl", town: "Paarl", province: "Western Cape", par: 72 },
-  { id: "worcester", name: "Worcester", town: "Worcester", province: "Western Cape", par: 72 },
-  { id: "kingswood", name: "Kingswood", town: "George", province: "Western Cape", par: 72 },
-  { id: "george", name: "George", town: "George", province: "Western Cape", par: 72 },
-  { id: "langebaan", name: "Langebaan Country Estate", town: "Langebaan", province: "Western Cape", par: 72 },
-  { id: "bellville", name: "Bellville", town: "Cape Town", province: "Western Cape", par: 72 },
-  { id: "mowbray", name: "Mowbray", town: "Cape Town", province: "Western Cape", par: 72 },
-
-  // ---- Eastern Cape ----
-  { id: "humewood", name: "Humewood", town: "Gqeberha", province: "Eastern Cape", par: 72, yards: 6900 },
-  { id: "st-francis-links", name: "St Francis Links", town: "St Francis Bay", province: "Eastern Cape", par: 72, yards: 7100 },
-  { id: "wedgewood", name: "Wedgewood", town: "Gqeberha", province: "Eastern Cape", par: 72 },
-  { id: "pe-golf-club", name: "Port Elizabeth", town: "Gqeberha", province: "Eastern Cape", par: 72 },
-  { id: "fish-river-sun", name: "Fish River Sun", town: "Port Alfred", province: "Eastern Cape", par: 72 },
-  { id: "east-london", name: "East London", town: "East London", province: "Eastern Cape", par: 72 },
-  { id: "olivewood", name: "Olivewood", town: "East London", province: "Eastern Cape", par: 72 },
-  { id: "bushman-sands", name: "Bushman Sands", town: "Alicedale", province: "Eastern Cape", par: 72 },
-
-  // ---- KwaZulu-Natal ----
-  { id: "durban-cc", name: "Durban Country Club", town: "Durban", province: "KwaZulu-Natal", par: 72, yards: 6700 },
-  { id: "mount-edgecombe-1", name: "Mount Edgecombe No.1", town: "Umhlanga", province: "KwaZulu-Natal", par: 72 },
-  { id: "mount-edgecombe-2", name: "Mount Edgecombe No.2", town: "Umhlanga", province: "KwaZulu-Natal", par: 72 },
-  { id: "zimbali", name: "Zimbali", town: "Ballito", province: "KwaZulu-Natal", par: 72 },
-  { id: "princes-grant", name: "Prince's Grant", town: "KwaDukuza", province: "KwaZulu-Natal", par: 72 },
-  { id: "cotswold-downs", name: "Cotswold Downs", town: "Hillcrest", province: "KwaZulu-Natal", par: 72 },
-  { id: "san-lameer", name: "San Lameer", town: "Southbroom", province: "KwaZulu-Natal", par: 72 },
-  { id: "selborne", name: "Selborne", town: "Pennington", province: "KwaZulu-Natal", par: 72 },
-  { id: "southbroom", name: "Southbroom", town: "Southbroom", province: "KwaZulu-Natal", par: 72 },
-  { id: "umdoni-park", name: "Umdoni Park", town: "Pennington", province: "KwaZulu-Natal", par: 72 },
-  { id: "royal-durban", name: "Royal Durban", town: "Durban", province: "KwaZulu-Natal", par: 72 },
-  { id: "beachwood", name: "Beachwood", town: "Durban", province: "KwaZulu-Natal", par: 72 },
-  { id: "kloof", name: "Kloof", town: "Kloof", province: "KwaZulu-Natal", par: 72 },
-  { id: "gowrie-farm", name: "Gowrie Farm", town: "Nottingham Road", province: "KwaZulu-Natal", par: 72 },
-  { id: "champagne-sports", name: "Champagne Sports", town: "Central Drakensberg", province: "KwaZulu-Natal", par: 72 },
-
-  // ---- Gauteng ----
-  { id: "royal-jhb-east", name: "Royal Johannesburg & Kensington — East", town: "Johannesburg", province: "Gauteng", par: 72, yards: 7400 },
-  { id: "royal-jhb-west", name: "Royal Johannesburg & Kensington — West", town: "Johannesburg", province: "Gauteng", par: 72 },
-  { id: "houghton", name: "Houghton", town: "Johannesburg", province: "Gauteng", par: 72, yards: 7500 },
-  { id: "glendower", name: "Glendower", town: "Edenvale", province: "Gauteng", par: 72, yards: 7100 },
-  { id: "bryanston", name: "Bryanston", town: "Johannesburg", province: "Gauteng", par: 72 },
-  { id: "dainfern", name: "Dainfern", town: "Fourways", province: "Gauteng", par: 72 },
-  { id: "eagle-canyon", name: "Eagle Canyon", town: "Roodepoort", province: "Gauteng", par: 72 },
-  { id: "jackal-creek", name: "Jackal Creek", town: "Randburg", province: "Gauteng", par: 72 },
-  { id: "killarney", name: "Killarney", town: "Johannesburg", province: "Gauteng", par: 72 },
-  { id: "kyalami", name: "Kyalami", town: "Midrand", province: "Gauteng", par: 72 },
-  { id: "serengeti", name: "Serengeti", town: "Kempton Park", province: "Gauteng", par: 72 },
   { id: "kempton-park", name: "Kempton Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.1016, lng: 28.236 },
-  { id: "ebotse", name: "Ebotse", town: "Benoni", province: "Gauteng", par: 72 },
-  { id: "randpark-firethorn", name: "Randpark — Firethorn", town: "Randburg", province: "Gauteng", par: 72 },
-  { id: "randpark-bushwillow", name: "Randpark — Bushwillow", town: "Randburg", province: "Gauteng", par: 72 },
-  { id: "wanderers", name: "Wanderers", town: "Johannesburg", province: "Gauteng", par: 72 },
-  { id: "ccj-woodmead", name: "Country Club Johannesburg — Woodmead", town: "Johannesburg", province: "Gauteng", par: 72 },
-  { id: "ccj-rocklands", name: "Country Club Johannesburg — Rocklands", town: "Johannesburg", province: "Gauteng", par: 72 },
-  { id: "parkview", name: "Parkview", town: "Johannesburg", province: "Gauteng", par: 70 },
-  { id: "benoni-cc", name: "Benoni Country Club", town: "Benoni", province: "Gauteng", par: 72 },
-  { id: "zwartkop", name: "Zwartkop", town: "Centurion", province: "Gauteng", par: 72 },
-  { id: "irene", name: "Irene", town: "Centurion", province: "Gauteng", par: 72 },
-  { id: "waterkloof", name: "Waterkloof", town: "Pretoria", province: "Gauteng", par: 72 },
-  { id: "silver-lakes", name: "Silver Lakes", town: "Pretoria", province: "Gauteng", par: 72 },
-  { id: "copperleaf", name: "The Els Club Copperleaf", town: "Centurion", province: "Gauteng", par: 72 },
-  { id: "pretoria-cc", name: "Pretoria Country Club", town: "Pretoria", province: "Gauteng", par: 72 },
-  { id: "wingate-park", name: "Wingate Park", town: "Pretoria", province: "Gauteng", par: 72 },
-  { id: "modderfontein", name: "Modderfontein", town: "Johannesburg", province: "Gauteng", par: 72 },
-
-  // ---- North West ----
-  { id: "gary-player-cc", name: "Gary Player Country Club", town: "Sun City", province: "North West", par: 72, yards: 7800 },
-  { id: "lost-city", name: "Lost City", town: "Sun City", province: "North West", par: 72 },
-  { id: "pecanwood", name: "Pecanwood", town: "Hartbeespoort", province: "North West", par: 72 },
-  { id: "rustenburg", name: "Rustenburg", town: "Rustenburg", province: "North West", par: 72 },
-  { id: "orkney", name: "Orkney", town: "Orkney", province: "North West", par: 72 },
-
-  // ---- Mpumalanga ----
-  { id: "leopard-creek", name: "Leopard Creek", town: "Malelane", province: "Mpumalanga", par: 72, yards: 7200 },
-  { id: "nelspruit", name: "Nelspruit", town: "Mbombela", province: "Mpumalanga", par: 72 },
-  { id: "white-river", name: "White River", town: "White River", province: "Mpumalanga", par: 72 },
-  { id: "highland-gate", name: "Highland Gate", town: "Dullstroom", province: "Mpumalanga", par: 72 },
-  { id: "middelburg", name: "Middelburg", town: "Middelburg", province: "Mpumalanga", par: 72 },
-
-  // ---- Limpopo ----
-  { id: "koro-creek", name: "Koro Creek", town: "Modimolle", province: "Limpopo", par: 72 },
-  { id: "euphoria", name: "Euphoria", town: "Mookgophong", province: "Limpopo", par: 72 },
-  { id: "zebula", name: "Zebula", town: "Bela-Bela", province: "Limpopo", par: 72 },
-  { id: "legend-safari", name: "Legend Golf & Safari", town: "Entabeni", province: "Limpopo", par: 72 },
-  { id: "polokwane", name: "Polokwane", town: "Polokwane", province: "Limpopo", par: 72 },
-
-  // ---- Free State ----
-  { id: "bloemfontein", name: "Bloemfontein", town: "Bloemfontein", province: "Free State", par: 72 },
-  { id: "schoeman-park", name: "Schoeman Park", town: "Bloemfontein", province: "Free State", par: 72 },
-  { id: "welkom", name: "Welkom", town: "Welkom", province: "Free State", par: 72 },
-  { id: "parys", name: "Parys", town: "Parys", province: "Free State", par: 72 },
-
-  // ---- Northern Cape ----
-  { id: "kimberley", name: "Kimberley", town: "Kimberley", province: "Northern Cape", par: 72 },
-  { id: "upington", name: "Upington", town: "Upington", province: "Northern Cape", par: 72 },
+  // East Rand courses we're surveying — layout is a placeholder until we
+  // capture each hole's GPS on-site (and drop in the real scorecard). Centres
+  // are approximate, just to sort them nearest-first and centre the map.
+  { id: "serengeti-serengeti", name: "Serengeti — Whistling Thorn", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.021, lng: 28.418 },
+  { id: "serengeti-masai", name: "Serengeti — Masai Mara", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.021, lng: 28.418 },
+  { id: "modderfontein", name: "Modderfontein Golf Club", town: "Modderfontein", province: "Gauteng", par: 72, lat: -26.093, lng: 28.164 },
+  { id: "avion-park", name: "Avion Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.123, lng: 28.219 },
 ];
 
+// Exact hole-by-hole cards where we have the real numbers. Par and yardage are
+// course facts; stroke index is filled by difficulty where the official SI
+// isn't known. Yards are converted from the club's metre distances (× 1.09361).
+const EXACT_LAYOUTS: Record<string, { par: number; yards: number }[]> = {
+  // Kempton Park Golf Club — middle-of-green distances, OUT 1–9 / IN 10–18.
+  "kempton-park": [
+    { par: 5, yards: 576 }, { par: 4, yards: 341 }, { par: 4, yards: 386 },
+    { par: 4, yards: 386 }, { par: 3, yards: 197 }, { par: 4, yards: 420 },
+    { par: 4, yards: 382 }, { par: 5, yards: 430 }, { par: 3, yards: 171 },
+    { par: 4, yards: 376 }, { par: 3, yards: 125 }, { par: 5, yards: 467 },
+    { par: 5, yards: 450 }, { par: 4, yards: 350 }, { par: 4, yards: 420 },
+    { par: 4, yards: 358 }, { par: 3, yards: 176 }, { par: 4, yards: 394 },
+  ],
+  // Avion Park Golf Club — a 9-hole course (par 35). Captured on-course from
+  // the middle-of-green GPS distances (metres → yards ×1.09361), which round-
+  // trip back to the exact metres the app displays: 265, 176, 333, 411, 280,
+  // 316, 278, 347, 108 m.
+  "avion-park": [
+    { par: 4, yards: 290 }, { par: 3, yards: 192 }, { par: 4, yards: 364 },
+    { par: 5, yards: 449 }, { par: 4, yards: 306 }, { par: 4, yards: 346 },
+    { par: 4, yards: 304 }, { par: 4, yards: 379 }, { par: 3, yards: 118 },
+  ],
+  // Serengeti — Masai Mara (18, par 72). Full card captured on-course from the
+  // middle-of-green GPS distances (metres): front 1–9 = 364, 272, 503, 363,
+  // 153, 364, 385, 420, 179; back 10–18 = 340, 464, 181, 400, 263, 129, 507,
+  // 302, 406. Stored as yards (×1.09361) which round-trip back to those metres.
+  "serengeti-masai": [
+    { par: 4, yards: 398 }, { par: 4, yards: 297 }, { par: 5, yards: 550 },
+    { par: 4, yards: 397 }, { par: 3, yards: 167 }, { par: 4, yards: 398 },
+    { par: 4, yards: 421 }, { par: 5, yards: 459 }, { par: 3, yards: 196 },
+    { par: 4, yards: 372 }, { par: 5, yards: 507 }, { par: 3, yards: 198 },
+    { par: 4, yards: 437 }, { par: 4, yards: 288 }, { par: 3, yards: 141 },
+    { par: 5, yards: 554 }, { par: 4, yards: 330 }, { par: 4, yards: 444 },
+  ],
+  // Modderfontein Golf Club (18, par 72). Full card captured on-course, middle-
+  // of-green metres: OUT 1–9 = 387,395,153,388,404,339,375,465,166; IN 10–18 =
+  // 478,159,362,459,147,390,317,358,334. Stored as yards (×1.09361).
+  "modderfontein": [
+    { par: 5, yards: 423 }, { par: 4, yards: 432 }, { par: 3, yards: 167 },
+    { par: 4, yards: 424 }, { par: 4, yards: 442 }, { par: 4, yards: 371 },
+    { par: 4, yards: 410 }, { par: 5, yards: 508 }, { par: 3, yards: 182 },
+    { par: 5, yards: 523 }, { par: 3, yards: 174 }, { par: 4, yards: 396 },
+    { par: 5, yards: 502 }, { par: 3, yards: 161 }, { par: 4, yards: 426 },
+    { par: 4, yards: 347 }, { par: 4, yards: 391 }, { par: 4, yards: 365 },
+  ],
+  // Serengeti — Whistling Thorn: an 18-hole PAR-3 course (par 54, every hole
+  // par 3). Full card captured on-course (tee-to-pin yards): FRONT 1–9 = 165,
+  // 166, 314, 192, 139, 235, 238, 172, 308; BACK 10–18 = 155, 210, 214, 173,
+  // 111, 265, 176, 312, 177. Some are long par 3s, but the course is all par 3.
+  "serengeti-serengeti": [
+    { par: 3, yards: 165 }, { par: 3, yards: 166 }, { par: 3, yards: 314 },
+    { par: 3, yards: 192 }, { par: 3, yards: 139 }, { par: 3, yards: 235 },
+    { par: 3, yards: 238 }, { par: 3, yards: 172 }, { par: 3, yards: 308 },
+    { par: 3, yards: 155 }, { par: 3, yards: 210 }, { par: 3, yards: 214 },
+    { par: 3, yards: 173 }, { par: 3, yards: 111 }, { par: 3, yards: 265 },
+    { par: 3, yards: 176 }, { par: 3, yards: 312 }, { par: 3, yards: 177 },
+  ],
+};
+
+// Partially-surveyed layouts: real holes where we've captured them, realistic
+// estimates for the rest. Flagged `approxLayout` so the app says so, and the
+// caddie always lets you set the exact distance on the tee. (Empty right now —
+// every surveyed course above has a full card.)
+const PARTIAL_LAYOUTS: Record<string, { par: number; yards: number }[]> = {};
+
+function exactLayout(rows: { par: number; yards: number }[]): Hole[] {
+  const si = assignStrokeIndex(rows);
+  return rows.map((r, i) => ({ number: i + 1, par: r.par, yards: r.yards, si: si[i] }));
+}
+
 export const COURSES: Course[] = RAW_COURSES.map((r) => {
-  const holes = buildLayout(r.par ?? 72, r.yards);
+  const exact = EXACT_LAYOUTS[r.id];
+  const partial = PARTIAL_LAYOUTS[r.id];
+  const rows = exact ?? partial;
+  const holes = rows ? exactLayout(rows) : buildLayout(r.par ?? 72, r.yards);
   return {
     id: r.id,
     name: r.name,
@@ -238,7 +229,8 @@ export const COURSES: Course[] = RAW_COURSES.map((r) => {
     location: `${r.town}, ${r.province}`,
     par: holes.reduce((sum, h) => sum + h.par, 0),
     holes,
-    approxLayout: true,
+    // Only a fully-captured card is exact; partial and generated are approximate.
+    approxLayout: exact ? false : true,
     center: r.lat != null && r.lng != null ? { lat: r.lat, lng: r.lng } : undefined,
   };
 });
@@ -280,12 +272,40 @@ export function backNinePar(course: Course): number {
   return course.holes.slice(9).reduce((s, h) => s + h.par, 0);
 }
 
-// Case-insensitive search over name / town / province.
+// Every course the app knows about right now — bundled plus any imported live.
+export function allCourses(): Course[] {
+  const seen = new Set(COURSES.map((c) => c.id));
+  const extra = Array.from(DYNAMIC.values()).filter((c) => !seen.has(c.id));
+  return [...COURSES, ...extra];
+}
+
+// Case-insensitive search over name / town / province (bundled + imported).
 export function searchCourses(query: string): Course[] {
   const q = query.trim().toLowerCase();
-  if (!q) return COURSES;
-  return COURSES.filter(
+  const list = allCourses();
+  if (!q) return list;
+  return list.filter(
     (c) =>
       c.name.toLowerCase().includes(q) || c.location.toLowerCase().includes(q)
   );
+}
+
+export type CourseNearby = Course & { distanceKm: number | null };
+
+// Order the known courses by how close their centre is to `coord`. Courses with
+// no GPS centre sort last (distanceKm = null) but are still returned, so the
+// list stays complete. Pass null to just return the courses unsorted.
+export function coursesNearest(coord: Coord | null): CourseNearby[] {
+  const list = allCourses();
+  const withDist = list.map((c) => ({
+    ...c,
+    distanceKm:
+      coord && c.center ? haversineMeters(coord, c.center) / 1000 : null,
+  }));
+  if (!coord) return withDist;
+  return withDist.sort((a, b) => {
+    if (a.distanceKm == null) return 1;
+    if (b.distanceKm == null) return -1;
+    return a.distanceKm - b.distanceKm;
+  });
 }

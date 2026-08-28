@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { Screen, ScreenHeader, Card, Stepper, TextField } from "../components/ui";
+import { Screen, ScreenHeader, Card, Stepper, MetreStepper, TextField } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
+import { ydToM } from "../lib/units";
 import { useRound } from "../state/RoundContext";
 import { useProfile } from "../state/ProfileContext";
-import { IS_EVENT } from "../config/appVariant";
 import { API_BASE } from "../services/api";
 
 export default function ProfileScreen({ navigation }: any) {
@@ -53,16 +53,15 @@ export default function ProfileScreen({ navigation }: any) {
         </View>
       </Card>
 
-      {!IS_EVENT && (
-        <Card>
-          <Text style={styles.sectionTitle}>More</Text>
-          <MoreLink emoji="🎒" label="AI Caddie" onPress={() => navigation.navigate("Caddie")} />
-          <MoreLink emoji="📊" label="Strokes-gained stats" onPress={() => navigation.navigate("Stats")} />
-          <MoreLink emoji="🧭" label="Course strategy" onPress={() => navigation.navigate("Strategy")} />
-          <MoreLink emoji="🎮" label="Range games" onPress={() => navigation.navigate("Games")} />
-          <MoreLink emoji="⛳" label="ForeAi Pro" onPress={() => navigation.navigate("Upgrade")} last />
-        </Card>
-      )}
+      <Card>
+        <Text style={styles.sectionTitle}>More</Text>
+        <MoreLink emoji="🎒" label="AI Caddie" onPress={() => navigation.navigate("Caddie")} />
+        <MoreLink emoji="📊" label="Strokes-gained stats" onPress={() => navigation.navigate("Stats")} />
+        <MoreLink emoji="🧭" label="Course strategy" onPress={() => navigation.navigate("Strategy")} />
+        <MoreLink emoji="🎮" label="Range games" onPress={() => navigation.navigate("Games")} />
+        <MoreLink emoji="⌚" label="Set up your watch" onPress={() => navigation.navigate("WatchSetup")} />
+        <MoreLink emoji="⛳" label="ForeAi Pro" onPress={() => navigation.navigate("Upgrade")} last />
+      </Card>
 
       <Card>
         <Text style={styles.sectionTitle}>Handicap</Text>
@@ -102,19 +101,18 @@ export default function ProfileScreen({ navigation }: any) {
             >
               <Text style={styles.clubName}>{club.name}</Text>
               <View style={styles.carryPill}>
-                <Text style={styles.carryText}>{club.carry} yds</Text>
+                <Text style={styles.carryText}>{ydToM(club.carry)} m</Text>
               </View>
             </TouchableOpacity>
             {editing === i && (
               <View style={styles.editBox}>
-                <Stepper
+                <MetreStepper
                   label={`${club.name} carry`}
                   value={club.carry}
                   onChange={(v) => updateCarry(i, v)}
-                  step={2}
+                  stepM={2}
                   min={30}
                   max={340}
-                  unit="yds"
                 />
               </View>
             )}

@@ -13,6 +13,7 @@ import Svg, {
 } from "react-native-svg";
 import { Hole } from "../data/courses";
 import { colors } from "../theme";
+import { ydToM } from "../lib/units";
 
 // A stylized top-down schematic of a hole, generated from its par/yardage/index.
 // It's a representative illustration (there's no real hole-map data), drawn so
@@ -129,7 +130,7 @@ export default function HoleDiagram({ hole, height = 300 }: { hole: Hole; height
         {hole.number}
       </SvgText>
       <SvgText x="60" y="196" fill="#8ba394" fontSize="7" textAnchor="middle">
-        {hole.yards} yds · par {hole.par}
+        {ydToM(hole.yards)} m · par {hole.par}
       </SvgText>
       <SvgText x="6" y="12" fill="#4f6a5b" fontSize="5" fontWeight="bold">
         SCHEMATIC

@@ -12,7 +12,26 @@ export type TPlayer = {
   handicap: number;
   deviceId?: string | null; // set when a player self-registers from their phone
   groupId?: string | null;
+  // Live presence + position, updated by a heartbeat from the player's phone.
+  lastSeen?: number | null; // epoch ms of the last heartbeat (recent = on the app now)
+  lat?: number | null;
+  lng?: number | null;
 };
+
+// A player is "live" (app open) if their last heartbeat was within this window.
+export const PRESENCE_WINDOW_MS = 3 * 60 * 1000;
+
+export function isPlayerLive(p: TPlayer, now: number): boolean {
+  return !!p.lastSeen && now - p.lastSeen < PRESENCE_WINDOW_MS;
+}
+
+// How many players in a group are live right now.
+export function groupLiveCount(event: TEvent, group: TGroup, now: number): number {
+  return group.playerIds.filter((id) => {
+    const p = event.players.find((x) => x.id === id);
+    return p ? isPlayerLive(p, now) : false;
+  }).length;
+}
 
 export type TGroup = {
   id: string;
@@ -31,6 +50,7 @@ export type Sponsor = {
   tier: SponsorTier;
   hole?: number | null;
   message?: string | null;
+  logo?: string | null; // data URL uploaded on registration
 };
 
 export type TEvent = {
@@ -51,10 +71,12 @@ export type TEvent = {
   contestResults?: Record<string, Record<string, number>>; // [contestId][playerId] = yards
   // Fundraiser branding.
   cause?: string | null; // e.g. "Supporting Lyla Roux vs ALK+ ALCL"
+  causePhoto?: string | null; // photo of the beneficiary (data URL, from the backend)
   sponsors?: Sponsor[];
   logoKey?: string; // key into the bundled event-logo registry (e.g. "ecs")
   // Multi-device fields — present only for events hosted on the backend.
   code?: string; // join code shared with other devices
+  hasAdminPin?: boolean; // whether an organiser admin PIN is set (the PIN itself is never sent)
   remote?: boolean; // true when this event is synced with the server
 };
 
@@ -246,7 +268,7 @@ export function contestName(c: Contest): string {
 }
 
 export function contestUnit(c: Contest): string {
-  return c.type === "closest" ? "yds from pin" : "yds";
+  return c.type === "closest" ? "m from pin" : "m";
 }
 
 export function holeSponsor(event: TEvent, hole: number): Sponsor | undefined {

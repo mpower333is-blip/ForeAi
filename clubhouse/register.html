@@ -41,9 +41,16 @@
   .sectionTitle{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--lime);font-weight:800;margin:6px 0 2px}
   .team{border:1px dashed var(--border);border-radius:12px;padding:12px;margin-top:10px}
   .team h4{margin:0 0 6px;font-size:14px;color:var(--gold)}
-  .radios{display:flex;gap:10px}
+  .radios{display:flex;flex-wrap:wrap;gap:10px}
   .radios label{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--border);
-    padding:12px;border-radius:10px;flex:1;margin:0;cursor:pointer;color:var(--text);font-weight:600}
+    padding:12px;border-radius:10px;flex:1 1 130px;min-width:0;margin:0;cursor:pointer;color:var(--text);font-weight:600}
+  .radios input{flex:none;width:18px;height:18px;margin:0}
+  .phone-sel{margin-top:6px;color:var(--muted)}
+  .team .note{color:var(--faint);font-size:12px;line-height:1.6;margin:2px 0 4px}
+  .opt{color:var(--faint);font-weight:400}
+  .logoUp{display:flex;align-items:center;gap:12px;margin-top:2px}
+  .logoUp input[type=file]{flex:1;min-width:0;font-size:13px;padding:9px}
+  .logoPrev{width:60px;height:60px;object-fit:contain;border-radius:10px;background:#fff;padding:4px;display:none;flex:none}
   .btn{display:block;width:100%;text-align:center;border:none;cursor:pointer;
     background:linear-gradient(135deg,#B6FF8E,#8DFF6B,#46C85A);color:#052012;font-weight:800;font-size:16px;
     padding:15px;border-radius:14px;margin-top:16px}
@@ -62,6 +69,8 @@
   <script src="config.js"></script>
 </head>
 <body>
+<a href="index.html" class="foreai-back" onclick="if(window.history.length>1){window.history.back();return false;}">‹ Back</a>
+<style>.foreai-back{position:fixed;top:14px;left:14px;z-index:99999;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(6,23,15,0.72);color:#8DFF6B;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;text-decoration:none;border:1px solid rgba(141,255,107,0.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,0.3)}.foreai-back:hover{background:rgba(141,255,107,0.16)}</style>
 <div class="wrap">
   <div class="ecs">
     <img src="ecs-logo.png" alt="ECS Engine Control Systems" />
@@ -85,7 +94,8 @@
     <select id="teamCount"></select>
     <div id="teams"></div>
     <div class="pay">
-      <div class="k">Amount</div><b>R 4,000 incl VAT</b> per four-ball team &nbsp;·&nbsp; 1 team = 4 players<br>
+      <div class="k">Amount</div><b>R 1,000 incl VAT</b> per player &nbsp;·&nbsp; you only pay for the players you enter (a full four-ball = R 4,000)<br>
+      <div class="k" style="margin-top:6px">Your total</div><b id="team-total">R 0</b> <span id="team-total-detail" style="color:var(--faint)">(enter player names above)</span><br>
       <div class="k" style="margin-top:6px">Banking (EFT)</div>
       <b>ENGINE CONTROL SYSTEMS (PTY) LTD</b> · FNB · Acc 620-631-829-78 · Branch 205-609<br>
       <div class="k">Reference</div> ECS Golf Day - <span id="ref-team">Company</span>
@@ -100,6 +110,11 @@
     <div id="company-hole"></div>
     <label>Hole number preference (if any)</label>
     <input name="holePreference" type="number" min="1" max="18" placeholder="e.g. 7" />
+    <label>Company logo <span class="opt">(shown on your hole board &amp; the thank-you wall for Lyla)</span></label>
+    <div class="logoUp">
+      <input type="file" accept="image/*" data-role="logo" data-key="hole" />
+      <img class="logoPrev" data-key="hole" alt="logo preview" />
+    </div>
     <div class="pay">
       <div class="k">Amount</div><b>R 2,000 incl VAT</b> per hole<br>
       <div class="k" style="margin-top:6px">Banking (EFT)</div>
@@ -128,6 +143,11 @@
       <label>Prize 1</label><input name="prize1" placeholder="Describe the prize" />
       <label>Prize 2</label><input name="prize2" placeholder="(optional)" />
       <label>Prize 3</label><input name="prize3" placeholder="(optional)" />
+    </div>
+    <label>Company logo <span class="opt">(shown on the thank-you wall for Lyla)</span></label>
+    <div class="logoUp">
+      <input type="file" accept="image/*" data-role="logo" data-key="prize" />
+      <img class="logoPrev" data-key="prize" alt="logo preview" />
     </div>
     <button class="btn" type="submit">Submit prize sponsorship</button>
     <div class="msg" id="msg-prize"></div>
@@ -187,19 +207,63 @@
   function renderTeams(){
     var n = parseInt(sel.value,10)||1, host=document.getElementById('teams'), html='';
     for (var t=1;t<=n;t++){
-      html += `<div class="team"><h4>Team ${t}</h4>`;
+      html += `<div class="team"><h4>Team ${t}</h4>
+        <div class="note">Tell us each player's phone so we know which download link to send them for the golf-day app — iPhones get a TestFlight link, Android gets an APK link.</div>`;
       for (var p=1;p<=4;p++){
         html += `<label>Player ${p}${p===1?' <span class="req">*</span>':''}</label>
-          <div class="grid3" style="grid-template-columns:2fr 1fr">
-            <input data-team="${t}" data-role="name" placeholder="Name & surname" />
-            <input data-team="${t}" data-role="hcp" type="number" placeholder="H/cap" />
-          </div>`;
+          <input data-team="${t}" data-role="name" placeholder="Name & surname" />
+          <select class="phone-sel" data-team="${t}" data-role="phone" aria-label="Phone type for player ${p}">
+            <option value="">📱 Phone for the golf-day app? (optional)</option>
+            <option value="apple">🍎 iPhone / iPad (Apple)</option>
+            <option value="android">🤖 Android</option>
+          </select>`;
       }
       html += `</div>`;
     }
     host.innerHTML = html;
   }
-  sel.addEventListener('change', renderTeams); renderTeams();
+  // Per-player pricing: you only pay for the players you actually enter, so a
+  // half-full four-ball costs half. R 1,000 per player (a full team = R 4,000).
+  var PER_PLAYER = 1000;
+  function countTeamPlayers(){
+    var c = 0;
+    document.querySelectorAll('#teams [data-role="name"]').forEach(function(n){ if(n.value.trim()) c++; });
+    return c;
+  }
+  function updateTeamTotal(){
+    var c = countTeamPlayers(), total = c * PER_PLAYER;
+    var el = document.getElementById('team-total'); if(el) el.textContent = 'R ' + total.toLocaleString('en-ZA');
+    var d = document.getElementById('team-total-detail');
+    if(d) d.textContent = c ? '('+c+' player'+(c===1?'':'s')+' × R 1,000)' : '(enter player names above)';
+  }
+  document.getElementById('teams').addEventListener('input', updateTeamTotal);
+  sel.addEventListener('change', function(){ renderTeams(); updateTeamTotal(); });
+  renderTeams(); updateTeamTotal();
+
+  // Logo upload: resize client-side to a small data URL so it stores compactly
+  // and shows on the hole board + Lyla's thank-you wall.
+  var logos = { hole: "", prize: "" };
+  document.querySelectorAll('input[data-role="logo"]').forEach(function(inp){
+    inp.addEventListener('change', function(){
+      var key = inp.dataset.key, file = inp.files && inp.files[0];
+      var prev = document.querySelector('.logoPrev[data-key="'+key+'"]');
+      if(!file){ logos[key]=""; if(prev) prev.style.display='none'; return; }
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var img = new Image();
+        img.onload = function(){
+          var max=320, s=Math.min(1, max/Math.max(img.width,img.height));
+          var w=Math.max(1,Math.round(img.width*s)), h=Math.max(1,Math.round(img.height*s));
+          var c=document.createElement('canvas'); c.width=w; c.height=h;
+          var ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0,w,h);
+          logos[key]=c.toDataURL('image/jpeg',0.85);
+          if(prev){ prev.src=logos[key]; prev.style.display='block'; }
+        };
+        img.src=e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  });
 
   // prize type toggle
   document.querySelectorAll('input[name="prizeType"]').forEach(function(r){
@@ -274,13 +338,30 @@
     for(var t=1;t<=n;t++){
       var players=[];
       var names=f.querySelectorAll('[data-team="'+t+'"][data-role="name"]');
-      var hcps=f.querySelectorAll('[data-team="'+t+'"][data-role="hcp"]');
+      var phones=f.querySelectorAll('[data-team="'+t+'"][data-role="phone"]');
       names.forEach(function(inp,idx){
-        if(inp.value.trim()) players.push({name:inp.value.trim(), handicap:Number(hcps[idx] && hcps[idx].value)||0});
+        if(inp.value.trim()) players.push({
+          name:inp.value.trim(),
+          handicap:0,
+          phone:(phones[idx] && phones[idx].value)||''
+        });
       });
       teams.push({players:players});
     }
+    var playerCount = teams.reduce(function(s,tm){return s + tm.players.length;}, 0);
+    if(playerCount===0){show('msg-team',false,'Add at least one player.');return;}
+    // Tally phone platforms so the organiser can size the app test roll-out.
+    var phoneCounts = {apple:0, android:0, unknown:0};
+    teams.forEach(function(tm){ tm.players.forEach(function(pl){
+      phoneCounts[pl.phone==='apple'?'apple':pl.phone==='android'?'android':'unknown']++;
+    }); });
     b.teamCount=n; b.teams=teams;
+    b.playerCount = playerCount;
+    b.phoneApple = phoneCounts.apple;
+    b.phoneAndroid = phoneCounts.android;
+    b.phoneUnknown = phoneCounts.unknown;
+    b.perPlayer = PER_PLAYER;
+    b.amount = playerCount * PER_PLAYER; // pay only for players entered
     submit('team',b,'msg-team');
   });
 
@@ -288,6 +369,7 @@
     e.preventDefault(); var f=e.target; var b=common(f);
     if(!b.company){show('msg-hole',false,'Company name is required.');return;}
     b.holePreference=(f.querySelector('[name="holePreference"]').value||'');
+    b.logo=logos.hole;
     submit('hole',b,'msg-hole');
   });
 
@@ -297,6 +379,7 @@
     b.prizeType=f.querySelector('input[name="prizeType"]:checked').value;
     b.cashAmount=(f.querySelector('[name="cashAmount"]').value||'');
     b.prizes=[f.querySelector('[name="prize1"]').value,f.querySelector('[name="prize2"]').value,f.querySelector('[name="prize3"]').value].filter(Boolean);
+    b.logo=logos.prize;
     submit('prize',b,'msg-prize');
   });
 

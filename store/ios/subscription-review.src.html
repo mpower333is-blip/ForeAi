@@ -1,0 +1,74 @@
+<!doctype html><html><head><meta charset="utf-8"/>
+<style>
+  :root{
+    --bg:#06170F;--surface:#10261C;--surfaceAlt:#16362A;--border:#204636;
+    --accent:#8DFF6B;--gold:#FFD36A;--text:#F4FBF6;--muted:#C2D2C6;--faint:#87A092;--onAccent:#052012;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:430px;height:932px}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text);
+    background:
+      radial-gradient(120% 55% at 80% 0%, rgba(141,255,107,0.16), transparent 60%),
+      linear-gradient(160deg,#134E32,#0C3222 55%,#06170F);
+    padding:54px 20px 20px;
+  }
+  .head{text-align:center;margin-bottom:20px}
+  .icon{width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,#FFE39A,#FFD36A,#F5B73C);
+    display:inline-flex;align-items:center;justify-content:center;font-size:34px;margin-bottom:12px}
+  .title{font-size:34px;font-weight:800;letter-spacing:-0.5px}
+  .sub{color:var(--muted);font-size:16px;line-height:22px;margin:8px 14px 0}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:20px;margin-bottom:16px}
+  .card.accent{border-color:rgba(141,255,107,0.55);background:linear-gradient(180deg,rgba(141,255,107,0.06),var(--surface))}
+  .hint{color:var(--muted);font-size:15px;margin-bottom:14px}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;border-radius:14px;
+    font-size:17px;font-weight:800;padding:15px;margin-bottom:12px}
+  .btn.fill{background:linear-gradient(135deg,#B6FF8E,#8DFF6B,#46C85A);color:var(--onAccent)}
+  .btn.ghost{background:transparent;border:1.5px solid var(--border);color:var(--accent)}
+  .planRow{display:flex;align-items:center;gap:10px}
+  .planRow .btn{flex:1;margin-bottom:12px}
+  .chip{font-size:11px;font-weight:800;letter-spacing:.5px;padding:5px 9px;border-radius:999px;
+    background:rgba(255,211,106,0.16);color:var(--gold);white-space:nowrap}
+  .restore{color:var(--accent);text-align:center;font-weight:800;font-size:15px;padding:10px}
+  .legal{color:var(--faint);font-size:11px;line-height:16px;margin-top:8px}
+  .legalLinks{display:flex;justify-content:center;gap:10px;margin-top:10px}
+  .legalLinks a{color:var(--accent);font-size:12px;font-weight:700;text-decoration:none}
+  .legalLinks span{color:var(--faint)}
+  .gTitle{font-size:18px;font-weight:800;margin-bottom:12px}
+  .row{display:flex;gap:10px;align-items:flex-start;padding:7px 0}
+  .mark{color:var(--accent);font-weight:800;font-size:16px;width:20px}
+  .rowT{font-size:15px;line-height:21px}
+</style></head>
+<body>
+  <div class="head">
+    <div class="icon">⛳</div>
+    <div class="title">ForeAi Pro</div>
+    <div class="sub">Try the demo free. Subscribe to unlock the full game-improvement toolkit.</div>
+  </div>
+
+  <div class="card accent">
+    <div class="hint">Choose a plan — cancel anytime.</div>
+    <div class="planRow">
+      <div class="btn ghost">🔓 Monthly — R 99.00</div>
+    </div>
+    <div class="planRow">
+      <div class="btn fill">🔓 Annual — R 799.00</div>
+      <div class="chip">BEST VALUE</div>
+    </div>
+    <div class="restore">Restore purchase</div>
+    <div class="legal">Payment is charged to your Apple ID account. Subscriptions renew automatically unless
+      cancelled at least 24 hours before the end of the period. Manage or cancel anytime in your Apple ID
+      account settings.</div>
+    <div class="legalLinks"><a>Terms of Use</a><span>·</span><a>Privacy Policy</a></div>
+  </div>
+
+  <div class="card">
+    <div class="gTitle">★ ForeAi Pro</div>
+    <div class="row"><div class="mark">✓</div><div class="rowT">Live round tracking &amp; scorecard</div></div>
+    <div class="row"><div class="mark">✓</div><div class="rowT">AI Caddie that learns your real distances</div></div>
+    <div class="row"><div class="mark">✓</div><div class="rowT">Unlimited Swing Coach analysis &amp; history</div></div>
+    <div class="row"><div class="mark">✓</div><div class="rowT">GPS rangefinder — front / middle / back</div></div>
+    <div class="row"><div class="mark">✓</div><div class="rowT">Strokes-gained stats &amp; trends</div></div>
+    <div class="row"><div class="mark">✓</div><div class="rowT">Course strategy planner</div></div>
+  </div>
+</body></html>
