@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ForeAi — Management</title>
+<style>
+  :root{ --bg:#08170f; --panel:#0e2a1c; --line:#1c4a33; --text:#eafff2; --faint:#9fc4b0; --accent:#39d98a; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  .wrap{ max-width:640px; margin:0 auto; padding:28px 18px 60px; }
+  .lock{ display:inline-block; background:#12351f; border:1px solid var(--line); color:var(--accent); font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; letter-spacing:.04em; }
+  h1{ font-size:30px; margin:14px 0 4px; }
+  .sub{ color:var(--faint); margin:0 0 24px; }
+  a.card{ display:block; text-decoration:none; color:inherit; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 18px; margin-bottom:14px; }
+  a.card:active{ transform:scale(.99); }
+  .card h2{ margin:0 0 4px; font-size:20px; color:var(--accent); }
+  .card p{ margin:0; color:var(--faint); font-size:14px; }
+  .soon{ opacity:.55; }
+  .soon .tag{ float:right; font-size:11px; color:var(--faint); border:1px solid var(--line); border-radius:999px; padding:2px 8px; }
+  .note{ background:#0b2116; border:1px dashed var(--line); border-radius:12px; padding:12px 14px; color:var(--faint); font-size:13px; margin-top:18px; }
+  .note b{ color:var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="lock">🔒 PRIVATE — ADMIN ONLY</span>
+  <h1>ForeAi Management</h1>
+  <p class="sub">Organiser tools for the ECS Golf Day. This area should be password-protected in cPanel (see the note below).</p>
+
+  <a class="card" href="survey.html">
+    <h2>🛰️ Course Survey</h2>
+    <p>Tap tee &amp; green on the satellite for each hole to build the on-course hole view. Downloads a coords file.</p>
+  </a>
+
+  <a class="card" href="office.html">
+    <h2>🗂️ Office &amp; Registrations</h2>
+    <p>Teams, hole &amp; prize sponsors, payment status, and the Excel import. (Move it into this folder — see note.)</p>
+  </a>
+
+  <div class="card soon">
+    <span class="tag">planned</span>
+    <h2>📊 Excel import</h2>
+    <p>Bulk-load the emailed team/sponsor spreadsheet straight into the event. Being added to the Office page.</p>
+  </div>
+
+  <div class="note">
+    <b>Make this area private (do this once in cPanel):</b><br>
+    cPanel → <b>Directory Privacy</b> → open the <b>manage</b> folder → tick <b>“Password protect this directory”</b> → create a username + password → Save.
+    After that, <b>foreai.co.za/manage/</b> asks for that login, so only you can reach these tools. The public pages (register, board, get) stay open as normal.
+  </div>
+</div>
+</body>
+</html>

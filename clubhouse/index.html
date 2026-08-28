@@ -8,8 +8,8 @@
   The one front door for a golf day. Set the backend + event join code once
   (saved on this device) and launch every tool with the config already baked in:
     · Register        register.html   (players / sponsors — share this)
-    · Office admin     office.html      (paperwork, payments, exports)
     · Live board       board.html       (big-screen leaderboard for the clubhouse)
+    · Office + survey  manage/          (PRIVATE, password-protected admin tools)
     · Get the app      get.html         (download + join — share this)
   Every launch link and the two "share" links carry ?api=&code=, so nobody
   downstream ever types a URL or a code.
@@ -108,12 +108,7 @@
       <span class="go">Open page →</span>
       <div class="sharebox"><input id="link-get" readonly /><button class="btn sm" onclick="copy('link-get')">Copy</button></div>
     </a>
-    <a class="tile" id="t-office" href="office.html">
-      <div class="ic">🗂️</div>
-      <h3>Office admin <span class="pill admin">STAFF</span></h3>
-      <p>Submissions, payments, confirmations, totals and CSV export.</p>
-      <span class="go">Open console →</span>
-    </a>
+    <!-- Office admin moved to the private, password-protected /manage/ area. -->
     <a class="tile" id="t-board" href="board.html">
       <div class="ic">📊</div>
       <h3>Live board <span class="pill admin">CLUBHOUSE</span></h3>
