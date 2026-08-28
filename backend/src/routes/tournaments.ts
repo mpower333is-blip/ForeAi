@@ -48,6 +48,10 @@ function serialize(t: NonNullable<LoadedTournament>) {
     shotgun: t.shotgun,
     cause: t.cause,
     causePhoto: t.causePhoto,
+    logo: t.logo,
+    banking: t.banking,
+    teamFee: t.teamFee,
+    holeFee: t.holeFee,
     sponsors: t.sponsors.map((s) => ({
       id: s.id,
       name: s.name,
@@ -188,7 +192,7 @@ router.put("/:id/admin-pin", async (req, res) => {
 // Update event settings.
 router.patch("/:id", async (req, res) => {
   if (!(await gateAdmin(req, res))) return;
-  const { name, format, firstTeeMin, intervalMin, shotgun, cause, causePhoto } = req.body;
+  const { name, format, firstTeeMin, intervalMin, shotgun, cause, causePhoto, logo, banking, teamFee, holeFee } = req.body;
   await prisma.tournament.update({
     where: { id: req.params.id },
     data: {
@@ -199,6 +203,10 @@ router.patch("/:id", async (req, res) => {
       ...(shotgun != null ? { shotgun: !!shotgun } : {}),
       ...(cause !== undefined ? { cause } : {}),
       ...(causePhoto !== undefined ? { causePhoto } : {}),
+      ...(logo !== undefined ? { logo } : {}),
+      ...(banking !== undefined ? { banking } : {}),
+      ...(teamFee !== undefined ? { teamFee: teamFee == null ? null : Number(teamFee) } : {}),
+      ...(holeFee !== undefined ? { holeFee: holeFee == null ? null : Number(holeFee) } : {}),
     },
   });
   await respondWithEvent(req.params.id, res);

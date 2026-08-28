@@ -89,6 +89,12 @@ model Tournament {
   shotgun     Boolean  @default(false)
   cause       String?
   causePhoto  String?  // photo of the person/cause the day supports (data URL)
+  // Per-event branding + money (set by the organiser at setup). Makes each event
+  // self-contained instead of hard-coding one company's details in the website.
+  logo        String?  @db.Text // the event's own logo (data URL)
+  banking     String?  @db.Text // banking details block shown on the registration forms
+  teamFee     Int?     // entry fee per four-ball team (for office totals + forms)
+  holeFee     Int?     // fee per hole sponsor
 
   players       TournamentPlayer[]
   groups        TournamentGroup[]

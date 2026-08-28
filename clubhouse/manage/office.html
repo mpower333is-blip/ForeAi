@@ -114,6 +114,27 @@
       <div class="hint">Select the team / hole / prize forms people emailed. It reads them here (nothing uploaded), shows a preview, then adds them to the event — duplicates are skipped.</div>
       <div id="importPreview"></div>
     </div>
+    <details class="card" id="setupBox">
+      <summary style="cursor:pointer;font-weight:700;color:var(--accent)">⚙️ Event setup — logo, banking &amp; fees</summary>
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label class="hint">Event logo (shown on this event's pages &amp; forms)</label>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+            <input type="file" id="setLogo" accept="image/*" onchange="pickLogo(this.files)" />
+            <img id="logoPrev" alt="" style="height:44px;background:#fff;border-radius:6px;padding:3px;display:none" />
+          </div>
+        </div>
+        <div>
+          <label class="hint">Banking details (appears on the registration forms)</label>
+          <textarea id="setBank" rows="5" placeholder="Payment to: ...\nBank: ...\nAccount: ...\nBranch: ...\nReference: ..." style="width:100%;margin-top:4px;background:#07160e;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px"></textarea>
+        </div>
+        <div class="row" style="display:flex;gap:14px;flex-wrap:wrap">
+          <label class="hint">Team fee (R) <input id="setTeamFee" type="number" style="width:100px;margin-left:6px" /></label>
+          <label class="hint">Hole fee (R) <input id="setHoleFee" type="number" style="width:100px;margin-left:6px" /></label>
+        </div>
+        <div><button class="btn" onclick="saveSetup()">Save event setup</button> <span id="setupMsg" class="hint"></span></div>
+      </div>
+    </details>
     <div class="tiles" id="tiles"></div>
     <div class="tabs" id="tabs">
       <div class="tab on" data-f="all">All</div>
@@ -145,8 +166,9 @@
   function parseAmount(s){ if(s==null) return 0; var m=String(s).replace(/[^0-9.]/g,''); return parseFloat(m)||0; }
   function teamCount(r){ var p=r.payload||{}; return p.teamCount || (Array.isArray(p.teams)?p.teams.length:1) || 1; }
   function amountFor(r){
-    if(r.type==='team') return teamCount(r)*TEAM_FEE;
-    if(r.type==='hole') return HOLE_FEE;
+    var tf=(EVENT&&EVENT.teamFee)||TEAM_FEE, hf=(EVENT&&EVENT.holeFee)||HOLE_FEE;
+    if(r.type==='team') return teamCount(r)*tf;
+    if(r.type==='hole') return hf;
     if(r.type==='prize') return (r.payload&&r.payload.prizeType==='cash')?parseAmount(r.payload.cashAmount):0;
     return 0;
   }
@@ -195,6 +217,7 @@
 
   function render(){
     renderAdminBar();
+    populateSetup();
     // tiles
     var teams=REGS.filter(r=>r.type==='team'), holes=REGS.filter(r=>r.type==='hole'), prizes=REGS.filter(r=>r.type==='prize');
     var players=teams.reduce((s,r)=>s+teamCount(r)*4,0);
@@ -337,6 +360,34 @@
         +'<span style="color:var(--gold)">⚠️ No admin PIN set — anyone with the code can make changes.</span>'
         +'<button class="btn" onclick="setAdminPin()">Set admin PIN</button></div>';
     }
+  }
+
+  // ---- Event setup (logo / banking / fees) -------------------------------
+  var NEW_LOGO=null;
+  function pickLogo(files){
+    if(!files||!files[0]) return;
+    var rd=new FileReader();
+    rd.onload=function(){ NEW_LOGO=rd.result; var im=document.getElementById('logoPrev'); im.src=NEW_LOGO; im.style.display='inline-block'; };
+    rd.readAsDataURL(files[0]);
+  }
+  function populateSetup(){
+    if(!EVENT) return;
+    document.getElementById('setBank').value = EVENT.banking||'';
+    document.getElementById('setTeamFee').value = EVENT.teamFee!=null?EVENT.teamFee:'';
+    document.getElementById('setHoleFee').value = EVENT.holeFee!=null?EVENT.holeFee:'';
+    var im=document.getElementById('logoPrev'); if(EVENT.logo){ im.src=EVENT.logo; im.style.display='inline-block'; }
+  }
+  async function saveSetup(){
+    var body={ banking: document.getElementById('setBank').value,
+      teamFee: parseInt(document.getElementById('setTeamFee').value,10) || null,
+      holeFee: parseInt(document.getElementById('setHoleFee').value,10) || null };
+    if(NEW_LOGO) body.logo=NEW_LOGO;
+    var m=document.getElementById('setupMsg'); m.textContent='Saving…';
+    try{
+      var r=await authFetch(CFG.api+'/tournaments/'+EVENT.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(r.ok){ EVENT=await r.json(); NEW_LOGO=null; m.textContent='Saved.'; render(); }
+      else m.textContent='Not saved (check the admin PIN).';
+    }catch(e){ m.textContent='Save failed.'; }
   }
 
   // ---- Excel import (team / hole / prize forms) --------------------------

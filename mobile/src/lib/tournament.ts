@@ -74,6 +74,11 @@ export type TEvent = {
   causePhoto?: string | null; // photo of the beneficiary (data URL, from the backend)
   sponsors?: Sponsor[];
   logoKey?: string; // key into the bundled event-logo registry (e.g. "ecs")
+  // Per-event branding + money, set by the organiser (see the web office setup).
+  logo?: string | null; // the event's own logo (data URL)
+  banking?: string | null; // banking details block for the registration forms
+  teamFee?: number | null; // entry fee per four-ball team
+  holeFee?: number | null; // fee per hole sponsor
   // Multi-device fields — present only for events hosted on the backend.
   code?: string; // join code shared with other devices
   hasAdminPin?: boolean; // whether an organiser admin PIN is set (the PIN itself is never sent)
