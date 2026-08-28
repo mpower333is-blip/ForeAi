@@ -11,6 +11,7 @@
 // (or wire a licensed course-data API and hydrate from it).
 
 import { Coord, haversineMeters } from "../lib/geo";
+import { SA_COURSES } from "./saCourses";
 
 export type Hole = {
   number: number;
@@ -145,6 +146,10 @@ const RAW_COURSES: Raw[] = [
   { id: "serengeti-masai", name: "Serengeti — Masai Mara", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.021, lng: 28.418 },
   { id: "modderfontein", name: "Modderfontein Golf Club", town: "Modderfontein", province: "Gauteng", par: 72, lat: -26.093, lng: 28.164 },
   { id: "avion-park", name: "Avion Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.123, lng: 28.219 },
+  // Curated national list of well-known SA courses (names + province/city + par
+  // only). No coords/contacts/exact layout — those come from the live Golf Course
+  // API when opened online, or a scorecard. Flagged approximate until then.
+  ...SA_COURSES,
 ];
 
 // Exact hole-by-hole cards where we have the real numbers. Par and yardage are
