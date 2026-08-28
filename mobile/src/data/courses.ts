@@ -150,15 +150,18 @@ const RAW_COURSES: Raw[] = [
 // Exact hole-by-hole cards where we have the real numbers. Par and yardage are
 // course facts; stroke index is filled by difficulty where the official SI
 // isn't known. Yards are converted from the club's metre distances (× 1.09361).
-const EXACT_LAYOUTS: Record<string, { par: number; yards: number }[]> = {
-  // Kempton Park Golf Club — middle-of-green distances, OUT 1–9 / IN 10–18.
+const EXACT_LAYOUTS: Record<string, { par: number; yards: number; si?: number }[]> = {
+  // Kempton Park Golf Club — official Lindsay Saker VW scorecard. Men's tee
+  // distances (tee to centre of green) converted from metres ×1.09361, so the
+  // app's metres display matches the card exactly; par and stroke index are the
+  // card's own. Men card: par 72, 6369 m. OUT 1–9 / IN 10–18.
   "kempton-park": [
-    { par: 5, yards: 576 }, { par: 4, yards: 341 }, { par: 4, yards: 386 },
-    { par: 4, yards: 386 }, { par: 3, yards: 197 }, { par: 4, yards: 420 },
-    { par: 4, yards: 382 }, { par: 5, yards: 430 }, { par: 3, yards: 171 },
-    { par: 4, yards: 376 }, { par: 3, yards: 125 }, { par: 5, yards: 467 },
-    { par: 5, yards: 450 }, { par: 4, yards: 350 }, { par: 4, yards: 420 },
-    { par: 4, yards: 358 }, { par: 3, yards: 176 }, { par: 4, yards: 394 },
+    { par: 5, yards: 628, si: 4 },  { par: 4, yards: 364, si: 16 }, { par: 4, yards: 417, si: 8 },
+    { par: 4, yards: 444, si: 2 },  { par: 3, yards: 209, si: 10 }, { par: 4, yards: 424, si: 6 },
+    { par: 4, yards: 398, si: 14 }, { par: 5, yards: 522, si: 12 }, { par: 3, yards: 179, si: 18 },
+    { par: 4, yards: 366, si: 13 }, { par: 3, yards: 159, si: 17 }, { par: 5, yards: 528, si: 11 },
+    { par: 5, yards: 537, si: 5 },  { par: 4, yards: 422, si: 1 },  { par: 4, yards: 417, si: 3 },
+    { par: 4, yards: 385, si: 9 },  { par: 3, yards: 165, si: 15 }, { par: 4, yards: 401, si: 7 },
   ],
   // Avion Park Golf Club — a 9-hole course (par 35). Captured on-course from
   // the middle-of-green GPS distances (metres → yards ×1.09361), which round-
@@ -212,8 +215,11 @@ const EXACT_LAYOUTS: Record<string, { par: number; yards: number }[]> = {
 // every surveyed course above has a full card.)
 const PARTIAL_LAYOUTS: Record<string, { par: number; yards: number }[]> = {};
 
-function exactLayout(rows: { par: number; yards: number }[]): Hole[] {
-  const si = assignStrokeIndex(rows);
+function exactLayout(rows: { par: number; yards: number; si?: number }[]): Hole[] {
+  // Use the official stroke index when the card gives it; otherwise rank by
+  // difficulty as a stand-in.
+  const hasOfficialSi = rows.every((r) => typeof r.si === "number");
+  const si = hasOfficialSi ? rows.map((r) => r.si as number) : assignStrokeIndex(rows);
   return rows.map((r, i) => ({ number: i + 1, par: r.par, yards: r.yards, si: si[i] }));
 }
 
