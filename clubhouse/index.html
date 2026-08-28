@@ -84,7 +84,7 @@
   <div class="card accent">
     <h2>Open your event</h2>
     <div class="row">
-      <div><label>Backend URL</label><input id="api" placeholder="https://your-backend" /></div>
+      <div><label>Backend URL <span style="color:var(--faint);font-weight:400">(leave as-is)</span></label><input id="api" placeholder="https://foreai-backend.onrender.com" /></div>
       <div><label>Event join code</label><input id="code" placeholder="e.g. EC5GLF" maxlength="10" /></div>
     </div>
     <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
@@ -133,7 +133,17 @@
   var q=new URLSearchParams(location.search);
   var saved=lsGet();
   var D=(window.FOREAI_DEFAULTS||{});
-  var CFG={ api:(q.get('api')||saved.apiBase||D.api||'').replace(/\/$/,''), code:(q.get('code')||saved.code||D.code||'').toUpperCase() };
+  // Every ForeAi event lives on the one shared backend, so people should only
+  // ever need the join code. Guard against the common slips: a blank field, and
+  // typing "foreai.onrender.com" without the "-backend" (a different server that
+  // has none of the events). Both fall back to the real backend.
+  function normApi(a){
+    a=(a||'').trim().replace(/\/$/,'');
+    if(!a) return D.api||'';
+    if(/^https?:\/\/foreai\.onrender\.com$/i.test(a)) return D.api||a; // fix the -backend slip
+    return a;
+  }
+  var CFG={ api:normApi(q.get('api')||saved.apiBase||D.api||''), code:(q.get('code')||saved.code||D.code||'').toUpperCase() };
   $('api').value=CFG.api; $('code').value=CFG.code;
 
   function qs(){ var p=[]; if(CFG.api)p.push('api='+encodeURIComponent(CFG.api)); if(CFG.code)p.push('code='+encodeURIComponent(CFG.code)); return p.length?('?'+p.join('&')):''; }
@@ -180,7 +190,8 @@
   }
 
   function save(){
-    CFG.api=($('api').value||'').replace(/\/$/,''); CFG.code=($('code').value||'').toUpperCase();
+    CFG.api=normApi($('api').value); CFG.code=($('code').value||'').toUpperCase();
+    $('api').value=CFG.api; // show the corrected/defaulted URL back to the user
     lsSet({ apiBase:CFG.api, code:CFG.code });
     refreshLinks(); connect();
   }
