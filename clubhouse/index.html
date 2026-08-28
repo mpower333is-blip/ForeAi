@@ -84,7 +84,7 @@
   <div class="card accent">
     <h2>Open your event</h2>
     <div class="row">
-      <div><label>Backend URL <span style="color:var(--faint);font-weight:400">(leave as-is)</span></label><input id="api" placeholder="https://foreai-backend.onrender.com" /></div>
+      <div><label>Backend URL <span style="color:var(--faint);font-weight:400">(leave as-is)</span></label><input id="api" placeholder="https://foreai.onrender.com" /></div>
       <div><label>Event join code</label><input id="code" placeholder="e.g. EC5GLF" maxlength="10" /></div>
     </div>
     <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
@@ -140,7 +140,10 @@
   function normApi(a){
     a=(a||'').trim().replace(/\/$/,'');
     if(!a) return D.api||'';
-    if(/^https?:\/\/foreai\.onrender\.com$/i.test(a)) return D.api||a; // fix the -backend slip
+    // The live backend is the Render primary URL foreai.onrender.com. An old
+    // build/config used foreai-backend.onrender.com, which no longer routes —
+    // rewrite it so a stale saved value still connects.
+    if(/^https?:\/\/foreai-backend\.onrender\.com$/i.test(a)) return D.api||'https://foreai.onrender.com';
     return a;
   }
   var CFG={ api:normApi(q.get('api')||saved.apiBase||D.api||''), code:(q.get('code')||saved.code||D.code||'').toUpperCase() };
