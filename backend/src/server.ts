@@ -33,6 +33,23 @@ app.use("/clubs", clubRoutes);
 app.use("/strategy", strategyRoutes);
 app.use("/tournaments", tournamentRoutes);
 
+// Catch-all error handler: a route that throws (e.g. a database hiccup) returns
+// a clean 500 instead of leaving the request hanging. Must be registered last.
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error("Unhandled route error:", err);
+  if (!res.headersSent) res.status(500).json({ error: "Server error" });
+});
+
+// A single failing request must never take the whole service down (which shows
+// up as a 502 to clients). Log and keep serving — /health stays up so the
+// platform doesn't kill an otherwise-healthy instance.
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err);
+});
+
 const PORT = Number(process.env.PORT) || 5000;
 app.listen(PORT, () => {
   console.log(`ForeAi server running on port ${PORT}`);

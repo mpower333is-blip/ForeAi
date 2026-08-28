@@ -160,12 +160,17 @@ router.get("/:id", (req, res) => respondWithEvent(req.params.id, res));
 
 // Resolve by join code (used when a player joins from another device).
 router.get("/code/:code", async (req, res) => {
-  const t = await prisma.tournament.findUnique({
-    where: { code: req.params.code.toUpperCase() },
-    include: includeAll,
-  });
-  if (!t) return res.status(404).json({ error: "No event with that code" });
-  res.json(serialize(t));
+  try {
+    const t = await prisma.tournament.findUnique({
+      where: { code: req.params.code.toUpperCase() },
+      include: includeAll,
+    });
+    if (!t) return res.status(404).json({ error: "No event with that code" });
+    res.json(serialize(t));
+  } catch (err) {
+    console.error("code lookup failed:", err);
+    res.status(503).json({ error: "Database unavailable" });
+  }
 });
 
 // Set or change the organiser admin PIN. If no PIN is set yet, this claims it
