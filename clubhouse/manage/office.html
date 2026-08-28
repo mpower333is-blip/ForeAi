@@ -66,6 +66,7 @@
   @media print{ .bar,.tabs,.status,.del,.btn{display:none!important} body{background:#fff;color:#000} .card,.tile{border-color:#ccc} }
 </style>
   <script src="../config.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <a href="index.html" class="foreai-back" onclick="if(window.history.length>1){window.history.back();return false;}">‹ Back</a>
@@ -104,6 +105,15 @@
   <!-- dashboard -->
   <div id="dash" style="display:none">
     <div id="adminBar"></div>
+    <div class="card" style="display:flex;flex-direction:column;gap:8px">
+      <div class="row" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="company">📥 Import emailed Excel forms</span>
+        <button class="btn" onclick="document.getElementById('xlsxFiles').click()">Choose .xlsx files…</button>
+        <input id="xlsxFiles" type="file" accept=".xlsx" multiple style="display:none" onchange="importFiles(this.files)" />
+      </div>
+      <div class="hint">Select the team / hole / prize forms people emailed. It reads them here (nothing uploaded), shows a preview, then adds them to the event — duplicates are skipped.</div>
+      <div id="importPreview"></div>
+    </div>
     <div class="tiles" id="tiles"></div>
     <div class="tabs" id="tabs">
       <div class="tab on" data-f="all">All</div>
@@ -327,6 +337,106 @@
         +'<span style="color:var(--gold)">⚠️ No admin PIN set — anyone with the code can make changes.</span>'
         +'<button class="btn" onclick="setAdminPin()">Set admin PIN</button></div>';
     }
+  }
+
+  // ---- Excel import (team / hole / prize forms) --------------------------
+  var IMPORT=[];
+  // First non-empty cell to the right of a label cell (handles the "Description"
+  // column and merged cells).
+  function valRight(row, col){ for(var c=col+1;c<row.length;c++){ var v=row[c]; if(v!=null && String(v).trim()!=='') return String(v).trim(); } return ''; }
+  // Robust: value may be (1) typed after the colon in the same cell, (2) in a
+  // cell to the right, or (3) in the cell directly below the label.
+  function findVal(aoa, re){
+    for(var r=0;r<aoa.length;r++){ var row=aoa[r]||[];
+      for(var c=0;c<row.length;c++){ var cell=row[c]==null?'':String(row[c]).trim();
+        if(cell && re.test(cell)){
+          var after=cell.replace(/^[^:]*:/,'').trim();
+          if(after && !re.test(after)) return after;
+          var right=valRight(row,c); if(right) return right;
+          var below=(aoa[r+1]&&aoa[r+1][c]!=null)?String(aoa[r+1][c]).trim():''; if(below && !re.test(below)) return below;
+          return '';
+        }
+      } }
+    return '';
+  }
+  function detectType(aoa){
+    var big=aoa.map(function(r){return (r||[]).map(function(x){return x==null?'':String(x);}).join(' ');}).join(' \n ').toUpperCase();
+    if(/FOUR-BALL TEAM|TEAM REGISTRATION|TR-01/.test(big)) return 'team';
+    if(/HOLE \(TEE|HOLE .{0,6}SPONSORSHIP|HS-01/.test(big)) return 'hole';
+    if(/PRIZE SPONSORSHIP|PS-01/.test(big)) return 'prize';
+    return null;
+  }
+  function parseForm(aoa){
+    var type=detectType(aoa);
+    var b={ company:findVal(aoa,/name of company/i),
+      regNumber:findVal(aoa,/registration number/i)||null,
+      vatNumber:findVal(aoa,/vat/i)||null,
+      address:findVal(aoa,/company address/i)||null,
+      city:findVal(aoa,/^city\b/i)||null,
+      postalCode:findVal(aoa,/postal/i)||null,
+      contactPerson:findVal(aoa,/contact person/i)||null,
+      cell:findVal(aoa,/^cell\b/i)||null,
+      email:findVal(aoa,/^e-?mail\b/i)||null };
+    if(type==='team'){
+      var players=[]; for(var n=1;n<=4;n++){ var nm=findVal(aoa,new RegExp('player\\s*'+n,'i')); if(nm) players.push({name:nm}); }
+      b.teamCount=parseInt(findVal(aoa,/number of four-ball teams/i),10)||1;
+      b.teams=[{players:players}];
+    } else if(type==='hole'){
+      b.holePreference=findVal(aoa,/hole number preference/i)||'';
+    } else if(type==='prize'){
+      var cash=findVal(aoa,/cash prize amount/i);
+      var prizes=[]; for(var n=1;n<=3;n++){ var pz=findVal(aoa,new RegExp('prize\\s*'+n+'\\s*:','i')); if(pz) prizes.push(pz); }
+      b.prizeType=cash?'cash':'item'; b.cashAmount=cash||''; b.prizes=prizes;
+    }
+    return {type:type, body:b};
+  }
+  async function importFiles(files){
+    IMPORT=[]; var pv=document.getElementById('importPreview'); pv.innerHTML='<div class="hint">Reading…</div>';
+    for(var i=0;i<files.length;i++){
+      try{
+        var buf=await files[i].arrayBuffer();
+        var wb=XLSX.read(buf,{type:'array'});
+        var ws=wb.Sheets[wb.SheetNames[0]];
+        var aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+        var p=parseForm(aoa); p.file=files[i].name; IMPORT.push(p);
+      }catch(e){ IMPORT.push({type:null,body:{},file:files[i].name,err:String(e)}); }
+    }
+    document.getElementById('xlsxFiles').value='';
+    renderImportPreview();
+  }
+  function isDup(p){ return REGS.some(function(r){ return r.type===p.type && (r.company||'').trim().toLowerCase()===(p.body.company||'').trim().toLowerCase(); }); }
+  function renderImportPreview(){
+    var pv=document.getElementById('importPreview');
+    if(!IMPORT.length){ pv.innerHTML=''; return; }
+    var rows=IMPORT.map(function(p){
+      var b=p.body, det='';
+      if(!p.type) det='<span style="color:var(--red)">unrecognised form</span>';
+      else if(!b.company) det='<span style="color:var(--red)">no company name found</span>';
+      else if(p.type==='team') det=(b.teams[0].players.length)+' players'+(b.teamCount>1?(' · '+b.teamCount+' teams'):'');
+      else if(p.type==='hole') det='hole pref: '+(b.holePreference||'any');
+      else det=(b.prizeType==='cash'?('cash '+(b.cashAmount||'')):('items: '+((b.prizes||[]).join(', ')||'—')));
+      var dup=p.type&&b.company&&isDup(p);
+      return '<div class="status" style="justify-content:flex-start;gap:8px;flex-wrap:wrap">'
+        +'<span class="badge b-'+(p.type||'team')+'">'+(p.type?p.type.toUpperCase():'?')+'</span>'
+        +'<b>'+esc(b.company||p.file)+'</b> <span class="lbl">'+det+'</span>'
+        +(dup?' <span style="color:var(--gold)">already in event — will skip</span>':'')+'</div>';
+    }).join('');
+    var ok=IMPORT.filter(function(p){return p.type&&p.body.company&&!isDup(p);}).length;
+    pv.innerHTML='<div style="margin:8px 0">'+rows+'</div>'
+      +'<button class="btn" '+(ok?'':'disabled')+' onclick="runImport()">Import '+ok+' new entr'+(ok===1?'y':'ies')+'</button> '
+      +'<button class="sbtn" onclick="IMPORT=[];renderImportPreview()">Clear</button>';
+  }
+  async function runImport(){
+    var ok=0,skip=0,fail=0;
+    for(var i=0;i<IMPORT.length;i++){ var p=IMPORT[i];
+      if(!p.type||!p.body.company||isDup(p)){ skip++; continue; }
+      var ep=p.type==='team'?'/register/team':p.type==='hole'?'/register/hole-sponsor':'/register/prize-sponsor';
+      try{ var r=await fetch(CFG.api+'/tournaments/code/'+CFG.code+ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p.body)});
+        if(r.ok) ok++; else fail++; }catch(e){ fail++; }
+      await new Promise(s=>setTimeout(s,150));
+    }
+    alert('Imported '+ok+' · skipped '+skip+(fail?(' · failed '+fail):''));
+    IMPORT=[]; document.getElementById('importPreview').innerHTML=''; await load(false);
   }
 
   async function setStatus(id,status){
