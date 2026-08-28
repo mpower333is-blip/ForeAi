@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ECS Golf Day — Online Registration</title>
+<title>Golf Day — Registration</title>
 <!--
   Shareable registration form for the ECS Corporate Golf Day. Submissions POST
   to the ForeAi backend and import immediately into the event (players + sponsors
@@ -72,12 +72,10 @@
 <a href="index.html" class="foreai-back" onclick="if(window.history.length>1){window.history.back();return false;}">‹ Back</a>
 <style>.foreai-back{position:fixed;top:14px;left:14px;z-index:99999;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(6,23,15,0.72);color:#8DFF6B;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;text-decoration:none;border:1px solid rgba(141,255,107,0.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,0.3)}.foreai-back:hover{background:rgba(141,255,107,0.16)}</style>
 <div class="wrap">
-  <div class="ecs">
-    <img src="ecs-logo.png" alt="ECS Engine Control Systems" />
-  </div>
+  <div class="ecs" id="eventBrand" style="display:none"></div>
 
-  <h1>Corporate Golf Day 2026 — Registration</h1>
-  <p class="sub">💚 In support of Lyla Roux</p>
+  <h1 id="evtTitle">Golf Day — Registration</h1>
+  <p class="sub" id="evtCause" style="display:none"></p>
   <p class="meta">Kempton Park Golf Club · Thursday, 15 October 2026 · Shotgun start 07:30 for 08:00</p>
 
   <div class="tabs">
@@ -110,7 +108,7 @@
     <div id="company-hole"></div>
     <label>Hole number preference (if any)</label>
     <input name="holePreference" type="number" min="1" max="18" placeholder="e.g. 7" />
-    <label>Company logo <span class="opt">(shown on your hole board &amp; the thank-you wall for Lyla)</span></label>
+    <label>Company logo <span class="opt">(shown on your hole board &amp; the sponsor thank-you wall)</span></label>
     <div class="logoUp">
       <input type="file" accept="image/*" data-role="logo" data-key="hole" />
       <img class="logoPrev" data-key="hole" alt="logo preview" />
@@ -144,7 +142,7 @@
       <label>Prize 2</label><input name="prize2" placeholder="(optional)" />
       <label>Prize 3</label><input name="prize3" placeholder="(optional)" />
     </div>
-    <label>Company logo <span class="opt">(shown on the thank-you wall for Lyla)</span></label>
+    <label>Company logo <span class="opt">(shown on the sponsor thank-you wall)</span></label>
     <div class="logoUp">
       <input type="file" accept="image/*" data-role="logo" data-key="prize" />
       <img class="logoPrev" data-key="prize" alt="logo preview" />
@@ -391,6 +389,18 @@
     var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
     a.download='ECS-GolfDay-'+(lastType||'entry')+'.json'; a.click();
   });
+
+  // Brand this page from the event itself (logo, name, cause) — no hard-coded
+  // company. Banking + fees are genericised in Phase 3.
+  (async function loadEventBrand(){
+    if(!CFG.api||!CFG.code) return;
+    try{
+      var r=await fetch(CFG.api+'/tournaments/code/'+CFG.code); if(!r.ok) return; var ev=await r.json();
+      if(ev.name){ document.getElementById('evtTitle').textContent=ev.name+' — Registration'; document.title=ev.name+' — Registration'; }
+      if(ev.cause){ var c=document.getElementById('evtCause'); c.textContent='💚 '+ev.cause; c.style.display=''; }
+      if(ev.logo){ var b=document.getElementById('eventBrand'); var im=document.createElement('img'); im.src=ev.logo; im.alt=(ev.name||'Event')+' logo'; b.appendChild(im); b.style.display=''; }
+    }catch(e){}
+  })();
 </script>
 </body>
 </html>

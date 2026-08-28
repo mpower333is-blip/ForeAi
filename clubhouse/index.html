@@ -65,9 +65,7 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="ecs">
-    <img src="ecs-logo.png" alt="ECS Engine Control Systems" />
-  </div>
+  <div id="eventBrand"></div>
   <div class="hero">
     <svg width="46" height="46" viewBox="0 0 400 400" aria-hidden="true">
       <ellipse cx="200" cy="308" rx="152" ry="46" fill="#12492B"/><ellipse cx="200" cy="299" rx="152" ry="43" fill="#217746"/>
@@ -75,11 +73,16 @@
     </svg>
     <div class="brand">ForeAi</div>
   </div>
-  <div class="tag">Golf Day Hub · one place to run the day</div>
+  <div class="tag">Run your golf day — one place for the whole day</div>
 
-  <!-- setup -->
+  <div class="card" style="border-color:var(--line)">
+    <p style="margin:0 0 8px">ForeAi runs a golf day end to end: <b>team &amp; sponsor registration</b>, <b>live scoring</b> on players' phones, a <b>big-screen leaderboard</b>, and an organiser <b>office</b>. Create your event in the ForeAi app to get a <b>join code</b>, then share it — everything below opens straight into <i>your</i> event, with your own logo and branding.</p>
+    <p class="foot" style="margin:0;text-align:left">Players &amp; sponsors just need the code. The office &amp; setup tools live in a separate, private area.</p>
+  </div>
+
+  <!-- open an event by code -->
   <div class="card accent">
-    <h2>Event setup</h2>
+    <h2>Open your event</h2>
     <div class="row">
       <div><label>Backend URL</label><input id="api" placeholder="https://your-backend" /></div>
       <div><label>Event join code</label><input id="code" placeholder="e.g. EC5GLF" maxlength="10" /></div>
@@ -154,6 +157,7 @@
       var r=await fetch(CFG.api+'/tournaments/code/'+CFG.code);
       if(!r.ok) throw new Error('Event not found for code '+CFG.code);
       var ev=await r.json();
+      showEventBrand(ev);
       var players=(ev.players||[]).length, sponsors=(ev.sponsors||[]).length, groups=(ev.groups||[]).length;
       setStatus('ok', 'Connected · '+ev.name);
       $('facts').innerHTML =
@@ -167,13 +171,20 @@
     }
   }
   function setStatus(kind,text){ $('dot').className='dot'+(kind==='ok'?' ok':kind==='bad'?' bad':''); $('statusText').textContent=text; }
+  // Show the event's own uploaded logo (from Phase-1 event setup). No hard-coded
+  // company branding — each event brings its own.
+  function showEventBrand(ev){
+    var b=$('eventBrand'); b.innerHTML='';
+    if(ev && ev.logo){ var box=document.createElement('div'); box.className='ecs';
+      var im=document.createElement('img'); im.src=ev.logo; im.alt=(ev.name||'Event')+' logo'; box.appendChild(im); b.appendChild(box); }
+  }
 
   function save(){
     CFG.api=($('api').value||'').replace(/\/$/,''); CFG.code=($('code').value||'').toUpperCase();
     lsSet({ apiBase:CFG.api, code:CFG.code });
     refreshLinks(); connect();
   }
-  function clearCfg(){ try{ localStorage.removeItem(KEY); }catch(e){} CFG={api:'',code:''}; $('api').value=''; $('code').value=''; $('facts').innerHTML=''; refreshLinks(); setStatus('idle','Enter your event details to connect.'); }
+  function clearCfg(){ try{ localStorage.removeItem(KEY); }catch(e){} CFG={api:'',code:''}; $('api').value=''; $('code').value=''; $('facts').innerHTML=''; $('eventBrand').innerHTML=''; refreshLinks(); setStatus('idle','Enter your event details to connect.'); }
 
   function copy(id){
     var el=$(id); el.select(); el.setSelectionRange(0,9999);
