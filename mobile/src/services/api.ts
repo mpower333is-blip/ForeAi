@@ -10,7 +10,7 @@ import { Conditions, StrategyInput } from "../lib/golfEngine";
 // machine's LAN IP, e.g. http://192.168.1.20:5000, so a phone can reach it).
 export const API_BASE =
   (process.env.EXPO_PUBLIC_API_URL as string | undefined) ??
-  "https://foreai.onrender.com";
+  "https://foreai-backend.onrender.com";
 
 async function post<T>(path: string, body: unknown): Promise<T | null> {
   try {

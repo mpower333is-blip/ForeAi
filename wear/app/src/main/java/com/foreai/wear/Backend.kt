@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 // The watch is standalone: it talks straight to the same backend and event the
 // phones use. Preset so a player just opens the app on the day.
 object Config {
-    const val API_BASE = "https://foreai.onrender.com"
+    const val API_BASE = "https://foreai-backend.onrender.com"
     const val PRESET_EVENT_CODE = "3YG6JS" // ECS Golf Day
 }
 

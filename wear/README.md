@@ -1,7 +1,7 @@
 # ForeAi — Wear OS app
 
 A **standalone Wear OS** companion for the ForeAi golf day. It talks straight to
-the same backend the phones use (`https://foreai.onrender.com`) and the
+the same backend the phones use (`https://foreai-backend.onrender.com`) and the
 same event (join code `3YG6JS`), so scores entered on the watch land on the same
 live leaderboard — the phone can stay in the bag.
 
