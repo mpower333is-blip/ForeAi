@@ -13,9 +13,11 @@ import { colors } from "../theme";
 export default function SatelliteHole({
   hole,
   center,
+  player,
 }: {
   hole: Hole;
   center?: Coord;
+  player?: Coord | null; // live GPS position, when playing the hole
 }) {
   const hazards = hole.hazards ?? [];
   const pts: Coord[] = [];
@@ -23,6 +25,7 @@ export default function SatelliteHole({
   if (hole.green) pts.push(hole.green);
   if (hole.greenFront) pts.push(hole.greenFront);
   if (hole.greenBack) pts.push(hole.greenBack);
+  if (player) pts.push(player);
   hazards.forEach((z) => pts.push({ lat: z.lat, lng: z.lng }));
 
   const perHole = pts.length > 0;
@@ -73,10 +76,12 @@ export default function SatelliteHole({
     y: ((maxY - p.lat) / (maxY - minY)) * 100,
   });
 
-  // Live-ish distances (tee → green edges) for the readout.
-  const mid = hole.tee && hole.green ? Math.round(haversineMeters(hole.tee, hole.green)) : null;
-  const front = hole.tee && hole.greenFront ? Math.round(haversineMeters(hole.tee, hole.greenFront)) : null;
-  const back = hole.tee && hole.greenBack ? Math.round(haversineMeters(hole.tee, hole.greenBack)) : null;
+  // Distances to the green edges. Measured from the player's live position when
+  // playing the hole; otherwise from the tee as a preview.
+  const from = player ?? hole.tee;
+  const mid = from && hole.green ? Math.round(haversineMeters(from, hole.green)) : null;
+  const front = from && hole.greenFront ? Math.round(haversineMeters(from, hole.greenFront)) : null;
+  const back = from && hole.greenBack ? Math.round(haversineMeters(from, hole.greenBack)) : null;
 
   const HZ_STYLE: Record<string, { fill: string; r: number; opacity: number }> = {
     tree: { fill: "#2f9e4f", r: 0.9, opacity: 0.85 },
@@ -106,6 +111,20 @@ export default function SatelliteHole({
           {hole.greenBack && <Circle cx={toXY(hole.greenBack).x} cy={toXY(hole.greenBack).y} r="1.2" fill="#ffffff" opacity={0.9} />}
           {hole.tee && <Circle cx={toXY(hole.tee).x} cy={toXY(hole.tee).y} r="1.7" fill="#ffffff" stroke="#0a2016" strokeWidth="0.4" />}
           {hole.green && <Circle cx={toXY(hole.green).x} cy={toXY(hole.green).y} r="2" fill={colors.accent} stroke="#0a2016" strokeWidth="0.4" />}
+          {/* live player position + line to the green */}
+          {player && hole.green && (
+            <Line
+              x1={toXY(player).x} y1={toXY(player).y}
+              x2={toXY(hole.green).x} y2={toXY(hole.green).y}
+              stroke="#4dc3ff" strokeWidth="0.8" strokeDasharray="1.5,1"
+            />
+          )}
+          {player && (
+            <>
+              <Circle cx={toXY(player).x} cy={toXY(player).y} r="2.4" fill="#4dc3ff" opacity={0.3} />
+              <Circle cx={toXY(player).x} cy={toXY(player).y} r="1.5" fill="#4dc3ff" stroke="#ffffff" strokeWidth="0.5" />
+            </>
+          )}
         </Svg>
       )}
 

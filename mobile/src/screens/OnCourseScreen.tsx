@@ -5,6 +5,7 @@ import { colors, spacing, radius, type } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { useCourseCoords, HolePointKey } from "../state/CourseCoordsContext";
 import { useLocation } from "../hooks/useLocation";
+import SatelliteHole from "../components/SatelliteHole";
 import { greenDistancesMeters, bearingDegrees, compass8 } from "../lib/geo";
 import { ydToM } from "../lib/units";
 
@@ -26,6 +27,15 @@ export default function OnCourseScreen({ navigation }: any) {
   const greenBack = cap.greenBack ?? hole.greenBack;
   const pin = green ?? greenFront ?? greenBack ?? null;
   const hasGps = !!pin;
+
+  // Hole with the best (captured-over-bundled) coords for the aerial view.
+  const satHole = {
+    ...hole,
+    tee: cap.tee ?? hole.tee,
+    green: green ?? undefined,
+    greenFront: greenFront ?? undefined,
+    greenBack: greenBack ?? undefined,
+  };
 
   const fmb =
     loc.coord && pin ? greenDistancesMeters(loc.coord, { greenFront, green: green ?? pin, greenBack }) : null;
@@ -166,6 +176,13 @@ export default function OnCourseScreen({ navigation }: any) {
               </View>
             </View>
             <Button label="📍 Capture / fix this course's GPS" variant="ghost" onPress={() => setCapturing(true)} />
+          </Card>
+
+          <Card style={{ padding: spacing.sm }}>
+            <SatelliteHole hole={satHole} center={undefined} player={loc.coord} />
+            <Text style={styles.hint}>
+              Live satellite view — the blue dot is you, the dashed line your distance to the green. Bunkers, water and trees show where they've been mapped.
+            </Text>
           </Card>
         </>
       )}
