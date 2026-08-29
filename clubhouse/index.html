@@ -99,6 +99,7 @@
        sharing and the board all live UNDER the event, never on the public page. -->
   <div id="eventTools" hidden>
     <h2 style="margin:18px 0 12px">Your event · <span id="evtName" style="color:var(--text);text-transform:none;letter-spacing:0"></span></h2>
+    <div id="evtCause" style="margin:-4px 0 14px"></div>
     <div class="grid" id="tiles">
       <a class="tile" id="t-office" href="manage/office.html">
         <div class="ic">🔐</div>
@@ -194,6 +195,12 @@
         '<div class="fact">Code <b>'+CFG.code+'</b></div>';
       // Reveal Register / Get-app / Board only now, under the connected event.
       $('evtName').textContent = ev.name || CFG.code;
+      var cz=$('evtCause'); cz.innerHTML='';
+      if(ev.causePhoto || ev.cause){
+        var img=ev.causePhoto?'<img src="'+ev.causePhoto+'" alt="" style="height:80px;width:auto;border-radius:12px;object-fit:cover;background:#fff" />':'';
+        var txt=ev.cause?'<div style="color:var(--muted);font-size:14px;line-height:1.5">💚 '+ev.cause+'</div>':'';
+        cz.innerHTML='<div class="card" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'+img+txt+'</div>';
+      }
       $('eventTools').hidden = false;
     }catch(e){
       setStatus('bad', e.message||'Could not reach the backend.');

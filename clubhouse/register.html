@@ -76,6 +76,7 @@
 
   <h1 id="evtTitle">Golf Day — Registration</h1>
   <p class="sub" id="evtCause" style="display:none"></p>
+  <div id="evtCausePhoto" style="display:none;text-align:center;margin:6px 0 10px"></div>
   <p class="meta">Kempton Park Golf Club · Thursday, 15 October 2026 · Shotgun start 07:30 for 08:00</p>
 
   <div class="tabs">
@@ -398,6 +399,7 @@
       var r=await fetch(CFG.api+'/tournaments/code/'+CFG.code); if(!r.ok) return; var ev=await r.json();
       if(ev.name){ document.getElementById('evtTitle').textContent=ev.name+' — Registration'; document.title=ev.name+' — Registration'; }
       if(ev.cause){ var c=document.getElementById('evtCause'); c.textContent='💚 '+ev.cause; c.style.display=''; }
+      if(ev.causePhoto){ var cp=document.getElementById('evtCausePhoto'); cp.innerHTML='<img src="'+ev.causePhoto+'" alt="" style="max-width:260px;width:100%;max-height:200px;object-fit:cover;border-radius:12px" />'; cp.style.display=''; }
       if(ev.logo){ var b=document.getElementById('eventBrand'); var im=document.createElement('img'); im.src=ev.logo; im.alt=(ev.name||'Event')+' logo'; b.appendChild(im); b.style.display=''; }
     }catch(e){}
   })();
