@@ -54,6 +54,7 @@
     <button class="pt"     data-t="green" onclick="setType('green')">🟢 Green</button>
     <button class="pt"     data-t="greenFront" onclick="setType('greenFront')">Front</button>
     <button class="pt"     data-t="greenBack"  onclick="setType('greenBack')">Back</button>
+    <button class="pt"     data-t="fairway" onclick="setType('fairway')">🛣️ Fairway</button>
   </div>
   <div class="row">
     <button class="pt" data-t="tree"   onclick="setType('tree')">🌳 Trees</button>
@@ -68,7 +69,7 @@
     <button class="pri grow" onclick="download()">⬇ Download coords</button>
   </div>
   <div id="msg"></div>
-  <div class="hint">Tap the map to drop the highlighted point on the current hole. Tee → Green auto-advances to the next hole. <b>Trees / Water / Bunker</b> add a point each tap — tap several around a bunker or water edge to outline its shape. Progress is saved on this device.</div>
+  <div class="hint">Tap the map to drop the highlighted point on the current hole. <b>🛣️ Fairway</b> drops ordered waypoints down the middle — tap the bends from tee to green and the preview line curves through them (skip it for a straight hole). <b>Trees / Water / Bunker</b> add a point each tap — tap several around an edge to outline a shape. Progress is saved on this device.</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -101,6 +102,12 @@
       save(); redraw(); msg('Hole '+cur+' · '+label(type)+' added');
       return;
     }
+    if (type==='fairway') {
+      // Ordered path down the fairway (tee → these → green). Tap the bends.
+      (h.fairway || (h.fairway = [])).push({ lat:round(lat), lng:round(lng) });
+      save(); redraw(); msg('Hole '+cur+' · fairway point '+h.fairway.length);
+      return;
+    }
     h[type] = { lat:round(lat), lng:round(lng) };
     save(); redraw(); msg('Hole '+cur+' · '+label(type)+' set');
     // Convenience: tee -> green so you can drop both quickly. We deliberately do
@@ -121,9 +128,16 @@
           fillOpacity:isCur?1:0.55
         }).addTo(layer).bindTooltip((isCur?'':'')+n+(t==='tee'?' tee':t==='green'?' green':t==='greenFront'?' F':' B'),{permanent:false});
       });
+      // Playing route: tee → fairway waypoints → green (bends through the fairway).
+      // Falls back to a straight tee→green line when no fairway path is mapped.
       if(h.tee && h.green){
-        L.polyline([[h.tee.lat,h.tee.lng],[h.green.lat,h.green.lng]],
-          { color:isCur?'#39d98a':'#2b6b4a', weight:isCur?3:2, dashArray:'6,5', opacity:isCur?0.95:0.5 }).addTo(layer);
+        var fw = h.fairway || [];
+        var route = [[h.tee.lat,h.tee.lng]].concat(fw.map(function(p){return [p.lat,p.lng];})).concat([[h.green.lat,h.green.lng]]);
+        L.polyline(route,
+          { color:isCur?'#39d98a':'#2b6b4a', weight:isCur?3:2, dashArray: fw.length?null:'6,5', opacity:isCur?0.95:0.5 }).addTo(layer);
+        fw.forEach(function(p){
+          L.circleMarker([p.lat,p.lng], { radius:isCur?4:3, color:'#04150c', weight:1, fillColor:'#39d98a', fillOpacity:isCur?0.9:0.5 }).addTo(layer);
+        });
       }
       // hazards: trees / water / bunkers
       (h.hazards||[]).forEach(function(hz){
@@ -162,6 +176,10 @@
       }
       return;
     }
+    if(type==='fairway'){
+      if(h.fairway && h.fairway.length){ h.fairway.pop(); save(); redraw(); msg('Removed a fairway point on hole '+cur); }
+      return;
+    }
     if(h[type]){ delete h[type]; save(); redraw(); msg('Removed '+label(type)+' on hole '+cur); }
   }
   function clearHole(){ if(confirm('Clear all points on hole '+cur+'?')){ delete state.holes[cur]; save(); redraw(); } }
@@ -189,6 +207,7 @@
       var h=state.holes[n]; if(!h) continue;
       var o={ hole:n };
       ['tee','green','greenFront','greenBack'].forEach(function(t){ if(h[t]) o[t]=h[t]; });
+      if(h.fairway && h.fairway.length) o.fairway = h.fairway;
       if(h.hazards && h.hazards.length) o.hazards = h.hazards;
       if(Object.keys(o).length>1) holes.push(o);
     }

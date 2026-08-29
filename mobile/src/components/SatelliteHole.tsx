@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
-import Svg, { Line, Circle } from "react-native-svg";
+import Svg, { Line, Circle, Polyline } from "react-native-svg";
 import { Hole } from "../data/courses";
 import { Coord, haversineMeters } from "../lib/geo";
 import { colors } from "../theme";
@@ -26,6 +26,8 @@ export default function SatelliteHole({
   if (hole.greenFront) pts.push(hole.greenFront);
   if (hole.greenBack) pts.push(hole.greenBack);
   if (player) pts.push(player);
+  const fairway = hole.fairway ?? [];
+  fairway.forEach((p) => pts.push(p));
   hazards.forEach((z) => pts.push({ lat: z.lat, lng: z.lng }));
 
   const perHole = pts.length > 0;
@@ -100,12 +102,24 @@ export default function SatelliteHole({
             const p = toXY({ lat: z.lat, lng: z.lng });
             return <Circle key={i} cx={p.x} cy={p.y} r={s.r} fill={s.fill} opacity={s.opacity} />;
           })}
-          {hole.tee && hole.green && (
-            <Line
-              x1={toXY(hole.tee).x} y1={toXY(hole.tee).y}
-              x2={toXY(hole.green).x} y2={toXY(hole.green).y}
-              stroke={colors.accent} strokeWidth="0.7" strokeDasharray="2,1.2"
+          {/* Playing route: tee → fairway waypoints → green. Falls back to a
+              straight tee→green line when no fairway path has been mapped. */}
+          {hole.tee && hole.green && fairway.length > 0 ? (
+            <Polyline
+              points={[hole.tee, ...fairway, hole.green]
+                .map((p) => { const q = toXY(p); return `${q.x},${q.y}`; })
+                .join(" ")}
+              fill="none" stroke={colors.accent} strokeWidth="0.8"
+              strokeLinejoin="round" strokeLinecap="round"
             />
+          ) : (
+            hole.tee && hole.green && (
+              <Line
+                x1={toXY(hole.tee).x} y1={toXY(hole.tee).y}
+                x2={toXY(hole.green).x} y2={toXY(hole.green).y}
+                stroke={colors.accent} strokeWidth="0.7" strokeDasharray="2,1.2"
+              />
+            )
           )}
           {hole.greenFront && <Circle cx={toXY(hole.greenFront).x} cy={toXY(hole.greenFront).y} r="1.2" fill="#ffffff" opacity={0.9} />}
           {hole.greenBack && <Circle cx={toXY(hole.greenBack).x} cy={toXY(hole.greenBack).y} r="1.2" fill="#ffffff" opacity={0.9} />}

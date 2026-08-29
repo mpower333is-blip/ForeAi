@@ -14,6 +14,7 @@ export type HoleGps = {
   greenFront?: Coord; // front edge of the green
   green?: Coord;      // centre of the green ("middle")
   greenBack?: Coord;  // back edge of the green
+  fairway?: Coord[];  // ordered waypoints down the fairway (tee → these → green)
   hazards?: { type: "tree" | "water" | "bunker"; lat: number; lng: number }[];
 };
 
