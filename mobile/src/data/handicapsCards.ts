@@ -331,4 +331,69 @@ export const HANDICAPS_CARDS: HcpCard[] = [
     pars:  [3,3,3,3,3,3,3,3,3, 3,3,3,4,4,4,3,4,3],
     sis:   [10,14,6,18,16,4,8,12,2, 1,17,13,7,9,11,15,5,3],
     metres:[136,140,172,95,140,140,133,137,173, 165,128,140,378,330,354,121,337,163] },
+
+  { id:"ccj-woodmead", name:"The Country Club Johannesburg — Woodmead", town:"Sandton", province:"Gauteng", par:72, tee:"Yellow", lat:-26.052, lng:28.088,
+    pars:  [4,4,5,3,4,5,4,3,4, 4,4,4,3,4,3,5,4,5],
+    sis:   [13,7,15,11,1,17,3,9,5, 8,2,12,10,4,18,14,6,16],
+    metres:[385,395,536,180,430,496,412,172,423, 390,441,345,180,379,200,513,396,530] },
+
+  { id:"ccj-rocklands", name:"The Country Club Johannesburg — Rocklands", town:"Sandton", province:"Gauteng", par:72, tee:"Yellow", lat:-26.052, lng:28.088,
+    pars:  [4,4,5,3,4,3,5,4,4, 4,4,5,5,4,3,4,3,4],
+    sis:   [12,2,18,10,8,4,16,6,14, 5,1,11,17,15,13,7,9,3],
+    metres:[375,396,555,208,386,215,513,402,352, 408,477,518,520,375,172,396,190,373] },
+
+  { id:"ccj-woodlands", name:"The Country Club Johannesburg — Woodlands", town:"Sandton", province:"Gauteng", par:72, tee:"Yellow", lat:-26.052, lng:28.088,
+    pars:  [4,4,5,3,4,5,4,3,4, 4,4,5,5,4,3,4,3,4],
+    sis:   [13,7,15,11,1,17,3,9,5, 6,2,12,18,16,14,8,10,4],
+    metres:[385,395,536,180,430,496,412,172,423, 408,477,518,520,375,172,396,190,373] },
+
+  { id:"ccj-rockmead", name:"The Country Club Johannesburg — Rockmead", town:"Sandton", province:"Gauteng", par:72, tee:"Yellow", lat:-26.052, lng:28.088,
+    pars:  [4,4,5,3,4,3,5,4,4, 4,4,4,3,4,3,5,4,5],
+    sis:   [12,2,18,10,8,4,16,6,14, 5,1,11,9,7,13,15,3,17],
+    metres:[375,396,555,208,386,215,513,402,352, 390,441,345,180,379,200,513,396,530] },
+
+  { id:"ccj-mashie", name:"The Country Club Johannesburg — The Mashie", town:"Sandton", province:"Gauteng", par:54, tee:"White", lat:-26.052, lng:28.088,
+    pars:  [3,3,3,3,3,3,3,3,3, 3,3,3,3,3,3,3,3,3],
+    sis:   [6,1,7,2,3,8,5,9,4, 15,10,16,11,12,17,14,18,13],
+    metres:[83,129,65,121,86,64,85,56,67, 83,129,65,121,86,64,85,56,67] },
+
+  { id:"els-club-copperleaf", name:"The Els Club — Copperleaf", town:"Centurion", province:"Gauteng", par:72, tee:"Black", lat:-25.902, lng:28.151,
+    pars:  [4,4,3,5,3,4,4,5,4, 4,5,4,4,3,5,4,3,4],
+    sis:   [5,15,9,11,13,1,17,7,3, 6,14,2,16,10,8,12,18,4],
+    metres:[464,406,254,636,195,422,364,557,459, 459,600,422,384,201,580,328,179,453] },
+
+  { id:"the-river-club", name:"The River Club", town:"Sandton", province:"Gauteng", par:71, tee:"Yellow", lat:-26.048, lng:28.073,
+    pars:  [4,5,4,4,3,5,4,3,4, 4,4,4,4,3,5,4,3,4],
+    sis:   [8,6,2,10,14,16,4,18,12, 13,7,9,5,15,17,1,11,3],
+    metres:[360,535,391,377,165,474,433,168,392, 359,369,350,376,180,481,444,201,422] },
+
+  { id:"tiptol-golf-course", name:"Tiptol Golf Course", town:"Krugersdorp", province:"Gauteng", par:54, tee:"White",
+    pars:  [3,3,3,3,3,3,3,3,3, 3,3,3,3,3,3,3,3,3],
+    sis:   [17,5,7,13,1,11,9,3,15, 18,6,8,14,2,12,10,4,16],
+    metres:[58,101,91,105,174,169,166,163,95, 58,101,91,105,174,169,166,163,95] },
+
+  { id:"wanderers-golf-club", name:"Wanderers Golf Club", town:"Johannesburg", province:"Gauteng", par:71, tee:"Yellow", lat:-26.132, lng:28.061,
+    pars:  [5,4,4,4,4,3,4,4,4, 5,4,3,5,4,3,4,3,4],
+    sis:   [15,5,9,7,3,11,1,17,13, 10,6,18,12,8,14,4,16,2],
+    metres:[516,385,372,365,433,167,449,307,370, 533,405,162,480,392,180,410,150,435] },
+
+  { id:"waterkloof-golf-club", name:"Waterkloof Golf Club", town:"Pretoria", province:"Gauteng", par:72, tee:"White", lat:-25.831, lng:28.251,
+    pars:  [4,5,4,4,4,3,5,3,4, 4,4,4,4,5,3,4,3,5],
+    sis:   [7,17,3,11,5,9,13,15,1, 12,14,2,4,16,10,8,6,18],
+    metres:[352,497,386,353,374,182,458,130,432, 391,360,360,399,501,168,338,184,440] },
+
+  { id:"waterkloof-par-3", name:"Waterkloof — Par 3 Course", town:"Pretoria", province:"Gauteng", par:54, tee:"Orange", lat:-25.831, lng:28.251,
+    pars:  [3,3,3,3,3,3,3,3,3, 3,3,3,3,3,3,3,3,3],
+    sis:   [7,17,3,11,5,9,13,15,1, 12,14,2,4,16,10,8,6,18],
+    metres:[122,145,95,100,153,125,90,115,82, 120,140,98,130,82,132,78,90,100] },
+
+  { id:"waterpan-golf-club", name:"Waterpan Golf Club", town:"Springs", province:"Gauteng", par:73, tee:"Yellow", lat:-26.352, lng:28.552,
+    pars:  [5,3,4,5,4,4,4,3,4, 4,3,4,5,5,4,4,3,5],
+    sis:   [15,7,5,17,1,9,3,13,11, 10,18,4,16,2,12,8,6,14],
+    metres:[480,182,411,477,439,367,359,149,332, 360,140,394,447,506,376,379,208,516] },
+
+  { id:"wingate-park-country-club", name:"Wingate Park Country Club", town:"Pretoria", province:"Gauteng", par:72, tee:"Yellow", lat:-25.821, lng:28.281,
+    pars:  [4,5,4,4,3,4,4,3,4, 4,4,4,5,3,5,3,4,5],
+    sis:   [11,13,3,1,17,9,5,15,7, 6,14,8,2,18,10,16,4,12],
+    metres:[337,490,356,432,155,381,380,168,360, 402,423,427,568,203,557,172,426,503] },
 ];
