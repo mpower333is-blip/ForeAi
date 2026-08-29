@@ -1,38 +1,24 @@
 import React from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
-import Svg, { Line, Circle, Polyline } from "react-native-svg";
+import Svg, { Line, Circle, Polyline, Polygon } from "react-native-svg";
 import { Hole } from "../data/courses";
 import { Coord, haversineMeters } from "../lib/geo";
 import { colors } from "../theme";
 
-type Hz = { type: "tree" | "water" | "bunker"; lat: number; lng: number };
+type HazardArea = { type: "tree" | "water" | "bunker"; points: Coord[] };
 
-// Group nearby bunker/water points (which are mapped as many taps) into single
-// hazards, so each gets one carry label rather than dozens. Connected-components
-// by proximity within one type.
-function clusterHazards(hazards: Hz[]): { type: "water" | "bunker"; pts: Coord[]; centroid: Coord }[] {
-  const tg = hazards.filter((h) => h.type === "bunker" || h.type === "water") as Hz[];
-  const used = new Array(tg.length).fill(false);
-  const out: { type: "water" | "bunker"; pts: Coord[]; centroid: Coord }[] = [];
-  for (let i = 0; i < tg.length; i++) {
-    if (used[i]) continue;
-    used[i] = true;
-    const stack = [i];
-    const pts: Coord[] = [];
-    while (stack.length) {
-      const k = stack.pop()!;
-      pts.push({ lat: tg[k].lat, lng: tg[k].lng });
-      for (let j = 0; j < tg.length; j++) {
-        if (used[j] || tg[j].type !== tg[i].type) continue;
-        if (haversineMeters(tg[k], tg[j]) < 28) { used[j] = true; stack.push(j); }
-      }
-    }
-    let la = 0, ln = 0;
-    pts.forEach((p) => { la += p.lat; ln += p.lng; });
-    out.push({ type: tg[i].type as "water" | "bunker", pts, centroid: { lat: la / pts.length, lng: ln / pts.length } });
-  }
-  return out;
+function centroidOf(points: Coord[]): Coord {
+  let la = 0, ln = 0;
+  points.forEach((p) => { la += p.lat; ln += p.lng; });
+  return { lat: la / points.length, lng: ln / points.length };
 }
+
+// Fill/stroke per hazard type for drawn areas, plus dot size for 1–2 point ones.
+const HZ_FILL: Record<string, { fill: string; fillOpacity: number; stroke: string; r: number; dotOpacity: number }> = {
+  tree: { fill: "#2f9e4f", fillOpacity: 0.35, stroke: "#256b3a", r: 0.9, dotOpacity: 0.85 },
+  water: { fill: "#3a86c8", fillOpacity: 0.45, stroke: "#bfe4c8", r: 1.4, dotOpacity: 0.8 },
+  bunker: { fill: "#e6d29a", fillOpacity: 0.7, stroke: "#b39a5f", r: 1.4, dotOpacity: 0.9 },
+};
 
 // Is a hazard in the line of play (roughly between the player/tee and the green,
 // near the line)? Uses a local flat projection around `from`.
@@ -70,7 +56,7 @@ export default function SatelliteHole({
   if (player) pts.push(player);
   const fairway = hole.fairway ?? [];
   fairway.forEach((p) => pts.push(p));
-  hazards.forEach((z) => pts.push({ lat: z.lat, lng: z.lng }));
+  hazards.forEach((hz) => hz.points.forEach((p) => pts.push(p)));
 
   const perHole = pts.length > 0;
 
@@ -127,35 +113,49 @@ export default function SatelliteHole({
   const front = from && hole.greenFront ? Math.round(haversineMeters(from, hole.greenFront)) : null;
   const back = from && hole.greenBack ? Math.round(haversineMeters(from, hole.greenBack)) : null;
 
-  // Carry-to-clear labels for bunkers/water in the line of play.
-  const clusters = React.useMemo(() => clusterHazards(hazards), [hazards]);
+  // Carry-to-clear labels for each bunker/water area in the line of play. One
+  // label per mapped hazard, measured to the farthest edge of that area.
   const carries =
     from && hole.green
-      ? clusters
-          .filter((cl) => inLineOfPlay(from, hole.green!, cl.centroid))
-          .map((cl) => ({
-            type: cl.type,
-            centroid: cl.centroid,
-            carry: Math.round(Math.max(...cl.pts.map((p) => haversineMeters(from, p)))),
+      ? hazards
+          .filter((hz) => hz.type === "water" || hz.type === "bunker")
+          .map((hz) => ({
+            type: hz.type,
+            centroid: centroidOf(hz.points),
+            carry: Math.round(Math.max(...hz.points.map((p) => haversineMeters(from, p)))),
           }))
+          .filter((c) => inLineOfPlay(from, hole.green!, c.centroid))
       : [];
-
-  const HZ_STYLE: Record<string, { fill: string; r: number; opacity: number }> = {
-    tree: { fill: "#2f9e4f", r: 0.9, opacity: 0.85 },
-    water: { fill: "#3a86c8", r: 1.4, opacity: 0.8 },
-    bunker: { fill: "#e6d29a", r: 1.4, opacity: 0.9 },
-  };
 
   return (
     <View style={styles.wrap}>
       <Image source={{ uri: url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       {perHole && (
         <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100" preserveAspectRatio="none">
-          {/* hazards under the line/markers */}
-          {hazards.map((z, i) => {
-            const s = HZ_STYLE[z.type] ?? HZ_STYLE.tree;
-            const p = toXY({ lat: z.lat, lng: z.lng });
-            return <Circle key={i} cx={p.x} cy={p.y} r={s.r} fill={s.fill} opacity={s.opacity} />;
+          {/* hazards under the line/markers. A mapped area (3+ points) is drawn
+              as a filled shape — a river, a whole tree line, a bunker outline —
+              so one hazard reads as one region. 1–2 point hazards fall back to
+              dots (a single tree, a small pot bunker). */}
+          {hazards.map((hz, i) => {
+            const s = HZ_FILL[hz.type] ?? HZ_FILL.tree;
+            if (hz.points.length >= 3) {
+              const poly = hz.points.map((p) => { const q = toXY(p); return `${q.x},${q.y}`; }).join(" ");
+              return (
+                <Polygon
+                  key={`hz${i}`}
+                  points={poly}
+                  fill={s.fill}
+                  fillOpacity={s.fillOpacity}
+                  stroke={s.stroke}
+                  strokeWidth="0.35"
+                  strokeLinejoin="round"
+                />
+              );
+            }
+            return hz.points.map((p, j) => {
+              const q = toXY(p);
+              return <Circle key={`hz${i}-${j}`} cx={q.x} cy={q.y} r={s.r} fill={s.fill} opacity={s.dotOpacity} />;
+            });
           })}
           {/* Playing route: tee → fairway waypoints → green. Falls back to a
               straight tee→green line when no fairway path has been mapped. */}
