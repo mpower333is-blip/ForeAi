@@ -13,6 +13,7 @@
 import { Coord, haversineMeters } from "../lib/geo";
 import { SA_COURSES } from "./saCourses";
 import { HANDICAPS_CARDS, cardToLayout } from "./handicapsCards";
+import { COURSE_GPS } from "./courseGps";
 
 export type Hole = {
   number: number;
@@ -255,6 +256,23 @@ export const COURSES: Course[] = ALL_RAW.map((r) => {
   const partial = PARTIAL_LAYOUTS[r.id];
   const rows = exact ?? partial;
   const holes = rows ? exactLayout(rows) : buildLayout(r.par ?? 72, r.yards);
+
+  // Attach on-course GPS (tee + front/middle/back of green) where captured.
+  const gps = COURSE_GPS[r.id];
+  if (gps) {
+    holes.forEach((h, i) => {
+      const g = gps[i];
+      if (!g) return;
+      if (g.tee) h.tee = g.tee;
+      if (g.greenFront) h.greenFront = g.greenFront;
+      if (g.green) h.green = g.green;
+      if (g.greenBack) h.greenBack = g.greenBack;
+    });
+  }
+  // Centre the map on the first tee we have, falling back to the listed coords.
+  const firstTee = gps?.find((g) => g?.tee)?.tee;
+  const center = firstTee ?? (r.lat != null && r.lng != null ? { lat: r.lat, lng: r.lng } : undefined);
+
   return {
     id: r.id,
     name: r.name,
@@ -264,7 +282,7 @@ export const COURSES: Course[] = ALL_RAW.map((r) => {
     holes,
     // Only a fully-captured card is exact; partial and generated are approximate.
     approxLayout: exact ? false : true,
-    center: r.lat != null && r.lng != null ? { lat: r.lat, lng: r.lng } : undefined,
+    center,
   };
 });
 
