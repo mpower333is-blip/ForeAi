@@ -276,10 +276,14 @@
         $("eventName").textContent = e.name || "";
         $("codeOut").textContent = e.code || "local";
 
-        // cause banner
-        if (e.cause) {
+        // cause banner (beneficiary photo + message)
+        if (e.cause || e.causePhoto) {
           $("cause").style.display = "";
-          $("cause").innerHTML = "💚 <b>" + escapeHtml(e.cause) + "</b>";
+          const img = e.causePhoto
+            ? `<img src="${e.causePhoto}" alt="" style="height:120px;width:auto;border-radius:12px;object-fit:cover;background:#fff" />`
+            : "";
+          const txt = e.cause ? `<div>💚 <b>${escapeHtml(e.cause)}</b></div>` : "";
+          $("cause").innerHTML = `<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">${img}${txt}</div>`;
         } else {
           $("cause").style.display = "none";
         }

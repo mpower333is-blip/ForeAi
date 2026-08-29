@@ -132,6 +132,16 @@
           <label class="hint">Team fee (R) <input id="setTeamFee" type="number" style="width:100px;margin-left:6px" /></label>
           <label class="hint">Hole fee (R) <input id="setHoleFee" type="number" style="width:100px;margin-left:6px" /></label>
         </div>
+        <div>
+          <label class="hint">Cause / beneficiary (shown on the clubhouse board &amp; landing page)</label>
+          <input id="setCause" placeholder="e.g. Supporting Lyla Roux in her fight against ALK+ ALCL" style="width:100%;margin-top:4px" />
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
+            <input type="file" id="setCausePhoto" accept="image/*" onchange="pickCausePhoto(this.files)" />
+            <img id="causePrev" alt="" style="height:70px;background:#fff;border-radius:8px;padding:3px;display:none" />
+            <button class="sbtn" type="button" onclick="useBundledLyla()">Use Lyla's photo</button>
+          </div>
+          <div class="hint" style="margin-top:4px">“Use Lyla's photo” attaches the bundled ECS beneficiary photo — no need to find the file.</div>
+        </div>
         <div><button class="btn" onclick="saveSetup()">Save event setup</button> <span id="setupMsg" class="hint"></span></div>
       </div>
     </details>
@@ -428,26 +438,48 @@
     }
   }
 
-  // ---- Event setup (logo / banking / fees) -------------------------------
-  var NEW_LOGO=null;
+  // ---- Event setup (logo / banking / fees / cause) -----------------------
+  var NEW_LOGO=null, NEW_CAUSE_PHOTO=null;
   function pickLogo(files){
     if(!files||!files[0]) return;
     var rd=new FileReader();
     rd.onload=function(){ NEW_LOGO=rd.result; var im=document.getElementById('logoPrev'); im.src=NEW_LOGO; im.style.display='inline-block'; };
     rd.readAsDataURL(files[0]);
   }
+  function pickCausePhoto(files){
+    if(!files||!files[0]) return;
+    var rd=new FileReader();
+    rd.onload=function(){ NEW_CAUSE_PHOTO=rd.result; var im=document.getElementById('causePrev'); im.src=NEW_CAUSE_PHOTO; im.style.display='inline-block'; };
+    rd.readAsDataURL(files[0]);
+  }
+  // Attach the bundled ECS beneficiary photo (same-origin file) without the
+  // organiser having to locate it on their device.
+  async function useBundledLyla(){
+    try{
+      var res=await fetch('../lyla-roux.jpg'); if(!res.ok) throw 0;
+      var blob=await res.blob();
+      var rd=new FileReader();
+      rd.onload=function(){ NEW_CAUSE_PHOTO=rd.result; var im=document.getElementById('causePrev'); im.src=NEW_CAUSE_PHOTO; im.style.display='inline-block';
+        var c=document.getElementById('setCause'); if(!c.value) c.value='Supporting Lyla Roux in her fight against ALK+ ALCL'; };
+      rd.readAsDataURL(blob);
+    }catch(e){ alert('Could not load the bundled photo.'); }
+  }
   function populateSetup(){
     if(!EVENT) return;
     document.getElementById('setBank').value = EVENT.banking||'';
     document.getElementById('setTeamFee').value = EVENT.teamFee!=null?EVENT.teamFee:'';
     document.getElementById('setHoleFee').value = EVENT.holeFee!=null?EVENT.holeFee:'';
+    document.getElementById('setCause').value = EVENT.cause||'';
     var im=document.getElementById('logoPrev'); if(EVENT.logo){ im.src=EVENT.logo; im.style.display='inline-block'; }
+    var cp=document.getElementById('causePrev'); if(EVENT.causePhoto){ cp.src=EVENT.causePhoto; cp.style.display='inline-block'; }
   }
   async function saveSetup(){
     var body={ banking: document.getElementById('setBank').value,
       teamFee: parseInt(document.getElementById('setTeamFee').value,10) || null,
-      holeFee: parseInt(document.getElementById('setHoleFee').value,10) || null };
+      holeFee: parseInt(document.getElementById('setHoleFee').value,10) || null,
+      cause: document.getElementById('setCause').value || null };
     if(NEW_LOGO) body.logo=NEW_LOGO;
+    if(NEW_CAUSE_PHOTO) body.causePhoto=NEW_CAUSE_PHOTO;
     var m=document.getElementById('setupMsg'); m.textContent='Saving…';
     try{
       var r=await authFetch(CFG.api+'/tournaments/'+EVENT.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

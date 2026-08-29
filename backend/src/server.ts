@@ -15,7 +15,9 @@ const app = express();
 // and CORS headers are applied to every response. (Previously /shots was
 // mounted ahead of express.json(), so its handler never saw a parsed body.)
 app.use(cors());
-app.use(express.json());
+// Registrations and event setup carry images as data URLs (logos, sponsor
+// artwork, the beneficiary photo), so allow bodies well above the 100kb default.
+app.use(express.json({ limit: "8mb" }));
 
 app.get("/", (_req, res) => {
   res.send("ForeAi API Running");
