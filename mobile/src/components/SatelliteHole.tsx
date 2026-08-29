@@ -5,6 +5,48 @@ import { Hole } from "../data/courses";
 import { Coord, haversineMeters } from "../lib/geo";
 import { colors } from "../theme";
 
+type Hz = { type: "tree" | "water" | "bunker"; lat: number; lng: number };
+
+// Group nearby bunker/water points (which are mapped as many taps) into single
+// hazards, so each gets one carry label rather than dozens. Connected-components
+// by proximity within one type.
+function clusterHazards(hazards: Hz[]): { type: "water" | "bunker"; pts: Coord[]; centroid: Coord }[] {
+  const tg = hazards.filter((h) => h.type === "bunker" || h.type === "water") as Hz[];
+  const used = new Array(tg.length).fill(false);
+  const out: { type: "water" | "bunker"; pts: Coord[]; centroid: Coord }[] = [];
+  for (let i = 0; i < tg.length; i++) {
+    if (used[i]) continue;
+    used[i] = true;
+    const stack = [i];
+    const pts: Coord[] = [];
+    while (stack.length) {
+      const k = stack.pop()!;
+      pts.push({ lat: tg[k].lat, lng: tg[k].lng });
+      for (let j = 0; j < tg.length; j++) {
+        if (used[j] || tg[j].type !== tg[i].type) continue;
+        if (haversineMeters(tg[k], tg[j]) < 28) { used[j] = true; stack.push(j); }
+      }
+    }
+    let la = 0, ln = 0;
+    pts.forEach((p) => { la += p.lat; ln += p.lng; });
+    out.push({ type: tg[i].type as "water" | "bunker", pts, centroid: { lat: la / pts.length, lng: ln / pts.length } });
+  }
+  return out;
+}
+
+// Is a hazard in the line of play (roughly between the player/tee and the green,
+// near the line)? Uses a local flat projection around `from`.
+function inLineOfPlay(from: Coord, green: Coord, c: Coord): boolean {
+  const R = 6371000, rad = Math.PI / 180, lat0 = from.lat * rad;
+  const loc = (p: Coord) => ({ x: (p.lng - from.lng) * rad * R * Math.cos(lat0), y: (p.lat - from.lat) * rad * R });
+  const G = loc(green), C = loc(c);
+  const gg = G.x * G.x + G.y * G.y || 1;
+  const t = (C.x * G.x + C.y * G.y) / gg;
+  const perp = Math.hypot(C.x - t * G.x, C.y - t * G.y);
+  // Ahead of you, up to the green, and within a fairway-ish corridor of the line.
+  return t > 0.06 && t < 1.02 && perp < 55;
+}
+
 // Real satellite imagery for a hole using Esri World Imagery (no API key).
 // Frames the hole from every point we have (tee, green, green edges, hazards),
 // draws the tee→green line, the green front/middle/back, and any mapped
@@ -85,6 +127,19 @@ export default function SatelliteHole({
   const front = from && hole.greenFront ? Math.round(haversineMeters(from, hole.greenFront)) : null;
   const back = from && hole.greenBack ? Math.round(haversineMeters(from, hole.greenBack)) : null;
 
+  // Carry-to-clear labels for bunkers/water in the line of play.
+  const clusters = React.useMemo(() => clusterHazards(hazards), [hazards]);
+  const carries =
+    from && hole.green
+      ? clusters
+          .filter((cl) => inLineOfPlay(from, hole.green!, cl.centroid))
+          .map((cl) => ({
+            type: cl.type,
+            centroid: cl.centroid,
+            carry: Math.round(Math.max(...cl.pts.map((p) => haversineMeters(from, p)))),
+          }))
+      : [];
+
   const HZ_STYLE: Record<string, { fill: string; r: number; opacity: number }> = {
     tree: { fill: "#2f9e4f", r: 0.9, opacity: 0.85 },
     water: { fill: "#3a86c8", r: 1.4, opacity: 0.8 },
@@ -158,6 +213,16 @@ export default function SatelliteHole({
         );
       })}
 
+      {/* carry-to-clear over bunkers / water in the line of play */}
+      {carries.map((c, i) => {
+        const q = toXY(c.centroid);
+        return (
+          <View key={`cy${i}`} style={[styles.carry, { left: `${q.x}%`, top: `${q.y}%` }]} pointerEvents="none">
+            <Text style={styles.carryText}>{c.type === "water" ? "💧" : "🏖️"} {c.carry}</Text>
+          </View>
+        );
+      })}
+
       <Text style={styles.tag}>{perHole ? `Hole ${hole.number}` : "Course view"}</Text>
 
       {mid != null && (
@@ -221,6 +286,11 @@ const styles = StyleSheet.create({
     borderRadius: 6, transform: [{ translateX: -13 }, { translateY: -8 }],
   },
   fwLabelText: { color: colors.accent, fontSize: 10, fontWeight: "800" },
+  carry: {
+    position: "absolute", backgroundColor: "rgba(0,0,0,0.62)", paddingHorizontal: 4, paddingVertical: 1,
+    borderRadius: 6, transform: [{ translateX: -16 }, { translateY: -8 }],
+  },
+  carryText: { color: "#ffe08a", fontSize: 10, fontWeight: "800" },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { color: "#fff", fontSize: 10, fontWeight: "600" },
