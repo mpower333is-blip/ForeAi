@@ -60,6 +60,7 @@
     <button class="pt" data-t="tree"   onclick="setType('tree')">🌳 Trees</button>
     <button class="pt" data-t="water"  onclick="setType('water')">💧 Water</button>
     <button class="pt" data-t="bunker" onclick="setType('bunker')">🏖️ Bunker</button>
+    <button onclick="finishShape()">✓ Finish shape</button>
     <span class="count" id="hazCount">0 hazards</span>
   </div>
   <div class="row">
@@ -69,7 +70,7 @@
     <button class="pri grow" onclick="download()">⬇ Download coords</button>
   </div>
   <div id="msg"></div>
-  <div class="hint">Tap the map to drop the highlighted point on the current hole. <b>🛣️ Fairway</b> drops ordered waypoints down the middle — tap the bends from tee to green and the preview line curves through them (skip it for a straight hole). <b>Trees / Water / Bunker</b> add a point each tap — tap several around an edge to outline a shape. Progress is saved on this device.</div>
+  <div class="hint">Tap the map to drop the highlighted point on the current hole. <b>🛣️ Fairway</b> drops ordered waypoints down the middle — tap the bends from tee to green and the preview line curves through them (skip it for a straight hole). <b>Trees / Water / Bunker</b> draw a shape: tap around the edge of a river, tree line or bunker and the taps join into one filled area — that whole area counts as <b>one</b> hazard. Press <b>✓ Finish shape</b> to close it and start the next one. Progress is saved on this device.</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -77,6 +78,7 @@
   var LS='foreai.survey.v1';
   var state = load() || { course:'', count:18, holes:{} }; // holes[n] = {tee,green,greenFront,greenBack}
   var cur = 1, type = 'tee';
+  var openHz = null; // hazard shape currently being drawn (points appended to it)
 
   // ---- map (free Esri World Imagery, no key) ----
   var map = L.map('map', { zoomControl:true, tap:true }).setView([-26.1016, 28.236], 16); // default: Kempton Park
@@ -96,10 +98,16 @@
   function place(lat, lng){
     var h = state.holes[cur] || (state.holes[cur] = {});
     if (isHazard(type)) {
-      // Hazards can have many per hole — each tap adds a point. Tap several
-      // around a bunker or water edge to outline its shape.
-      (h.hazards || (h.hazards = [])).push({ type:type, lat:round(lat), lng:round(lng) });
-      save(); redraw(); msg('Hole '+cur+' · '+label(type)+' added');
+      // A hazard is a shape: tap around the edge of a river / tree line / bunker
+      // and the taps join into one area. openHz is the shape currently being
+      // drawn; "Finish shape" closes it so the next taps start a new hazard.
+      var list = h.hazards || (h.hazards = []);
+      if (!openHz || openHz._hole !== cur || openHz.type !== type) {
+        openHz = { type:type, points:[], _hole:cur };
+        list.push(openHz);
+      }
+      openHz.points.push({ lat:round(lat), lng:round(lng) });
+      save(); redraw(); msg('Hole '+cur+' · '+label(type)+' shape · '+openHz.points.length+' pts');
       return;
     }
     if (type==='fairway') {
@@ -139,12 +147,23 @@
           L.circleMarker([p.lat,p.lng], { radius:isCur?4:3, color:'#04150c', weight:1, fillColor:'#39d98a', fillOpacity:isCur?0.9:0.5 }).addTo(layer);
         });
       }
-      // hazards: trees / water / bunkers
+      // hazards: each is a shape (river / tree line / bunker outline).
       (h.hazards||[]).forEach(function(hz){
-        L.circleMarker([hz.lat,hz.lng], {
-          radius:isCur?7:5, color:'#04150c', weight:1.5,
-          fillColor:COLORS[hz.type]||'#fff', fillOpacity:isCur?0.9:0.5
-        }).addTo(layer).bindTooltip(n+' '+hz.type,{permanent:false});
+        var col = COLORS[hz.type]||'#fff';
+        var pts = (hz.points||[]).map(function(p){ return [p.lat,p.lng]; });
+        var open = (hz===openHz);
+        if(pts.length>=3){
+          L.polygon(pts, { color:'#04150c', weight:isCur?1.5:1, fillColor:col,
+            fillOpacity:isCur?(open?0.55:0.4):0.25, dashArray:open?'4,3':null })
+            .addTo(layer).bindTooltip(n+' '+hz.type+' area',{permanent:false});
+        } else if(pts.length===2){
+          L.polyline(pts, { color:col, weight:isCur?3:2, opacity:isCur?0.9:0.5 }).addTo(layer);
+        }
+        // vertex dots so each tap is visible while drawing
+        pts.forEach(function(pt){
+          L.circleMarker(pt, { radius:isCur?4:3, color:'#04150c', weight:1,
+            fillColor:col, fillOpacity:isCur?(open?1:0.8):0.4 }).addTo(layer);
+        });
       });
     });
     updateUI();
@@ -162,20 +181,29 @@
     for(var n=1;n<=state.count;n++){ var x=state.holes[n]; if(x&&x.tee&&x.green) done++; if(x&&x.fairway&&x.fairway.length) fwDone++; }
     document.getElementById('count').textContent = done+' / '+state.count+' holes · 🛣️ '+fwDone+' routed';
     var hz = (state.holes[cur]||{}).hazards || [];
-    var hc = document.getElementById('hazCount'); if(hc) hc.textContent = hz.length+' hazard'+(hz.length===1?'':'s')+' on hole '+cur;
+    var hc = document.getElementById('hazCount'); if(hc) hc.textContent = hz.length+' hazard'+(hz.length===1?'':'s')+' on hole '+cur+(openHz&&openHz._hole===cur?' · drawing…':'');
     document.getElementById('course').value = state.course||'';
     document.getElementById('holeCount').value = String(state.count);
   }
 
-  function setType(t){ type=t; updateUI(); }
-  function stepHole(d){ cur = Math.min(state.count, Math.max(1, cur+d)); type='tee'; redraw(); }
+  function setType(t){ if(t!==type) openHz=null; type=t; updateUI(); }
+  function stepHole(d){ openHz=null; cur = Math.min(state.count, Math.max(1, cur+d)); type='tee'; redraw(); }
+  function finishShape(){
+    if(openHz){ var n=openHz.points.length; openHz=null; redraw(); msg('Shape closed ('+n+' pts). Next tap starts a new hazard.'); }
+    else msg('Tap the map to start a hazard shape, then press Finish.');
+  }
   function setCount(){ state.count = +document.getElementById('holeCount').value; if(cur>state.count)cur=state.count; save(); redraw(); }
   function undo(){
     var h=state.holes[cur]; if(!h) return;
     if(isHazard(type)){
-      if(h.hazards && h.hazards.length){
-        for(var i=h.hazards.length-1;i>=0;i--){ if(h.hazards[i].type===type){ h.hazards.splice(i,1); break; } }
-        save(); redraw(); msg('Removed a '+label(type)+' on hole '+cur);
+      // Remove the last vertex of the shape being drawn (or the last shape of
+      // this type). When a shape runs out of points it's removed entirely.
+      var shape = openHz;
+      if(!shape && h.hazards){ for(var i=h.hazards.length-1;i>=0;i--){ if(h.hazards[i].type===type){ shape=h.hazards[i]; break; } } }
+      if(shape && shape.points.length){
+        shape.points.pop();
+        if(!shape.points.length){ var k=h.hazards.indexOf(shape); if(k>=0)h.hazards.splice(k,1); if(shape===openHz)openHz=null; }
+        save(); redraw(); msg('Removed a point from a '+label(type)+' shape');
       }
       return;
     }
@@ -211,7 +239,11 @@
       var o={ hole:n };
       ['tee','green','greenFront','greenBack'].forEach(function(t){ if(h[t]) o[t]=h[t]; });
       if(h.fairway && h.fairway.length) o.fairway = h.fairway;
-      if(h.hazards && h.hazards.length) o.hazards = h.hazards;
+      if(h.hazards && h.hazards.length){
+        o.hazards = h.hazards
+          .filter(function(hz){ return hz.points && hz.points.length; })
+          .map(function(hz){ return { type:hz.type, points:hz.points }; });
+      }
       if(Object.keys(o).length>1) holes.push(o);
     }
     var data={ course: state.course||'(unnamed course)', capturedAt:new Date().toISOString(), holeCount:state.count, holes:holes };
@@ -223,7 +255,21 @@
   }
 
   function save(){ try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
-  function load(){ try{ return JSON.parse(localStorage.getItem(LS)); }catch(e){ return null; } }
+  function load(){
+    try{
+      var s = JSON.parse(localStorage.getItem(LS));
+      if(s && s.holes){
+        // Migrate old point-hazards {type,lat,lng} to shapes {type,points:[...]}.
+        Object.keys(s.holes).forEach(function(n){
+          var hz = s.holes[n].hazards;
+          if(hz && hz.length && hz[0] && hz[0].lat!==undefined){
+            s.holes[n].hazards = hz.map(function(p){ return { type:p.type, points:[{ lat:p.lat, lng:p.lng }] }; });
+          }
+        });
+      }
+      return s;
+    }catch(e){ return null; }
+  }
 
   redraw();
 </script>
