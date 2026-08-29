@@ -121,6 +121,11 @@ export default function SatelliteHole({
               />
             )
           )}
+          {/* fairway bend markers */}
+          {fairway.map((p, i) => {
+            const q = toXY(p);
+            return <Circle key={`fw${i}`} cx={q.x} cy={q.y} r="0.9" fill={colors.accent} stroke="#0a2016" strokeWidth="0.3" />;
+          })}
           {hole.greenFront && <Circle cx={toXY(hole.greenFront).x} cy={toXY(hole.greenFront).y} r="1.2" fill="#ffffff" opacity={0.9} />}
           {hole.greenBack && <Circle cx={toXY(hole.greenBack).x} cy={toXY(hole.greenBack).y} r="1.2" fill="#ffffff" opacity={0.9} />}
           {hole.tee && <Circle cx={toXY(hole.tee).x} cy={toXY(hole.tee).y} r="1.7" fill="#ffffff" stroke="#0a2016" strokeWidth="0.4" />}
@@ -141,6 +146,17 @@ export default function SatelliteHole({
           )}
         </Svg>
       )}
+
+      {/* distance-to-reach label at each fairway bend (from player, else tee) */}
+      {from && fairway.map((p, i) => {
+        const q = toXY(p);
+        const d = Math.round(haversineMeters(from, p));
+        return (
+          <View key={`fl${i}`} style={[styles.fwLabel, { left: `${q.x}%`, top: `${q.y}%` }]} pointerEvents="none">
+            <Text style={styles.fwLabelText}>{d} m</Text>
+          </View>
+        );
+      })}
 
       <Text style={styles.tag}>{perHole ? `Hole ${hole.number}` : "Course view"}</Text>
 
@@ -200,6 +216,11 @@ const styles = StyleSheet.create({
     position: "absolute", bottom: 6, left: 8, flexDirection: "row", gap: 10,
     backgroundColor: "rgba(0,0,0,0.4)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
   },
+  fwLabel: {
+    position: "absolute", backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 4, paddingVertical: 1,
+    borderRadius: 6, transform: [{ translateX: -13 }, { translateY: -8 }],
+  },
+  fwLabelText: { color: colors.accent, fontSize: 10, fontWeight: "800" },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { color: "#fff", fontSize: 10, fontWeight: "600" },
