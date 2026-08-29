@@ -100,6 +100,12 @@
   <div id="eventTools" hidden>
     <h2 style="margin:18px 0 12px">Your event · <span id="evtName" style="color:var(--text);text-transform:none;letter-spacing:0"></span></h2>
     <div class="grid" id="tiles">
+      <a class="tile" id="t-office" href="manage/office.html">
+        <div class="ic">🔐</div>
+        <h3>Office <span class="pill admin">ADMIN</span></h3>
+        <p>Organiser only — event setup, registrations, sponsors & Excel import. Unlocks with your admin PIN.</p>
+        <span class="go">Open office →</span>
+      </a>
       <a class="tile" id="t-register" href="register.html">
         <div class="ic">📝</div>
         <h3>Register <span class="pill share">SHARE</span></h3>
@@ -161,6 +167,8 @@
       a.href = base + s;
       a.classList.toggle('disabled', !CFG.api || !CFG.code);
     });
+    // The office lives in the private /manage/ area — carry the same api+code.
+    var off=$('t-office'); if(off){ off.href='manage/office.html'+s; off.classList.toggle('disabled', !CFG.api || !CFG.code); }
     var origin=location.href.replace(/[^\/]*$/,''); // dir of this page
     $('link-register').value = origin+'register.html'+s;
     $('link-get').value = origin+'get.html'+s;
