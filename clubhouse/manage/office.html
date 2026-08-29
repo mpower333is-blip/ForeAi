@@ -115,7 +115,7 @@
       <div id="importPreview"></div>
     </div>
     <details class="card" id="setupBox">
-      <summary style="cursor:pointer;font-weight:700;color:var(--accent)">⚙️ Event setup — logo, banking &amp; fees</summary>
+      <summary style="cursor:pointer;font-weight:700;color:var(--lime)">⚙️ Event setup — already done · tap only to edit logo, banking or fees</summary>
       <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
         <div>
           <label class="hint">Event logo (shown on this event's pages &amp; forms)</label>
@@ -135,6 +135,7 @@
         <div><button class="btn" onclick="saveSetup()">Save event setup</button> <span id="setupMsg" class="hint"></span></div>
       </div>
     </details>
+    <div id="gamesBox"></div>
     <div class="tiles" id="tiles"></div>
     <div class="tabs" id="tabs">
       <div class="tab on" data-f="all">All</div>
@@ -218,6 +219,7 @@
   function render(){
     renderAdminBar();
     populateSetup();
+    renderGames();
     // tiles
     var teams=REGS.filter(r=>r.type==='team'), holes=REGS.filter(r=>r.type==='hole'), prizes=REGS.filter(r=>r.type==='prize');
     var players=teams.reduce((s,r)=>s+teamCount(r)*4,0);
@@ -280,6 +282,49 @@
     }catch(e){}
   }
 
+  // ---- Mini-games / side contests (closest to pin, longest drive) --------
+  function gameName(t){ return t==='closest' ? '🎯 Closest to the pin' : '💥 Longest drive'; }
+  function renderGames(){
+    var box=document.getElementById('gamesBox'); if(!box) return;
+    var games=(EVENT&&Array.isArray(EVENT.contests))?EVENT.contests:[];
+    var holeOpts=''; for(var h=1;h<=18;h++){ holeOpts+='<option value="'+h+'">Hole '+h+'</option>'; }
+    var list = games.length
+      ? games.slice().sort(function(a,b){return a.hole-b.hole;}).map(function(g){
+          return '<div class="status" style="justify-content:space-between">'
+            +'<span class="lbl" style="flex:1">'+gameName(g.type)+' · <b style="color:var(--text)">Hole '+g.hole+'</b></span>'
+            +'<button class="del" onclick="delContest(\''+g.id+'\')">Remove</button></div>';
+        }).join('')
+      : '<div class="hint">No mini-games yet. Add one below.</div>';
+    box.innerHTML = '<div class="card"><div class="rowtop"><span class="company">🏌️ Mini-games on the day</span></div>'
+      +'<div class="hint" style="margin:2px 0 10px">Pick the holes for Closest to the Pin and Longest Drive. They show on the board and in the app, and winners are captured on the day.</div>'
+      + list
+      + '<div class="status" style="margin-top:12px;gap:8px">'
+      +   '<select id="gameType"><option value="closest">🎯 Closest to the pin</option><option value="longest">💥 Longest drive</option></select>'
+      +   '<select id="gameHole">'+holeOpts+'</select>'
+      +   '<button class="btn sm" onclick="addContest()">Add mini-game</button>'
+      + '</div></div>';
+  }
+  async function addContest(){
+    var type=document.getElementById('gameType').value;
+    var hole=parseInt(document.getElementById('gameHole').value,10);
+    if(!hole){ return; }
+    var dup=(EVENT.contests||[]).some(function(g){ return g.type===type && g.hole===hole; });
+    if(dup){ alert('That mini-game is already set on hole '+hole+'.'); return; }
+    try{
+      var r=await authFetch(CFG.api+'/tournaments/'+EVENT.id+'/contests',
+        {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:type,hole:hole})});
+      if(r.ok){ EVENT=await r.json(); render(); }
+      else if(r.status===403){ alert('Enter your organiser PIN first (above) to make changes.'); }
+    }catch(e){}
+  }
+  async function delContest(id){
+    if(!confirm('Remove this mini-game?')) return;
+    try{
+      var r=await authFetch(CFG.api+'/tournaments/'+EVENT.id+'/contests/'+id,{method:'DELETE'});
+      if(r.ok){ EVENT=await r.json(); render(); }
+    }catch(e){}
+  }
+
   function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
 
   function cardHTML(r){
@@ -333,32 +378,35 @@
     }
     return r;
   }
-  async function setAdminPin(){
-    var cur = EVENT.hasAdminPin ? (CFG.pin || (prompt('Enter the CURRENT PIN:')||'').trim()) : '';
-    var np = (prompt(EVENT.hasAdminPin ? 'Enter a NEW admin PIN (4–8 digits):'
-      : 'Set an admin PIN (4–8 digits). Only people with this PIN can approve, delete or edit.')||'').trim();
-    if(!np) return;
-    if(!/^\d{4,8}$/.test(np)){ alert('PIN must be 4–8 digits.'); return; }
+  // Verify a typed PIN against the backend (a no-op PATCH that the server gates),
+  // then unlock. The PIN is never changed here — organisers only enter the one
+  // that already exists for the event.
+  async function unlockAdmin(){
+    var el=document.getElementById('pinInput'); var p=(el&&el.value||'').trim();
+    if(!p){ if(el) el.focus(); return; }
     try{
-      var r=await fetch(CFG.api+'/tournaments/'+EVENT.id+'/admin-pin',{method:'PUT',
-        headers:{'Content-Type':'application/json','x-admin-pin':cur},
-        body:JSON.stringify({pin:np,currentPin:cur})});
-      if(r.ok){ savePin(np); EVENT=await r.json(); alert('Admin PIN saved.'); render(); }
-      else { var e=await r.json().catch(function(){return {};}); alert(e.error||'Could not set the PIN.'); }
-    }catch(e){ alert('Could not set the PIN.'); }
+      var r=await fetch(CFG.api+'/tournaments/'+EVENT.id,{method:'PATCH',
+        headers:{'Content-Type':'application/json','x-admin-pin':p},body:JSON.stringify({})});
+      if(r.status===403){ alert('That PIN was not accepted.'); return; }
+      savePin(p);
+      if(r.ok){ EVENT=await r.json(); }
+      render();
+    }catch(e){ savePin(p); render(); }
   }
+  function lockAdmin(){ savePin(''); render(); }
   function renderAdminBar(){
     var bar=document.getElementById('adminBar'); if(!bar||!EVENT) return;
-    if(EVENT.hasAdminPin){
-      var unlocked = !!CFG.pin;
+    var unlocked = !!CFG.pin;
+    if(unlocked){
       bar.innerHTML = '<div class="card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-        +'<span>'+(unlocked?'🔓 Admin unlocked on this device':'🔒 Admin locked — enter the PIN to make changes')+'</span>'
-        +(unlocked?'':'<button class="btn" onclick="(async()=>{var p=(prompt(\'Enter the organiser admin PIN:\')||\'\').trim(); if(p){savePin(p); render();}})()">Unlock</button>')
-        +'<button class="sbtn" onclick="setAdminPin()">Change PIN</button></div>';
+        +'<span>🔓 Admin unlocked on this device</span>'
+        +'<button class="sbtn" onclick="lockAdmin()">Lock</button></div>';
     } else {
       bar.innerHTML = '<div class="card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-        +'<span style="color:var(--gold)">⚠️ No admin PIN set — anyone with the code can make changes.</span>'
-        +'<button class="btn" onclick="setAdminPin()">Set admin PIN</button></div>';
+        +'<span>🔒 Enter your organiser PIN to make changes</span>'
+        +'<input id="pinInput" type="password" inputmode="numeric" maxlength="8" placeholder="PIN" style="width:110px" '
+        +'onkeydown="if(event.key===\'Enter\'){event.preventDefault();unlockAdmin();}" />'
+        +'<button class="btn" onclick="unlockAdmin()">Unlock</button></div>';
     }
   }
 
