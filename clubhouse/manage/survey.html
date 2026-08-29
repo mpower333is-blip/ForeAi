@@ -56,13 +56,19 @@
     <button class="pt"     data-t="greenBack"  onclick="setType('greenBack')">Back</button>
   </div>
   <div class="row">
+    <button class="pt" data-t="tree"   onclick="setType('tree')">🌳 Trees</button>
+    <button class="pt" data-t="water"  onclick="setType('water')">💧 Water</button>
+    <button class="pt" data-t="bunker" onclick="setType('bunker')">🏖️ Bunker</button>
+    <span class="count" id="hazCount">0 hazards</span>
+  </div>
+  <div class="row">
     <button onclick="undo()">Undo point</button>
     <button onclick="clearHole()">Clear hole</button>
     <span class="count" id="count">0 / 18 holes done</span>
     <button class="pri grow" onclick="download()">⬇ Download coords</button>
   </div>
   <div id="msg"></div>
-  <div class="hint">Tap the map to drop the highlighted point on the current hole. Tee → Green auto-advances to the next hole. Progress is saved on this device.</div>
+  <div class="hint">Tap the map to drop the highlighted point on the current hole. Tee → Green auto-advances to the next hole. <b>Trees / Water / Bunker</b> add a point each tap — tap several around a bunker or water edge to outline its shape. Progress is saved on this device.</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -80,15 +86,24 @@
     { maxZoom:21, maxNativeZoom:19, opacity:0.7 }).addTo(map);
 
   var layer = L.layerGroup().addTo(map);
-  var COLORS = { tee:'#ffffff', green:'#39d98a', greenFront:'#e9c46a', greenBack:'#e76f51' };
+  var COLORS = { tee:'#ffffff', green:'#39d98a', greenFront:'#e9c46a', greenBack:'#e76f51',
+                 tree:'#2f9e4f', water:'#3a86c8', bunker:'#e6d29a' };
+  function isHazard(t){ return t==='tree'||t==='water'||t==='bunker'; }
 
   map.on('click', function(e){ place(e.latlng.lat, e.latlng.lng); });
 
   function place(lat, lng){
     var h = state.holes[cur] || (state.holes[cur] = {});
+    if (isHazard(type)) {
+      // Hazards can have many per hole — each tap adds a point. Tap several
+      // around a bunker or water edge to outline its shape.
+      (h.hazards || (h.hazards = [])).push({ type:type, lat:round(lat), lng:round(lng) });
+      save(); redraw(); msg('Hole '+cur+' · '+label(type)+' added');
+      return;
+    }
     h[type] = { lat:round(lat), lng:round(lng) };
     save(); redraw(); msg('Hole '+cur+' · '+label(type)+' set');
-    // auto-advance: tee -> green -> next hole tee
+    // auto-advance: tee -> green -> next hole tee (hazards never auto-advance)
     if (type==='tee') setType('green');
     else if (type==='green') { if (cur < state.count) { stepHole(1); } setType('tee'); }
   }
@@ -109,6 +124,13 @@
         L.polyline([[h.tee.lat,h.tee.lng],[h.green.lat,h.green.lng]],
           { color:isCur?'#39d98a':'#2b6b4a', weight:isCur?3:2, dashArray:'6,5', opacity:isCur?0.95:0.5 }).addTo(layer);
       }
+      // hazards: trees / water / bunkers
+      (h.hazards||[]).forEach(function(hz){
+        L.circleMarker([hz.lat,hz.lng], {
+          radius:isCur?7:5, color:'#04150c', weight:1.5,
+          fillColor:COLORS[hz.type]||'#fff', fillOpacity:isCur?0.9:0.5
+        }).addTo(layer).bindTooltip(n+' '+hz.type,{permanent:false});
+      });
     });
     updateUI();
   }
@@ -121,6 +143,8 @@
     document.getElementById('prog').innerHTML = 'Tee '+m('tee')+' · Green '+m('green')+' · F '+m('greenFront')+' · B '+m('greenBack');
     var done = 0; for(var n=1;n<=state.count;n++){ var x=state.holes[n]; if(x&&x.tee&&x.green) done++; }
     document.getElementById('count').textContent = done+' / '+state.count+' holes done';
+    var hz = (state.holes[cur]||{}).hazards || [];
+    var hc = document.getElementById('hazCount'); if(hc) hc.textContent = hz.length+' hazard'+(hz.length===1?'':'s')+' on hole '+cur;
     document.getElementById('course').value = state.course||'';
     document.getElementById('holeCount').value = String(state.count);
   }
@@ -128,9 +152,19 @@
   function setType(t){ type=t; updateUI(); }
   function stepHole(d){ cur = Math.min(state.count, Math.max(1, cur+d)); type='tee'; redraw(); }
   function setCount(){ state.count = +document.getElementById('holeCount').value; if(cur>state.count)cur=state.count; save(); redraw(); }
-  function undo(){ var h=state.holes[cur]; if(h){ delete h[type]; save(); redraw(); msg('Removed '+label(type)+' on hole '+cur); } }
+  function undo(){
+    var h=state.holes[cur]; if(!h) return;
+    if(isHazard(type)){
+      if(h.hazards && h.hazards.length){
+        for(var i=h.hazards.length-1;i>=0;i--){ if(h.hazards[i].type===type){ h.hazards.splice(i,1); break; } }
+        save(); redraw(); msg('Removed a '+label(type)+' on hole '+cur);
+      }
+      return;
+    }
+    if(h[type]){ delete h[type]; save(); redraw(); msg('Removed '+label(type)+' on hole '+cur); }
+  }
   function clearHole(){ if(confirm('Clear all points on hole '+cur+'?')){ delete state.holes[cur]; save(); redraw(); } }
-  function label(t){ return t==='tee'?'tee':t==='green'?'green':t==='greenFront'?'green front':'green back'; }
+  function label(t){ return t==='tee'?'tee':t==='green'?'green':t==='greenFront'?'green front':t==='greenBack'?'green back':t==='tree'?'tree':t==='water'?'water':t==='bunker'?'bunker':t; }
   function msg(s){ var m=document.getElementById('msg'); m.textContent=s; clearTimeout(msg._t); msg._t=setTimeout(function(){m.textContent='';},2500); }
 
   document.getElementById('course').addEventListener('input', function(e){ state.course=e.target.value; save(); });
@@ -154,6 +188,7 @@
       var h=state.holes[n]; if(!h) continue;
       var o={ hole:n };
       ['tee','green','greenFront','greenBack'].forEach(function(t){ if(h[t]) o[t]=h[t]; });
+      if(h.hazards && h.hazards.length) o.hazards = h.hazards;
       if(Object.keys(o).length>1) holes.push(o);
     }
     var data={ course: state.course||'(unnamed course)', capturedAt:new Date().toISOString(), holeCount:state.count, holes:holes };
