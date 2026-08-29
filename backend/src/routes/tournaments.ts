@@ -553,11 +553,20 @@ function safeJson(s: string): any {
   }
 }
 
-// Add a side game (contest) on a hole.
+// The side games an organiser can run — measured contests plus the classic
+// charity-day fundraisers. Kept in sync with the office picker, the board and
+// the app's CONTEST_CATALOG.
+const CONTEST_TYPES = [
+  "closest", "closest2", "longest", "straightest", "longestputt",
+  "beatthepro", "putting", "holeinone", "mulligan", "splitpot",
+  "headstails", "luckyball", "string", "raffle",
+];
+
+// Add a side game (contest) on a hole (hole 0 = general / whole day).
 router.post("/:id/contests", async (req, res) => {
   const { type, hole } = req.body;
-  if (type !== "closest" && type !== "longest") {
-    return res.status(400).json({ error: "type must be 'closest' or 'longest'" });
+  if (!CONTEST_TYPES.includes(type)) {
+    return res.status(400).json({ error: "unknown mini-game type" });
   }
   if (typeof hole !== "number") return res.status(400).json({ error: "hole is required" });
   await prisma.tournamentContest.create({

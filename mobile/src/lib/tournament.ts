@@ -40,8 +40,33 @@ export type TGroup = {
 
 export type EventFormat = "stroke" | "stableford" | "scramble";
 
-export type ContestType = "closest" | "longest";
+// A mini-game type is any key in CONTEST_CATALOG below.
+export type ContestType = string;
 export type Contest = { id: string; type: ContestType; hole: number };
+
+// The side games an organiser can run. `dir` is how a winner is picked for a
+// measured game (min = nearest, max = longest); `dir: null` marks a fundraiser
+// game with no auto-scored leaderboard (a winner is decided off-app). Kept in
+// sync with the web office picker, the board, and the backend whitelist.
+export const CONTEST_CATALOG: Record<
+  string,
+  { label: string; unit: string; dir: "min" | "max" | null; charity?: boolean }
+> = {
+  closest:     { label: "Closest to the Pin",        unit: "m", dir: "min" },
+  closest2:    { label: "Closest to the Pin in 2",   unit: "m", dir: "min" },
+  longest:     { label: "Longest Drive",             unit: "m", dir: "max" },
+  straightest: { label: "Straightest Drive",         unit: "m", dir: "min" },
+  longestputt: { label: "Longest Putt",              unit: "m", dir: "max" },
+  beatthepro:  { label: "Beat the Pro",              unit: "", dir: null, charity: true },
+  putting:     { label: "Putting Competition",       unit: "", dir: null, charity: true },
+  holeinone:   { label: "Hole-in-One Challenge",     unit: "", dir: null, charity: true },
+  mulligan:    { label: "Mulligans",                 unit: "", dir: null, charity: true },
+  splitpot:    { label: "50/50 Split the Pot",       unit: "", dir: null, charity: true },
+  headstails:  { label: "Heads or Tails",            unit: "", dir: null, charity: true },
+  luckyball:   { label: "Lucky Ball (Yellow Ball)",  unit: "", dir: null, charity: true },
+  string:      { label: "String Game",               unit: "", dir: null, charity: true },
+  raffle:      { label: "Raffle / Auction",          unit: "", dir: null, charity: true },
+};
 
 export type SponsorTier = "title" | "hole" | "prize" | "general";
 export type Sponsor = {
@@ -269,11 +294,16 @@ export function teamStandings(event: TEvent): TeamStanding[] {
 // ---- side games ----------------------------------------------------------
 
 export function contestName(c: Contest): string {
-  return c.type === "closest" ? "Closest to the Pin" : "Longest Drive";
+  return CONTEST_CATALOG[c.type]?.label ?? c.type;
 }
 
 export function contestUnit(c: Contest): string {
-  return c.type === "closest" ? "m from pin" : "m";
+  return CONTEST_CATALOG[c.type]?.unit ?? "";
+}
+
+// True for fundraiser games whose winner is decided off-app (no per-player score).
+export function contestIsScored(c: Contest): boolean {
+  return (CONTEST_CATALOG[c.type]?.dir ?? null) !== null;
 }
 
 export function holeSponsor(event: TEvent, hole: number): Sponsor | undefined {
@@ -293,8 +323,9 @@ export function contestLeader(
   if (!results) return null;
   const entries = Object.entries(results);
   if (entries.length === 0) return null;
+  const dir = CONTEST_CATALOG[contest.type]?.dir ?? "max";
   const winner = entries.reduce((best, e) =>
-    contest.type === "closest" ? (e[1] < best[1] ? e : best) : e[1] > best[1] ? e : best
+    dir === "min" ? (e[1] < best[1] ? e : best) : e[1] > best[1] ? e : best
   );
   const player = event.players.find((p) => p.id === winner[0]);
   return player ? { player, value: winner[1] } : null;

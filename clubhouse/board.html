@@ -182,12 +182,24 @@
         return e.shotgun ? ((shotgunStart(i) - 1 + done) % 18) + 1 : done + 1;
       }
       const teamGross = (e, g) => (captain(g) ? playerGross(e, captain(g)) : 0);
+      // Side-game catalog — kept in sync with the app + office.
+      const GAMES = {
+        closest:{label:"Closest to the Pin",unit:"m",dir:"min"}, closest2:{label:"Closest to the Pin (in 2)",unit:"m",dir:"min"},
+        longest:{label:"Longest Drive",unit:"m",dir:"max"}, straightest:{label:"Straightest Drive",unit:"m",dir:"min"},
+        longestputt:{label:"Longest Putt",unit:"m",dir:"max"}, beatthepro:{label:"Beat the Pro",unit:"",dir:null},
+        putting:{label:"Putting Competition",unit:"",dir:null}, holeinone:{label:"Hole-in-One Challenge",unit:"",dir:null},
+        mulligan:{label:"Mulligans",unit:"",dir:null}, splitpot:{label:"50/50 Split the Pot",unit:"",dir:null},
+        headstails:{label:"Heads or Tails",unit:"",dir:null}, luckyball:{label:"Lucky Ball (Yellow Ball)",unit:"",dir:null},
+        string:{label:"String Game",unit:"",dir:null}, raffle:{label:"Raffle / Auction",unit:"",dir:null},
+      };
+      function gameInfo(t){ return GAMES[t] || {label:t,unit:"",dir:"max"}; }
       function contestLeader(e, c) {
         const r = e.contestResults?.[c.id];
         if (!r) return null;
         const entries = Object.entries(r);
         if (!entries.length) return null;
-        const w = entries.reduce((b, x) => (c.type === "closest" ? (x[1] < b[1] ? x : b) : x[1] > b[1] ? x : b));
+        const dir = gameInfo(c.type).dir || "max";
+        const w = entries.reduce((b, x) => (dir === "min" ? (x[1] < b[1] ? x : b) : x[1] > b[1] ? x : b));
         const p = e.players.find((p) => p.id === w[0]);
         return p ? { name: p.name, value: w[1] } : null;
       }
@@ -346,10 +358,13 @@
         if (contests.length) {
           $("gamesPanel").style.display = "";
           $("games").innerHTML = contests.map((c) => {
-            const l = contestLeader(e, c);
-            const name = c.type === "closest" ? "Closest to the Pin" : "Longest Drive";
-            return `<div class="contest"><div><b>${name}</b> <span class="muted">· Hole ${c.hole}</span></div>
-              <div class="leader">${l ? l.name + " — " + l.value + " yds" : "No results yet"}</div></div>`;
+            const info = gameInfo(c.type);
+            const where = c.hole > 0 ? `· Hole ${c.hole}` : "· All day";
+            const right = info.dir === null
+              ? `<span class="muted">on the day</span>`
+              : (l => l ? l.name + " — " + l.value + (info.unit ? " " + info.unit : "") : "No results yet")(contestLeader(e, c));
+            return `<div class="contest"><div><b>${info.label}</b> <span class="muted">${where}</span></div>
+              <div class="leader">${right}</div></div>`;
           }).join("");
         } else {
           $("gamesPanel").style.display = "none";

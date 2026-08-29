@@ -282,39 +282,57 @@
     }catch(e){}
   }
 
-  // ---- Mini-games / side contests (closest to pin, longest drive) --------
-  function gameName(t){ return t==='closest' ? '🎯 Closest to the pin' : '💥 Longest drive'; }
+  // ---- Mini-games / side contests ---------------------------------------
+  // Kept in sync with the app's CONTEST_CATALOG and the backend whitelist.
+  var GAMES_MEASURED=[
+    ['closest','🎯 Closest to the Pin'],['closest2','🎯 Closest to the Pin (in 2)'],
+    ['longest','💥 Longest Drive'],['straightest','🎯 Straightest Drive'],
+    ['longestputt','⛳ Longest Putt'] ];
+  var GAMES_CHARITY=[
+    ['beatthepro','🏌️ Beat the Pro'],['putting','🥅 Putting Competition'],
+    ['holeinone','🕳️ Hole-in-One Challenge'],['mulligan','🔁 Mulligans'],
+    ['splitpot','💰 50/50 Split the Pot'],['headstails','🪙 Heads or Tails'],
+    ['luckyball','🟡 Lucky Ball (Yellow Ball)'],['string','🧵 String Game'],
+    ['raffle','🎟️ Raffle / Auction'] ];
+  var GAME_LABEL={}; GAMES_MEASURED.concat(GAMES_CHARITY).forEach(function(g){ GAME_LABEL[g[0]]=g[1]; });
+  function gameName(t){ return GAME_LABEL[t] || t; }
+  function holeLabel(h){ return h>0 ? ('Hole '+h) : 'General'; }
   function renderGames(){
     var box=document.getElementById('gamesBox'); if(!box) return;
     var games=(EVENT&&Array.isArray(EVENT.contests))?EVENT.contests:[];
-    var holeOpts=''; for(var h=1;h<=18;h++){ holeOpts+='<option value="'+h+'">Hole '+h+'</option>'; }
+    var holeOpts='<option value="0">General (whole day)</option>';
+    for(var h=1;h<=18;h++){ holeOpts+='<option value="'+h+'">Hole '+h+'</option>'; }
+    var opt=function(g){ return '<option value="'+g[0]+'">'+g[1]+'</option>'; };
+    var typeOpts='<optgroup label="On-course contests">'+GAMES_MEASURED.map(opt).join('')+'</optgroup>'
+      +'<optgroup label="Charity fundraisers">'+GAMES_CHARITY.map(opt).join('')+'</optgroup>';
     var list = games.length
-      ? games.slice().sort(function(a,b){return a.hole-b.hole;}).map(function(g){
+      ? games.slice().sort(function(a,b){return (a.hole-b.hole)||0;}).map(function(g){
           return '<div class="status" style="justify-content:space-between">'
-            +'<span class="lbl" style="flex:1">'+gameName(g.type)+' · <b style="color:var(--text)">Hole '+g.hole+'</b></span>'
+            +'<span class="lbl" style="flex:1">'+gameName(g.type)+' · <b style="color:var(--text)">'+holeLabel(g.hole)+'</b></span>'
             +'<button class="del" onclick="delContest(\''+g.id+'\')">Remove</button></div>';
         }).join('')
       : '<div class="hint">No mini-games yet. Add one below.</div>';
-    box.innerHTML = '<div class="card"><div class="rowtop"><span class="company">🏌️ Mini-games on the day</span></div>'
-      +'<div class="hint" style="margin:2px 0 10px">Pick the holes for Closest to the Pin and Longest Drive. They show on the board and in the app, and winners are captured on the day.</div>'
+    box.innerHTML = '<div class="card"><div class="rowtop"><span class="company">🏌️ Mini-games &amp; fundraisers</span></div>'
+      +'<div class="hint" style="margin:2px 0 10px">On-course contests are scored live in the app; charity fundraisers show on the board and are run on the day. Pick a hole, or “General” for a whole-day game.</div>'
       + list
       + '<div class="status" style="margin-top:12px;gap:8px">'
-      +   '<select id="gameType"><option value="closest">🎯 Closest to the pin</option><option value="longest">💥 Longest drive</option></select>'
+      +   '<select id="gameType">'+typeOpts+'</select>'
       +   '<select id="gameHole">'+holeOpts+'</select>'
-      +   '<button class="btn sm" onclick="addContest()">Add mini-game</button>'
+      +   '<button class="btn sm" onclick="addContest()">Add game</button>'
       + '</div></div>';
   }
   async function addContest(){
     var type=document.getElementById('gameType').value;
     var hole=parseInt(document.getElementById('gameHole').value,10);
-    if(!hole){ return; }
+    if(isNaN(hole)) hole=0;
     var dup=(EVENT.contests||[]).some(function(g){ return g.type===type && g.hole===hole; });
-    if(dup){ alert('That mini-game is already set on hole '+hole+'.'); return; }
+    if(dup){ alert('That game is already set for '+holeLabel(hole)+'.'); return; }
     try{
       var r=await authFetch(CFG.api+'/tournaments/'+EVENT.id+'/contests',
         {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:type,hole:hole})});
       if(r.ok){ EVENT=await r.json(); render(); }
       else if(r.status===403){ alert('Enter your organiser PIN first (above) to make changes.'); }
+      else { alert('Could not add that game.'); }
     }catch(e){}
   }
   async function delContest(id){
