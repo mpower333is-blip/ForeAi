@@ -193,13 +193,15 @@ const EXACT_LAYOUTS: Record<string, { par: number; yards: number; si?: number }[
   // Modderfontein Golf Club (18, par 72). Full card captured on-course, middle-
   // of-green metres: OUT 1–9 = 387,395,153,388,404,339,375,465,166; IN 10–18 =
   // 478,159,362,459,147,390,317,358,334. Stored as yards (×1.09361).
+  // Distances are the on-course GPS survey (middle of green); stroke index is
+  // the official handicaps.co.za allocation (Yellow card). Par matches the card.
   "modderfontein": [
-    { par: 5, yards: 423 }, { par: 4, yards: 432 }, { par: 3, yards: 167 },
-    { par: 4, yards: 424 }, { par: 4, yards: 442 }, { par: 4, yards: 371 },
-    { par: 4, yards: 410 }, { par: 5, yards: 508 }, { par: 3, yards: 182 },
-    { par: 5, yards: 523 }, { par: 3, yards: 174 }, { par: 4, yards: 396 },
-    { par: 5, yards: 502 }, { par: 3, yards: 161 }, { par: 4, yards: 426 },
-    { par: 4, yards: 347 }, { par: 4, yards: 391 }, { par: 4, yards: 365 },
+    { par: 5, yards: 423, si: 18 }, { par: 4, yards: 432, si: 4 },  { par: 3, yards: 167, si: 14 },
+    { par: 4, yards: 424, si: 10 }, { par: 4, yards: 442, si: 2 },  { par: 4, yards: 371, si: 6 },
+    { par: 4, yards: 410, si: 8 },  { par: 5, yards: 508, si: 16 }, { par: 3, yards: 182, si: 12 },
+    { par: 5, yards: 523, si: 9 },  { par: 3, yards: 174, si: 17 }, { par: 4, yards: 396, si: 3 },
+    { par: 5, yards: 502, si: 13 }, { par: 3, yards: 161, si: 11 }, { par: 4, yards: 426, si: 1 },
+    { par: 4, yards: 347, si: 15 }, { par: 4, yards: 391, si: 5 },  { par: 4, yards: 365, si: 7 },
   ],
   // Serengeti — Whistling Thorn: an 18-hole PAR-3 course (par 54, every hole
   // par 3). Full card captured on-course (tee-to-pin yards): FRONT 1–9 = 165,

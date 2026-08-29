@@ -186,4 +186,34 @@ export const HANDICAPS_CARDS: HcpCard[] = [
     pars:  [5,5,4,4,3,4,4,3,4, 4,3,5,4,4,3,4,4,5],
     sis:   [13,17,9,3,11,1,5,7,15, 4,12,14,2,8,16,6,10,18],
     metres:[493,517,401,407,137,402,361,179,320, 404,192,503,430,407,204,448,426,466] },
+
+  { id:"mooinooi-golf-club", name:"Mooinooi Golf Club", town:"Mooinooi", province:"North West", par:72, tee:"White", lat:-25.752, lng:27.573,
+    pars:  [5,4,4,3,4,3,4,5,4, 4,4,4,3,5,3,4,5,4],
+    sis:   [13,9,5,11,1,15,7,17,3, 2,14,12,10,6,18,4,16,8],
+    metres:[490,342,394,138,434,154,404,471,405, 421,320,379,151,501,143,406,468,404] },
+
+  { id:"nigel-golf-club", name:"Nigel Golf Club", town:"Nigel", province:"Gauteng", par:72, tee:"White", lat:-26.419, lng:28.474,
+    pars:  [4,4,3,5,5,4,4,4,3, 4,4,4,3,5,4,4,3,5],
+    sis:   [13,3,11,7,15,5,9,1,17, 2,18,8,16,12,4,6,10,14],
+    metres:[285,362,153,497,497,354,351,429,167, 403,346,441,154,509,358,358,167,520] },
+
+  { id:"observatory-golf-club", name:"Observatory Golf Club", town:"Johannesburg", province:"Gauteng", par:72, tee:"White", lat:-26.188, lng:28.083,
+    pars:  [4,5,4,3,4,4,5,3,5, 4,3,4,4,5,3,4,4,4],
+    sis:   [7,17,1,11,15,3,13,9,5, 2,18,6,12,14,10,16,4,8],
+    metres:[399,487,425,173,288,355,514,184,495, 422,140,385,335,481,119,312,381,374] },
+
+  { id:"parkview-golf-club", name:"Parkview Golf Club", town:"Johannesburg", province:"Gauteng", par:72, tee:"Yellow", lat:-26.159, lng:28.010,
+    pars:  [5,4,3,4,3,4,4,4,4, 4,4,4,5,5,3,4,4,4],
+    sis:   [17,3,11,1,13,15,7,5,9, 2,10,16,12,18,6,14,4,8],
+    metres:[473,428,158,408,175,330,437,410,340, 440,352,333,518,489,185,300,410,359] },
+
+  { id:"parys-golf-club", name:"Parys Golf Club", town:"Parys", province:"Free State", par:72, tee:"Yellow", lat:-26.903, lng:27.461,
+    pars:  [4,4,4,5,3,4,4,3,5, 4,5,3,4,4,4,3,4,5],
+    sis:   [9,5,13,15,11,1,3,17,7, 10,6,14,12,16,2,18,4,8],
+    metres:[388,398,410,518,194,425,430,191,545, 395,541,215,398,370,407,153,389,493] },
+
+  { id:"pebble-rock-country-club", name:"Pebble Rock Country Club", town:"Pretoria", province:"Gauteng", par:71, tee:"White", lat:-25.552, lng:28.401,
+    pars:  [4,3,5,3,4,4,4,3,5, 5,3,4,3,4,4,5,3,5],
+    sis:   [5,13,9,7,17,1,11,15,3, 12,18,14,6,2,4,8,10,16],
+    metres:[414,173,529,191,279,380,388,140,548, 533,158,316,165,425,380,510,185,475] },
 ];
