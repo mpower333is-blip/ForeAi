@@ -197,7 +197,7 @@
       $('evtName').textContent = ev.name || CFG.code;
       var cz=$('evtCause'); cz.innerHTML='';
       if(ev.causePhoto || ev.cause){
-        var img=ev.causePhoto?'<img src="'+ev.causePhoto+'" alt="" style="height:80px;width:auto;border-radius:12px;object-fit:cover;background:#fff" />':'';
+        var img=ev.causePhoto?'<img src="'+ev.causePhoto+'" alt="" style="height:80px;width:auto;border-radius:12px;object-fit:cover;object-position:center top;background:#fff" />':'';
         var txt=ev.cause?'<div style="color:var(--muted);font-size:14px;line-height:1.5">💚 '+ev.cause+'</div>':'';
         cz.innerHTML='<div class="card" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'+img+txt+'</div>';
       }
