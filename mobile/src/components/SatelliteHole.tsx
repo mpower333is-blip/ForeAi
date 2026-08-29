@@ -2,13 +2,14 @@ import React from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
 import Svg, { Line, Circle } from "react-native-svg";
 import { Hole } from "../data/courses";
-import { Coord } from "../lib/geo";
+import { Coord, haversineMeters } from "../lib/geo";
 import { colors } from "../theme";
 
 // Real satellite imagery for a hole using Esri World Imagery (no API key).
-// When a hole has GPS coordinates (tee/green) it frames the hole tightly and
-// draws the tee→green line; otherwise it shows the course from above using the
-// course centre. The container is square so the overlay lines up with the image.
+// Frames the hole from every point we have (tee, green, green edges, hazards),
+// draws the tee→green line, the green front/middle/back, and any mapped
+// bunkers / water / trees on top. Falls back to a course-wide view when a hole
+// has no GPS yet. The container is square so the overlay lines up with the image.
 export default function SatelliteHole({
   hole,
   center,
@@ -16,10 +17,17 @@ export default function SatelliteHole({
   hole: Hole;
   center?: Coord;
 }) {
-  const perHole = !!(hole.green || hole.tee);
-  const focus = hole.green ?? hole.tee ?? center;
+  const hazards = hole.hazards ?? [];
+  const pts: Coord[] = [];
+  if (hole.tee) pts.push(hole.tee);
+  if (hole.green) pts.push(hole.green);
+  if (hole.greenFront) pts.push(hole.greenFront);
+  if (hole.greenBack) pts.push(hole.greenBack);
+  hazards.forEach((z) => pts.push({ lat: z.lat, lng: z.lng }));
 
-  if (!focus) {
+  const perHole = pts.length > 0;
+
+  if (!perHole && !center) {
     return (
       <View style={styles.wrap}>
         <Text style={styles.none}>No GPS location for this course yet.</Text>
@@ -27,47 +35,108 @@ export default function SatelliteHole({
     );
   }
 
-  // Roughly-square ground window; tighter when we can frame a specific hole.
-  const latSpan = perHole ? 0.005 : 0.02;
-  const lonSpan = latSpan / Math.cos((focus.lat * Math.PI) / 180);
-  const minX = focus.lng - lonSpan / 2;
-  const minY = focus.lat - latSpan / 2;
-  const maxX = focus.lng + lonSpan / 2;
-  const maxY = focus.lat + latSpan / 2;
+  // Build a ground-square bounding box. Per hole: fit all points with padding;
+  // otherwise centre a wide window on the course.
+  let minY: number, maxY: number, minX: number, maxX: number;
+  if (perHole) {
+    let loLat = Infinity, hiLat = -Infinity, loLng = Infinity, hiLng = -Infinity;
+    for (const p of pts) {
+      loLat = Math.min(loLat, p.lat); hiLat = Math.max(hiLat, p.lat);
+      loLng = Math.min(loLng, p.lng); hiLng = Math.max(hiLng, p.lng);
+    }
+    const cLat = (loLat + hiLat) / 2;
+    const cLng = (loLng + hiLng) / 2;
+    const cosLat = Math.cos((cLat * Math.PI) / 180);
+    // Ground extents (degrees), width scaled so the box is square on the ground.
+    const latExt = hiLat - loLat;
+    const lngExtGround = (hiLng - loLng) * cosLat;
+    let half = (Math.max(latExt, lngExtGround) / 2) * 1.25; // 25% padding
+    half = Math.max(half, 0.0011); // never tighter than ~120 m so a hole reads
+    minY = cLat - half; maxY = cLat + half;
+    const halfLng = half / cosLat;
+    minX = cLng - halfLng; maxX = cLng + halfLng;
+  } else {
+    const f = center as Coord;
+    const latSpan = 0.02;
+    const lonSpan = latSpan / Math.cos((f.lat * Math.PI) / 180);
+    minY = f.lat - latSpan / 2; maxY = f.lat + latSpan / 2;
+    minX = f.lng - lonSpan / 2; maxX = f.lng + lonSpan / 2;
+  }
 
   const bbox = `${minX},${minY},${maxX},${maxY}`;
   const url =
     `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export` +
     `?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=640,640&format=png&transparent=false&f=image`;
 
-  // Map a coordinate to 0-100 percentage inside the (linear 4326) bbox.
   const toXY = (p: Coord) => ({
     x: ((p.lng - minX) / (maxX - minX)) * 100,
     y: ((maxY - p.lat) / (maxY - minY)) * 100,
   });
+
+  // Live-ish distances (tee → green edges) for the readout.
+  const mid = hole.tee && hole.green ? Math.round(haversineMeters(hole.tee, hole.green)) : null;
+  const front = hole.tee && hole.greenFront ? Math.round(haversineMeters(hole.tee, hole.greenFront)) : null;
+  const back = hole.tee && hole.greenBack ? Math.round(haversineMeters(hole.tee, hole.greenBack)) : null;
+
+  const HZ_STYLE: Record<string, { fill: string; r: number; opacity: number }> = {
+    tree: { fill: "#2f9e4f", r: 0.9, opacity: 0.85 },
+    water: { fill: "#3a86c8", r: 1.4, opacity: 0.8 },
+    bunker: { fill: "#e6d29a", r: 1.4, opacity: 0.9 },
+  };
 
   return (
     <View style={styles.wrap}>
       <Image source={{ uri: url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       {perHole && (
         <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100" preserveAspectRatio="none">
+          {/* hazards under the line/markers */}
+          {hazards.map((z, i) => {
+            const s = HZ_STYLE[z.type] ?? HZ_STYLE.tree;
+            const p = toXY({ lat: z.lat, lng: z.lng });
+            return <Circle key={i} cx={p.x} cy={p.y} r={s.r} fill={s.fill} opacity={s.opacity} />;
+          })}
           {hole.tee && hole.green && (
             <Line
-              x1={toXY(hole.tee).x}
-              y1={toXY(hole.tee).y}
-              x2={toXY(hole.green).x}
-              y2={toXY(hole.green).y}
-              stroke={colors.accent}
-              strokeWidth="0.7"
-              strokeDasharray="2,1.2"
+              x1={toXY(hole.tee).x} y1={toXY(hole.tee).y}
+              x2={toXY(hole.green).x} y2={toXY(hole.green).y}
+              stroke={colors.accent} strokeWidth="0.7" strokeDasharray="2,1.2"
             />
           )}
-          {hole.tee && <Circle cx={toXY(hole.tee).x} cy={toXY(hole.tee).y} r="1.6" fill="#ffffff" />}
-          {hole.green && <Circle cx={toXY(hole.green).x} cy={toXY(hole.green).y} r="1.9" fill={colors.accent} />}
+          {hole.greenFront && <Circle cx={toXY(hole.greenFront).x} cy={toXY(hole.greenFront).y} r="1.2" fill="#ffffff" opacity={0.9} />}
+          {hole.greenBack && <Circle cx={toXY(hole.greenBack).x} cy={toXY(hole.greenBack).y} r="1.2" fill="#ffffff" opacity={0.9} />}
+          {hole.tee && <Circle cx={toXY(hole.tee).x} cy={toXY(hole.tee).y} r="1.7" fill="#ffffff" stroke="#0a2016" strokeWidth="0.4" />}
+          {hole.green && <Circle cx={toXY(hole.green).x} cy={toXY(hole.green).y} r="2" fill={colors.accent} stroke="#0a2016" strokeWidth="0.4" />}
         </Svg>
       )}
+
       <Text style={styles.tag}>{perHole ? `Hole ${hole.number}` : "Course view"}</Text>
+
+      {mid != null && (
+        <View style={styles.dist}>
+          {front != null && <Text style={styles.distSm}>F {front}</Text>}
+          <Text style={styles.distBig}>{mid}<Text style={styles.distUnit}> m</Text></Text>
+          {back != null && <Text style={styles.distSm}>B {back}</Text>}
+        </View>
+      )}
+
+      {hazards.length > 0 && (
+        <View style={styles.legend}>
+          <Legend color="#e6d29a" label="Bunker" />
+          <Legend color="#3a86c8" label="Water" />
+          <Legend color="#2f9e4f" label="Trees" />
+        </View>
+      )}
+
       <Text style={styles.attr}>Imagery © Esri</Text>
+    </View>
+  );
+}
+
+function Legend({ color, label }: { color: string; label: string }) {
+  return (
+    <View style={styles.legendItem}>
+      <View style={[styles.dot, { backgroundColor: color }]} />
+      <Text style={styles.legendText}>{label}</Text>
     </View>
   );
 }
@@ -84,22 +153,22 @@ const styles = StyleSheet.create({
   },
   none: { color: colors.textFaint, fontSize: 14 },
   tag: {
-    position: "absolute",
-    top: 8,
-    left: 10,
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "700",
-    backgroundColor: "rgba(0,0,0,0.4)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    position: "absolute", top: 8, left: 10, color: "#fff", fontSize: 13, fontWeight: "700",
+    backgroundColor: "rgba(0,0,0,0.45)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
   },
-  attr: {
-    position: "absolute",
-    bottom: 4,
-    right: 6,
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 9,
+  dist: {
+    position: "absolute", top: 8, right: 10, alignItems: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.45)", paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10,
   },
+  distBig: { color: "#fff", fontSize: 22, fontWeight: "800", lineHeight: 24 },
+  distUnit: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.85)" },
+  distSm: { color: "rgba(255,255,255,0.85)", fontSize: 11, fontWeight: "700" },
+  legend: {
+    position: "absolute", bottom: 6, left: 8, flexDirection: "row", gap: 10,
+    backgroundColor: "rgba(0,0,0,0.4)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+  },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  legendText: { color: "#fff", fontSize: 10, fontWeight: "600" },
+  attr: { position: "absolute", bottom: 4, right: 6, color: "rgba(255,255,255,0.7)", fontSize: 9 },
 });

@@ -24,6 +24,7 @@ export type Hole = {
   tee?: Coord; // tee GPS, when available
   greenFront?: Coord; // front of green (for Front/Middle/Back distances)
   greenBack?: Coord; // back of green
+  hazards?: { type: "tree" | "water" | "bunker"; lat: number; lng: number }[]; // mapped hazards
 };
 
 export type Course = {
@@ -267,6 +268,7 @@ export const COURSES: Course[] = ALL_RAW.map((r) => {
       if (g.greenFront) h.greenFront = g.greenFront;
       if (g.green) h.green = g.green;
       if (g.greenBack) h.greenBack = g.greenBack;
+      if (g.hazards) h.hazards = g.hazards;
     });
   }
   // Centre the map on the first tee we have, falling back to the listed coords.
