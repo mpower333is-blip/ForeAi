@@ -207,13 +207,15 @@ const EXACT_LAYOUTS: Record<string, { par: number; yards: number; si?: number }[
   // par 3). Full card captured on-course (tee-to-pin yards): FRONT 1–9 = 165,
   // 166, 314, 192, 139, 235, 238, 172, 308; BACK 10–18 = 155, 210, 214, 173,
   // 111, 265, 176, 312, 177. Some are long par 3s, but the course is all par 3.
+  // Distances are the on-course survey; stroke index is the official
+  // handicaps.co.za allocation for the Whistling Thorn par-3 course (Yellow).
   "serengeti-serengeti": [
-    { par: 3, yards: 165 }, { par: 3, yards: 166 }, { par: 3, yards: 314 },
-    { par: 3, yards: 192 }, { par: 3, yards: 139 }, { par: 3, yards: 235 },
-    { par: 3, yards: 238 }, { par: 3, yards: 172 }, { par: 3, yards: 308 },
-    { par: 3, yards: 155 }, { par: 3, yards: 210 }, { par: 3, yards: 214 },
-    { par: 3, yards: 173 }, { par: 3, yards: 111 }, { par: 3, yards: 265 },
-    { par: 3, yards: 176 }, { par: 3, yards: 312 }, { par: 3, yards: 177 },
+    { par: 3, yards: 165, si: 7 },  { par: 3, yards: 166, si: 11 }, { par: 3, yards: 314, si: 1 },
+    { par: 3, yards: 192, si: 15 }, { par: 3, yards: 139, si: 17 }, { par: 3, yards: 235, si: 5 },
+    { par: 3, yards: 238, si: 13 }, { par: 3, yards: 172, si: 9 },  { par: 3, yards: 308, si: 3 },
+    { par: 3, yards: 155, si: 14 }, { par: 3, yards: 210, si: 4 },  { par: 3, yards: 214, si: 12 },
+    { par: 3, yards: 173, si: 10 }, { par: 3, yards: 111, si: 18 }, { par: 3, yards: 265, si: 2 },
+    { par: 3, yards: 176, si: 16 }, { par: 3, yards: 312, si: 8 },  { par: 3, yards: 177, si: 6 },
   ],
 };
 

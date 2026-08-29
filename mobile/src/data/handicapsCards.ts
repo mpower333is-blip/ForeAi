@@ -291,4 +291,19 @@ export const HANDICAPS_CARDS: HcpCard[] = [
     pars:  [4,4,5,4,3,4,4,5,3, 4,5,3,4,4,3,5,4,4],
     sis:   [16,18,14,4,8,2,12,10,6, 13,17,7,1,3,11,9,15,5],
     metres:[409,349,619,407,187,421,441,527,210, 381,551,206,449,412,167,574,343,443] },
+
+  { id:"services-golf-club", name:"Services Golf Club", town:"Pretoria", province:"Gauteng", par:72, tee:"White", lat:-25.761, lng:28.201,
+    pars:  [4,5,4,4,4,3,4,3,5, 4,3,5,4,4,3,4,4,5],
+    sis:   [17,9,3,5,11,13,1,7,15, 2,16,14,6,12,10,4,8,18],
+    metres:[326,522,389,383,372,145,417,193,533, 389,129,494,363,320,153,371,354,485] },
+
+  { id:"silver-lakes-golf-estate", name:"Silver Lakes Golf & Wildlife Estate", town:"Pretoria", province:"Gauteng", par:72, tee:"Yellow", lat:-25.783, lng:28.342,
+    pars:  [4,5,3,4,4,4,5,4,3, 4,4,4,3,5,4,3,4,5],
+    sis:   [10,14,16,8,4,6,18,2,12, 9,13,1,5,7,17,15,3,11],
+    metres:[391,549,175,375,368,400,463,401,165, 369,396,461,173,495,303,172,456,474] },
+
+  { id:"southdowns-country-club", name:"Southdowns Country Club", town:"Centurion", province:"Gauteng", par:72, tee:"Yellow", lat:-25.884, lng:28.203,
+    pars:  [4,5,4,5,3,4,4,4,4, 3,4,4,5,3,4,5,3,4],
+    sis:   [9,15,7,11,13,17,5,1,3, 14,16,18,8,6,4,12,10,2],
+    metres:[335,515,354,563,170,310,345,429,345, 155,330,280,514,180,374,540,175,406] },
 ];
