@@ -12,6 +12,7 @@
 
 import { Coord, haversineMeters } from "../lib/geo";
 import { SA_COURSES } from "./saCourses";
+import { HANDICAPS_CARDS, cardToLayout } from "./handicapsCards";
 
 export type Hole = {
   number: number;
@@ -228,8 +229,25 @@ function exactLayout(rows: { par: number; yards: number; si?: number }[]): Hole[
   return rows.map((r, i) => ({ number: i + 1, par: r.par, yards: r.yards, si: si[i] }));
 }
 
-export const COURSES: Course[] = RAW_COURSES.map((r) => {
-  const exact = EXACT_LAYOUTS[r.id];
+// Official handicaps.co.za cards, keyed by course id. Hand-written EXACT_LAYOUTS
+// (on-course GPS surveys, physical scorecards) take precedence where both exist.
+const HCP_LAYOUTS: Record<string, { par: number; yards: number; si?: number }[]> =
+  Object.fromEntries(HANDICAPS_CARDS.map((c) => [c.id, cardToLayout(c)]));
+const ALL_LAYOUTS: Record<string, { par: number; yards: number; si?: number }[]> = {
+  ...HCP_LAYOUTS,
+  ...EXACT_LAYOUTS,
+};
+
+// Course list: the bundled/curated courses, plus any handicaps.co.za club that
+// isn't already present (matched by id upgrades a curated course to an exact card).
+const RAW_IDS = new Set(RAW_COURSES.map((r) => r.id));
+const HCP_RAW: Raw[] = HANDICAPS_CARDS.filter((c) => !RAW_IDS.has(c.id)).map((c) => ({
+  id: c.id, name: c.name, town: c.town, province: c.province, par: c.par, lat: c.lat, lng: c.lng,
+}));
+const ALL_RAW: Raw[] = [...RAW_COURSES, ...HCP_RAW];
+
+export const COURSES: Course[] = ALL_RAW.map((r) => {
+  const exact = ALL_LAYOUTS[r.id];
   const partial = PARTIAL_LAYOUTS[r.id];
   const rows = exact ?? partial;
   const holes = rows ? exactLayout(rows) : buildLayout(r.par ?? 72, r.yards);
