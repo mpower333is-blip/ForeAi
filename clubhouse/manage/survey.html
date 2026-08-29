@@ -103,9 +103,10 @@
     }
     h[type] = { lat:round(lat), lng:round(lng) };
     save(); redraw(); msg('Hole '+cur+' · '+label(type)+' set');
-    // auto-advance: tee -> green -> next hole tee (hazards never auto-advance)
+    // Convenience: tee -> green so you can drop both quickly. We deliberately do
+    // NOT jump to the next hole on green — otherwise hazards you map next would
+    // land on the wrong hole. Press ▶ to move on when the hole is fully mapped.
     if (type==='tee') setType('green');
-    else if (type==='green') { if (cur < state.count) { stepHole(1); } setType('tee'); }
   }
   function round(n){ return Math.round(n*1e6)/1e6; }
 
