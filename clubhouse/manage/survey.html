@@ -155,9 +155,12 @@
     document.querySelectorAll('.pt').forEach(function(b){ b.classList.toggle('on', b.dataset.t===type); });
     var h = state.holes[cur]||{};
     function m(t){ return h[t] ? '<span class="ok">✓</span>' : '<span class="no">—</span>'; }
-    document.getElementById('prog').innerHTML = 'Tee '+m('tee')+' · Green '+m('green')+' · F '+m('greenFront')+' · B '+m('greenBack');
-    var done = 0; for(var n=1;n<=state.count;n++){ var x=state.holes[n]; if(x&&x.tee&&x.green) done++; }
-    document.getElementById('count').textContent = done+' / '+state.count+' holes done';
+    var fwN = (h.fairway||[]).length;
+    var fwm = fwN ? '<span class="ok">✓'+fwN+'</span>' : '<span class="no">—</span>';
+    document.getElementById('prog').innerHTML = 'Tee '+m('tee')+' · Green '+m('green')+' · F '+m('greenFront')+' · B '+m('greenBack')+' · 🛣️ '+fwm;
+    var done = 0, fwDone = 0;
+    for(var n=1;n<=state.count;n++){ var x=state.holes[n]; if(x&&x.tee&&x.green) done++; if(x&&x.fairway&&x.fairway.length) fwDone++; }
+    document.getElementById('count').textContent = done+' / '+state.count+' holes · 🛣️ '+fwDone+' routed';
     var hz = (state.holes[cur]||{}).hazards || [];
     var hc = document.getElementById('hazCount'); if(hc) hc.textContent = hz.length+' hazard'+(hz.length===1?'':'s')+' on hole '+cur;
     document.getElementById('course').value = state.course||'';
