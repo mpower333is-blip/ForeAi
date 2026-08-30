@@ -45,7 +45,7 @@ private val KEMPTON_PARK = WCourse(
     // Green coordinates from the on-course GPS survey (matches the phone app's
     // courseGps). Hole 1 also has front/back for a true F/M/B readout.
     holes = listOf(
-        WHole(1, 5, 527, green = LatLng(-26.110073, 28.216512), greenFront = LatLng(-26.110003, 28.216402), greenBack = LatLng(-26.110145, 28.216595)),
+        WHole(1, 5, 527, green = LatLng(-26.110071, 28.216514), greenFront = LatLng(-26.110011, 28.216410), greenBack = LatLng(-26.110126, 28.216595)),
         WHole(2, 4, 312, green = LatLng(-26.107831, 28.219363)),
         WHole(3, 4, 353, green = LatLng(-26.110642, 28.219272)),
         WHole(4, 4, 353, green = LatLng(-26.107499, 28.220178)),
