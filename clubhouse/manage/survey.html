@@ -80,6 +80,7 @@
   <div class="row">
     <button class="pt" data-t="tree"   onclick="setType('tree')">🌳 Trees</button>
     <button class="pt" data-t="water"  onclick="setType('water')">💧 Water</button>
+    <select id="waterMode" onchange="waterMode=this.value; setType('water');" title="River = brush a line · Pond = tap a loop"><option value="river">River (brush)</option><option value="pond">Pond (tap loop)</option></select>
     <button class="pt" data-t="bunker" onclick="setType('bunker')">🏖️ Bunker</button>
     <button onclick="finishShape()">✓ Finish shape</button>
     <span class="count" id="hazCount">0 hazards</span>
@@ -95,7 +96,7 @@
     <button class="pri grow" onclick="download()">⬇ Download coords</button>
   </div>
   <div id="msg"></div>
-  <div class="hint">You don't need to be at the course — this works from any computer on the satellite map. Tap to drop the highlighted point; <b>drag any dot</b> to nudge it into place. <b>🏳️ Tee</b> uses the colour picker beside it — place a Club/Men/Ladies/Junior tee, then change the colour to add another (great for school days). <b>🛣️ Fairway</b> drops ordered waypoints down the middle (tap the bends tee→green). <b>💧 Water</b> is a <b>brush</b>: press and <b>drag along the river</b> to trace exactly how it flows — it draws as a flowing river. <b>Trees / Bunker</b> tap around the edge and the taps join into one filled area; press <b>✓ Finish shape</b> to start the next. <b>⬆ Load</b> reopens a coords file you saved earlier so you can keep editing anywhere. Tap <b>▾</b> to hide these tools and get the full map. Progress is also saved on this device.</div>
+  <div class="hint">You don't need to be at the course — this works from any computer on the satellite map. Tap to drop the highlighted point; <b>drag any dot</b> to nudge it into place. <b>🏳️ Tee</b> uses the colour picker beside it — place a Club/Men/Ladies/Junior tee, then change the colour to add another (great for school days). <b>🛣️ Fairway</b> drops ordered waypoints down the middle (tap the bends tee→green). <b>💧 Water</b> has two modes beside it: <b>River</b> = press and <b>drag</b> along the stream to trace its flow (draws as a flowing river); <b>Pond</b> = <b>tap</b> around the edge of a dam/lake and <b>✓ Finish shape</b> to fill it. <b>Trees / Bunker</b> tap around the edge; <b>✓ Finish shape</b> starts the next. <b>⬆ Load</b> reopens a coords file you saved earlier so you can keep editing anywhere. Tap <b>▾</b> to hide these tools and get the full map. Progress is also saved on this device.</div>
   </div>
 </div>
 
@@ -109,6 +110,7 @@
   var TEE_COLORS = { Club:'#5aa0ff', Men:'#f4f4f4', Ladies:'#e8563e', Junior:'#39d98a', Yellow:'#f2c94c' };
   var TEE_ORDER = ['Club','Men','Yellow','Ladies','Junior'];
   var teeName = 'Club';
+  var waterMode = 'river'; // 'river' = brush a flow line · 'pond' = tap a loop to fill
   function backTee(h){ if(!h.tees) return undefined;
     for(var i=0;i<TEE_ORDER.length;i++){ if(h.tees[TEE_ORDER[i]]) return h.tees[TEE_ORDER[i]]; }
     for(var k in h.tees) return h.tees[k]; return undefined; }
@@ -141,9 +143,9 @@
     return m;
   }
 
-  // Water is a BRUSH: press and drag to trace how the river flows. Every other
-  // tool drops points on tap/click.
-  map.on('click', function(e){ if(type==='water') return; place(e.latlng.lat, e.latlng.lng); });
+  // Water has two modes: a River is a BRUSH (press-drag a flow line); a Pond is
+  // tapped like other areas (a loop that fills). Everything else drops on tap.
+  map.on('click', function(e){ if(type==='water' && waterMode==='river') return; place(e.latlng.lat, e.latlng.lng); });
 
   var RIVER_WIDTH = 10; // metres, default river width
   var brushing=false, brushHz=null, lastBrushLL=null;
@@ -155,7 +157,7 @@
     save(); redraw();
   }
   mapEl.addEventListener('pointerdown', function(e){
-    if(type!=='water') return;
+    if(type!=='water' || waterMode!=='river') return;
     brushing=true; lastBrushLL=null; map.dragging.disable(); mapEl.setPointerCapture&&mapEl.setPointerCapture(e.pointerId);
     var h = state.holes[cur] || (state.holes[cur] = {});
     brushHz = { type:'water', width:RIVER_WIDTH, points:[] };
@@ -246,7 +248,7 @@
         var col = COLORS[hz.type]||'#fff';
         var pts = (hz.points||[]).map(function(p){ return [p.lat,p.lng]; });
         var open = (hz===openHz);
-        if(hz.type==='water'){
+        if(hz.type==='water' && hz.width){
           // a river: a thick rounded blue line following the brushed path
           if(pts.length>=2){
             L.polyline(pts, { color:'#bfe4f5', weight:isCur?9:6, opacity:isCur?0.55:0.3, lineCap:'round', lineJoin:'round' }).addTo(layer);
@@ -256,6 +258,7 @@
           }
           return; // no per-point dots for a river (too many to drag)
         }
+        // pond water (no width) falls through to the filled-polygon branch below
         if(pts.length>=3){
           L.polygon(pts, { color:'#04150c', weight:isCur?1.5:1, fillColor:col,
             fillOpacity:isCur?(open?0.55:0.4):0.25, dashArray:open?'4,3':null })
@@ -308,9 +311,15 @@
   function setCount(){ state.count = +document.getElementById('holeCount').value; if(cur>state.count)cur=state.count; save(); redraw(); }
   function undo(){
     var h=state.holes[cur]; if(!h) return;
-    if(type==='water'){
+    if(type==='water' && waterMode==='river'){
       // Rivers are brushed in one stroke — undo removes the whole last river.
-      if(h.hazards){ for(var wi=h.hazards.length-1;wi>=0;wi--){ if(h.hazards[wi].type==='water'){ h.hazards.splice(wi,1); save(); redraw(); msg('Removed the last river on hole '+cur); break; } } }
+      if(h.hazards){ for(var wi=h.hazards.length-1;wi>=0;wi--){ if(h.hazards[wi].type==='water' && h.hazards[wi].width){ h.hazards.splice(wi,1); save(); redraw(); msg('Removed the last river on hole '+cur); break; } } }
+      return;
+    }
+    if(type==='water'){ // pond: peel back the last vertex of the open/last pond
+      var pond = openHz;
+      if(!pond && h.hazards){ for(var pi=h.hazards.length-1;pi>=0;pi--){ if(h.hazards[pi].type==='water' && !h.hazards[pi].width){ pond=h.hazards[pi]; break; } } }
+      if(pond && pond.points.length){ pond.points.pop(); if(!pond.points.length){ var pk=h.hazards.indexOf(pond); if(pk>=0)h.hazards.splice(pk,1); if(pond===openHz)openHz=null; } save(); redraw(); msg('Removed a point from the pond'); }
       return;
     }
     if(isHazard(type)){
