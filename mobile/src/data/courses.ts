@@ -21,7 +21,8 @@ export type Hole = {
   yards: number;
   si: number; // stroke index 1-18 (handicap allocation)
   green?: Coord; // green centre GPS, when the data source provides it
-  tee?: Coord; // tee GPS, when available
+  tee?: Coord; // tee GPS (the back/primary tee), when available
+  tees?: { name: string; lat: number; lng: number }[]; // all mapped tee boxes
   greenFront?: Coord; // front of green (for Front/Middle/Back distances)
   greenBack?: Coord; // back of green
   fairway?: Coord[]; // ordered fairway centreline waypoints (tee → these → green)
@@ -269,6 +270,7 @@ export const COURSES: Course[] = ALL_RAW.map((r) => {
       if (g.greenFront) h.greenFront = g.greenFront;
       if (g.green) h.green = g.green;
       if (g.greenBack) h.greenBack = g.greenBack;
+      if (g.tees) h.tees = g.tees;
       if (g.fairway) h.fairway = g.fairway;
       if (g.hazards) h.hazards = g.hazards;
     });

@@ -1,16 +1,18 @@
 // Per-hole GPS captured on-course (or from satellite), keyed by course id.
 //
-// Tee, front/middle/back of green, the fairway centreline, and hazards drawn as
-// areas (an outline of points each). These drive the live Front/Middle/Back
-// rangefinder, the fairway route, carry distances and the satellite hole view.
+// Tee(s), front/middle/back of green, the fairway centreline, and hazards drawn
+// as areas. These drive the live Front/Middle/Back rangefinder, the fairway
+// route, carry distances and the satellite hole view. A hole may carry several
+// tee boxes (club/men/ladies/junior) for mixed and school fields.
 //
-// Order matches the course's holes (index 0 = hole 1). Coordinates are decimal
-// degrees (lat, lng).
+// Order matches the course's holes (index 0 = hole 1). Decimal degrees.
 
 import { Coord } from "../lib/geo";
 
+export type TeeBox = { name: string; lat: number; lng: number };
 export type HoleGps = {
   tee?: Coord;
+  tees?: TeeBox[];
   greenFront?: Coord;
   green?: Coord;
   greenBack?: Coord;
@@ -19,35 +21,29 @@ export type HoleGps = {
 };
 
 export const COURSE_GPS: Record<string, HoleGps[]> = {
-  // Kempton Park Golf Club — the ECS event venue. Hole 1 fully surveyed with a
-  // routed fairway and hazards drawn as areas; holes 2–18 have tee + green.
+  // Kempton Park Golf Club — the ECS event venue. Hole 1 fully surveyed;
+  // holes 2–18 have tee + green.
   "kempton-park": [
     // H1
-    { tee: { lat: -26.106786, lng: 28.212572 }, greenFront: { lat: -26.110011, lng: 28.21641 }, green: { lat: -26.110071, lng: 28.216514 }, greenBack: { lat: -26.110126, lng: 28.216595 },
-      fairway: [ { lat: -26.106996, lng: 28.212947 }, { lat: -26.107446, lng: 28.214079 }, { lat: -26.107841, lng: 28.214784 }, { lat: -26.108428, lng: 28.21528 }, { lat: -26.108826, lng: 28.215527 }, { lat: -26.109084, lng: 28.215742 }, { lat: -26.109399, lng: 28.216045 }, { lat: -26.109695, lng: 28.216243 }, { lat: -26.109869, lng: 28.216321 } ],
+    { tee: { lat: -26.106807, lng: 28.212573 }, greenFront: { lat: -26.109984, lng: 28.21641 }, green: { lat: -26.110071, lng: 28.216533 }, greenBack: { lat: -26.110126, lng: 28.216595 },
+      tees: [ { name: "Club", lat: -26.106807, lng: 28.212573 } ],
+      fairway: [ { lat: -26.106894, lng: 28.212819 }, { lat: -26.107314, lng: 28.213768 }, { lat: -26.107624, lng: 28.214495 }, { lat: -26.107976, lng: 28.214988 }, { lat: -26.108689, lng: 28.215358 } ],
       hazards: [
-        { type: "water", points: [ { lat: -26.109238, lng: 28.215387 }, { lat: -26.109209, lng: 28.215515 }, { lat: -26.109184, lng: 28.215601 }, { lat: -26.109155, lng: 28.21577 }, { lat: -26.109148, lng: 28.215928 }, { lat: -26.109203, lng: 28.216041 }, { lat: -26.109216, lng: 28.216127 }, { lat: -26.109223, lng: 28.216166 }, { lat: -26.109206, lng: 28.216268 }, { lat: -26.109189, lng: 28.216364 }, { lat: -26.109153, lng: 28.216455 }, { lat: -26.109126, lng: 28.216539 } ] },
-        { type: "bunker", points: [ { lat: -26.110132, lng: 28.216383 }, { lat: -26.110118, lng: 28.216405 }, { lat: -26.110091, lng: 28.21638 }, { lat: -26.110098, lng: 28.216361 }, { lat: -26.110111, lng: 28.216361 }, { lat: -26.110124, lng: 28.216359 } ] },
-        { type: "tree", points: [ { lat: -26.10988, lng: 28.216054 }, { lat: -26.109868, lng: 28.215901 }, { lat: -26.109925, lng: 28.215925 }, { lat: -26.109966, lng: 28.215987 } ] },
-        { type: "tree", points: [ { lat: -26.107276, lng: 28.212911 }, { lat: -26.107147, lng: 28.213161 }, { lat: -26.107267, lng: 28.213362 } ] },
-        { type: "bunker", points: [ { lat: -26.107836, lng: 28.215099 }, { lat: -26.107909, lng: 28.215023 }, { lat: -26.107817, lng: 28.214936 }, { lat: -26.107756, lng: 28.215043 } ] },
-        { type: "tree", points: [ { lat: -26.107637, lng: 28.214096 }, { lat: -26.10728, lng: 28.213371 }, { lat: -26.107713, lng: 28.213677 }, { lat: -26.108577, lng: 28.214651 }, { lat: -26.108297, lng: 28.214852 }, { lat: -26.10785, lng: 28.214414 } ] },
-        { type: "bunker", points: [ { lat: -26.109891, lng: 28.216481 }, { lat: -26.109916, lng: 28.216511 }, { lat: -26.109938, lng: 28.216461 }, { lat: -26.109903, lng: 28.216439 } ] },
-        { type: "tree", points: [ { lat: -26.106969, lng: 28.212732 }, { lat: -26.107061, lng: 28.212641 }, { lat: -26.107162, lng: 28.212785 }, { lat: -26.107075, lng: 28.212957 } ] },
-        { type: "tree", points: [ { lat: -26.106796, lng: 28.212764 }, { lat: -26.106719, lng: 28.212877 }, { lat: -26.106868, lng: 28.213268 }, { lat: -26.10699, lng: 28.21314 }, { lat: -26.106836, lng: 28.212804 } ] },
-        { type: "tree", points: [ { lat: -26.107132, lng: 28.213823 }, { lat: -26.107035, lng: 28.213941 }, { lat: -26.107046, lng: 28.214101 }, { lat: -26.107171, lng: 28.213929 } ] },
-        { type: "tree", points: [ { lat: -26.107126, lng: 28.214147 }, { lat: -26.10714, lng: 28.214464 }, { lat: -26.107228, lng: 28.214282 } ] },
-        { type: "tree", points: [ { lat: -26.107267, lng: 28.214573 }, { lat: -26.10719, lng: 28.214792 }, { lat: -26.107549, lng: 28.215329 }, { lat: -26.107698, lng: 28.214929 }, { lat: -26.107624, lng: 28.214708 }, { lat: -26.107444, lng: 28.214573 } ] },
-        { type: "tree", points: [ { lat: -26.108295, lng: 28.215027 } ] },
-        { type: "tree", points: [ { lat: -26.108439, lng: 28.215145 } ] },
-        { type: "tree", points: [ { lat: -26.108459, lng: 28.21499 } ] },
-        { type: "tree", points: [ { lat: -26.109013, lng: 28.215348 } ] },
-        { type: "tree", points: [ { lat: -26.108611, lng: 28.215672 }, { lat: -26.108603, lng: 28.215919 }, { lat: -26.10838, lng: 28.215872 }, { lat: -26.108312, lng: 28.215721 }, { lat: -26.10821, lng: 28.21549 }, { lat: -26.108267, lng: 28.215372 }, { lat: -26.108561, lng: 28.21543 } ] },
-        { type: "tree", points: [ { lat: -26.107893, lng: 28.215193 }, { lat: -26.10783, lng: 28.215311 }, { lat: -26.107951, lng: 28.215375 }, { lat: -26.10811, lng: 28.215354 } ] },
-        { type: "tree", points: [ { lat: -26.107673, lng: 28.215356 }, { lat: -26.107644, lng: 28.215522 }, { lat: -26.107872, lng: 28.215691 }, { lat: -26.107845, lng: 28.215395 } ] },
-        { type: "tree", points: [ { lat: -26.109279, lng: 28.216255 } ] },
-        { type: "tree", points: [ { lat: -26.10952, lng: 28.216344 } ] },
-        { type: "tree", points: [ { lat: -26.109571, lng: 28.216473 } ] }
+        { type: "water", points: [ { lat: -26.108954, lng: 28.217032 }, { lat: -26.109251, lng: 28.21537 }, { lat: -26.109213, lng: 28.216382 } ] },
+        { type: "tree", points: [ { lat: -26.106973, lng: 28.212718 }, { lat: -26.10706, lng: 28.212916 }, { lat: -26.107161, lng: 28.212857 }, { lat: -26.107093, lng: 28.21267 } ] },
+        { type: "tree", points: [ { lat: -26.106811, lng: 28.212726 }, { lat: -26.106715, lng: 28.212865 }, { lat: -26.10685, lng: 28.213214 }, { lat: -26.106996, lng: 28.213122 } ] },
+        { type: "tree", points: [ { lat: -26.107321, lng: 28.212879 }, { lat: -26.107191, lng: 28.213158 }, { lat: -26.107476, lng: 28.213812 }, { lat: -26.10761, lng: 28.213812 }, { lat: -26.107697, lng: 28.213689 }, { lat: -26.107654, lng: 28.213356 }, { lat: -26.107519, lng: 28.212986 } ] },
+        { type: "tree", points: [ { lat: -26.107117, lng: 28.213802 }, { lat: -26.107011, lng: 28.213979 }, { lat: -26.107016, lng: 28.214102 }, { lat: -26.107141, lng: 28.214049 }, { lat: -26.107127, lng: 28.213952 } ] },
+        { type: "tree", points: [ { lat: -26.107136, lng: 28.214145 }, { lat: -26.10716, lng: 28.214446 }, { lat: -26.107175, lng: 28.214279 } ] },
+        { type: "tree", points: [ { lat: -26.107201, lng: 28.214729 }, { lat: -26.107263, lng: 28.214557 }, { lat: -26.107543, lng: 28.214632 }, { lat: -26.107697, lng: 28.214874 }, { lat: -26.107707, lng: 28.215035 } ] },
+        { type: "tree", points: [ { lat: -26.107882, lng: 28.215139 }, { lat: -26.107815, lng: 28.215316 }, { lat: -26.108345, lng: 28.215675 }, { lat: -26.108441, lng: 28.21552 } ] },
+        { type: "tree", points: [ { lat: -26.107713, lng: 28.213832 }, { lat: -26.107583, lng: 28.214009 }, { lat: -26.107834, lng: 28.214261 }, { lat: -26.107781, lng: 28.214111 } ] },
+        { type: "tree", points: [ { lat: -26.108013, lng: 28.214403 }, { lat: -26.108609, lng: 28.214442 }, { lat: -26.109291, lng: 28.214914 }, { lat: -26.109633, lng: 28.215138 }, { lat: -26.10945, lng: 28.21539 }, { lat: -26.108957, lng: 28.215043 }, { lat: -26.108479, lng: 28.214691 }, { lat: -26.108311, lng: 28.214927 } ] },
+        { type: "tree", points: [ { lat: -26.109888, lng: 28.215874 }, { lat: -26.109864, lng: 28.2161 }, { lat: -26.109985, lng: 28.216046 } ] },
+        { type: "tree", points: [ { lat: -26.10954, lng: 28.216475 }, { lat: -26.109627, lng: 28.216507 } ] },
+        { type: "bunker", points: [ { lat: -26.110077, lng: 28.216394 }, { lat: -26.110118, lng: 28.216428 }, { lat: -26.110149, lng: 28.216377 }, { lat: -26.110111, lng: 28.216339 } ] },
+        { type: "bunker", points: [ { lat: -26.109901, lng: 28.216442 }, { lat: -26.109882, lng: 28.216498 }, { lat: -26.109937, lng: 28.216533 }, { lat: -26.109951, lng: 28.21647 } ] },
+        { type: "bunker", points: [ { lat: -26.107832, lng: 28.214949 }, { lat: -26.107755, lng: 28.215067 }, { lat: -26.107805, lng: 28.215109 }, { lat: -26.1079, lng: 28.215025 } ] }
       ] },
     // H2
     { tee: { lat: -26.109808, lng: 28.21701 }, green: { lat: -26.107831, lng: 28.219363 } },
