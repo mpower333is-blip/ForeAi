@@ -95,7 +95,7 @@
     <button class="pri grow" onclick="download()">⬇ Download coords</button>
   </div>
   <div id="msg"></div>
-  <div class="hint">You don't need to be at the course — this works from any computer on the satellite map. Tap to drop the highlighted point; <b>drag any dot</b> to nudge it into place. <b>🏳️ Tee</b> uses the colour picker beside it — place a Club/Men/Ladies/Junior tee, then change the colour to add another (great for school days). <b>🛣️ Fairway</b> drops ordered waypoints down the middle (tap the bends tee→green). <b>Trees / Water / Bunker</b> draw a shape: tap around the edge of a river, tree line or bunker and the taps join into one filled area — that whole area is <b>one</b> hazard; press <b>✓ Finish shape</b> to start the next. <b>⬆ Load</b> reopens a coords file you saved earlier so you can keep editing anywhere. Tap <b>▾</b> to hide these tools and get the full map. Progress is also saved on this device.</div>
+  <div class="hint">You don't need to be at the course — this works from any computer on the satellite map. Tap to drop the highlighted point; <b>drag any dot</b> to nudge it into place. <b>🏳️ Tee</b> uses the colour picker beside it — place a Club/Men/Ladies/Junior tee, then change the colour to add another (great for school days). <b>🛣️ Fairway</b> drops ordered waypoints down the middle (tap the bends tee→green). <b>💧 Water</b> is a <b>brush</b>: press and <b>drag along the river</b> to trace exactly how it flows — it draws as a flowing river. <b>Trees / Bunker</b> tap around the edge and the taps join into one filled area; press <b>✓ Finish shape</b> to start the next. <b>⬆ Load</b> reopens a coords file you saved earlier so you can keep editing anywhere. Tap <b>▾</b> to hide these tools and get the full map. Progress is also saved on this device.</div>
   </div>
 </div>
 
@@ -141,7 +141,34 @@
     return m;
   }
 
-  map.on('click', function(e){ place(e.latlng.lat, e.latlng.lng); });
+  // Water is a BRUSH: press and drag to trace how the river flows. Every other
+  // tool drops points on tap/click.
+  map.on('click', function(e){ if(type==='water') return; place(e.latlng.lat, e.latlng.lng); });
+
+  var RIVER_WIDTH = 10; // metres, default river width
+  var brushing=false, brushHz=null, lastBrushLL=null;
+  var mapEl = map.getContainer();
+  function brushLL(e){ var r=mapEl.getBoundingClientRect(); return map.containerPointToLatLng(L.point(e.clientX-r.left, e.clientY-r.top)); }
+  function addBrush(ll){
+    if(lastBrushLL && map.distance(lastBrushLL, ll) < 3) return; // ~3 m spacing
+    lastBrushLL = ll; brushHz.points.push({ lat:round(ll.lat), lng:round(ll.lng) });
+    save(); redraw();
+  }
+  mapEl.addEventListener('pointerdown', function(e){
+    if(type!=='water') return;
+    brushing=true; lastBrushLL=null; map.dragging.disable(); mapEl.setPointerCapture&&mapEl.setPointerCapture(e.pointerId);
+    var h = state.holes[cur] || (state.holes[cur] = {});
+    brushHz = { type:'water', width:RIVER_WIDTH, points:[] };
+    (h.hazards || (h.hazards = [])).push(brushHz);
+    addBrush(brushLL(e)); e.preventDefault();
+  });
+  mapEl.addEventListener('pointermove', function(e){ if(brushing){ addBrush(brushLL(e)); e.preventDefault(); } });
+  function endBrush(){ if(!brushing) return; brushing=false; map.dragging.enable();
+    if(brushHz && brushHz.points.length<1){ var h=state.holes[cur]; if(h&&h.hazards) h.hazards.pop(); }
+    var n = brushHz?brushHz.points.length:0; brushHz=null; save(); redraw(); msg('River drawn · '+n+' pts (drag again for another)');
+  }
+  mapEl.addEventListener('pointerup', endBrush);
+  mapEl.addEventListener('pointercancel', endBrush);
 
   function place(lat, lng){
     var h = state.holes[cur] || (state.holes[cur] = {});
@@ -214,11 +241,21 @@
           }
         });
       }
-      // hazards: each is a shape (river / tree line / bunker outline).
+      // hazards: water = brushed river ribbon; trees/bunkers = tapped outlines.
       (h.hazards||[]).forEach(function(hz){
         var col = COLORS[hz.type]||'#fff';
         var pts = (hz.points||[]).map(function(p){ return [p.lat,p.lng]; });
         var open = (hz===openHz);
+        if(hz.type==='water'){
+          // a river: a thick rounded blue line following the brushed path
+          if(pts.length>=2){
+            L.polyline(pts, { color:'#bfe4f5', weight:isCur?9:6, opacity:isCur?0.55:0.3, lineCap:'round', lineJoin:'round' }).addTo(layer);
+            L.polyline(pts, { color:'#3a86c8', weight:isCur?6:4, opacity:isCur?0.95:0.6, lineCap:'round', lineJoin:'round' }).addTo(layer).bindTooltip(n+' river',{permanent:false});
+          } else if(pts.length===1){
+            L.circleMarker(pts[0], { radius:isCur?6:4, color:'#04150c', weight:1, fillColor:'#3a86c8', fillOpacity:0.85 }).addTo(layer);
+          }
+          return; // no per-point dots for a river (too many to drag)
+        }
         if(pts.length>=3){
           L.polygon(pts, { color:'#04150c', weight:isCur?1.5:1, fillColor:col,
             fillOpacity:isCur?(open?0.55:0.4):0.25, dashArray:open?'4,3':null })
@@ -271,6 +308,11 @@
   function setCount(){ state.count = +document.getElementById('holeCount').value; if(cur>state.count)cur=state.count; save(); redraw(); }
   function undo(){
     var h=state.holes[cur]; if(!h) return;
+    if(type==='water'){
+      // Rivers are brushed in one stroke — undo removes the whole last river.
+      if(h.hazards){ for(var wi=h.hazards.length-1;wi>=0;wi--){ if(h.hazards[wi].type==='water'){ h.hazards.splice(wi,1); save(); redraw(); msg('Removed the last river on hole '+cur); break; } } }
+      return;
+    }
     if(isHazard(type)){
       // Remove the last vertex of the shape being drawn (or the last shape of
       // this type). When a shape runs out of points it's removed entirely.
@@ -325,7 +367,7 @@
       if(h.hazards && h.hazards.length){
         o.hazards = h.hazards
           .filter(function(hz){ return hz.points && hz.points.length; })
-          .map(function(hz){ return { type:hz.type, points:hz.points }; });
+          .map(function(hz){ return hz.type==='water' && hz.width ? { type:hz.type, width:hz.width, points:hz.points } : { type:hz.type, points:hz.points }; });
       }
       if(Object.keys(o).length>1) holes.push(o);
     }
@@ -359,7 +401,7 @@
           hh.hazards = o.hazards.map(function(hz){
             // Accept both the shape format {type,points:[...]} and the old point
             // format {type,lat,lng} so any earlier export still loads.
-            if(hz.points) return { type:hz.type, points:hz.points.map(function(p){ return {lat:p.lat,lng:p.lng}; }) };
+            if(hz.points){ var out={ type:hz.type, points:hz.points.map(function(p){ return {lat:p.lat,lng:p.lng}; }) }; if(hz.width) out.width=hz.width; return out; }
             return { type:hz.type, points:[{lat:hz.lat,lng:hz.lng}] };
           });
         }

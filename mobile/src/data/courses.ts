@@ -26,7 +26,7 @@ export type Hole = {
   greenFront?: Coord; // front of green (for Front/Middle/Back distances)
   greenBack?: Coord; // back of green
   fairway?: Coord[]; // ordered fairway centreline waypoints (tee → these → green)
-  hazards?: { type: "tree" | "water" | "bunker"; points: Coord[] }[]; // drawn hazard areas
+  hazards?: { type: "tree" | "water" | "bunker"; points: Coord[]; width?: number }[]; // drawn hazard areas (water carries a river width)
 };
 
 export type Course = {

@@ -17,7 +17,7 @@ export type HoleGps = {
   green?: Coord;
   greenBack?: Coord;
   fairway?: Coord[];
-  hazards?: { type: "tree" | "water" | "bunker"; points: Coord[] }[];
+  hazards?: { type: "tree" | "water" | "bunker"; points: Coord[]; width?: number }[];
 };
 
 export const COURSE_GPS: Record<string, HoleGps[]> = {
