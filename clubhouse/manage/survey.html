@@ -71,6 +71,7 @@
   <div id="tools">
   <div class="row">
     <button class="pt on" data-t="tee"   onclick="setType('tee')">🏳️ Tee</button>
+    <select id="teeSel" onchange="teeName=this.value; setType('tee');" title="Which tee box"><option>Club</option><option>Men</option><option>Ladies</option><option>Junior</option><option>Yellow</option></select>
     <button class="pt"     data-t="green" onclick="setType('green')">🟢 Green</button>
     <button class="pt"     data-t="greenFront" onclick="setType('greenFront')">Front</button>
     <button class="pt"     data-t="greenBack"  onclick="setType('greenBack')">Back</button>
@@ -94,7 +95,7 @@
     <button class="pri grow" onclick="download()">⬇ Download coords</button>
   </div>
   <div id="msg"></div>
-  <div class="hint">You don't need to be at the course — this works from any computer on the satellite map. Tap to drop the highlighted point; <b>drag any dot</b> to nudge it into place. <b>🛣️ Fairway</b> drops ordered waypoints down the middle (tap the bends tee→green). <b>Trees / Water / Bunker</b> draw a shape: tap around the edge of a river, tree line or bunker and the taps join into one filled area — that whole area is <b>one</b> hazard; press <b>✓ Finish shape</b> to start the next. <b>⬆ Load</b> reopens a coords file you saved earlier so you can keep editing anywhere. Tap <b>▾</b> to hide these tools and get the full map. Progress is also saved on this device.</div>
+  <div class="hint">You don't need to be at the course — this works from any computer on the satellite map. Tap to drop the highlighted point; <b>drag any dot</b> to nudge it into place. <b>🏳️ Tee</b> uses the colour picker beside it — place a Club/Men/Ladies/Junior tee, then change the colour to add another (great for school days). <b>🛣️ Fairway</b> drops ordered waypoints down the middle (tap the bends tee→green). <b>Trees / Water / Bunker</b> draw a shape: tap around the edge of a river, tree line or bunker and the taps join into one filled area — that whole area is <b>one</b> hazard; press <b>✓ Finish shape</b> to start the next. <b>⬆ Load</b> reopens a coords file you saved earlier so you can keep editing anywhere. Tap <b>▾</b> to hide these tools and get the full map. Progress is also saved on this device.</div>
   </div>
 </div>
 
@@ -103,6 +104,14 @@
   var LS='foreai.survey.v1';
   var state = load() || { course:'', count:18, holes:{} }; // holes[n] = {tee,green,greenFront,greenBack}
   var cur = 1, type = 'tee';
+  // Tee boxes: a hole can have several (club/men/ladies/junior + a spare). Stored
+  // per hole as h.tees = { name: {lat,lng} }; h.tee mirrors the back tee for the app.
+  var TEE_COLORS = { Club:'#5aa0ff', Men:'#f4f4f4', Ladies:'#e8563e', Junior:'#39d98a', Yellow:'#f2c94c' };
+  var TEE_ORDER = ['Club','Men','Yellow','Ladies','Junior'];
+  var teeName = 'Club';
+  function backTee(h){ if(!h.tees) return undefined;
+    for(var i=0;i<TEE_ORDER.length;i++){ if(h.tees[TEE_ORDER[i]]) return h.tees[TEE_ORDER[i]]; }
+    for(var k in h.tees) return h.tees[k]; return undefined; }
   var openHz = null; // hazard shape currently being drawn (points appended to it)
 
   // ---- map (free Esri World Imagery, no key) ----
@@ -155,12 +164,16 @@
       save(); redraw(); msg('Hole '+cur+' · fairway point '+h.fairway.length);
       return;
     }
+    if (type==='tee') {
+      // Each colour is one tee box; placing again moves that box. Pick another
+      // colour from the dropdown to add more (club/men/ladies/junior).
+      (h.tees || (h.tees = {}))[teeName] = { lat:round(lat), lng:round(lng) };
+      h.tee = backTee(h); // app uses the back tee for hole length + fairway start
+      save(); redraw(); msg('Hole '+cur+' · '+teeName+' tee set');
+      return;
+    }
     h[type] = { lat:round(lat), lng:round(lng) };
     save(); redraw(); msg('Hole '+cur+' · '+label(type)+' set');
-    // Convenience: tee -> green so you can drop both quickly. We deliberately do
-    // NOT jump to the next hole on green — otherwise hazards you map next would
-    // land on the wrong hole. Press ▶ to move on when the hole is fully mapped.
-    if (type==='tee') setType('green');
   }
   function round(n){ return Math.round(n*1e6)/1e6; }
 
@@ -168,9 +181,18 @@
     layer.clearLayers();
     Object.keys(state.holes).forEach(function(n){
       var h = state.holes[n], isCur = (+n===cur);
-      ['tee','green','greenFront','greenBack'].forEach(function(t){
+      // tee boxes (one coloured marker per tee) then green markers
+      Object.keys(h.tees||{}).forEach(function(name){
+        var p = h.tees[name], col = TEE_COLORS[name] || '#ffffff', tip = n+' '+name+' tee';
+        if(isCur){
+          dragDot(p.lat, p.lng, col, 16, function(la,ln){ h.tees[name]={lat:la,lng:ln}; h.tee=backTee(h); }, tip);
+        } else {
+          L.circleMarker([p.lat,p.lng], { radius:5, color:'#04150c', weight:1.5, fillColor:col, fillOpacity:0.55 }).addTo(layer).bindTooltip(tip,{permanent:false});
+        }
+      });
+      ['green','greenFront','greenBack'].forEach(function(t){
         if(!h[t]) return;
-        var tip = n+(t==='tee'?' tee':t==='green'?' green':t==='greenFront'?' F':' B');
+        var tip = n+(t==='green'?' green':t==='greenFront'?' F':' B');
         if(isCur){
           dragDot(h[t].lat, h[t].lng, COLORS[t], 18, function(la,ln){ h[t]={lat:la,lng:ln}; }, tip);
         } else {
@@ -265,6 +287,10 @@
       if(h.fairway && h.fairway.length){ h.fairway.pop(); save(); redraw(); msg('Removed a fairway point on hole '+cur); }
       return;
     }
+    if(type==='tee'){
+      if(h.tees && h.tees[teeName]){ delete h.tees[teeName]; if(!Object.keys(h.tees).length) delete h.tees; h.tee=backTee(h); save(); redraw(); msg('Removed '+teeName+' tee on hole '+cur); }
+      return;
+    }
     if(h[type]){ delete h[type]; save(); redraw(); msg('Removed '+label(type)+' on hole '+cur); }
   }
   function clearHole(){ if(confirm('Clear all points on hole '+cur+'?')){ delete state.holes[cur]; save(); redraw(); } }
@@ -292,6 +318,9 @@
       var h=state.holes[n]; if(!h) continue;
       var o={ hole:n };
       ['tee','green','greenFront','greenBack'].forEach(function(t){ if(h[t]) o[t]=h[t]; });
+      if(h.tees && Object.keys(h.tees).length){
+        o.tees = Object.keys(h.tees).map(function(name){ return { name:name, lat:h.tees[name].lat, lng:h.tees[name].lng }; });
+      }
       if(h.fairway && h.fairway.length) o.fairway = h.fairway;
       if(h.hazards && h.hazards.length){
         o.hazards = h.hazards
@@ -324,6 +353,7 @@
         var n = o.hole; if(!n) return;
         var hh = {};
         ['tee','green','greenFront','greenBack'].forEach(function(t){ if(o[t]) hh[t]={lat:o[t].lat,lng:o[t].lng}; });
+        if(o.tees && o.tees.length){ hh.tees={}; o.tees.forEach(function(t){ hh.tees[t.name||'Club']={lat:t.lat,lng:t.lng}; }); if(!hh.tee) hh.tee=backTee(hh); }
         if(o.fairway && o.fairway.length) hh.fairway = o.fairway.map(function(p){ return {lat:p.lat,lng:p.lng}; });
         if(o.hazards && o.hazards.length){
           hh.hazards = o.hazards.map(function(hz){
