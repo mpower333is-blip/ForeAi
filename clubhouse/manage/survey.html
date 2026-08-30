@@ -67,10 +67,14 @@
     <button onclick="undo()">Undo point</button>
     <button onclick="clearHole()">Clear hole</button>
     <span class="count" id="count">0 / 18 holes done</span>
+  </div>
+  <div class="row">
+    <input id="importFile" type="file" accept="application/json,.json" style="display:none" onchange="importFile(event)" />
+    <button class="grow" onclick="document.getElementById('importFile').click()">⬆ Load a saved coords file</button>
     <button class="pri grow" onclick="download()">⬇ Download coords</button>
   </div>
   <div id="msg"></div>
-  <div class="hint">Tap the map to drop the highlighted point on the current hole. <b>🛣️ Fairway</b> drops ordered waypoints down the middle — tap the bends from tee to green and the preview line curves through them (skip it for a straight hole). <b>Trees / Water / Bunker</b> draw a shape: tap around the edge of a river, tree line or bunker and the taps join into one filled area — that whole area counts as <b>one</b> hazard. Press <b>✓ Finish shape</b> to close it and start the next one. Progress is saved on this device.</div>
+  <div class="hint">You don't need to be at the course — this works from any computer on the satellite map. Tap to drop the highlighted point; <b>drag any dot</b> to nudge it into place. <b>🛣️ Fairway</b> drops ordered waypoints down the middle (tap the bends tee→green). <b>Trees / Water / Bunker</b> draw a shape: tap around the edge of a river, tree line or bunker and the taps join into one filled area — that whole area is <b>one</b> hazard; press <b>✓ Finish shape</b> to start the next. <b>⬆ Load</b> reopens a coords file you saved earlier so you can keep editing anywhere. Progress is also saved on this device.</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -92,6 +96,20 @@
   var COLORS = { tee:'#ffffff', green:'#39d98a', greenFront:'#e9c46a', greenBack:'#e76f51',
                  tree:'#2f9e4f', water:'#3a86c8', bunker:'#e6d29a' };
   function isHazard(t){ return t==='tree'||t==='water'||t==='bunker'; }
+
+  // A round dot icon for draggable markers (so points can be nudged from home).
+  function dotIcon(color, px){
+    return L.divIcon({ className:'dragdot',
+      html:'<div style="width:'+px+'px;height:'+px+'px;border-radius:50%;background:'+color+';border:2px solid #04150c;box-shadow:0 0 0 1.5px rgba(255,255,255,.55)"></div>',
+      iconSize:[px,px], iconAnchor:[px/2,px/2] });
+  }
+  // Draggable point on the current hole. onMove(lat,lng) writes it back to state.
+  function dragDot(lat, lng, color, px, onMove, tip){
+    var m = L.marker([lat,lng], { icon:dotIcon(color,px), draggable:true, autoPan:true, keyboard:false }).addTo(layer);
+    if(tip) m.bindTooltip(tip,{permanent:false});
+    m.on('dragend', function(){ var ll=m.getLatLng(); onMove(round(ll.lat), round(ll.lng)); save(); redraw(); });
+    return m;
+  }
 
   map.on('click', function(e){ place(e.latlng.lat, e.latlng.lng); });
 
@@ -131,10 +149,12 @@
       var h = state.holes[n], isCur = (+n===cur);
       ['tee','green','greenFront','greenBack'].forEach(function(t){
         if(!h[t]) return;
-        L.circleMarker([h[t].lat,h[t].lng], {
-          radius:isCur?8:5, color:'#04150c', weight:1.5, fillColor:COLORS[t],
-          fillOpacity:isCur?1:0.55
-        }).addTo(layer).bindTooltip((isCur?'':'')+n+(t==='tee'?' tee':t==='green'?' green':t==='greenFront'?' F':' B'),{permanent:false});
+        var tip = n+(t==='tee'?' tee':t==='green'?' green':t==='greenFront'?' F':' B');
+        if(isCur){
+          dragDot(h[t].lat, h[t].lng, COLORS[t], 18, function(la,ln){ h[t]={lat:la,lng:ln}; }, tip);
+        } else {
+          L.circleMarker([h[t].lat,h[t].lng], { radius:5, color:'#04150c', weight:1.5, fillColor:COLORS[t], fillOpacity:0.55 }).addTo(layer).bindTooltip(tip,{permanent:false});
+        }
       });
       // Playing route: tee → fairway waypoints → green (bends through the fairway).
       // Falls back to a straight tee→green line when no fairway path is mapped.
@@ -143,8 +163,12 @@
         var route = [[h.tee.lat,h.tee.lng]].concat(fw.map(function(p){return [p.lat,p.lng];})).concat([[h.green.lat,h.green.lng]]);
         L.polyline(route,
           { color:isCur?'#39d98a':'#2b6b4a', weight:isCur?3:2, dashArray: fw.length?null:'6,5', opacity:isCur?0.95:0.5 }).addTo(layer);
-        fw.forEach(function(p){
-          L.circleMarker([p.lat,p.lng], { radius:isCur?4:3, color:'#04150c', weight:1, fillColor:'#39d98a', fillOpacity:isCur?0.9:0.5 }).addTo(layer);
+        fw.forEach(function(p, idx){
+          if(isCur){
+            dragDot(p.lat, p.lng, '#39d98a', 14, function(la,ln){ h.fairway[idx]={lat:la,lng:ln}; }, n+' fairway '+(idx+1));
+          } else {
+            L.circleMarker([p.lat,p.lng], { radius:3, color:'#04150c', weight:1, fillColor:'#39d98a', fillOpacity:0.5 }).addTo(layer);
+          }
         });
       }
       // hazards: each is a shape (river / tree line / bunker outline).
@@ -159,10 +183,13 @@
         } else if(pts.length===2){
           L.polyline(pts, { color:col, weight:isCur?3:2, opacity:isCur?0.9:0.5 }).addTo(layer);
         }
-        // vertex dots so each tap is visible while drawing
-        pts.forEach(function(pt){
-          L.circleMarker(pt, { radius:isCur?4:3, color:'#04150c', weight:1,
-            fillColor:col, fillOpacity:isCur?(open?1:0.8):0.4 }).addTo(layer);
+        // vertex dots so each tap is visible; draggable on the current hole.
+        pts.forEach(function(pt, j){
+          if(isCur){
+            dragDot(pt[0], pt[1], col, 13, function(la,ln){ hz.points[j]={lat:la,lng:ln}; }, n+' '+hz.type);
+          } else {
+            L.circleMarker(pt, { radius:3, color:'#04150c', weight:1, fillColor:col, fillOpacity:0.4 }).addTo(layer);
+          }
         });
       });
     });
@@ -252,6 +279,44 @@
     a.download=(state.course||'course').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-coords.json';
     a.click();
     msg('Downloaded '+holes.length+' holes');
+  }
+
+  // ---- import: reopen a saved coords file to keep editing from anywhere ----
+  function importFile(ev){
+    var f = ev.target.files && ev.target.files[0];
+    ev.target.value = ''; // allow re-importing the same file later
+    if(!f) return;
+    var r = new FileReader();
+    r.onload = function(){
+      var d; try{ d = JSON.parse(r.result); }catch(e){ msg('That file is not valid JSON.'); return; }
+      var holes = (d && d.holes) || [];
+      if(!Array.isArray(holes) || !holes.length){ msg('No holes found in that file.'); return; }
+      if(!confirm('Load '+holes.length+' holes from "'+(d.course||f.name)+'"? This replaces what is on screen.')) return;
+      var ns = { course: d.course||'', count: d.holeCount||state.count||18, holes:{} };
+      holes.forEach(function(o){
+        var n = o.hole; if(!n) return;
+        var hh = {};
+        ['tee','green','greenFront','greenBack'].forEach(function(t){ if(o[t]) hh[t]={lat:o[t].lat,lng:o[t].lng}; });
+        if(o.fairway && o.fairway.length) hh.fairway = o.fairway.map(function(p){ return {lat:p.lat,lng:p.lng}; });
+        if(o.hazards && o.hazards.length){
+          hh.hazards = o.hazards.map(function(hz){
+            // Accept both the shape format {type,points:[...]} and the old point
+            // format {type,lat,lng} so any earlier export still loads.
+            if(hz.points) return { type:hz.type, points:hz.points.map(function(p){ return {lat:p.lat,lng:p.lng}; }) };
+            return { type:hz.type, points:[{lat:hz.lat,lng:hz.lng}] };
+          });
+        }
+        ns.holes[n] = hh;
+      });
+      state = ns; cur = 1; type = 'tee'; openHz = null;
+      save();
+      var first = ns.holes[1] || ns.holes[Object.keys(ns.holes)[0]];
+      var c = first && (first.tee || first.green);
+      if(c) map.setView([c.lat, c.lng], 17);
+      redraw();
+      msg('Loaded '+holes.length+' holes — drag any dot to adjust.');
+    };
+    r.readAsText(f);
   }
 
   function save(){ try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
