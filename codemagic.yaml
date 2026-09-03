@@ -231,9 +231,23 @@ workflows:
           # IOS_DIST_KEY is the base64 of a PKCS#8 private key (a Codemagic secure
           # env var). fetch-signing-files reuses the certificate matching this key,
           # or creates it once. No per-build create/delete of certificates.
+          #
+          # HARD GUARD: without a pinned key, fetch-signing-files mints a throwaway
+          # cert every run and the previous cert is revoked — every already-uploaded
+          # build then fails ITMS-90035 at review time. Fail loudly instead of
+          # churning: set IOS_DIST_KEY once and the cert is stable forever.
+          if [ -z "$IOS_DIST_KEY" ]; then
+            echo "ERROR: IOS_DIST_KEY is not set in the ios_signing env group."
+            echo "Every build would create a new distribution certificate and revoke"
+            echo "the last one, so previously-uploaded builds fail ITMS-90035 Invalid"
+            echo "Signature. Set IOS_DIST_KEY (base64 of a PKCS#8 distribution private"
+            echo "key) as a SECURE env var in the ios_signing group, then rebuild once."
+            exit 1
+          fi
           CERT_KEY=/tmp/ios_distribution_key.pem
           echo "$IOS_DIST_KEY" | openssl base64 -d -A > "$CERT_KEY"
           echo "Private key: $(wc -c < "$CERT_KEY") bytes"
+          openssl pkey -in "$CERT_KEY" -noout 2>/dev/null || { echo "ERROR: IOS_DIST_KEY did not decode to a valid private key."; exit 1; }
           fetch_signing() {
             app-store-connect fetch-signing-files "$BUNDLE_ID" \
               --platform IOS \
