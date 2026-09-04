@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Linking, Platform, Alert } from "react-native";
 import { Screen, Card, Button, Chip, IconChip } from "../components/ui";
-import { StoreButtons, shareApp } from "../components/Upsell";
+import { shareApp } from "../components/Upsell";
 import { colors, spacing, type } from "../theme";
 import { usePlan } from "../state/PlanContext";
 import type { SubPackage } from "../services/purchases";
@@ -147,8 +147,6 @@ export default function UpgradeScreen({ navigation }: any) {
           Playing the golf day? Send teammates the app so everyone can score live.
         </Text>
         <Button variant="ghost" label="Share the app" icon="↗" onPress={shareApp} />
-        <View style={{ height: spacing.sm }} />
-        <StoreButtons />
       </Card>
 
       <Button variant="ghost" label="Back" onPress={() => navigation.goBack()} />

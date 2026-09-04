@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Screen, Card, StatTile, Button, Hero, FlagMark, IconChip, Chip } from "../components/ui";
-import { StoreButtons, shareApp } from "../components/Upsell";
+import { shareApp } from "../components/Upsell";
 import { colors, spacing, type, radius } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { usePlan } from "../state/PlanContext";
@@ -231,8 +231,6 @@ export default function HomeScreen({ navigation }: any) {
           Share ForeAi with your fourball so everyone can join the golf day and score live.
         </Text>
         <Button variant="ghost" label="Share the app" icon="↗" onPress={shareApp} />
-        <View style={{ height: spacing.sm }} />
-        <StoreButtons />
       </Card>
     </Screen>
   );
