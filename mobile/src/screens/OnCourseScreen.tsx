@@ -6,6 +6,7 @@ import { useRound } from "../state/RoundContext";
 import { useCourseCoords, HolePointKey } from "../state/CourseCoordsContext";
 import { useLocation } from "../hooks/useLocation";
 import SatelliteHole from "../components/SatelliteHole";
+import WeatherPanel from "../components/WeatherPanel";
 import { greenDistancesMeters, bearingDegrees, compass8 } from "../lib/geo";
 import { ydToM } from "../lib/units";
 
@@ -80,6 +81,8 @@ export default function OnCourseScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
       </Card>
+
+      <WeatherPanel coord={loc.coord} />
 
       {loc.status === "denied" && (
         <Card>
