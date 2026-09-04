@@ -75,6 +75,10 @@
       .wxAlert.warning.flash { animation: wxflash 1.1s ease-in-out infinite; }
       @keyframes wxflash { 0%,100%{ background:rgba(255,107,107,.16);} 50%{ background:rgba(255,107,107,.34);} }
       .wxAlert.watch { background:rgba(255,207,92,.14); border:1px solid #FFCF5C; color:#FFCF5C; }
+      .wxAlert.clear { background:var(--surface2); border:1px solid var(--border); color:var(--faint); padding:12px 18px; }
+      .wxAlert.clear .ic { font-size:22px; }
+      .wxAlert.clear .lab { font-size:15px; color:var(--text); }
+      .wxAlert.clear .msg { font-size:14px; color:var(--faint); }
       @media (prefers-reduced-motion: reduce) { .wxAlert.warning.flash { animation: none; } }
     </style>
     <script src="config.js"></script>
@@ -166,21 +170,32 @@
       const wxLng = _q.get("wxlng") ? Number(_q.get("wxlng")) : _D.wxLng;
       async function pollWeather() {
         if (typeof wxLat !== "number" || typeof wxLng !== "number" || !apiBase) return;
+        const el = $("wxAlert");
+        const show = (cls, html) => { el.className = "wxAlert " + cls; el.innerHTML = html; el.style.display = "flex"; };
         try {
           const r = await fetch(`${apiBase.replace(/\/$/, "")}/weather?lat=${wxLat}&lng=${wxLng}`);
-          if (!r.ok) return;
-          const w = await r.json();
-          const el = $("wxAlert"), L = w && w.lightning;
-          if (!L || L.level === "none") { el.style.display = "none"; return; }
-          const warn = L.level === "warning";
-          el.className = "wxAlert " + (warn ? "warning flash" : "watch");
-          el.innerHTML =
-            '<div class="ic">' + (warn ? "⚡" : "⛈️") + "</div>" +
-            '<div><div class="lab">' + (warn ? "LIGHTNING WARNING" : "STORM WATCH") +
-            (L.strikeCount ? " · " + L.strikeCount + " strike" + (L.strikeCount === 1 ? "" : "s") + " nearby" : "") + "</div>" +
-            '<div class="msg">' + (L.message || "") + (warn ? " Players must come off the course." : "") + "</div></div>";
-          el.style.display = "flex";
-        } catch (e) {}
+          if (!r.ok) {
+            show("clear", '<div class="ic">⚡</div><div><div class="lab">Weather</div><div class="msg">Feed connecting… (backend deploying?)</div></div>');
+            return;
+          }
+          const w = await r.json(), L = (w && w.lightning) || {}, c = (w && w.current) || null;
+          const cond = c ? `${c.condition} · ${c.tempC}°C · wind ${c.windKmh} km/h` : "";
+          if (L.level === "warning" || L.level === "watch") {
+            const warn = L.level === "warning";
+            show(warn ? "warning flash" : "watch",
+              '<div class="ic">' + (warn ? "⚡" : "⛈️") + "</div>" +
+              '<div><div class="lab">' + (warn ? "LIGHTNING WARNING" : "STORM WATCH") +
+              (L.strikeCount ? " · " + L.strikeCount + " strike" + (L.strikeCount === 1 ? "" : "s") + " nearby" : "") + "</div>" +
+              '<div class="msg">' + (L.message || "") + (warn ? " Players must come off the course." : "") + "</div></div>");
+          } else {
+            // Clear: a small always-on status so the board visibly shows weather.
+            show("clear",
+              '<div class="ic">⚡</div><div><div class="lab">No lightning</div>' +
+              '<div class="msg">' + cond + (L.source === "strikes" ? " · live strikes" : "") + "</div></div>");
+          }
+        } catch (e) {
+          show("clear", '<div class="ic">⚡</div><div><div class="lab">Weather</div><div class="msg">Feed not reachable.</div></div>');
+        }
       }
       pollWeather();
       setInterval(pollWeather, 120000); // every 2 min
