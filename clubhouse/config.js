@@ -10,4 +10,10 @@ window.FOREAI_DEFAULTS = {
   code: "", // Intentionally blank — don't expose the event code in a public file.
             // Share the registration link with ?code=... instead, and the office
             // page asks the organiser to type the code (kept off the site).
+
+  // Venue location for the live weather / lightning alert on the board.
+  // Default: Kempton Park Golf Club (the ECS golf day). Override per-page with
+  // ?wxlat=..&wxlng=.. Set to null to hide the weather alert entirely.
+  wxLat: -26.106,
+  wxLng: 28.212,
 };

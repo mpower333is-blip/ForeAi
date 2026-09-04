@@ -124,6 +124,56 @@ export async function fetchWeatherReport(c: Coord): Promise<WeatherReport | null
   }
 }
 
+// Metric report the on-course panel renders. Prefers the backend (which adds
+// REAL detected lightning strikes with distance/direction when a provider key is
+// configured server-side), and falls back to the direct Open-Meteo forecast so
+// the panel always shows something.
+export type PanelWeather = {
+  tempC: number;
+  windKmh: number;
+  gustKmh: number;
+  condition: string;
+  lightning: {
+    level: LightningLevel;
+    message: string;
+    nearestKm?: number;
+    nearestDir?: string;
+    strikeCount?: number;
+    source: "strikes" | "forecast";
+  };
+};
+
+export async function fetchLiveWeather(c: Coord, apiBase: string): Promise<PanelWeather | null> {
+  // 1) Backend — real strikes when available.
+  try {
+    const res = await fetch(`${apiBase}/weather?lat=${c.lat}&lng=${c.lng}`);
+    if (res.ok) {
+      const j: any = await res.json();
+      if (j && (j.current || j.lightning)) {
+        return {
+          tempC: Math.round(j.current?.tempC ?? 0),
+          windKmh: Math.round(j.current?.windKmh ?? 0),
+          gustKmh: Math.round(j.current?.gustKmh ?? j.current?.windKmh ?? 0),
+          condition: j.current?.condition ?? "—",
+          lightning: j.lightning ?? { level: "none", message: "No storms nearby.", source: "forecast" },
+        };
+      }
+    }
+  } catch {
+    /* fall through to direct forecast */
+  }
+  // 2) Direct Open-Meteo forecast fallback.
+  const r = await fetchWeatherReport(c);
+  if (!r) return null;
+  return {
+    tempC: Math.round((r.tempF - 32) * (5 / 9)),
+    windKmh: Math.round(r.windMph * 1.60934),
+    gustKmh: Math.round(r.gustMph * 1.60934),
+    condition: r.condition,
+    lightning: { ...r.lightning, source: "forecast" },
+  };
+}
+
 // Head/tail component of the wind along a shot aimed at `bearingDeg` (0..360,
 // clockwise from North). Positive = headwind (plays longer), negative = tailwind.
 // When the wind blows FROM the target direction it's a full headwind.

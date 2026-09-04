@@ -67,6 +67,15 @@
       .sponsorTier { color: var(--faint); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 4px; }
       .sponsor { display: inline-block; margin: 4px 14px 4px 0; font-size: 20px; font-weight: 700; }
       .reg { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
+      .wxAlert { display:flex; align-items:center; gap:16px; border-radius:14px; padding:16px 20px; margin-bottom:16px; font-weight:800; }
+      .wxAlert .ic { font-size:34px; line-height:1; }
+      .wxAlert .lab { font-size:22px; letter-spacing:.5px; }
+      .wxAlert .msg { font-size:16px; font-weight:600; opacity:.92; margin-top:2px; }
+      .wxAlert.warning { background:rgba(255,107,107,.16); border:1px solid #FF6B6B; color:#FF6B6B; }
+      .wxAlert.warning.flash { animation: wxflash 1.1s ease-in-out infinite; }
+      @keyframes wxflash { 0%,100%{ background:rgba(255,107,107,.16);} 50%{ background:rgba(255,107,107,.34);} }
+      .wxAlert.watch { background:rgba(255,207,92,.14); border:1px solid #FFCF5C; color:#FFCF5C; }
+      @media (prefers-reduced-motion: reduce) { .wxAlert.warning.flash { animation: none; } }
     </style>
     <script src="config.js"></script>
 </head>
@@ -94,6 +103,8 @@
         <div>Join code: <span class="code" id="codeOut">—</span></div>
       </div>
     </header>
+
+    <div class="wxAlert" id="wxAlert" style="display:none"></div>
 
     <div class="cause" id="cause" style="display: none"></div>
 
@@ -149,6 +160,30 @@
       let apiBase = $("apiBase").value;
       let eventId = null;
       let timer = null;
+
+      // ── Live weather / lightning alert for the venue ──
+      const wxLat = _q.get("wxlat") ? Number(_q.get("wxlat")) : _D.wxLat;
+      const wxLng = _q.get("wxlng") ? Number(_q.get("wxlng")) : _D.wxLng;
+      async function pollWeather() {
+        if (typeof wxLat !== "number" || typeof wxLng !== "number" || !apiBase) return;
+        try {
+          const r = await fetch(`${apiBase.replace(/\/$/, "")}/weather?lat=${wxLat}&lng=${wxLng}`);
+          if (!r.ok) return;
+          const w = await r.json();
+          const el = $("wxAlert"), L = w && w.lightning;
+          if (!L || L.level === "none") { el.style.display = "none"; return; }
+          const warn = L.level === "warning";
+          el.className = "wxAlert " + (warn ? "warning flash" : "watch");
+          el.innerHTML =
+            '<div class="ic">' + (warn ? "⚡" : "⛈️") + "</div>" +
+            '<div><div class="lab">' + (warn ? "LIGHTNING WARNING" : "STORM WATCH") +
+            (L.strikeCount ? " · " + L.strikeCount + " strike" + (L.strikeCount === 1 ? "" : "s") + " nearby" : "") + "</div>" +
+            '<div class="msg">' + (L.message || "") + (warn ? " Players must come off the course." : "") + "</div></div>";
+          el.style.display = "flex";
+        } catch (e) {}
+      }
+      pollWeather();
+      setInterval(pollWeather, 120000); // every 2 min
 
       function saveCfg() {
         localStorage.setItem(

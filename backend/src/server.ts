@@ -8,6 +8,7 @@ import caddieRoutes from "./routes/caddie";
 import clubRoutes from "./routes/clubs";
 import strategyRoutes from "./routes/strategy";
 import tournamentRoutes from "./routes/tournaments";
+import weatherRoutes from "./routes/weather";
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use("/caddie", caddieRoutes);
 app.use("/clubs", clubRoutes);
 app.use("/strategy", strategyRoutes);
 app.use("/tournaments", tournamentRoutes);
+app.use("/weather", weatherRoutes);
 
 // Catch-all error handler: a route that throws (e.g. a database hiccup) returns
 // a clean 500 instead of leaving the request hanging. Must be registered last.

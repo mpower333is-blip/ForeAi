@@ -14,6 +14,7 @@ import {
 } from "../services/golfCourseApi";
 import { useTournament } from "../state/TournamentContext";
 import { useLocation } from "../hooks/useLocation";
+import WeatherPanel from "../components/WeatherPanel";
 import CourseMap from "../components/CourseMap";
 import {
   TEvent,
@@ -498,6 +499,8 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
           <Text style={styles.hint}>Share this code — players join from their own phones.</Text>
         </Card>
       )}
+
+      <WeatherPanel coord={loc.coord ?? course.center ?? null} compact />
 
       {event.cause ? (
         <Card accent>
