@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { Coord } from "../lib/geo";
 import { fetchLiveWeather, PanelWeather } from "../services/weather";
 import { API_BASE } from "../services/api";
+import { initLightningAlarm, maybeLightningAlarm } from "../lib/lightningAlarm";
 import { colors, spacing, radius } from "../theme";
 
 // On-course weather with a LIVE lightning warning. Reads the backend (real
@@ -14,6 +15,10 @@ export default function WeatherPanel({ coord, compact }: { coord: Coord | null; 
   const [state, setState] = React.useState<"idle" | "loading" | "ok" | "failed">("idle");
 
   React.useEffect(() => {
+    initLightningAlarm();
+  }, []);
+
+  React.useEffect(() => {
     if (!coord) return;
     let cancelled = false;
     const load = async () => {
@@ -23,6 +28,7 @@ export default function WeatherPanel({ coord, compact }: { coord: Coord | null; 
       if (r) {
         setWx(r);
         setState("ok");
+        maybeLightningAlarm(r); // loud alarm if lightning is within ~10 km
       } else {
         setState((s) => (s === "ok" ? s : "failed"));
       }

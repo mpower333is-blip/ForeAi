@@ -78,6 +78,8 @@ export default {
             "ForeAi listens for the sound of your ball strike to log shots automatically.",
         },
       ],
+      // Local notifications for the lightning safety alarm (no push server).
+      "expo-notifications",
       [
         // Google Play requires apps to target Android 16 (API 36) from Aug 2026.
         "expo-build-properties",
