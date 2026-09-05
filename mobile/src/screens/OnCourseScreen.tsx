@@ -22,6 +22,16 @@ export default function OnCourseScreen({ navigation }: any) {
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
   const cap = points(courseId, hole.number); // on-site captures for this hole
 
+  // Weather is for the golf course (a mapped tee/green), so every player sees the
+  // same conditions; falls back to live GPS if the course has no coordinates.
+  const courseCoord = React.useMemo(() => {
+    for (const h of course) {
+      if (h.tee) return h.tee;
+      if (h.green) return h.green;
+    }
+    return null;
+  }, [course]);
+
   // Merge captured coords over any bundled ones.
   const green = cap.green ?? hole.green ?? null;
   const greenFront = cap.greenFront ?? hole.greenFront;
@@ -82,7 +92,7 @@ export default function OnCourseScreen({ navigation }: any) {
         </View>
       </Card>
 
-      <WeatherPanel coord={loc.coord} />
+      <WeatherPanel coord={courseCoord ?? loc.coord} />
 
       {loc.status === "denied" && (
         <Card>

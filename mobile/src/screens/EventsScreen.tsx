@@ -500,7 +500,7 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
         </Card>
       )}
 
-      <WeatherPanel coord={loc.coord ?? course.center ?? null} compact />
+      <WeatherPanel coord={course.center ?? loc.coord ?? null} compact />
 
       {event.cause ? (
         <Card accent>
