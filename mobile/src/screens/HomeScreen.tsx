@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Screen, Card, StatTile, Button, Hero, FlagMark, IconChip, Chip } from "../components/ui";
 import { shareApp } from "../components/Upsell";
+import WeatherPanel from "../components/WeatherPanel";
 import { colors, spacing, type, radius } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { usePlan } from "../state/PlanContext";
@@ -65,6 +66,17 @@ export default function HomeScreen({ navigation }: any) {
   const best = [...cats].sort((a, b) => b.value - a.value)[0];
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
   const demo = !isPro;
+
+  // Weather is shown for the course you're playing (its mapped GPS), so no
+  // location prompt on the home screen. Falls back to null (a gentle hint) for
+  // a course we don't have coordinates for yet.
+  const wxCoord = React.useMemo(() => {
+    for (const h of course) {
+      if (h.tee) return h.tee;
+      if (h.green) return h.green;
+    }
+    return null;
+  }, [course]);
   const toUpgrade = () => navigation.navigate("Upgrade");
   const firstName = (name || "").trim().split(" ")[0];
 
@@ -114,6 +126,8 @@ export default function HomeScreen({ navigation }: any) {
         <Text style={styles.courseChipName} numberOfLines={1}>{courseName}</Text>
         <Text style={styles.courseChipCta}>Change ›</Text>
       </TouchableOpacity>
+
+      <WeatherPanel coord={wxCoord} />
 
       <View style={styles.sectionRow}>
         <View style={styles.sectionBar} />
