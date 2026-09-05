@@ -75,6 +75,8 @@ async function openMeteo(lat: number, lng: number) {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
     `&current=temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m` +
+    // 15-minute nowcast for the next ~2h — the finest free lead time on a storm.
+    `&minutely_15=weather_code,precipitation,cape&forecast_minutely_15=8` +
     `&hourly=weather_code,precipitation_probability,cape&forecast_hours=6` +
     `&wind_speed_unit=kmh&temperature_unit=celsius&timezone=auto`;
   return withTimeout(url);
@@ -101,14 +103,28 @@ async function fetchStrikes(lat: number, lng: number): Promise<{ lat: number; ln
 function forecastRisk(om: any): Report["lightning"] {
   const code = Number(om?.current?.weather_code) || 0;
   if (code >= 95) return { level: "warning", message: "Thunderstorm overhead — seek shelter now.", source: "forecast" };
-  const hCodes: number[] = om?.hourly?.weather_code ?? [];
-  const idx = hCodes.findIndex((wc) => Number(wc) >= 95);
-  if (idx >= 0) {
-    return idx <= 1
-      ? { level: "warning", message: "Thunderstorms imminent — plan to get off the course.", source: "forecast" }
-      : { level: "watch", message: `Thunderstorms expected in ~${idx}h.`, source: "forecast" };
+
+  // 1) 15-minute nowcast — the finest lead time (next ~2 hours).
+  const mCodes: number[] = om?.minutely_15?.weather_code ?? [];
+  const mi = mCodes.findIndex((wc) => Number(wc) >= 95);
+  if (mi >= 0) {
+    const mins = mi * 15;
+    if (mins <= 30) return { level: "warning", message: `Thunderstorm within ~${mins || 15} min — get off the course now.`, source: "forecast" };
+    return { level: "watch", message: `Thunderstorm likely in ~${mins} min.`, source: "forecast" };
   }
-  const maxCape = Math.max(0, ...(om?.hourly?.cape ?? []).map((v: any) => Number(v) || 0));
+
+  // 2) Hourly outlook (roughly 2–6 hours out).
+  const hCodes: number[] = om?.hourly?.weather_code ?? [];
+  const hi = hCodes.findIndex((wc) => Number(wc) >= 95);
+  if (hi >= 0) {
+    return hi <= 1
+      ? { level: "watch", message: "Thunderstorms likely within the hour.", source: "forecast" }
+      : { level: "watch", message: `Thunderstorms expected in ~${hi}h.`, source: "forecast" };
+  }
+
+  // 3) No coded storm yet, but high instability + rain chance = building risk.
+  const capeVals = (om?.minutely_15?.cape ?? om?.hourly?.cape ?? []) as any[];
+  const maxCape = Math.max(0, ...capeVals.map((v) => Number(v) || 0));
   const maxProb = Math.max(0, ...(om?.hourly?.precipitation_probability ?? []).map((v: any) => Number(v) || 0));
   if (maxCape >= 2000 && maxProb >= 40) return { level: "watch", message: "Storm potential building — keep an eye on the sky.", source: "forecast" };
   return { level: "none", message: "No storms nearby.", source: "forecast" };
