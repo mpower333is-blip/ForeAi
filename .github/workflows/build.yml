@@ -102,14 +102,15 @@ jobs:
 
   # Publish both APKs to a single, stable "test-latest" GitHub release so the
   # download page + QR code always point at the newest build (no re-uploading).
-  # Direct, public, no-login URLs:
+  # Publishes from main (and the current feature branch, listed in the `if`
+  # below, while it's in flight). Direct, public, no-login URLs:
   #   .../releases/download/test-latest/ECS-Golf-Day.apk
   #   .../releases/download/test-latest/ForeAi.apk
   release:
     name: Publish test APKs
     needs: [android]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/claude/golf-ai-app-6ccl88'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/claude/android-ios-app-bridge-t69jt5'
     permissions:
       contents: write
     steps:
@@ -131,11 +132,13 @@ jobs:
           name: ForeAi — test builds (latest)
           prerelease: true
           body: |
-            Latest installable test builds. Open on an Android phone and allow
-            "install unknown apps".
+            Latest installable test builds. Open on an Android phone **or
+            tablet** and allow "install unknown apps".
 
             • **ECS Golf Day** — `ECS-Golf-Day.apk` (the golf-day app)
             • **ForeAi** — `ForeAi.apk` (the full app)
+
+            Tablet install guide: docs/android-tablet.md
 
             iOS testing is via TestFlight (Apple requires it for beta testers).
           files: out/*.apk
