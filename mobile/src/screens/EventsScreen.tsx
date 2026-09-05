@@ -15,6 +15,7 @@ import {
 import { useTournament } from "../state/TournamentContext";
 import { useLocation } from "../hooks/useLocation";
 import WeatherPanel from "../components/WeatherPanel";
+import { scheduleEventReminders } from "../lib/eventReminders";
 import CourseMap from "../components/CourseMap";
 import {
   TEvent,
@@ -451,6 +452,14 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
       ensureCourse(eventCourseId).then((ok) => ok && setCourseReady((x) => x + 1));
     }
   }, [eventCourseId]);
+
+  // Schedule golf-day reminders (evening before, 2h/1h before, tee-off).
+  useEffect(() => {
+    if (event?.date) {
+      const c = getCourse(event.courseId);
+      scheduleEventReminders(event, c?.name ?? "the course");
+    }
+  }, [event?.id, event?.date, (event as any)?.firstTeeMin]);
 
   if (!event) {
     return (
