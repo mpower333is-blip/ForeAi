@@ -78,6 +78,12 @@ export default {
             "ForeAi listens for the sound of your ball strike to log shots automatically.",
         },
       ],
+      // Strip the aps-environment entitlement expo-notifications injects — we
+      // only use LOCAL notifications, so requiring the Push Notifications
+      // capability on the App Store profile just breaks signing. Expo composes
+      // entitlement mods LIFO (last-listed runs first), so this must be listed
+      // BEFORE expo-notifications for its strip to run LAST and win.
+      "./plugins/withoutPushEntitlement",
       // Local notifications for the lightning safety alarm (no push server).
       "expo-notifications",
       [
