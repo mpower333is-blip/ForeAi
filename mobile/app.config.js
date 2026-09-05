@@ -93,6 +93,37 @@ export default {
           android: {
             compileSdkVersion: 36,
             targetSdkVersion: 36,
+            // Turn on R8 for release builds. This shrinks + obfuscates the app
+            // and, crucially, produces the mapping.txt deobfuscation file which
+            // AGP bundles into the AAB automatically — Play then reads it, so
+            // the "no deobfuscation file" warning goes away and crash/ANR stack
+            // traces stay readable. Resource shrinking rides along for a smaller
+            // download. Keep rules below protect the reflection-heavy native
+            // modules from being stripped/renamed.
+            enableProguardInReleaseBuilds: true,
+            enableShrinkResourcesInReleaseBuilds: true,
+            extraProguardRules: [
+              "# ForeAi keep rules for R8 release builds",
+              "# React Native / Hermes / JSI core",
+              "-keep,allowobfuscation class com.facebook.react.** { *; }",
+              "-keep class com.facebook.hermes.** { *; }",
+              "-keep class com.facebook.jni.** { *; }",
+              "-keepclassmembers class * { @com.facebook.react.uimanager.annotations.ReactProp <methods>; }",
+              "-keepclassmembers class * { @com.facebook.react.bridge.ReactMethod <methods>; }",
+              "# Expo modules (registered via reflection)",
+              "-keep class expo.modules.** { *; }",
+              "-keep class com.facebook.react.turbomodule.** { *; }",
+              "# react-native-reanimated / gesture-handler / screens / svg",
+              "-keep class com.swmansion.reanimated.** { *; }",
+              "-keep class com.swmansion.gesturehandler.** { *; }",
+              "-keep class com.swmansion.rnscreens.** { *; }",
+              "-keep class com.horcrux.svg.** { *; }",
+              "# RevenueCat (react-native-purchases)",
+              "-keep class com.revenuecat.purchases.** { *; }",
+              "# Keep native method names + annotations",
+              "-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod",
+              "-keepclasseswithmembernames class * { native <methods>; }",
+            ].join("\n"),
           },
         },
       ],
