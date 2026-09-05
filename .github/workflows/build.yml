@@ -100,6 +100,77 @@ jobs:
           path: mobile/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
+  # Deploy the web version of the app to GitHub Pages so it can be tested in
+  # ANY browser — no Apple device and no APK install needed. URLs:
+  #   Full ForeAi app:  https://mpower333is-blip.github.io/ForeAi/
+  #   ECS Golf Day app: https://mpower333is-blip.github.io/ForeAi/event/
+  # (One-time: if the first deploy fails with "Pages not enabled", turn it on at
+  #  Settings → Pages → Source: GitHub Actions — then re-run.)
+  web:
+    name: Deploy web app (GitHub Pages)
+    needs: [checks]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/claude/android-ios-app-bridge-t69jt5'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: github-pages
+      cancel-in-progress: true
+    env:
+      EXPO_PUBLIC_GOLF_API_KEY: ${{ secrets.EXPO_PUBLIC_GOLF_API_KEY }}
+      EXPO_PUBLIC_GOLFAPI_KEY: ${{ secrets.EXPO_PUBLIC_GOLFAPI_KEY }}
+      EXPO_PUBLIC_RC_IOS_KEY: ${{ secrets.EXPO_PUBLIC_RC_IOS_KEY }}
+      EXPO_PUBLIC_RC_ANDROID_KEY: ${{ secrets.EXPO_PUBLIC_RC_ANDROID_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install app dependencies
+        working-directory: mobile
+        run: npm install
+
+      - name: Export full app for web
+        working-directory: mobile
+        run: EXPO_PUBLIC_WEB_BASE_URL=/ForeAi npx expo export -p web --output-dir dist-full
+
+      - name: Export ECS Golf Day app for web
+        working-directory: mobile
+        run: |
+          EXPO_PUBLIC_APP_VARIANT=event EXPO_PUBLIC_WEB_BASE_URL=/ForeAi/event \
+            npx expo export -p web --output-dir dist-event
+
+      - name: Assemble site
+        run: |
+          mkdir -p site/event
+          cp -r mobile/dist-full/. site/
+          cp -r mobile/dist-event/. site/event/
+          # SPA fallback: unknown paths serve the app instead of a Pages 404.
+          cp site/index.html site/404.html
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
   # Publish both APKs to a single, stable "test-latest" GitHub release so the
   # download page + QR code always point at the newest build (no re-uploading).
   # Publishes from main (and the current feature branch, listed in the `if`

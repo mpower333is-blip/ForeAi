@@ -97,6 +97,12 @@ export default {
         },
       ],
     ],
+    // Static web exports hosted under a sub-path (GitHub Pages serves the app
+    // at /ForeAi/) need every asset URL prefixed with that path. Unset locally,
+    // so `expo start` and the native builds are unaffected.
+    ...(process.env.EXPO_PUBLIC_WEB_BASE_URL
+      ? { experiments: { baseUrl: process.env.EXPO_PUBLIC_WEB_BASE_URL } }
+      : {}),
     extra: {
       // EXPO_PUBLIC_API_URL is read directly in services/api.ts; set it in a
       // .env or your EAS build profile to point the app at a deployed backend.
