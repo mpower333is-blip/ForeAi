@@ -70,6 +70,10 @@ workflows:
           # burned during watch testing, and far below the watch's 90000+ range,
           # so the two form factors never collide in the shared com.foreai.mobile app.
           export ANDROID_VERSION_CODE=$((1000 + ${BUILD_NUMBER:-1}))
+          echo "=================================================="
+          echo "  PHONE versionCode for this build: $ANDROID_VERSION_CODE"
+          echo "  (upload this .aab to Play — it must be higher than the last phone upload)"
+          echo "=================================================="
           npx expo prebuild --platform android --no-install
       - name: Decode the upload keystore
         script: |
@@ -126,6 +130,10 @@ workflows:
           # above any code already used in the Play app (low numbers like 1 were
           # already consumed). Each rebuild bumps BUILD_NUMBER, so it keeps rising.
           export ANDROID_VERSION_CODE=$((90000 + ${BUILD_NUMBER:-1}))
+          echo "=================================================="
+          echo "  WATCH versionCode for this build: $ANDROID_VERSION_CODE"
+          echo "  (Wear OS form factor — its own 90000+ lane, separate from the phone)"
+          echo "=================================================="
           # Decode the shared upload keystore (same key the phone app is signed
           # with — one upload key can sign multiple apps).
           echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/wear/upload.keystore"
