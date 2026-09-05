@@ -142,6 +142,12 @@
           </div>
           <div class="hint" style="margin-top:4px">“Use Lyla's photo” attaches the bundled ECS beneficiary photo — no need to find the file.</div>
         </div>
+        <div>
+          <label class="hint">Player reminders (pushed to everyone's phone as a notification before the day)</label>
+          <div id="reminderList" style="display:flex;flex-direction:column;gap:8px;margin-top:6px"></div>
+          <button class="sbtn" type="button" onclick="addReminder()">＋ Add reminder</button>
+          <div class="hint" style="margin-top:4px">e.g. “3 days before → Pay your team fee” or “1 day before → Bring cash for the halfway house”. Players who've joined on the app get these automatically.</div>
+        </div>
         <div><button class="btn" onclick="saveSetup()">Save event setup</button> <span id="setupMsg" class="hint"></span></div>
       </div>
     </details>
@@ -464,12 +470,33 @@
       rd.readAsDataURL(blob);
     }catch(e){ alert('Could not load the bundled photo.'); }
   }
+  // ---- custom player reminders ----
+  var REMINDERS=[];
+  var RM_OPTS=[[4320,'3 days before'],[2880,'2 days before'],[1440,'1 day before'],[720,'12 hours before'],[180,'3 hours before'],[60,'1 hour before']];
+  function renderReminders(){
+    var box=document.getElementById('reminderList'); if(!box) return; box.innerHTML='';
+    REMINDERS.forEach(function(r,i){
+      var row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap';
+      var sel=document.createElement('select');
+      RM_OPTS.forEach(function(o){ var op=document.createElement('option'); op.value=o[0]; op.textContent=o[1]; if(+o[0]===+r.offsetMin) op.selected=true; sel.appendChild(op); });
+      sel.onchange=function(){ REMINDERS[i].offsetMin=+sel.value; };
+      var inp=document.createElement('input'); inp.type='text'; inp.placeholder='Message (e.g. Pay your team fee)'; inp.value=r.body||''; inp.style.flex='1'; inp.style.minWidth='160px';
+      inp.oninput=function(){ REMINDERS[i].body=inp.value; };
+      var del=document.createElement('button'); del.className='sbtn'; del.type='button'; del.textContent='✕';
+      del.onclick=function(){ REMINDERS.splice(i,1); renderReminders(); };
+      row.appendChild(sel); row.appendChild(inp); row.appendChild(del); box.appendChild(row);
+    });
+  }
+  function addReminder(){ REMINDERS.push({offsetMin:1440, body:''}); renderReminders(); }
+
   function populateSetup(){
     if(!EVENT) return;
     document.getElementById('setBank').value = EVENT.banking||'';
     document.getElementById('setTeamFee').value = EVENT.teamFee!=null?EVENT.teamFee:'';
     document.getElementById('setHoleFee').value = EVENT.holeFee!=null?EVENT.holeFee:'';
     document.getElementById('setCause').value = EVENT.cause||'';
+    REMINDERS = (EVENT.reminders||[]).map(function(r){ return { offsetMin:+r.offsetMin||1440, body:r.body||'' }; });
+    renderReminders();
     var im=document.getElementById('logoPrev'); if(EVENT.logo){ im.src=EVENT.logo; im.style.display='inline-block'; }
     var cp=document.getElementById('causePrev'); if(EVENT.causePhoto){ cp.src=EVENT.causePhoto; cp.style.display='inline-block'; }
   }
@@ -477,6 +504,7 @@
     var body={ banking: document.getElementById('setBank').value,
       teamFee: parseInt(document.getElementById('setTeamFee').value,10) || null,
       holeFee: parseInt(document.getElementById('setHoleFee').value,10) || null,
+      reminders: REMINDERS.filter(function(r){ return r.body && r.body.trim(); }).map(function(r){ return { offsetMin:+r.offsetMin||0, title:'⛳ '+((EVENT&&EVENT.name)||'Golf day'), body:r.body.trim() }; }),
       cause: document.getElementById('setCause').value || null };
     if(NEW_LOGO) body.logo=NEW_LOGO;
     if(NEW_CAUSE_PHOTO) body.causePhoto=NEW_CAUSE_PHOTO;

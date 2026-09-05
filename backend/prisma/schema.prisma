@@ -95,6 +95,10 @@ model Tournament {
   banking     String?  @db.Text // banking details block shown on the registration forms
   teamFee     Int?     // entry fee per four-ball team (for office totals + forms)
   holeFee     Int?     // fee per hole sponsor
+  // Organiser's custom reminders, pushed to every player's phone as local
+  // notifications. JSON array of { offsetMin, title, body } — offsetMin is
+  // minutes before the first tee (e.g. 3 days = 4320) for "pay your team fee".
+  reminders   Json?
 
   players       TournamentPlayer[]
   groups        TournamentGroup[]

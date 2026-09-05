@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import { TEvent } from "./tournament";
+import { getNotifPrefs, loadNotifPrefs } from "./notifPrefs";
 
 // Local reminders for a golf day: the evening before, a couple of hours before
 // tee-off, an hour before, and at the start. Local-only (no push server), so
@@ -48,6 +49,11 @@ async function ensurePermission(): Promise<boolean> {
 export async function scheduleEventReminders(ev: TEvent, venue: string): Promise<void> {
   const start = eventStart(ev);
   if (!start) return;
+  await loadNotifPrefs();
+  if (!getNotifPrefs().reminders) {
+    cancelEventReminders(ev.id); // player turned reminders off — clear any set
+    return;
+  }
   if (!(await ensurePermission())) return;
 
   const tee = fmtTime(typeof ev.firstTeeMin === "number" ? ev.firstTeeMin : 8 * 60);
@@ -64,6 +70,17 @@ export async function scheduleEventReminders(ev: TEvent, venue: string): Promise
     { key: "1h", when: new Date(start.getTime() - 60 * 60000), title: "Tee off in 1 hour", body: `${name} — head to the club and check in.` },
     { key: "start", when: start, title: "Tee off — good luck! ⛳", body: `${name} is starting at ${venue}. Have a great round.` },
   ];
+
+  // Organiser's custom reminders (e.g. "3 days before → pay your team fee").
+  (ev.reminders ?? []).forEach((r, i) => {
+    if (!r || (!r.title && !r.body)) return;
+    slots.push({
+      key: `custom_${i}`,
+      when: new Date(start.getTime() - (Number(r.offsetMin) || 0) * 60000),
+      title: r.title || name,
+      body: r.body || "",
+    });
+  });
 
   const now = Date.now();
   for (const s of slots) {
@@ -88,7 +105,9 @@ export async function scheduleEventReminders(ev: TEvent, venue: string): Promise
 
 // Cancel all reminders for an event (e.g. if the player leaves it).
 export async function cancelEventReminders(eventId: string): Promise<void> {
-  for (const key of ["eve", "2h", "1h", "start"]) {
+  const keys = ["eve", "2h", "1h", "start"];
+  for (let i = 0; i < 10; i++) keys.push(`custom_${i}`);
+  for (const key of keys) {
     try {
       await Notifications.cancelScheduledNotificationAsync(`evt_${eventId}_${key}`);
     } catch {}

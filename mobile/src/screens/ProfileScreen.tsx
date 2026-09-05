@@ -1,11 +1,12 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Switch } from "react-native";
 import { Screen, ScreenHeader, Card, Stepper, MetreStepper, TextField } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { ydToM } from "../lib/units";
 import { useRound } from "../state/RoundContext";
 import { useProfile } from "../state/ProfileContext";
 import { API_BASE } from "../services/api";
+import { getNotifPrefs, loadNotifPrefs, setNotifPref, NotifPrefs } from "../lib/notifPrefs";
 
 export default function ProfileScreen({ navigation }: any) {
   const {
@@ -22,6 +23,15 @@ export default function ProfileScreen({ navigation }: any) {
   } = useRound();
   const { name, setName, homeClub, setHomeClub } = useProfile();
   const [editing, setEditing] = useState<number | null>(null);
+
+  const [prefs, setPrefs] = useState<NotifPrefs>(getNotifPrefs());
+  useEffect(() => {
+    loadNotifPrefs().then(setPrefs);
+  }, []);
+  const togglePref = (key: keyof NotifPrefs, val: boolean) => {
+    setPrefs((p) => ({ ...p, [key]: val }));
+    setNotifPref(key, val);
+  };
 
   const updateCarry = (index: number, carry: number) => {
     const next = bag.map((c, i) => (i === index ? { ...c, carry } : c));
@@ -121,6 +131,34 @@ export default function ProfileScreen({ navigation }: any) {
       </Card>
 
       <Card>
+        <Text style={styles.sectionTitle}>Notifications</Text>
+        <View style={styles.prefRow}>
+          <View style={styles.prefText}>
+            <Text style={styles.prefLabel}>⚡ Lightning alerts</Text>
+            <Text style={styles.hint}>Loud warning when lightning is within ~10 km.</Text>
+          </View>
+          <Switch
+            value={prefs.lightning}
+            onValueChange={(v) => togglePref("lightning", v)}
+            trackColor={{ true: colors.accentDeep, false: colors.border }}
+            thumbColor={prefs.lightning ? colors.accent : "#8aa"}
+          />
+        </View>
+        <View style={styles.prefRow}>
+          <View style={styles.prefText}>
+            <Text style={styles.prefLabel}>⛳ Golf-day reminders</Text>
+            <Text style={styles.hint}>The night before, before tee-off, and any organiser reminders.</Text>
+          </View>
+          <Switch
+            value={prefs.reminders}
+            onValueChange={(v) => togglePref("reminders", v)}
+            trackColor={{ true: colors.accentDeep, false: colors.border }}
+            thumbColor={prefs.reminders ? colors.accent : "#8aa"}
+          />
+        </View>
+      </Card>
+
+      <Card>
         <Text style={styles.sectionTitle}>Connection</Text>
         <Text style={styles.hint}>
           The app runs fully on-device. When a backend is configured, rounds sync automatically.
@@ -177,6 +215,9 @@ const styles = StyleSheet.create({
 
   sectionTitle: { fontSize: 20, fontWeight: "700", color: colors.text, marginBottom: 4 },
   hint: { color: colors.textFaint, fontSize: 14, marginBottom: spacing.sm },
+  prefRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
+  prefText: { flex: 1 },
+  prefLabel: { color: colors.text, fontSize: 16, fontWeight: "700" },
   resetLink: { color: colors.negative, fontSize: 14, fontWeight: "600", marginTop: 4 },
 
   clubRow: {

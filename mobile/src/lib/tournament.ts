@@ -94,6 +94,9 @@ export type TEvent = {
   // Side games (closest to pin / longest drive) run during the day.
   contests?: Contest[];
   contestResults?: Record<string, Record<string, number>>; // [contestId][playerId] = yards
+  // Organiser's custom reminders → each player's phone as local notifications.
+  // offsetMin = minutes before the first tee (e.g. 3 days = 4320).
+  reminders?: { offsetMin: number; title: string; body: string }[];
   // Fundraiser branding.
   cause?: string | null; // e.g. "Supporting Lyla Roux vs ALK+ ALCL"
   causePhoto?: string | null; // photo of the beneficiary (data URL, from the backend)
