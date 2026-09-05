@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Screen, Card, StatTile, Button, Hero, FlagMark, IconChip, Chip } from "../components/ui";
 import { shareApp } from "../components/Upsell";
 import WeatherPanel from "../components/WeatherPanel";
+import { useLocation } from "../hooks/useLocation";
 import { colors, spacing, type, radius } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { usePlan } from "../state/PlanContext";
@@ -67,16 +68,18 @@ export default function HomeScreen({ navigation }: any) {
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
   const demo = !isPro;
 
-  // Weather is shown for the course you're playing (its mapped GPS), so no
-  // location prompt on the home screen. Falls back to null (a gentle hint) for
-  // a course we don't have coordinates for yet.
-  const wxCoord = React.useMemo(() => {
+  // Weather follows your live GPS position; until a fix arrives (or if location
+  // is off) it falls back to the selected course's mapped GPS so the card still
+  // shows something useful.
+  const loc = useLocation();
+  const courseCenter = React.useMemo(() => {
     for (const h of course) {
       if (h.tee) return h.tee;
       if (h.green) return h.green;
     }
     return null;
   }, [course]);
+  const wxCoord = loc.coord ?? courseCenter;
   const toUpgrade = () => navigation.navigate("Upgrade");
   const firstName = (name || "").trim().split(" ")[0];
 
