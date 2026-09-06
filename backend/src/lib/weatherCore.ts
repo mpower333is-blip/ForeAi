@@ -73,8 +73,11 @@ export async function openMeteo(lat: number, lng: number) {
   return withTimeout(url);
 }
 
+export type Point = { lat: number; lng: number };
+
 // Real detected strikes near the point in the last 15 minutes (Xweather/Aeris).
-export async function fetchStrikes(lat: number, lng: number): Promise<{ lat: number; lng: number }[] | null> {
+// Returns null when no key is configured, [] when configured but no strikes.
+export async function fetchStrikes(lat: number, lng: number): Promise<Point[] | null> {
   const id = process.env.XWEATHER_ID, secret = process.env.XWEATHER_SECRET;
   if (!id || !secret) return null;
   const url =
@@ -88,7 +91,112 @@ export async function fetchStrikes(lat: number, lng: number): Promise<{ lat: num
       const la = r?.loc?.lat ?? r?.lat, ln = r?.loc?.long ?? r?.loc?.lng ?? r?.long ?? r?.lng;
       return typeof la === "number" && typeof ln === "number" ? { lat: la, lng: ln } : null;
     })
-    .filter((x): x is { lat: number; lng: number } => !!x);
+    .filter((x): x is Point => !!x);
+}
+
+// ── The Weather Company (weather.com) Lightning API v3 ───────────────────────
+// Strikes within 10 miles (17 km) of the geocode over the time window in the
+// endpoint path. The response is columnar — parallel arrays indexed by strike
+// order — so we zip the latitude + longitude arrays into points (distance and
+// direction are computed here). Auth is a single apiKey query param.
+//
+// Env:
+//   TWC_API_KEY            — the weather.com Data API key (required)
+//   TWC_LIGHTNING_ENDPOINT — override the path/variant your plan allows
+//                            (default /v3/wx/lightning/15minute/desktop)
+//   TWC_HOST               — override the host (default https://api.weather.com)
+
+const TWC_DEFAULT_ENDPOINT = "/v3/wx/lightning/15minute/desktop";
+
+export function twcLightningUrl(lat: number, lng: number, key: string): string {
+  const host = process.env.TWC_HOST || "https://api.weather.com";
+  const path = process.env.TWC_LIGHTNING_ENDPOINT || TWC_DEFAULT_ENDPOINT;
+  return `${host}${path}?geocode=${lat},${lng}&format=json&units=m&apiKey=${key}`;
+}
+
+// Pull latitude/longitude arrays out of TWC's columnar response, wherever they
+// sit (top level or under a wrapper key), and zip them. Defensive about field
+// names so it survives small schema differences between variants.
+export function parseTwcStrikes(j: any): Point[] {
+  if (!j || typeof j !== "object") return [];
+  const asArr = (v: any): any[] => (Array.isArray(v) ? v : v == null ? [] : [v]);
+  const pick = (o: any, keys: string[]) => {
+    for (const k of keys) if (o && o[k] != null) return o[k];
+    return undefined;
+  };
+  // Look at the top level and any nested object (the arrays may be wrapped).
+  const containers = [j, ...Object.values(j).filter((v) => v && typeof v === "object")];
+  for (const c of containers) {
+    const lats = pick(c, ["latitude", "lat", "latitudes"]);
+    const lons = pick(c, ["longitude", "lon", "long", "lng", "longitudes"]);
+    if (lats != null && lons != null) {
+      const la = asArr(lats), lo = asArr(lons);
+      const n = Math.min(la.length, lo.length);
+      const pts: Point[] = [];
+      for (let i = 0; i < n; i++) {
+        const a = Number(la[i]), b = Number(lo[i]);
+        if (isFinite(a) && isFinite(b)) pts.push({ lat: a, lng: b });
+      }
+      if (pts.length) return pts;
+    }
+  }
+  return [];
+}
+
+// Returns null when no key is configured, [] when configured but no strikes.
+export async function fetchTwcStrikes(lat: number, lng: number): Promise<Point[] | null> {
+  const key = process.env.TWC_API_KEY;
+  if (!key) return null;
+  const j = await withTimeout(twcLightningUrl(lat, lng, key));
+  return parseTwcStrikes(j);
+}
+
+// Best available real strikes: Weather.com first, then Xweather. null only when
+// NEITHER provider is configured (so the caller falls back to the forecast).
+export async function fetchBestStrikes(lat: number, lng: number): Promise<Point[] | null> {
+  const [twc, xw] = await Promise.all([fetchTwcStrikes(lat, lng), fetchStrikes(lat, lng)]);
+  if (twc && twc.length) return twc;
+  if (xw && xw.length) return xw;
+  if (twc != null || xw != null) return []; // a provider is configured, just no strikes now
+  return null; // no provider configured
+}
+
+// Diagnostics for the /weather?debug=1 probe — reports whether each provider is
+// configured and what it returned, WITHOUT exposing any secret. Lets you tell a
+// working key from a missing one from a plan that has no lightning package.
+export async function diagnoseProviders(lat: number, lng: number): Promise<any> {
+  const out: any = {};
+
+  const xId = process.env.XWEATHER_ID, xSec = process.env.XWEATHER_SECRET;
+  out.xweather = { configured: !!(xId && xSec) };
+  if (xId && xSec) {
+    try {
+      const r = await fetch(
+        `https://data.api.xweather.com/lightning/${lat},${lng}?format=json&radius=40km&from=-15minutes&limit=200&client_id=${xId}&client_secret=${xSec}`
+      );
+      out.xweather.httpStatus = r.status;
+      const j: any = await r.json().catch(() => null);
+      out.xweather.apiError = j?.error?.code ?? null;
+      out.xweather.strikeCount = Array.isArray(j?.response) ? j.response.length : 0;
+    } catch (e) {
+      out.xweather.fetchError = String(e);
+    }
+  }
+
+  const key = process.env.TWC_API_KEY;
+  out.twc = { configured: !!key, endpoint: process.env.TWC_LIGHTNING_ENDPOINT || TWC_DEFAULT_ENDPOINT };
+  if (key) {
+    try {
+      const r = await fetch(twcLightningUrl(lat, lng, key));
+      out.twc.httpStatus = r.status;
+      const j: any = await r.json().catch(() => null);
+      out.twc.strikeCount = parseTwcStrikes(j).length;
+    } catch (e) {
+      out.twc.fetchError = String(e);
+    }
+  }
+
+  return out;
 }
 
 export function forecastRisk(om: any): Lightning {
@@ -140,7 +248,7 @@ export function forecastRisk(om: any): Lightning {
 // Build the full report (conditions + lightning) for a point, preferring real
 // strikes when a provider key is set and falling back to the forecast signal.
 export async function buildReport(lat: number, lng: number): Promise<Report> {
-  const [om, strikes] = await Promise.all([openMeteo(lat, lng), fetchStrikes(lat, lng)]);
+  const [om, strikes] = await Promise.all([openMeteo(lat, lng), fetchBestStrikes(lat, lng)]);
 
   const current = om?.current
     ? {

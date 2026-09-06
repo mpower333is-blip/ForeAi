@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { buildReport, Report } from "../lib/weatherCore";
+import { buildReport, diagnoseProviders, Report } from "../lib/weatherCore";
 
 // Weather + LIVE lightning for a location. The app and the clubhouse board both
 // read this so the lightning provider's secret key stays server-side (never in
@@ -26,6 +26,14 @@ router.get("/", async (req, res) => {
     res.status(400).json({ error: "lat and lng are required" });
     return;
   }
+  // Diagnostic probe: /weather?lat=..&lng=..&debug=1 reports which strike
+  // provider is configured and what it returned (no secrets, bypasses cache).
+  if (req.query.debug) {
+    const [data, providers] = await Promise.all([buildReport(lat, lng), diagnoseProviders(lat, lng)]);
+    res.json({ ...data, providers });
+    return;
+  }
+
   const key = `${lat.toFixed(2)},${lng.toFixed(2)}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL_MS) {
