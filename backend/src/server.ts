@@ -9,6 +9,8 @@ import clubRoutes from "./routes/clubs";
 import strategyRoutes from "./routes/strategy";
 import tournamentRoutes from "./routes/tournaments";
 import weatherRoutes from "./routes/weather";
+import pushRoutes from "./routes/push";
+import { startLightningWatcher } from "./lib/lightningWatcher";
 
 const app = express();
 
@@ -36,6 +38,7 @@ app.use("/clubs", clubRoutes);
 app.use("/strategy", strategyRoutes);
 app.use("/tournaments", tournamentRoutes);
 app.use("/weather", weatherRoutes);
+app.use("/push", pushRoutes);
 
 // Catch-all error handler: a route that throws (e.g. a database hiccup) returns
 // a clean 500 instead of leaving the request hanging. Must be registered last.
@@ -57,6 +60,9 @@ process.on("uncaughtException", (err) => {
 const PORT = Number(process.env.PORT) || 5000;
 app.listen(PORT, () => {
   console.log(`ForeAi server running on port ${PORT}`);
+  // Start the background lightning watcher (pushes alerts to registered phones
+  // even when the app is closed). No-ops when no devices are registered.
+  startLightningWatcher();
 });
 
 export default app;

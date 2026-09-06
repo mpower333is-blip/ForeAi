@@ -35,6 +35,13 @@ export default {
     },
     android: {
       package: "com.foreai.mobile",
+      // Firebase config for FCM push (lightning alerts when the app is closed).
+      // Only set once you've added google-services.json (see docs/push-setup.md)
+      // and pointed GOOGLE_SERVICES_JSON at it — left unset, builds work as-is
+      // and push simply stays inactive.
+      ...(process.env.GOOGLE_SERVICES_JSON
+        ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }
+        : {}),
       // Play requires a higher versionCode on every upload. In CI we set
       // ANDROID_VERSION_CODE to the Codemagic build number; locally it's 1.
       versionCode: process.env.ANDROID_VERSION_CODE
@@ -131,6 +138,14 @@ export default {
     extra: {
       // EXPO_PUBLIC_API_URL is read directly in services/api.ts; set it in a
       // .env or your EAS build profile to point the app at a deployed backend.
+      //
+      // Expo project id for push notifications (lightning alerts when the app is
+      // closed). Set EAS_PROJECT_ID once you've created the Expo project (see
+      // docs/push-setup.md). Until then push registration no-ops and the
+      // foreground lightning alarm still works.
+      eas: {
+        projectId: process.env.EAS_PROJECT_ID || undefined,
+      },
     },
   },
 };

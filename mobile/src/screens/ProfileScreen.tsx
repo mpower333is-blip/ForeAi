@@ -7,6 +7,7 @@ import { useRound } from "../state/RoundContext";
 import { useProfile } from "../state/ProfileContext";
 import { API_BASE } from "../services/api";
 import { getNotifPrefs, loadNotifPrefs, setNotifPref, NotifPrefs } from "../lib/notifPrefs";
+import { unregisterForPush } from "../lib/pushRegister";
 
 export default function ProfileScreen({ navigation }: any) {
   const {
@@ -31,6 +32,10 @@ export default function ProfileScreen({ navigation }: any) {
   const togglePref = (key: keyof NotifPrefs, val: boolean) => {
     setPrefs((p) => ({ ...p, [key]: val }));
     setNotifPref(key, val);
+    // Turning lightning alerts off also stops the backend pushing to this phone
+    // (re-registration happens automatically when it's turned back on and a
+    // weather panel is next shown).
+    if (key === "lightning" && !val) unregisterForPush(API_BASE);
   };
 
   const updateCarry = (index: number, carry: number) => {

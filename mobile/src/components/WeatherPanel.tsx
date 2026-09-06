@@ -4,6 +4,7 @@ import { Coord } from "../lib/geo";
 import { fetchLiveWeather, PanelWeather } from "../services/weather";
 import { API_BASE } from "../services/api";
 import { initLightningAlarm, maybeLightningAlarm } from "../lib/lightningAlarm";
+import { registerForPush } from "../lib/pushRegister";
 import { colors, spacing, radius } from "../theme";
 
 // On-course weather with a LIVE lightning warning. Reads the backend (real
@@ -17,6 +18,13 @@ export default function WeatherPanel({ coord, compact }: { coord: Coord | null; 
   React.useEffect(() => {
     initLightningAlarm();
   }, []);
+
+  // Register this phone + the watched location with the backend so lightning
+  // alerts also fire when the app is CLOSED (server push). Fail-soft: no-ops
+  // until an Expo project + push credentials are set up (see docs/push-setup.md).
+  React.useEffect(() => {
+    if (coord) registerForPush({ lat: coord.lat, lng: coord.lng }, API_BASE);
+  }, [coord ? Math.round(coord.lat * 100) : 0, coord ? Math.round(coord.lng * 100) : 0]);
 
   React.useEffect(() => {
     if (!coord) return;

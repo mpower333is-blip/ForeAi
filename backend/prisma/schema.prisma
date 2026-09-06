@@ -262,3 +262,22 @@ model TournamentSponsor {
 
   createdAt    DateTime @default(now())
 }
+
+// A phone registered to receive lightning push alerts. The background watcher
+// (src/lib/lightningWatcher) groups devices by rounded location, checks each
+// area's forecast/strikes, and pushes an alert via Expo Push when a storm is a
+// danger — so players are warned even with the app closed. `token` is the Expo
+// push token; `enabled` flips off when the player turns lightning alerts off.
+model PushDevice {
+  id        String   @id @default(uuid())
+  token     String   @unique // Expo push token (ExponentPushToken[...])
+  platform  String?  // "ios" | "android"
+  lat       Float?   // last watched location (course centre or live GPS)
+  lng       Float?
+  enabled   Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled])
+}
