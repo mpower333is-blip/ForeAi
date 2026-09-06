@@ -74,7 +74,7 @@ const TTL_MS = 60 * 1000;
 async function openMeteo(lat: number, lng: number) {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
-    `&current=temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m` +
+    `&current=temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m,precipitation` +
     // 15-minute nowcast for the next ~2h — the finest free lead time on a storm.
     `&minutely_15=weather_code,precipitation,cape&forecast_minutely_15=8` +
     `&hourly=weather_code,precipitation_probability,cape&forecast_hours=6` +
@@ -104,6 +104,20 @@ function forecastRisk(om: any): Report["lightning"] {
   const code = Number(om?.current?.weather_code) || 0;
   if (code >= 95) return { level: "warning", message: "Thunderstorm overhead — seek shelter now.", source: "forecast" };
 
+  // CAPE "now" — Open-Meteo doesn't put CAPE in `current`, so use the first
+  // 15-min nowcast bucket as the present value (storm energy in J/kg).
+  const nowCape = Number(om?.minutely_15?.cape?.[0]) || 0;
+  const nowPrecip = Number(om?.current?.precipitation) || 0;
+  const nowShowers = code >= 80 || (code >= 61 && code <= 67); // rain showers / heavy rain now
+
+  // Active-storm proxy: the model may not code a thunderstorm even while one is
+  // on top of you. High convective energy + rain falling right now is the best
+  // free signal that it's an electrical storm — treat it as a warning. A false
+  // "seek shelter" is far cheaper than a missed strike, so we err toward safety.
+  if (nowCape >= 1500 && (nowPrecip >= 0.3 || nowShowers)) {
+    return { level: "warning", message: "Storm conditions overhead — treat as lightning risk, seek shelter.", source: "forecast" };
+  }
+
   // 1) 15-minute nowcast — the finest lead time (next ~2 hours).
   const mCodes: number[] = om?.minutely_15?.weather_code ?? [];
   const mi = mCodes.findIndex((wc) => Number(wc) >= 95);
@@ -122,11 +136,13 @@ function forecastRisk(om: any): Report["lightning"] {
       : { level: "watch", message: `Thunderstorms expected in ~${hi}h.`, source: "forecast" };
   }
 
-  // 3) No coded storm yet, but high instability + rain chance = building risk.
+  // 3) No coded storm yet, but high instability now + rain chance = building
+  //    risk. Threshold lowered (1200 J/kg / 30%) so a developing cell nudges
+  //    the board to "watch" earlier.
   const capeVals = (om?.minutely_15?.cape ?? om?.hourly?.cape ?? []) as any[];
-  const maxCape = Math.max(0, ...capeVals.map((v) => Number(v) || 0));
+  const maxCape = Math.max(nowCape, ...capeVals.map((v) => Number(v) || 0));
   const maxProb = Math.max(0, ...(om?.hourly?.precipitation_probability ?? []).map((v: any) => Number(v) || 0));
-  if (maxCape >= 2000 && maxProb >= 40) return { level: "watch", message: "Storm potential building — keep an eye on the sky.", source: "forecast" };
+  if (maxCape >= 1200 && maxProb >= 30) return { level: "watch", message: "Storm potential building — keep an eye on the sky.", source: "forecast" };
   return { level: "none", message: "No storms nearby.", source: "forecast" };
 }
 
