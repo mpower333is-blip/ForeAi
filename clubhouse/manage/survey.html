@@ -374,16 +374,28 @@
   document.getElementById('course').addEventListener('input', function(e){ state.course=e.target.value; save(); });
 
   // ---- free geocoding via OpenStreetMap Nominatim (no key) ----
+  async function geo(url){
+    var r = await fetch(url, { headers:{ 'Accept':'application/json' } });
+    return await r.json();
+  }
   async function doSearch(){
-    var q=document.getElementById('search').value.trim(); if(!q) return;
+    var q=document.getElementById('search').value.trim();
+    if(!q){ msg('Type a course or place name, then Go (or press Enter).'); return; }
     msg('Searching…');
     try{
-      var r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=za&q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}});
-      var j=await r.json();
-      if(j&&j[0]){ map.setView([+j[0].lat,+j[0].lon], 16); msg('Found: '+(j[0].display_name||q).split(',')[0]); }
-      else msg('No match — pan the map to the course manually.');
-    }catch(e){ msg('Search failed — pan to the course manually.'); }
+      var base='https://nominatim.openstreetmap.org/search?format=json&limit=1&q=';
+      // Try South Africa first, then fall back to a worldwide search so a course
+      // that isn't tagged locally still resolves.
+      var j = await geo(base+encodeURIComponent(q)+'&countrycodes=za');
+      if(!(j && j[0])) j = await geo(base+encodeURIComponent(q));
+      if(j && j[0]){ map.setView([+j[0].lat,+j[0].lon], 16); msg('Found: '+(j[0].display_name||q).split(',')[0]); }
+      else msg('No match — pan/zoom the map to the course manually.');
+    }catch(e){ msg('Search failed (no internet?) — pan to the course manually.'); }
   }
+  // Enter in the search box runs the search (people expect this, not just Go).
+  document.getElementById('search').addEventListener('keydown', function(e){
+    if(e.key==='Enter'){ e.preventDefault(); doSearch(); }
+  });
 
   // ---- export ----
   function buildExport(){
