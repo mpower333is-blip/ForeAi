@@ -19,8 +19,14 @@ import { FeatureKey } from "./src/config/appConfig";
 import { APP_NAME } from "./src/config/appVariant";
 import { colors } from "./src/theme";
 
+import SurveyApp from "./src/survey/SurveyApp";
 import Onboarding from "./src/screens/Onboarding";
 import OnCourseScreen from "./src/screens/OnCourseScreen";
+
+// The survey-only flavor (com.foreai.surveyor APK) is the same binary built with
+// EXPO_PUBLIC_SURVEY_ONLY=1 — it boots straight into the course-survey tool and
+// skips the whole ForeAi app, so it can be handed to helpers to map courses.
+const SURVEY_ONLY = process.env.EXPO_PUBLIC_SURVEY_ONLY === "1";
 
 import HomeScreen from "./src/screens/HomeScreen";
 import PlayScreen from "./src/screens/PlayScreen";
@@ -155,6 +161,16 @@ function Root() {
 }
 
 export default function App() {
+  if (SURVEY_ONLY) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <StatusBar barStyle="light-content" />
+          <SurveyApp />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    );
+  }
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

@@ -5,9 +5,10 @@
 # android/ and ios/ folders in CI from mobile/app.config.js.
 #
 # ── WORKFLOWS ──  (Codemagic → Start new build → pick one)
-#   foreai-android-play    ForeAi phone → app-release.aab   (Play Store + RevenueCat)
-#   foreai-watch-android   ForeAi watch → app-release.aab   (Wear OS form factor)
-#   foreai-ios             ForeAi phone → TestFlight / .ipa (needs Apple setup*)
+#   foreai-android-play      ForeAi phone → app-release.aab   (Play Store + RevenueCat)
+#   foreai-watch-android     ForeAi watch → app-release.aab   (Wear OS form factor)
+#   foreai-ios               ForeAi phone → TestFlight / .ipa (needs Apple setup*)
+#   foreai-surveyor-android  ForeAi Survey → app-release.apk  (standalone survey app, sideload)
 #
 # The phone and watch are ONE Play app (com.foreai.mobile). In Play you choose
 # the form factor — "mobile" or "Wear OS" — per release, and upload the matching
@@ -327,6 +328,71 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ─────────────── SURVEY APP — standalone APK (sideload) ─────────
+  # Builds the "ForeAi Survey" app (package com.foreai.surveyor) from the SAME
+  # codebase with EXPO_PUBLIC_SURVEY_ONLY=1: it boots straight into the
+  # course-survey tool (tap the satellite map or 📍 to drop tees/greens/hazards,
+  # multiple tee boxes, export the coords). Output is a signed .apk you sideload
+  # onto any phone (no Play listing) — hand it to helpers to map courses. Its own
+  # package, so it installs alongside the main ForeAi app.
+  foreai-surveyor-android:
+    name: ForeAi Survey — standalone APK
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      node: 20
+      java: 17
+      groups:
+        - google_play   # reuses the shared upload keystore to sign the APK
+      vars:
+        # Inlined by Expo/Metro at build time AND read by app.config.js for the
+        # com.foreai.surveyor package + "ForeAi Survey" name. Must be present for
+        # every step (prebuild and the gradle bundle), so it's set here.
+        EXPO_PUBLIC_SURVEY_ONLY: "1"
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Install JS dependencies
+        script: |
+          cd mobile
+          npm install
+      - name: Bundle the latest survey tool into the app
+        script: |
+          cd mobile
+          # Regenerate src/survey/surveyHtml.ts from clubhouse/manage/survey.html
+          # so the app always ships the current survey tool.
+          node scripts/bundle-survey.js
+      - name: Generate native Android project (expo prebuild)
+        script: |
+          cd mobile
+          # Separate package (com.foreai.surveyor), not on Play, so the
+          # versionCode only needs to rise each build.
+          export ANDROID_VERSION_CODE=$((1000 + ${BUILD_NUMBER:-1}))
+          echo "Survey APK versionCode: $ANDROID_VERSION_CODE (package com.foreai.surveyor)"
+          npx expo prebuild --platform android --no-install
+      - name: Decode the upload keystore
+        script: |
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/mobile/android/app/upload.keystore"
+      - name: Build the signed APK
+        script: |
+          cd mobile/android
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$PWD/app/upload.keystore" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+    artifacts:
+      - mobile/android/app/build/outputs/**/*.apk
+    publishing:
       email:
         recipients:
           - mpower333is@gmail.com

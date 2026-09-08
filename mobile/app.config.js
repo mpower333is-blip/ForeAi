@@ -1,7 +1,14 @@
 // ForeAi — one app for iOS and Android, built from this one codebase.
+//
+// A SECOND flavor ships from the same code: the standalone "ForeAi Survey" app
+// (package com.foreai.surveyor), built with EXPO_PUBLIC_SURVEY_ONLY=1. It boots
+// straight into the course-survey tool so it can be handed to helpers. Same code,
+// its own package + name so it installs alongside the main app.
+const SURVEY_ONLY = process.env.EXPO_PUBLIC_SURVEY_ONLY === "1";
+
 export default {
   expo: {
-    name: "ForeAi",
+    name: SURVEY_ONLY ? "ForeAi Survey" : "ForeAi",
     slug: "foreai",
     version: "1.0.0",
     orientation: "portrait",
@@ -18,7 +25,7 @@ export default {
       // iPhone-first: avoids Apple's separate 13" iPad screenshot requirement.
       // (An iPhone app still runs on iPad in compatibility mode.)
       supportsTablet: false,
-      bundleIdentifier: "com.foreai.mobile",
+      bundleIdentifier: SURVEY_ONLY ? "com.foreai.surveyor" : "com.foreai.mobile",
       infoPlist: {
         NSCameraUsageDescription:
           "ForeAi uses the camera to frame your swing and give you posture feedback.",
@@ -34,7 +41,7 @@ export default {
       },
     },
     android: {
-      package: "com.foreai.mobile",
+      package: SURVEY_ONLY ? "com.foreai.surveyor" : "com.foreai.mobile",
       // Firebase config for FCM push (lightning alerts when the app is closed).
       // Only set once you've added google-services.json (see docs/push-setup.md)
       // and pointed GOOGLE_SERVICES_JSON at it — left unset, builds work as-is

@@ -65,6 +65,7 @@
     <div class="hole" id="holeNum">1</div>
     <button onclick="stepHole(1)">▶</button>
     <div class="prog grow" id="prog"></div>
+    <button onclick="dropGPS()" title="Drop the highlighted point at my current GPS location">📍</button>
     <button id="toolsToggle" onclick="toggleTools()" title="Show/hide tools">▾</button>
     <select id="holeCount" onchange="setCount()"><option value="18">18 holes</option><option value="9">9 holes</option></select>
   </div>
@@ -205,6 +206,24 @@
     save(); redraw(); msg('Hole '+cur+' · '+label(type)+' set');
   }
   function round(n){ return Math.round(n*1e6)/1e6; }
+
+  // ---- drop a point at my real GPS location (works in a browser and in the
+  //      survey APK's WebView, where location permission is granted natively) ----
+  var meMarker = null;
+  function dropGPS(){
+    if(!navigator.geolocation){ msg('GPS is not available on this device.'); return; }
+    msg('Locating…');
+    navigator.geolocation.getCurrentPosition(function(pos){
+      var la=round(pos.coords.latitude), ln=round(pos.coords.longitude);
+      var acc=pos.coords.accuracy?(' ±'+Math.round(pos.coords.accuracy)+'m'):'';
+      map.setView([la,ln], Math.max(map.getZoom(),18));
+      if(meMarker){ layer.removeLayer(meMarker); }
+      place(la, ln); // drops in the current mode (tee/green/hazard vertex…)
+      msg('Dropped '+label(type)+(type==='tee'?' ('+teeName+')':'')+' at your location'+acc);
+    }, function(err){
+      msg('Could not get GPS — '+((err&&err.message)||'is location permission on?'));
+    }, { enableHighAccuracy:true, timeout:15000, maximumAge:0 });
+  }
 
   function redraw(){
     layer.clearLayers();
@@ -363,7 +382,7 @@
   }
 
   // ---- export ----
-  function download(){
+  function buildExport(){
     var holes=[];
     for(var n=1;n<=state.count;n++){
       var h=state.holes[n]; if(!h) continue;
@@ -381,11 +400,24 @@
       if(Object.keys(o).length>1) holes.push(o);
     }
     var data={ course: state.course||'(unnamed course)', capturedAt:new Date().toISOString(), holeCount:state.count, holes:holes };
-    var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    var filename=(state.course||'course').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-coords.json';
+    return { data:data, holes:holes, filename:filename };
+  }
+  function download(){
+    var out = buildExport();
+    var json = JSON.stringify(out.data, null, 2);
+    // In the survey APK there's no file system to "download" to — hand the JSON
+    // to the native app, which opens the Share sheet (email / Drive / WhatsApp).
+    if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage){
+      window.ReactNativeWebView.postMessage(JSON.stringify({ kind:'export', filename:out.filename, json:json }));
+      msg('Sharing '+out.holes.length+' holes…');
+      return;
+    }
+    var blob=new Blob([json],{type:'application/json'});
     var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-    a.download=(state.course||'course').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-coords.json';
+    a.download=out.filename;
     a.click();
-    msg('Downloaded '+holes.length+' holes');
+    msg('Downloaded '+out.holes.length+' holes');
   }
 
   // ---- import: reopen a saved coords file to keep editing from anywhere ----
