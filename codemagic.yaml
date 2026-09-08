@@ -7,7 +7,6 @@
 # ── WORKFLOWS ──  (Codemagic → Start new build → pick one)
 #   foreai-android-play      ForeAi phone → app-release.aab   (Play Store + RevenueCat)
 #   foreai-watch-android     ForeAi watch → app-release.aab   (Wear OS form factor, Play)
-#   foreai-watch-apk         ForeAi watch → app-release.apk   (Wear OS, sideload/testing)
 #   foreai-ios               ForeAi phone → TestFlight / .ipa (needs Apple setup*)
 #   foreai-surveyor-android  ForeAi Survey → app-release.apk  (standalone survey app, sideload)
 #
@@ -153,43 +152,6 @@ workflows:
     publishing:
       # No auto-publish (see note above): the watch AAB is emailed to you and
       # uploaded manually into the com.foreai.mobile release beside the phone AAB.
-      email:
-        recipients:
-          - mpower333is@gmail.com
-        notify:
-          success: true
-          failure: true
-
-  # ───────────── WEAR OS — sideload APK (no Google Play) ─────────
-  # The watch app built as a self-signed .apk you install directly onto a Wear OS
-  # watch — nothing to do with Google Play, no upload keystore. It's a debug-
-  # signed build (Gradle's own debug key), so it installs via adb straight away:
-  #   adb connect <watch-ip>:<port>  &&  adb install app-debug.apk
-  foreai-watch-apk:
-    name: ForeAi Watch — sideload APK
-    instance_type: linux_x2
-    max_build_duration: 60
-    environment:
-      java: 17
-    cache:
-      cache_paths:
-        - $HOME/.gradle/caches
-    scripts:
-      - name: Build the Wear OS APK (debug-signed, installs directly)
-        script: |
-          cd wear
-          # Sideload APK — package com.foreai.mobile; versionCode just needs to rise.
-          export ANDROID_VERSION_CODE=$((90000 + ${BUILD_NUMBER:-1}))
-          echo "WATCH APK versionCode: $ANDROID_VERSION_CODE"
-          # No committed Gradle wrapper jar — fetch the pinned Gradle (8.7).
-          curl -sSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle.zip
-          unzip -q -o /tmp/gradle.zip -d "$HOME/gradle-dist"
-          # assembleDebug: signed with Android's auto-generated debug key, so the
-          # APK installs on any watch with no Play / upload-keystore involvement.
-          "$HOME/gradle-dist/gradle-8.7/bin/gradle" :app:assembleDebug --no-daemon
-    artifacts:
-      - wear/app/build/outputs/**/*.apk
-    publishing:
       email:
         recipients:
           - mpower333is@gmail.com
