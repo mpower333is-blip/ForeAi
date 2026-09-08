@@ -17,7 +17,8 @@
   #tools.hidden{ display:none; }
   #toolsToggle{ padding:6px 10px; }
   input,button,select{ font-size:16px; font-family:inherit; }
-  input[type=text]{ flex:1; min-width:120px; background:#07160e; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:9px 11px; }
+  input[type=text],#courseSel{ flex:1; min-width:120px; background:#07160e; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:9px 11px; }
+  #courseSel{ font-weight:700; }
   button{ background:#123c28; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:9px 12px; font-weight:600; }
   button:active{ transform:scale(.97); }
   button.pri{ background:var(--accent); color:#04150c; border-color:var(--accent); }
@@ -54,7 +55,9 @@
 <div id="map"></div>
 
 <div id="top" class="bar">
-  <input id="course" type="text" placeholder="Course name (e.g. Kempton Park Golf Club)" />
+  <select id="courseSel" class="grow" onchange="onCourseSelect()" title="Pick which course you're surveying"></select>
+  <button onclick="newCourse()" title="Add a new course">➕</button>
+  <button onclick="renameCourse()" title="Rename this course">✎</button>
   <input id="search" type="text" placeholder="Find a place / course" />
   <button onclick="doSearch()">Go</button>
 </div>
@@ -103,8 +106,11 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-  var LS='foreai.survey.v1';
-  var state = load() || { course:'', count:18, holes:{} }; // holes[n] = {tee,green,greenFront,greenBack}
+  // Multiple courses live together in a "book" so you can survey several and
+  // switch between them from the dropdown. state = the course currently open.
+  var LS='foreai.survey.v2', LS_OLD='foreai.survey.v1';
+  var book = loadBook();            // { current, courses:{ name:{course,count,holes} } }
+  var state = book.courses[book.current];
   var cur = 1, type = 'tee';
   // Tee boxes: a hole can have several (club/men/ladies/junior + a spare). Stored
   // per hole as h.tees = { name: {lat,lng} }; h.tee mirrors the back tee for the app.
@@ -315,7 +321,6 @@
     document.getElementById('count').textContent = done+' / '+state.count+' holes · 🛣️ '+fwDone+' routed';
     var hz = (state.holes[cur]||{}).hazards || [];
     var hc = document.getElementById('hazCount'); if(hc) hc.textContent = hz.length+' hazard'+(hz.length===1?'':'s')+' on hole '+cur+(openHz&&openHz._hole===cur?' · drawing…':'');
-    document.getElementById('course').value = state.course||'';
     document.getElementById('holeCount').value = String(state.count);
   }
 
@@ -370,8 +375,6 @@
   function clearHole(){ if(confirm('Clear all points on hole '+cur+'?')){ delete state.holes[cur]; save(); redraw(); } }
   function label(t){ return t==='tee'?'tee':t==='green'?'green':t==='greenFront'?'green front':t==='greenBack'?'green back':t==='tree'?'tree':t==='water'?'water':t==='bunker'?'bunker':t; }
   function msg(s){ var m=document.getElementById('msg'); m.textContent=s; clearTimeout(msg._t); msg._t=setTimeout(function(){m.textContent='';},2500); }
-
-  document.getElementById('course').addEventListener('input', function(e){ state.course=e.target.value; save(); });
 
   // ---- free geocoding via OpenStreetMap Nominatim (no key) ----
   async function geo(url){
@@ -446,13 +449,15 @@
       var d; try{ d = JSON.parse(r.result); }catch(e){ msg('That file is not valid JSON.'); return; }
       var holes = (d && d.holes) || [];
       if(!Array.isArray(holes) || !holes.length){ msg('No holes found in that file.'); return; }
-      if(!confirm('Load '+holes.length+' holes from "'+(d.course||f.name)+'"? This replaces what is on screen.')) return;
-      var ns = { course: d.course||'', count: d.holeCount||state.count||18, holes:{} };
+      var cname = (d.course || f.name.replace(/-coords\.json$/i,'') || 'Imported course').trim();
+      var exists = !!book.courses[cname];
+      if(!confirm('Load '+holes.length+' holes as "'+cname+'"?'+(exists?' This replaces the existing course of that name.':' It will be added to your course list.'))) return;
+      var ns = { course: cname, count: d.holeCount||18, holes:{} };
       holes.forEach(function(o){
         var n = o.hole; if(!n) return;
         var hh = {};
         ['tee','green','greenFront','greenBack'].forEach(function(t){ if(o[t]) hh[t]={lat:o[t].lat,lng:o[t].lng}; });
-        if(o.tees && o.tees.length){ hh.tees={}; o.tees.forEach(function(t){ hh.tees[t.name||'Club']={lat:t.lat,lng:t.lng}; }); if(!hh.tee) hh.tee=backTee(hh); }
+        if(o.tees && o.tees.length){ hh.tees={}; o.tees.forEach(function(t){ hh.tees[t.name||'White']={lat:t.lat,lng:t.lng}; }); if(!hh.tee) hh.tee=backTee(hh); }
         if(o.fairway && o.fairway.length) hh.fairway = o.fairway.map(function(p){ return {lat:p.lat,lng:p.lng}; });
         if(o.hazards && o.hazards.length){
           hh.hazards = o.hazards.map(function(hz){
@@ -464,34 +469,88 @@
         }
         ns.holes[n] = hh;
       });
-      state = ns; cur = 1; type = 'tee'; openHz = null;
-      save();
+      book.courses[cname] = ns; book.current = cname; state = ns; cur = 1; type = 'tee'; openHz = null;
+      save(); refreshCourseDropdown();
       var first = ns.holes[1] || ns.holes[Object.keys(ns.holes)[0]];
       var c = first && (first.tee || first.green);
       if(c) map.setView([c.lat, c.lng], 17);
       redraw();
-      msg('Loaded '+holes.length+' holes — drag any dot to adjust.');
+      msg('Loaded "'+cname+'" ('+holes.length+' holes) — drag any dot to adjust.');
     };
     r.readAsText(f);
   }
 
-  function save(){ try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
-  function load(){
-    try{
-      var s = JSON.parse(localStorage.getItem(LS));
-      if(s && s.holes){
-        // Migrate old point-hazards {type,lat,lng} to shapes {type,points:[...]}.
-        Object.keys(s.holes).forEach(function(n){
-          var hz = s.holes[n].hazards;
-          if(hz && hz.length && hz[0] && hz[0].lat!==undefined){
-            s.holes[n].hazards = hz.map(function(p){ return { type:p.type, points:[{ lat:p.lat, lng:p.lng }] }; });
-          }
-        });
+  function save(){ try{ localStorage.setItem(LS, JSON.stringify(book)); }catch(e){} }
+
+  // Migrate old point-hazards {type,lat,lng} to shapes {type,points:[...]}.
+  function migrateHoles(holes){
+    if(!holes) return;
+    Object.keys(holes).forEach(function(n){
+      var hz = holes[n].hazards;
+      if(hz && hz.length && hz[0] && hz[0].lat!==undefined){
+        holes[n].hazards = hz.map(function(p){ return { type:p.type, points:[{ lat:p.lat, lng:p.lng }] }; });
       }
-      return s;
-    }catch(e){ return null; }
+    });
+  }
+  function loadBook(){
+    // v2 = the multi-course book.
+    try{
+      var b = JSON.parse(localStorage.getItem(LS));
+      if(b && b.courses && b.current && b.courses[b.current]){
+        Object.keys(b.courses).forEach(function(k){ migrateHoles(b.courses[k].holes); });
+        return b;
+      }
+    }catch(e){}
+    // v1 = a single saved course; carry it into the book so nothing is lost.
+    try{
+      var s = JSON.parse(localStorage.getItem(LS_OLD));
+      if(s && s.holes){
+        migrateHoles(s.holes);
+        var nm = s.course || 'My course';
+        var bk = { current:nm, courses:{} };
+        bk.courses[nm] = { course:nm, count:s.count||18, holes:s.holes };
+        return bk;
+      }
+    }catch(e){}
+    return { current:'My course', courses:{ 'My course':{ course:'My course', count:18, holes:{} } } };
   }
 
+  // ---- course book: dropdown + add / rename / switch ----
+  function refreshCourseDropdown(){
+    var sel=document.getElementById('courseSel'); if(!sel) return;
+    sel.innerHTML='';
+    Object.keys(book.courses).forEach(function(name){
+      var o=document.createElement('option'); o.value=name; o.textContent=name;
+      if(name===book.current) o.selected=true; sel.appendChild(o);
+    });
+  }
+  function switchCourse(name){
+    if(!book.courses[name]) return;
+    book.current=name; state=book.courses[name]; cur=1; type='tee'; openHz=null; save();
+    refreshCourseDropdown(); redraw();
+    var h=state.holes[1]||state.holes[Object.keys(state.holes)[0]];
+    var c=h&&(h.tee||h.green); if(c) map.setView([c.lat,c.lng],16);
+  }
+  function onCourseSelect(){ switchCourse(document.getElementById('courseSel').value); }
+  function newCourse(){
+    var name=(prompt('New course name (e.g. Kempton Park Golf Club)')||'').trim();
+    if(!name) return;
+    if(book.courses[name]){ switchCourse(name); msg('Switched to the existing "'+name+'".'); return; }
+    book.courses[name]={ course:name, count:18, holes:{} };
+    switchCourse(name);
+    msg('Created "'+name+'" — search for it or pan the map, then place tees.');
+  }
+  function renameCourse(){
+    var old=book.current;
+    var name=(prompt('Rename course', old)||'').trim();
+    if(!name || name===old) return;
+    if(book.courses[name]){ msg('A course called "'+name+'" already exists.'); return; }
+    book.courses[name]=book.courses[old]; book.courses[name].course=name;
+    delete book.courses[old]; book.current=name; state=book.courses[name];
+    save(); refreshCourseDropdown(); updateUI(); msg('Renamed to "'+name+'".');
+  }
+
+  refreshCourseDropdown();
   redraw();
 </script>
 </body>
