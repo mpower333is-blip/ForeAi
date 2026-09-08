@@ -22,7 +22,8 @@ export type HoleGps = {
 
 export const COURSE_GPS: Record<string, HoleGps[]> = {
   // Kempton Park Golf Club — the ECS event venue. Holes 1–6 fully surveyed
-  // (fairway, tees, trees/bunkers/water); holes 7–18 have tee + green.
+  // (fairway, tees, trees/bunkers/water); holes 10–12 have tee + green F/M/B
+  // from an on-course GPS survey; holes 7–9 and 13–18 have tee + green.
   "kempton-park": [
     // H1
     { tee: { lat: -26.106805, lng: 28.212543 }, greenFront: { lat: -26.109999, lng: 28.216398 }, green: { lat: -26.110073, lng: 28.216573 }, greenBack: { lat: -26.110119, lng: 28.216624 },
@@ -159,12 +160,12 @@ export const COURSE_GPS: Record<string, HoleGps[]> = {
     { tee: { lat: -26.108592, lng: 28.217378 }, green: { lat: -26.105514, lng: 28.215114 } },
     // H9
     { tee: { lat: -26.105379, lng: 28.214892 }, green: { lat: -26.10692, lng: 28.214374 } },
-    // H10
-    { tee: { lat: -26.103546, lng: 28.215656 }, green: { lat: -26.100256, lng: 28.215546 } },
-    // H11
-    { tee: { lat: -26.100044, lng: 28.21505 }, green: { lat: -26.101046, lng: 28.213977 } },
-    // H12
-    { tee: { lat: -26.100928, lng: 28.212711 }, green: { lat: -26.104042, lng: 28.21523 } },
+    // H10 — on-course GPS survey (tee + green F/M/B)
+    { tee: { lat: -26.1034593, lng: 28.2156463 }, greenFront: { lat: -26.1004079, lng: 28.215527 }, green: { lat: -26.1002884, lng: 28.2154995 }, greenBack: { lat: -26.1001979, lng: 28.2155278 } },
+    // H11 — on-course GPS survey (tee + green F/M/B)
+    { tee: { lat: -26.1000907, lng: 28.2150318 }, greenFront: { lat: -26.1009339, lng: 28.2140891 }, green: { lat: -26.100992, lng: 28.2140412 }, greenBack: { lat: -26.1011183, lng: 28.2138881 } },
+    // H12 — on-course GPS survey (tee + green F/M/B)
+    { tee: { lat: -26.1009737, lng: 28.2127403 }, greenFront: { lat: -26.1038945, lng: 28.2153297 }, green: { lat: -26.1040487, lng: 28.2152608 }, greenBack: { lat: -26.1041257, lng: 28.215233 } },
     // H13
     { tee: { lat: -26.103618, lng: 28.216632 }, green: { lat: -26.104635, lng: 28.22032 } },
     // H14

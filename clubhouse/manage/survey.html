@@ -72,7 +72,7 @@
   <div id="tools">
   <div class="row">
     <button class="pt on" data-t="tee"   onclick="setType('tee')">🏳️ Tee</button>
-    <select id="teeSel" onchange="teeName=this.value; setType('tee');" title="Which tee box"><option>Club</option><option>Men</option><option>Ladies</option><option>Junior</option><option>Yellow</option></select>
+    <select id="teeSel" onchange="teeName=this.value; setType('tee');" title="Which tee box (colour)"><option>White</option><option>Blue</option><option>Red</option><option>Yellow</option><option>Green</option><option>Black</option><option>Gold</option></select>
     <button class="pt"     data-t="green" onclick="setType('green')">🟢 Green</button>
     <button class="pt"     data-t="greenFront" onclick="setType('greenFront')">Front</button>
     <button class="pt"     data-t="greenBack"  onclick="setType('greenBack')">Back</button>
@@ -97,7 +97,7 @@
     <button class="pri grow" onclick="download()">⬇ Download coords</button>
   </div>
   <div id="msg"></div>
-  <div class="hint">You don't need to be at the course — this works from any computer on the satellite map. Tap to drop the highlighted point; <b>drag any dot</b> to nudge it into place. <b>🏳️ Tee</b> uses the colour picker beside it — place a Club/Men/Ladies/Junior tee, then change the colour to add another (great for school days). <b>🛣️ Fairway</b> drops ordered waypoints down the middle (tap the bends tee→green). <b>💧 Water</b> has two modes beside it: <b>River</b> = press and <b>drag</b> along the stream to trace its flow (draws as a flowing river); <b>Pond</b> = <b>tap</b> around the edge of a dam/lake and <b>✓ Finish shape</b> to fill it. <b>Trees / Bunker</b> tap around the edge; <b>✓ Finish shape</b> starts the next. <b>⬆ Load</b> reopens a coords file you saved earlier so you can keep editing anywhere. Tap <b>▾</b> to hide these tools and get the full map. Progress is also saved on this device.</div>
+  <div class="hint">You don't need to be at the course — this works from any computer on the satellite map. Tap to drop the highlighted point; <b>drag any dot</b> to nudge it into place. <b>🏳️ Tee</b> uses the colour picker beside it — place a tee by its real colour (Kempton Park is White, Red &amp; Blue), then change the colour to add another (great for school days with extra tee boxes). <b>🛣️ Fairway</b> drops ordered waypoints down the middle (tap the bends tee→green). <b>💧 Water</b> has two modes beside it: <b>River</b> = press and <b>drag</b> along the stream to trace its flow (draws as a flowing river); <b>Pond</b> = <b>tap</b> around the edge of a dam/lake and <b>✓ Finish shape</b> to fill it. <b>Trees / Bunker</b> tap around the edge; <b>✓ Finish shape</b> starts the next. <b>⬆ Load</b> reopens a coords file you saved earlier so you can keep editing anywhere. Tap <b>▾</b> to hide these tools and get the full map. Progress is also saved on this device.</div>
   </div>
 </div>
 
@@ -108,9 +108,13 @@
   var cur = 1, type = 'tee';
   // Tee boxes: a hole can have several (club/men/ladies/junior + a spare). Stored
   // per hole as h.tees = { name: {lat,lng} }; h.tee mirrors the back tee for the app.
-  var TEE_COLORS = { Club:'#5aa0ff', Men:'#f4f4f4', Ladies:'#e8563e', Junior:'#39d98a', Yellow:'#f2c94c' };
-  var TEE_ORDER = ['Club','Men','Yellow','Ladies','Junior'];
-  var teeName = 'Club';
+  // Tee boxes named by their real course colour (e.g. Kempton Park uses White,
+  // Red and Blue). Each marker draws in its tee colour. TEE_ORDER runs
+  // longest→shortest so the app treats the longest available tee as the "back"
+  // tee for hole length (Blue/Black are championship, Red is forward).
+  var TEE_COLORS = { White:'#f4f4f4', Blue:'#5aa0ff', Red:'#e8563e', Yellow:'#f2c94c', Green:'#39d98a', Black:'#20242b', Gold:'#e9c46a' };
+  var TEE_ORDER = ['Black','Blue','White','Gold','Yellow','Green','Red'];
+  var teeName = 'White';
   var waterMode = 'river'; // 'river' = brush a flow line · 'pond' = tap a loop to fill
   function backTee(h){ if(!h.tees) return undefined;
     for(var i=0;i<TEE_ORDER.length;i++){ if(h.tees[TEE_ORDER[i]]) return h.tees[TEE_ORDER[i]]; }
