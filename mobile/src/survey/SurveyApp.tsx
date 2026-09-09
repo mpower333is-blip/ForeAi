@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Share, Platform } from "react-native";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Share, Platform, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
 import { Screen, ScreenHeader, Card, Button, Chip } from "../components/ui";
@@ -92,6 +92,13 @@ export default function SurveyApp() {
   };
 
   const step = (d: number) => { setCur((c) => Math.max(1, Math.min(book.holeCount, c + d))); setPage("capture"); };
+  const setHoleCount = (n: number) => { persist({ ...book, holeCount: n }); if (cur > n) setCur(n); };
+  const newCourse = () => {
+    Alert.alert("New course", "Clear this survey and start a fresh course? Export first if you want to keep it.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Clear", style: "destructive", onPress: () => { persist({ course: "", holeCount: book.holeCount, holes: {} }); setCur(1); setPage("capture"); } },
+    ]);
+  };
 
   const greensDone = Object.values(book.holes).filter((h) => h.green).length;
 
@@ -137,6 +144,17 @@ export default function SurveyApp() {
           placeholder="Course name (e.g. Kempton Park Golf Club)"
           placeholderTextColor={colors.textFaint}
         />
+        <View style={styles.teeWrap}>
+          <Text style={[styles.dim, { marginTop: 8, marginRight: 2 }]}>Holes:</Text>
+          {[18, 9].map((n) => (
+            <TouchableOpacity key={n} onPress={() => setHoleCount(n)} style={[styles.typeChip, book.holeCount === n && styles.teeChipOn]}>
+              <Text style={styles.teeTxt}>{n}</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity onPress={newCourse} style={styles.typeChip}>
+            <Text style={styles.teeTxt}>＋ New course</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.holeRow}>
           <TouchableOpacity style={styles.nav} onPress={() => step(-1)}><Text style={styles.navTxt}>‹</Text></TouchableOpacity>
           <View style={{ alignItems: "center", flex: 1 }}>
