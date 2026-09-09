@@ -87,8 +87,12 @@ workflows:
             -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+          # Give the output its own name so it's obvious in your inbox (and tag
+          # it with the phone versionCode = 1000 + build number).
+          V=$((1000 + ${BUILD_NUMBER:-1}))
+          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/ForeAi-Phone-$V.aab"
     artifacts:
-      - mobile/android/app/build/outputs/**/*.aab
+      - mobile/android/app/build/outputs/**/ForeAi-Phone-*.aab
     publishing:
       # No auto-publish. The phone and watch share one Play listing, and every
       # release must contain BOTH AABs, so releases are done manually: this build
@@ -147,8 +151,11 @@ workflows:
             -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+          # Name the watch AAB distinctly (tagged with its 90000+ versionCode).
+          V=$((90000 + ${BUILD_NUMBER:-1}))
+          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/ForeAi-Watch-$V.aab"
     artifacts:
-      - wear/app/build/outputs/**/*.aab
+      - wear/app/build/outputs/**/ForeAi-Watch-*.aab
     publishing:
       # No auto-publish (see note above): the watch AAB is emailed to you and
       # uploaded manually into the com.foreai.mobile release beside the phone AAB.
@@ -390,8 +397,11 @@ workflows:
             -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+          # Name the survey APK distinctly (tagged with its versionCode).
+          V=$((1000 + ${BUILD_NUMBER:-1}))
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/ForeAi-Survey-$V.apk"
     artifacts:
-      - mobile/android/app/build/outputs/**/*.apk
+      - mobile/android/app/build/outputs/**/ForeAi-Survey-*.apk
     publishing:
       email:
         recipients:
