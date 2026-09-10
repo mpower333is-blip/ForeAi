@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Share, Platform, A
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import * as Clipboard from "expo-clipboard";
 import { Screen, ScreenHeader, Card, Button, Chip } from "../components/ui";
 import { colors, spacing, radius, type as ty } from "../theme";
 import { useLocation } from "../hooks/useLocation";
@@ -131,26 +132,26 @@ export default function SurveyApp() {
     const data = { course: book.course || "(unnamed course)", capturedAt: new Date().toISOString(), holeCount: book.holeCount, holes };
     const json = JSON.stringify(data, null, 2);
     const fname = (book.course || "course").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + "-coords.json";
+    // Copying the whole survey into the OS share sheet as *text* fails silently on
+    // Android once it gets big (Binder transaction limit) — a full 18-hole survey
+    // is too large. So always write a real .json FILE and share that (no size
+    // limit); fall back to the clipboard, never to text sharing.
+    const copyToClipboard = async () => {
+      try { await Clipboard.setStringAsync(json); Alert.alert("Copied to clipboard", "Couldn't open the share sheet, so the whole survey is on your clipboard — paste it into WhatsApp/email to send it."); }
+      catch { Alert.alert("Export failed", "Couldn't share or copy the survey. Try again, or send it hole-by-hole."); }
+    };
+    let uri = "";
     try {
-      // Write the survey to a real .json file and share the FILE (not text) so the
-      // share sheet offers Save to Files / Drive / email attachment. Sharing plain
-      // text gives no "save" option on Android.
-      const uri = (FileSystem.cacheDirectory || "") + fname;
+      uri = (FileSystem.cacheDirectory || "") + fname;
       await FileSystem.writeAsStringAsync(uri, json);
+    } catch { await copyToClipboard(); return; }
+    try {
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          mimeType: "application/json",
-          dialogTitle: fname,
-          UTI: "public.json",
-        });
+        await Sharing.shareAsync(uri, { mimeType: "application/json", dialogTitle: fname, UTI: "public.json" });
       } else {
-        // Fallback if the OS share dialog isn't available.
-        await Share.share(Platform.OS === "ios" ? { url: uri } : { title: fname, message: json });
+        await copyToClipboard();
       }
-    } catch {
-      // Last-resort fallback: share the raw text.
-      try { await Share.share({ title: fname, message: json }); } catch {}
-    }
+    } catch { await copyToClipboard(); }
   };
 
   // Rebuild a Book from a previously-exported / pasted survey (the text export or
