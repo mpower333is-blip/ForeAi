@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kempton Park GC — News</title>
+<!--
+  Club news admin for a ForeAi club app. Post announcements, results and notices
+  that members read in the app. Talks to the ForeAi backend (/news) with the
+  club admin PIN.
+-->
+<style>
+  :root{ --bg:#081226; --panel:#0F2143; --panel2:#152C55; --border:#26407A;
+    --lime:#F3C33B; --text:#F2F6FF; --muted:#C2CFE8; --faint:#7F92B6; --gold:#FFD36A; --red:#FF6B6B; --sky:#6BD5FF; }
+  *{box-sizing:border-box}
+  body{margin:0;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    background:linear-gradient(160deg,#122C58,#081226 60%);min-height:100vh;padding:18px}
+  .wrap{max-width:1080px;margin:0 auto}
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+  .logo img{height:46px;width:auto;background:#fff;padding:4px 8px;border-radius:9px}
+  h1{font-size:20px;margin:0}
+  .evt{color:var(--muted);font-size:13px}
+  .spacer{flex:1}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  input,select,textarea{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:9px 11px;font-size:14px;font-family:inherit}
+  textarea{width:100%;resize:vertical}
+  label{display:block;font-size:12px;color:var(--faint);margin:8px 0 3px;text-transform:uppercase;letter-spacing:.5px}
+  .btn{border:none;cursor:pointer;background:linear-gradient(135deg,#FBD972,#F3C33B,#D6A22A);color:#10203F;font-weight:800;padding:10px 14px;border-radius:10px;font-size:14px}
+  .btn.ghost{background:transparent;border:1.5px solid var(--border);color:var(--lime)}
+  .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
+  .btn.red{background:transparent;border:1.5px solid var(--red);color:var(--red)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+  .notice{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;cursor:pointer}
+  .notice h2{margin:0 0 3px;font-size:17px}
+  .notice .meta{color:var(--faint);font-size:13px}
+  .notice .snip{color:var(--muted);font-size:13px;margin-top:6px}
+  .pill{display:inline-block;font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;margin-right:6px}
+  .c-news{background:rgba(243,195,59,0.16);color:var(--lime)}
+  .c-event{background:rgba(255,211,106,0.16);color:var(--gold)}
+  .c-notice{background:rgba(107,213,255,0.16);color:var(--sky)}
+  .c-result{background:rgba(243,195,59,0.16);color:var(--lime)}
+  .c-urgent{background:rgba(255,107,107,0.16);color:var(--red)}
+  .draft{background:var(--panel2);color:var(--faint)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .link{color:var(--lime);cursor:pointer;background:none;border:none;font-weight:700;font-size:13px;padding:0}
+  .empty{color:var(--faint);text-align:center;padding:34px}
+  .hint{color:var(--faint);font-size:12px;margin-top:6px;line-height:1.6}
+  .connect{max-width:460px;margin:52px auto;text-align:center}
+  .connect input{width:100%;margin:4px 0}
+  .modal{position:fixed;inset:0;background:rgba(3,8,20,.7);display:none;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;z-index:100}
+  .modal.on{display:flex}
+  .modal .card{max-width:560px;width:100%}
+  .imgprev{width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin-top:8px;display:none}
+  .check{display:flex;align-items:center;gap:8px;margin-top:10px}
+  .check input{width:auto}
+  .foreai-back{position:fixed;top:14px;left:14px;z-index:99999;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(8,18,38,0.72);color:#F3C33B;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;text-decoration:none;border:1px solid rgba(243,195,59,0.45)}
+  @media(max-width:560px){ .row,.row3{grid-template-columns:1fr} }
+</style>
+<script src="../config.js"></script>
+</head>
+<body>
+<a href="index.html" class="foreai-back" onclick="if(window.history.length>1){window.history.back();return false;}">‹ Back</a>
+<div class="wrap">
+  <header>
+    <span class="logo"><img src="../kempton-logo.png" alt="Kempton Park Golf Club" /></span>
+    <div><h1>Club News</h1><div class="evt" id="clubName">Kempton Park Golf Club</div></div>
+    <div class="spacer"></div>
+    <div class="bar" id="topbar" style="display:none">
+      <a class="btn ghost sm" href="members.html">👥 Members</a>
+      <a class="btn ghost sm" href="competitions.html">🏆 Competitions</a>
+      <button class="btn ghost sm" onclick="disconnect()">Disconnect</button>
+    </div>
+  </header>
+
+  <div id="connect" class="connect">
+    <div class="card">
+      <h1 style="margin-bottom:6px">Club news admin</h1>
+      <p class="hint">Connect to the club backend to post announcements.</p>
+      <label>Backend URL</label><input id="cApi" placeholder="https://foreai-kempton-backend.onrender.com" />
+      <label>Admin PIN</label><input id="cPin" type="password" placeholder="Club admin PIN" />
+      <div style="margin-top:12px"><button class="btn" onclick="connect()">Connect</button></div>
+      <p class="hint" id="cErr" style="color:var(--red)"></p>
+    </div>
+  </div>
+
+  <div id="list" style="display:none">
+    <div class="card"><div class="bar"><b style="font-size:16px">Announcements</b><span class="spacer"></span>
+      <button class="btn ghost sm" onclick="load()">↻ Refresh</button>
+      <button class="btn" onclick="openEdit()">＋ New post</button></div></div>
+    <div id="items"></div>
+  </div>
+</div>
+
+<!-- Create/edit -->
+<div class="modal" id="editModal"><div class="card">
+  <h2 id="editTitle" style="margin-top:0">New post</h2>
+  <input type="hidden" id="fId" />
+  <label>Title *</label><input id="fTitle" style="width:100%" placeholder="Saturday medal results" />
+  <label>Body *</label><textarea id="fBody" rows="6" placeholder="Write the announcement…"></textarea>
+  <div class="row3">
+    <div><label>Category</label><select id="fCategory">
+      <option value="news">News</option><option value="event">Event</option><option value="notice">Notice</option>
+      <option value="result">Results</option><option value="urgent">Urgent</option>
+    </select></div>
+    <div><label>Status</label><select id="fStatus">
+      <option value="published">Published</option><option value="draft">Draft</option>
+    </select></div>
+    <div><label>Publish date</label><input id="fDate" type="date" /></div>
+  </div>
+  <label>Author (optional)</label><input id="fAuthor" style="width:100%" placeholder="The Committee" />
+  <div class="check"><input type="checkbox" id="fPinned" /><label style="margin:0">Pin to the top of the board</label></div>
+  <label>Image (optional)</label>
+  <input type="file" id="fImageFile" accept="image/*" onchange="pickImage(event)" />
+  <img id="imgPrev" class="imgprev" />
+  <div id="imgClearRow" style="display:none;margin-top:6px"><button class="btn ghost sm" onclick="clearImage()">Remove image</button></div>
+  <div class="bar" style="margin-top:16px">
+    <button class="btn" onclick="save()">Save</button>
+    <button class="btn ghost" onclick="closeEdit()">Cancel</button>
+    <span class="spacer"></span>
+    <button class="btn red sm" id="delBtn" onclick="del()" style="display:none">Delete</button>
+  </div>
+  <p class="hint" id="editErr" style="color:var(--red)"></p>
+</div></div>
+
+<script>
+const CLUB_KEY = "kempton";
+const KEMPTON_API = "https://foreai-kempton-backend.onrender.com";
+const LS = "foreai.club.admin.v1";
+let API = "", PIN = "", ITEMS = [], IMAGE = null;
+
+const D = window.FOREAI_DEFAULTS || {};
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function fmtDate(d){ return new Date(d).toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"}); }
+const CATS = { news:"News", event:"Event", notice:"Notice", result:"Results", urgent:"Urgent" };
+
+async function api(path, { method="GET", body }={}){
+  const headers = {}; if (body) headers["Content-Type"]="application/json"; if (PIN) headers["x-admin-pin"]=PIN;
+  const res = await fetch(API+path, { method, headers, body: body?JSON.stringify(body):undefined });
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error(data.error || ("Request failed ("+res.status+")"));
+  return data;
+}
+
+function boot(){
+  const saved = JSON.parse(localStorage.getItem(LS)||"null");
+  $("cApi").value = (saved&&saved.api) || KEMPTON_API || D.api || "";
+  $("fDate").value = new Date().toISOString().slice(0,10);
+  if (saved&&saved.api){ API=saved.api; PIN=saved.pin||""; $("cPin").value=PIN; connect(true); }
+}
+async function connect(silent){
+  API = ($("cApi").value||"").trim().replace(/\/$/,""); PIN = ($("cPin").value||"").trim();
+  if (!API){ $("cErr").textContent="Enter the backend URL."; return; }
+  try {
+    const club = await api(`/club/${CLUB_KEY}`); if (club.name) $("clubName").textContent = club.name;
+    await api(`/news/${CLUB_KEY}/all`); // verifies admin PIN
+    localStorage.setItem(LS, JSON.stringify({ api:API, pin:PIN }));
+    $("connect").style.display="none"; $("list").style.display=""; $("topbar").style.display="";
+    load();
+  } catch(e){ if(!silent) $("cErr").textContent = e.message.includes("PIN")?"Wrong or missing admin PIN.":e.message; }
+}
+function disconnect(){ localStorage.removeItem(LS); location.reload(); }
+
+async function load(){
+  try {
+    ITEMS = await api(`/news/${CLUB_KEY}/all`);
+    const box = $("items"); box.innerHTML="";
+    if (!ITEMS.length){ box.innerHTML = `<div class="card"><div class="empty">No posts yet. Create one.</div></div>`; return; }
+    for (const n of ITEMS){
+      const div = document.createElement("div"); div.className="card";
+      const snippet = esc(String(n.body||"").slice(0,140)) + (n.body && n.body.length>140?"…":"");
+      div.innerHTML = `<div class="notice"><div>
+        <h2>${n.pinned?"📌 ":""}${esc(n.title)}</h2>
+        <div class="meta"><span class="pill c-${esc(n.category)}">${CATS[n.category]||n.category}</span>
+          ${n.status==="draft"?'<span class="pill draft">Draft</span>':""}
+          ${fmtDate(n.publishAt)}${n.authorName?" · "+esc(n.authorName):""}</div>
+        <div class="snip">${snippet}</div>
+      </div><button class="link">Edit</button></div>`;
+      div.querySelector("button").onclick = ()=> openEdit(n);
+      box.appendChild(div);
+    }
+  } catch(e){ alert(e.message); }
+}
+
+function openEdit(n){
+  $("editTitle").textContent = n?"Edit post":"New post";
+  $("fId").value = n?.id||"";
+  $("fTitle").value = n?.title||"";
+  $("fBody").value = n?.body||"";
+  $("fCategory").value = n?.category||"news";
+  $("fStatus").value = n?.status||"published";
+  $("fDate").value = n?.publishAt ? String(n.publishAt).slice(0,10) : new Date().toISOString().slice(0,10);
+  $("fAuthor").value = n?.authorName||"";
+  $("fPinned").checked = !!n?.pinned;
+  IMAGE = n?.image || null;
+  $("fImageFile").value = "";
+  showImg(IMAGE);
+  $("delBtn").style.display = n?"":"none";
+  $("editErr").textContent="";
+  $("editModal").classList.add("on");
+}
+function closeEdit(){ $("editModal").classList.remove("on"); }
+function showImg(src){
+  const p=$("imgPrev");
+  if (src){ p.src=src; p.style.display="block"; $("imgClearRow").style.display=""; }
+  else { p.style.display="none"; $("imgClearRow").style.display="none"; }
+}
+function pickImage(ev){
+  const f = ev.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = e => { IMAGE = e.target.result; showImg(IMAGE); };
+  r.readAsDataURL(f);
+}
+function clearImage(){ IMAGE=null; $("fImageFile").value=""; showImg(null); }
+
+async function save(){
+  const id = $("fId").value;
+  const body = {
+    title: $("fTitle").value.trim(), body: $("fBody").value.trim(),
+    category: $("fCategory").value, status: $("fStatus").value,
+    publishAt: $("fDate").value, authorName: $("fAuthor").value.trim(),
+    pinned: $("fPinned").checked, image: IMAGE,
+  };
+  if (!body.title || !body.body){ $("editErr").textContent="Title and body are required."; return; }
+  try {
+    if (id) await api(`/news/${CLUB_KEY}/${id}`, { method:"PUT", body });
+    else await api(`/news/${CLUB_KEY}`, { method:"POST", body });
+    closeEdit(); load();
+  } catch(e){ $("editErr").textContent = e.message; }
+}
+async function del(){
+  const id = $("fId").value; if (!id || !confirm("Delete this post?")) return;
+  try { await api(`/news/${CLUB_KEY}/${id}`, { method:"DELETE" }); closeEdit(); load(); }
+  catch(e){ $("editErr").textContent = e.message; }
+}
+
+boot();
+</script>
+</body>
+</html>
