@@ -60,10 +60,14 @@ const CLUBS: Record<string, ClubConfig> = {
     },
     sponsors: ["Your sponsor here", "Your sponsor here", "Your sponsor here"],
     proShop: {
-      phone: "",
+      phone: "+27113948911", // Kempton pro shop
       whatsapp: "",
-      email: "",
-      bookingUrl: "",
+      email: "proshop@kemptongolfclub.co.za",
+      // Online tee-time booking via Teesheet (Clubmaster's public booking widget).
+      // NOTE: clubid=159 is the best match found for Kempton but was NOT verified
+      // (teesheet.co.za is unreachable from CI). Confirm the club id on the club's
+      // "Book a tee time" button and correct here if needed.
+      bookingUrl: "https://www.teesheet.co.za/cmwidget.php?clubid=159",
       hours: "Mon–Sun, 6:00–18:00",
     },
   },
