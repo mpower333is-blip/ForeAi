@@ -28,6 +28,16 @@ export type ClubConfig = {
   event: { title: string; blurb: string };
   contact: { phone?: string; email?: string; web?: string; address?: string };
   sponsors: string[]; // names only for now; logos can come later
+  // Pro shop bookings. With no booking backend, a request is sent to the shop's
+  // real channel (WhatsApp preferred, else email, else an online booking link)
+  // pre-filled with the member's details. Leave a field "" to hide that channel.
+  proShop: {
+    phone?: string; // tel: for a quick call
+    whatsapp?: string; // international digits only, no + or spaces, e.g. 27821234567
+    email?: string; // fallback if no WhatsApp
+    bookingUrl?: string; // online tee-time system, opened directly if set
+    hours?: string;
+  };
 };
 
 const CLUBS: Record<string, ClubConfig> = {
@@ -49,6 +59,13 @@ const CLUBS: Record<string, ClubConfig> = {
       address: "Kempton Park, Gauteng",
     },
     sponsors: ["Your sponsor here", "Your sponsor here", "Your sponsor here"],
+    proShop: {
+      phone: "",
+      whatsapp: "",
+      email: "",
+      bookingUrl: "",
+      hours: "Mon–Sun, 6:00–18:00",
+    },
   },
 };
 

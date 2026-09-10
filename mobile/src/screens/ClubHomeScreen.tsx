@@ -36,6 +36,16 @@ export default function ClubHomeScreen({ navigation }: any) {
         <Button icon="📍" variant="ghost" label="GPS rangefinder" onPress={() => navigation.navigate("Survey")} />
       </Card>
 
+      {/* Pro shop bookings */}
+      <Card>
+        <View style={styles.rowHead}>
+          <Text style={styles.h}>Pro Shop</Text>
+          <Chip label="Bookings" tone="accent" />
+        </View>
+        <Text style={styles.body}>Book a tee time or a lesson, or contact the pro shop directly.</Text>
+        <Button icon="🛒" label="Pro shop & bookings" onPress={() => navigation.navigate("ProShop")} />
+      </Card>
+
       {/* Club event (placeholder — the ECS Golf Day) */}
       <Card>
         <View style={styles.rowHead}>

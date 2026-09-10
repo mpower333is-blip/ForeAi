@@ -30,6 +30,7 @@ const SURVEY_ONLY = process.env.EXPO_PUBLIC_SURVEY_ONLY === "1";
 
 import HomeScreen from "./src/screens/HomeScreen";
 import ClubHomeScreen from "./src/screens/ClubHomeScreen";
+import ProShopScreen from "./src/screens/ProShopScreen";
 import PlayScreen from "./src/screens/PlayScreen";
 import CaddieScreen from "./src/screens/CaddieScreen";
 import SwingScreen from "./src/screens/SwingScreen";
@@ -152,6 +153,7 @@ function Root() {
             (it's also the "Course" tab in the event app). */}
         <Stack.Screen name="Survey" component={OnCourseScreen} />
         <Stack.Screen name="CourseSelect" component={CourseSelectScreen} />
+        <Stack.Screen name="ProShop" component={ProShopScreen} />
         <Stack.Screen name="WatchSetup" component={WatchSetupScreen} />
         <Stack.Screen name="Upgrade" component={UpgradeScreen} />
         {/* Keeps the native header (it has no in-screen ScreenHeader). */}
