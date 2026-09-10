@@ -71,6 +71,11 @@ export default function SatelliteHole({
   // Build a ground-square bounding box. Per hole: fit all points with padding;
   // otherwise centre a wide window on the course.
   let minY: number, maxY: number, minX: number, maxX: number;
+  // Rotation so the hole plays UP the screen (tee at the bottom, green at the
+  // top) — the way you actually play it, instead of north-up. rotateDeg turns
+  // the map+overlays; cover>1 enlarges the fetched box + the layer so the
+  // rotated square still fills the viewport with no empty corners.
+  let rotateDeg = 0, cover = 1;
   if (perHole) {
     let loLat = Infinity, hiLat = -Infinity, loLng = Infinity, hiLng = -Infinity;
     for (const p of pts) {
@@ -80,11 +85,28 @@ export default function SatelliteHole({
     const cLat = (loLat + hiLat) / 2;
     const cLng = (loLng + hiLng) / 2;
     const cosLat = Math.cos((cLat * Math.PI) / 180);
+
+    // Aim the view down the line of play. Use tee→green when we have them, else
+    // the first→last fairway point.
+    const tAnchor = hole.tee ?? (fairway.length ? fairway[0] : undefined);
+    const gAnchor = hole.green ?? (fairway.length ? fairway[fairway.length - 1] : undefined);
+    if (tAnchor && gAnchor) {
+      const dE = (gAnchor.lng - tAnchor.lng) * cosLat; // east
+      const dN = gAnchor.lat - tAnchor.lat;            // north
+      // Angle of the tee→green vector in screen space (x∝east, y∝-north), then
+      // rotate so it points straight up (screen angle -90°).
+      const alpha = Math.atan2(-dN, dE);
+      const rot = -Math.PI / 2 - alpha;
+      rotateDeg = (rot * 180) / Math.PI;
+      cover = Math.abs(Math.sin(rot)) + Math.abs(Math.cos(rot)); // fill after rotate
+    }
+
     // Ground extents (degrees), width scaled so the box is square on the ground.
     const latExt = hiLat - loLat;
     const lngExtGround = (hiLng - loLng) * cosLat;
     let half = (Math.max(latExt, lngExtGround) / 2) * 1.25; // 25% padding
     half = Math.max(half, 0.0011); // never tighter than ~120 m so a hole reads
+    half *= cover; // fetch extra ground so the rotated+scaled layer stays framed
     minY = cLat - half; maxY = cLat + half;
     const halfLng = half / cosLat;
     minX = cLng - halfLng; maxX = cLng + halfLng;
@@ -106,6 +128,18 @@ export default function SatelliteHole({
     x: ((p.lng - minX) / (maxX - minX)) * 100,
     y: ((maxY - p.lat) / (maxY - minY)) * 100,
   });
+
+  // Screen position (%), after the same rotate+scale the map layer gets — used
+  // to place UPRIGHT labels so they read horizontally while sitting on the
+  // rotated map. Mirrors the transform [rotate(rotateDeg), scale(cover)] about
+  // the box centre.
+  const rot = (rotateDeg * Math.PI) / 180;
+  const cosR = Math.cos(rot), sinR = Math.sin(rot);
+  const place = (p: Coord) => {
+    const q = toXY(p);
+    const dx = q.x - 50, dy = q.y - 50;
+    return { x: 50 + cover * (dx * cosR - dy * sinR), y: 50 + cover * (dx * sinR + dy * cosR) };
+  };
 
   // Distances to the green edges. Measured from the player's live position when
   // playing the hole; otherwise from the tee as a preview.
@@ -130,6 +164,7 @@ export default function SatelliteHole({
 
   return (
     <View style={styles.wrap}>
+      <View style={[StyleSheet.absoluteFill, { transform: [{ rotate: `${rotateDeg}deg` }, { scale: cover }] }]}>
       <Image source={{ uri: url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       {perHole && (
         <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -202,10 +237,12 @@ export default function SatelliteHole({
           )}
         </Svg>
       )}
+      </View>
 
-      {/* distance-to-reach label at each fairway bend (from player, else tee) */}
+      {/* Labels sit in a screen-fixed layer (so text stays upright) but are
+          placed at the rotated map positions. */}
       {from && fairway.map((p, i) => {
-        const q = toXY(p);
+        const q = place(p);
         const d = Math.round(haversineMeters(from, p));
         return (
           <View key={`fl${i}`} style={[styles.fwLabel, { left: `${q.x}%`, top: `${q.y}%` }]} pointerEvents="none">
@@ -216,7 +253,7 @@ export default function SatelliteHole({
 
       {/* carry-to-clear over bunkers / water in the line of play */}
       {carries.map((c, i) => {
-        const q = toXY(c.centroid);
+        const q = place(c.centroid);
         return (
           <View key={`cy${i}`} style={[styles.carry, { left: `${q.x}%`, top: `${q.y}%` }]} pointerEvents="none">
             <Text style={styles.carryText}>{c.type === "water" ? "💧" : "🏖️"} {c.carry}</Text>
