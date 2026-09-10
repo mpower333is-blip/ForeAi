@@ -2,6 +2,17 @@
 // Update the URLs here once the app is live in each store and the landing page
 // is published — everything in the app reads from this file.
 
+import { Platform } from "react-native";
+
+// In-app purchases / subscriptions. Currently OFF on iOS: the iOS build ships
+// fully unlocked with NO paywall, so there's nothing for App Review to reject
+// under Guideline 3.1.2 (and no half-configured purchase to trip 2.1). Android
+// keeps the subscription. Flip this back on for iOS once the IAP products are
+// created and approved in App Store Connect and the RevenueCat iOS key is in
+// the build. When false, everything is unlocked and every purchase/upgrade CTA
+// is hidden.
+export const IAP_ENABLED = Platform.OS !== "ios";
+
 // TODO: replace with the real listings once published.
 export const APP_STORE_URL = "https://apps.apple.com/app/foreai/id0000000000";
 export const PLAY_STORE_URL =

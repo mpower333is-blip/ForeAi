@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { FeatureKey, FREE_FEATURE_KEYS } from "../config/appConfig";
+import { FeatureKey, FREE_FEATURE_KEYS, IAP_ENABLED } from "../config/appConfig";
 import { IS_CLUB_APP } from "../config/appVariant";
 import { useTournament } from "./TournamentContext";
 import { loadJSON, saveJSON } from "../lib/storage";
@@ -78,7 +78,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   // Wire up RevenueCat once. New store products can take a while to appear, so
   // retry the package fetch a few times before giving up.
   useEffect(() => {
-    if (!purchasesConfigured) return;
+    if (!purchasesConfigured || !IAP_ENABLED) return;
     let unsub = () => {};
     let cancelled = false;
     (async () => {
@@ -100,9 +100,10 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // A single-club app is a fully-unlocked build the club hands to its members —
-  // no paywall — so everything is Pro there.
-  const isPro = IS_CLUB_APP || inLiveEvent || (purchasesConfigured ? entitledPro : demoPro);
+  // Fully unlocked (no paywall) when: it's a single-club app, or IAP is disabled
+  // for this platform (iOS ships free for App Review), or the player is in a live
+  // golf day. Otherwise the real/demo entitlement decides.
+  const isPro = IS_CLUB_APP || !IAP_ENABLED || inLiveEvent || (purchasesConfigured ? entitledPro : demoPro);
 
   const value = useMemo<PlanState>(() => {
     const grantDemo = () => setDemoPro(true);

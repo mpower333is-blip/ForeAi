@@ -8,6 +8,7 @@ import { useProfile } from "../state/ProfileContext";
 import { API_BASE } from "../services/api";
 import { getNotifPrefs, loadNotifPrefs, setNotifPref, NotifPrefs } from "../lib/notifPrefs";
 import { unregisterForPush } from "../lib/pushRegister";
+import { IAP_ENABLED } from "../config/appConfig";
 
 export default function ProfileScreen({ navigation }: any) {
   const {
@@ -74,8 +75,10 @@ export default function ProfileScreen({ navigation }: any) {
         <MoreLink emoji="📊" label="Strokes-gained stats" onPress={() => navigation.navigate("Stats")} />
         <MoreLink emoji="🧭" label="Course strategy" onPress={() => navigation.navigate("Strategy")} />
         <MoreLink emoji="🎮" label="Range games" onPress={() => navigation.navigate("Games")} />
-        <MoreLink emoji="⌚" label="Set up your watch" onPress={() => navigation.navigate("WatchSetup")} />
-        <MoreLink emoji="⛳" label="ForeAi Pro" onPress={() => navigation.navigate("Upgrade")} last />
+        <MoreLink emoji="⌚" label="Set up your watch" onPress={() => navigation.navigate("WatchSetup")} last={!IAP_ENABLED} />
+        {IAP_ENABLED && (
+          <MoreLink emoji="⛳" label="ForeAi Pro" onPress={() => navigation.navigate("Upgrade")} last />
+        )}
       </Card>
 
       <Card>
