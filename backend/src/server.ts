@@ -14,6 +14,7 @@ import clubSettingsRoutes from "./routes/club";
 import memberRoutes from "./routes/members";
 import bookingRoutes from "./routes/bookings";
 import competitionRoutes from "./routes/competitions";
+import newsRoutes from "./routes/news";
 import { startLightningWatcher } from "./lib/lightningWatcher";
 import { seedClubs } from "./lib/seedClub";
 
@@ -50,6 +51,7 @@ app.use("/club", clubSettingsRoutes);
 app.use("/members", memberRoutes);
 app.use("/bookings", bookingRoutes);
 app.use("/competitions", competitionRoutes);
+app.use("/news", newsRoutes);
 
 // Catch-all error handler: a route that throws (e.g. a database hiccup) returns
 // a clean 500 instead of leaving the request hanging. Must be registered last.

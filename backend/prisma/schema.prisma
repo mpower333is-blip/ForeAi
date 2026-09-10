@@ -415,6 +415,30 @@ model CompetitionEntry {
   @@index([competitionId])
 }
 
+// ---------------------------------------------------------------------------
+// Club news / noticeboard — announcements members read in the app (results,
+// events, course notices, committee updates). Scoped by clubKey.
+// ---------------------------------------------------------------------------
+
+model Notice {
+  id         String   @id @default(uuid())
+  clubKey    String   @default("kempton")
+
+  title      String
+  body       String   @db.Text
+  category   String   @default("news")     // news | event | notice | result | urgent
+  pinned     Boolean  @default(false)      // keep at the top of the board
+  image      String?  @db.Text             // optional banner image (data URL)
+  authorName String?                       // e.g. "The Committee"
+  status     String   @default("published") // draft | published
+  publishAt  DateTime @default(now())      // go-live + sort date
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([clubKey, status, publishAt])
+}
+
 // A phone registered to receive lightning push alerts. The background watcher
 // (src/lib/lightningWatcher) groups devices by rounded location, checks each
 // area's forecast/strikes, and pushes an alert via Expo Push when a storm is a
