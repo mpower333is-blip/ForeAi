@@ -44,14 +44,25 @@ export default function ClubHomeScreen({ navigation }: any) {
         <Button icon="📍" variant="ghost" label="GPS rangefinder" onPress={() => navigation.navigate("Survey")} />
       </Card>
 
+      {/* Membership + tee-time booking (club "complete package") */}
+      <Card accent>
+        <View style={styles.rowHead}>
+          <Text style={styles.h}>Membership</Text>
+          <Chip label="Members" tone="accent" />
+        </View>
+        <Text style={styles.body}>Your digital membership card, handicap and tee-time bookings — all in one place.</Text>
+        <Button icon="🪪" label="My membership card" onPress={() => navigation.navigate("Membership")} />
+        <Button icon="⛳" variant="ghost" label="Book a tee time" onPress={() => navigation.navigate("TeeTimes")} />
+      </Card>
+
       {/* Pro shop bookings */}
       <Card>
         <View style={styles.rowHead}>
           <Text style={styles.h}>Pro Shop</Text>
           <Chip label="Bookings" tone="accent" />
         </View>
-        <Text style={styles.body}>Book a tee time or a lesson, or contact the pro shop directly.</Text>
-        <Button icon="🛒" label="Pro shop & bookings" onPress={() => navigation.navigate("ProShop")} />
+        <Text style={styles.body}>Book a lesson or contact the pro shop directly.</Text>
+        <Button icon="🛒" label="Pro shop & lessons" onPress={() => navigation.navigate("ProShop")} />
       </Card>
 
       {/* Club event (placeholder — the ECS Golf Day) */}

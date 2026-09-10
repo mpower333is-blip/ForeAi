@@ -13,6 +13,7 @@ import { GamesProvider } from "./src/state/GamesContext";
 import { PlanProvider, usePlan } from "./src/state/PlanContext";
 import { ProfileProvider, useProfile } from "./src/state/ProfileContext";
 import { CourseCoordsProvider } from "./src/state/CourseCoordsContext";
+import { MemberProvider } from "./src/state/MemberContext";
 import { UpgradeGate } from "./src/components/Upsell";
 import WatchShotSync from "./src/components/WatchShotSync";
 import LivePresenceSync from "./src/components/LivePresenceSync";
@@ -32,6 +33,8 @@ const SURVEY_ONLY = process.env.EXPO_PUBLIC_SURVEY_ONLY === "1";
 import HomeScreen from "./src/screens/HomeScreen";
 import ClubHomeScreen from "./src/screens/ClubHomeScreen";
 import ProShopScreen from "./src/screens/ProShopScreen";
+import MembershipScreen from "./src/screens/MembershipScreen";
+import TeeTimesScreen from "./src/screens/TeeTimesScreen";
 import PlayScreen from "./src/screens/PlayScreen";
 import CaddieScreen from "./src/screens/CaddieScreen";
 import SwingScreen from "./src/screens/SwingScreen";
@@ -155,6 +158,9 @@ function Root() {
         <Stack.Screen name="Survey" component={OnCourseScreen} />
         <Stack.Screen name="CourseSelect" component={CourseSelectScreen} />
         <Stack.Screen name="ProShop" component={ProShopScreen} />
+        {/* Club "complete package": digital membership card + tee-time booking. */}
+        <Stack.Screen name="Membership" component={MembershipScreen} />
+        <Stack.Screen name="TeeTimes" component={TeeTimesScreen} />
         <Stack.Screen name="WatchSetup" component={WatchSetupScreen} />
         <Stack.Screen name="Upgrade" component={UpgradeScreen} />
         {/* Keeps the native header (it has no in-screen ScreenHeader). */}
@@ -180,6 +186,7 @@ export default function App() {
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" />
         <ProfileProvider>
+        <MemberProvider>
         <CourseCoordsProvider>
         <RoundProvider>
           <TournamentProvider>
@@ -195,6 +202,7 @@ export default function App() {
           </TournamentProvider>
         </RoundProvider>
         </CourseCoordsProvider>
+        </MemberProvider>
         </ProfileProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
