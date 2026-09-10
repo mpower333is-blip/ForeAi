@@ -5,6 +5,7 @@ import { Screen, Card, Button, Chip } from "../components/ui";
 import { colors, spacing, gradients } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { CLUB_CONFIG } from "../config/appVariant";
+import { newsApi, Notice } from "../services/newsApi";
 
 // The landing screen for a single-club flavour (e.g. "Kempton Park Golf").
 // Placeholder branding — a green/white theme + text mark and safe default copy
@@ -18,6 +19,9 @@ export default function ClubHomeScreen({ navigation }: any) {
   const open = (url?: string) => { if (url) Linking.openURL(url).catch(() => {}); };
   const c = club.contact;
   const hasContact = !!(c.phone || c.email || c.web || c.address);
+
+  const [news, setNews] = React.useState<Notice[]>([]);
+  React.useEffect(() => { newsApi.list().then((n) => setNews(n.slice(0, 3))).catch(() => {}); }, []);
 
   return (
     <Screen>
@@ -53,6 +57,24 @@ export default function ClubHomeScreen({ navigation }: any) {
         <Button icon="🪪" label="My membership card" onPress={() => navigation.navigate("Membership")} />
         <Button icon="⛳" variant="ghost" label="Book a tee time" onPress={() => navigation.navigate("TeeTimes")} />
         <Button icon="🏆" variant="ghost" label="Competitions" onPress={() => navigation.navigate("Competitions")} />
+      </Card>
+
+      {/* Club news */}
+      <Card>
+        <View style={styles.rowHead}>
+          <Text style={styles.h}>Club News</Text>
+          <Chip label="Latest" tone="accent" />
+        </View>
+        {news.length === 0 ? (
+          <Text style={styles.body}>Announcements, results and notices from the club.</Text>
+        ) : (
+          <View style={{ marginBottom: 6 }}>
+            {news.map((n) => (
+              <Text key={n.id} style={styles.newsLine} numberOfLines={1}>{n.pinned ? "📌 " : "• "}{n.title}</Text>
+            ))}
+          </View>
+        )}
+        <Button icon="📰" variant="ghost" label="Open news" onPress={() => navigation.navigate("News")} />
       </Card>
 
       {/* Pro shop bookings */}
@@ -112,5 +134,6 @@ const styles = StyleSheet.create({
   body: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: 10 },
   muted: { color: colors.textFaint, fontSize: 14, marginTop: 4 },
   link: { color: colors.accent, fontSize: 15, fontWeight: "600", paddingVertical: 4 },
+  newsLine: { color: colors.textMuted, fontSize: 14, lineHeight: 22 },
   footer: { color: colors.textFaint, fontSize: 12, textAlign: "center", marginTop: spacing.lg, marginBottom: spacing.md },
 });

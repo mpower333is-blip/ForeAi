@@ -36,6 +36,7 @@ import ProShopScreen from "./src/screens/ProShopScreen";
 import MembershipScreen from "./src/screens/MembershipScreen";
 import TeeTimesScreen from "./src/screens/TeeTimesScreen";
 import CompetitionsScreen from "./src/screens/CompetitionsScreen";
+import NewsScreen from "./src/screens/NewsScreen";
 import PlayScreen from "./src/screens/PlayScreen";
 import CaddieScreen from "./src/screens/CaddieScreen";
 import SwingScreen from "./src/screens/SwingScreen";
@@ -163,6 +164,7 @@ function Root() {
         <Stack.Screen name="Membership" component={MembershipScreen} />
         <Stack.Screen name="TeeTimes" component={TeeTimesScreen} />
         <Stack.Screen name="Competitions" component={CompetitionsScreen} />
+        <Stack.Screen name="News" component={NewsScreen} />
         <Stack.Screen name="WatchSetup" component={WatchSetupScreen} />
         <Stack.Screen name="Upgrade" component={UpgradeScreen} />
         {/* Keeps the native header (it has no in-screen ScreenHeader). */}
