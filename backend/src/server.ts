@@ -14,6 +14,7 @@ import clubSettingsRoutes from "./routes/club";
 import memberRoutes from "./routes/members";
 import bookingRoutes from "./routes/bookings";
 import { startLightningWatcher } from "./lib/lightningWatcher";
+import { seedClubs } from "./lib/seedClub";
 
 const app = express();
 
@@ -68,6 +69,9 @@ process.on("uncaughtException", (err) => {
 const PORT = Number(process.env.PORT) || 5000;
 app.listen(PORT, () => {
   console.log(`ForeAi server running on port ${PORT}`);
+  // Seed club settings (course + tee hours) so a club app is turnkey on first
+  // boot. Idempotent + fail-soft — never blocks startup.
+  seedClubs();
   // Start the background lightning watcher (pushes alerts to registered phones
   // even when the app is closed). No-ops when no devices are registered.
   startLightningWatcher();
