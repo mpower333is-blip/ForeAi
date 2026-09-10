@@ -162,6 +162,25 @@ export default function SatelliteHole({
           .filter((c) => inLineOfPlay(from, hole.green!, c.centroid))
       : [];
 
+  // Declutter the on-map labels. Reserve the green edges first, then place the
+  // hazard carries (priority), then keep a fairway distance label only if it
+  // isn't landing on top of one already placed. Stops the markers piling up
+  // where fairway waypoints / hazards bunch together (e.g. a dogleg).
+  const LABEL_GAP = 7; // minimum separation between labels, in % of the view
+  const placed: { x: number; y: number }[] = [];
+  const clashes = (q: { x: number; y: number }) => placed.some((o) => Math.hypot(o.x - q.x, o.y - q.y) < LABEL_GAP);
+  [hole.greenFront, hole.green, hole.greenBack].forEach((g) => { if (g) placed.push(place(g)); });
+
+  const carryKept = carries
+    .map((c) => ({ c, q: place(c.centroid) }))
+    .filter(({ q }) => { if (clashes(q)) return false; placed.push(q); return true; });
+
+  const fairwayLabels = from
+    ? fairway
+        .map((p, i) => ({ i, q: place(p), d: Math.round(haversineMeters(from, p)) }))
+        .filter(({ q }) => { if (clashes(q)) return false; placed.push(q); return true; })
+    : [];
+
   return (
     <View style={styles.wrap}>
       <View style={[StyleSheet.absoluteFill, { transform: [{ rotate: `${rotateDeg}deg` }, { scale: cover }] }]}>
@@ -241,25 +260,18 @@ export default function SatelliteHole({
 
       {/* Labels sit in a screen-fixed layer (so text stays upright) but are
           placed at the rotated map positions. */}
-      {from && fairway.map((p, i) => {
-        const q = place(p);
-        const d = Math.round(haversineMeters(from, p));
-        return (
-          <View key={`fl${i}`} style={[styles.fwLabel, { left: `${q.x}%`, top: `${q.y}%` }]} pointerEvents="none">
-            <Text style={styles.fwLabelText}>{d} m</Text>
-          </View>
-        );
-      })}
+      {fairwayLabels.map(({ i, q, d }) => (
+        <View key={`fl${i}`} style={[styles.fwLabel, { left: `${q.x}%`, top: `${q.y}%` }]} pointerEvents="none">
+          <Text style={styles.fwLabelText}>{d} m</Text>
+        </View>
+      ))}
 
       {/* carry-to-clear over bunkers / water in the line of play */}
-      {carries.map((c, i) => {
-        const q = place(c.centroid);
-        return (
-          <View key={`cy${i}`} style={[styles.carry, { left: `${q.x}%`, top: `${q.y}%` }]} pointerEvents="none">
-            <Text style={styles.carryText}>{c.type === "water" ? "💧" : "🏖️"} {c.carry}</Text>
-          </View>
-        );
-      })}
+      {carryKept.map(({ c, q }, i) => (
+        <View key={`cy${i}`} style={[styles.carry, { left: `${q.x}%`, top: `${q.y}%` }]} pointerEvents="none">
+          <Text style={styles.carryText}>{c.type === "water" ? "💧" : "🏖️"} {c.carry}</Text>
+        </View>
+      ))}
 
       <Text style={styles.tag}>{perHole ? `Hole ${hole.number}` : "Course view"}</Text>
 
