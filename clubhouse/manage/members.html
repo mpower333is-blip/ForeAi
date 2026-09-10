@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kempton Park GC — Members</title>
+<!--
+  Membership admin for a ForeAi club app. Manages the roster the club app reads:
+  add/edit/import members, set category & status, and pull handicap indexes from
+  HNA. Talks to the ForeAi backend (/club, /members) with the club admin PIN.
+  Club is fixed to "kempton"; change CLUB_KEY below to reuse for another club.
+-->
+<style>
+  :root{ --bg:#06170F; --panel:#10261C; --panel2:#16362A; --border:#204636;
+    --lime:#8DFF6B; --text:#F4FBF6; --muted:#C2D2C6; --faint:#87A092; --gold:#FFD36A; --red:#FF6B6B; --sky:#6BD5FF; }
+  *{box-sizing:border-box}
+  body{margin:0;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    background:linear-gradient(160deg,#0C3222,#06170F 60%);min-height:100vh;padding:18px}
+  .wrap{max-width:1080px;margin:0 auto}
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+  .logo img{height:46px;width:auto;background:#fff;padding:4px 8px;border-radius:9px}
+  h1{font-size:20px;margin:0}
+  .evt{color:var(--muted);font-size:13px}
+  .spacer{flex:1}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  input,select{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:9px 11px;font-size:14px;font-family:inherit}
+  label{display:block;font-size:12px;color:var(--faint);margin:8px 0 3px;text-transform:uppercase;letter-spacing:.5px}
+  .btn{border:none;cursor:pointer;background:linear-gradient(135deg,#B6FF8E,#8DFF6B,#46C85A);color:#052012;font-weight:800;padding:10px 14px;border-radius:10px;font-size:14px}
+  .btn.ghost{background:transparent;border:1.5px solid var(--border);color:var(--lime)}
+  .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
+  .btn.red{background:transparent;border:1.5px solid var(--red);color:var(--red)}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+  .tile{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
+  .tile .k{color:var(--faint);font-size:12px;text-transform:uppercase;letter-spacing:1px}
+  .tile .v{font-size:26px;font-weight:800;margin-top:4px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--border)}
+  th{color:var(--faint);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  tr:hover td{background:rgba(141,255,107,0.04)}
+  .pill{display:inline-block;font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px}
+  .s-active{background:rgba(141,255,107,0.16);color:var(--lime)}
+  .s-suspended{background:rgba(255,107,107,0.16);color:var(--red)}
+  .s-pending{background:rgba(255,211,106,0.16);color:var(--gold)}
+  .s-resigned{background:var(--panel2);color:var(--faint)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .link{color:var(--lime);cursor:pointer;background:none;border:none;font-weight:700;font-size:13px;padding:0}
+  .empty{color:var(--faint);text-align:center;padding:40px}
+  .hint{color:var(--faint);font-size:12px;margin-top:6px;line-height:1.6}
+  .connect{max-width:460px;margin:52px auto;text-align:center}
+  .connect input{width:100%;margin:4px 0}
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(3,12,8,.7);display:none;align-items:flex-start;justify-content:center;padding:24px;overflow:auto;z-index:100}
+  .modal.on{display:flex}
+  .modal .card{max-width:520px;width:100%}
+  .foreai-back{position:fixed;top:14px;left:14px;z-index:99999;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(6,23,15,0.72);color:#8DFF6B;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;text-decoration:none;border:1px solid rgba(141,255,107,0.45)}
+  @media(max-width:560px){ .row,.row3{grid-template-columns:1fr} .hide-sm{display:none} }
+</style>
+<script src="../config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<a href="index.html" class="foreai-back" onclick="if(window.history.length>1){window.history.back();return false;}">‹ Back</a>
+<div class="wrap">
+  <header>
+    <span class="logo"><img src="../kempton-logo.png" alt="Kempton Park Golf Club" /></span>
+    <div><h1>Members</h1><div class="evt" id="clubName">Kempton Park Golf Club</div></div>
+    <div class="spacer"></div>
+    <div class="bar" id="topbar" style="display:none">
+      <button class="btn ghost sm" onclick="loadMembers()">↻ Refresh</button>
+      <button class="btn ghost sm" onclick="exportCsv()">⬇ CSV</button>
+      <button class="btn ghost sm" onclick="openPin()">🔑 PIN</button>
+      <button class="btn ghost sm" onclick="disconnect()">Disconnect</button>
+    </div>
+  </header>
+
+  <!-- Connect -->
+  <div id="connect" class="connect">
+    <div class="card">
+      <h1 style="margin-bottom:6px">Members admin</h1>
+      <p class="hint">Connect to the club backend to manage the roster.</p>
+      <label>Backend URL</label>
+      <input id="cApi" placeholder="https://foreai-backend.onrender.com" />
+      <label>Admin PIN</label>
+      <input id="cPin" type="password" placeholder="Club admin PIN (blank if none set yet)" />
+      <div style="margin-top:12px"><button class="btn" onclick="connect()">Connect</button></div>
+      <p class="hint" id="cErr" style="color:var(--red)"></p>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main" style="display:none">
+    <div class="tiles">
+      <div class="tile"><div class="k">Members</div><div class="v" id="tTotal">—</div></div>
+      <div class="tile"><div class="k">Active</div><div class="v" id="tActive">—</div></div>
+      <div class="tile"><div class="k">With handicap</div><div class="v" id="tHcp">—</div></div>
+      <div class="tile"><div class="k">Pending</div><div class="v" id="tPending">—</div></div>
+    </div>
+
+    <div class="card">
+      <div class="bar">
+        <input id="search" placeholder="Search name, number or email" oninput="debouncedSearch()" style="flex:1;min-width:180px" />
+        <button class="btn" onclick="openEdit()">＋ Add member</button>
+        <button class="btn ghost" onclick="document.getElementById('importFile').click()">⬆ Import</button>
+        <button class="btn ghost" onclick="syncHna()">↕ Sync HNA</button>
+        <input type="file" id="importFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="doImport(event)" />
+      </div>
+      <p class="hint">Import a CSV/Excel with columns: <b>memberNumber, firstName, lastName, email, cell, category, status, hnaId, handicapIndex</b>. Re-importing updates by member number.</p>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead><tr><th>No.</th><th>Name</th><th class="hide-sm">Category</th><th>Status</th><th>HCP</th><th class="hide-sm">Contact</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div id="empty" class="empty" style="display:none">No members yet. Add one, or import your roster.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit / add modal -->
+<div class="modal" id="editModal">
+  <div class="card">
+    <h2 id="editTitle" style="margin-top:0">Add member</h2>
+    <input type="hidden" id="fId" />
+    <div class="row">
+      <div><label>Member number *</label><input id="fNumber" /></div>
+      <div><label>Joined</label><input id="fJoined" type="date" /></div>
+    </div>
+    <div class="row">
+      <div><label>First name *</label><input id="fFirst" /></div>
+      <div><label>Last name *</label><input id="fLast" /></div>
+    </div>
+    <div class="row">
+      <div><label>Email</label><input id="fEmail" type="email" /></div>
+      <div><label>Cell</label><input id="fCell" /></div>
+    </div>
+    <div class="row3">
+      <div><label>Category</label><select id="fCategory">
+        <option value="full">Full</option><option value="social">Social</option><option value="senior">Senior</option>
+        <option value="junior">Junior</option><option value="ladies">Ladies</option><option value="life">Life</option><option value="honorary">Honorary</option>
+      </select></div>
+      <div><label>Status</label><select id="fStatus">
+        <option value="active">Active</option><option value="pending">Pending</option><option value="suspended">Suspended</option><option value="resigned">Resigned</option>
+      </select></div>
+      <div><label>Handicap index</label><input id="fHcp" inputmode="decimal" placeholder="e.g. 12.4" /></div>
+    </div>
+    <div><label>HNA member id (for handicap sync)</label><input id="fHna" placeholder="optional" /></div>
+    <div class="bar" style="margin-top:16px">
+      <button class="btn" onclick="saveMember()">Save</button>
+      <button class="btn ghost" onclick="closeEdit()">Cancel</button>
+      <span class="spacer"></span>
+      <button class="btn red sm" id="delBtn" onclick="deleteMember()" style="display:none">Delete</button>
+    </div>
+    <p class="hint" id="editErr" style="color:var(--red)"></p>
+  </div>
+</div>
+
+<!-- PIN modal -->
+<div class="modal" id="pinModal">
+  <div class="card">
+    <h2 style="margin-top:0">Admin PIN</h2>
+    <p class="hint">The PIN gates every change on this page and the tee sheet. Leave the new PIN blank to remove it.</p>
+    <label>New PIN</label><input id="pNew" type="password" />
+    <div class="bar" style="margin-top:14px">
+      <button class="btn" onclick="savePin()">Save PIN</button>
+      <button class="btn ghost" onclick="document.getElementById('pinModal').classList.remove('on')">Cancel</button>
+    </div>
+    <p class="hint" id="pinErr" style="color:var(--red)"></p>
+  </div>
+</div>
+
+<script>
+const CLUB_KEY = "kempton";
+const LS = "foreai.club.admin.v1"; // shared with the tee-sheet admin page
+let API = "", PIN = "", MEMBERS = [];
+
+const D = window.FOREAI_DEFAULTS || {};
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+async function api(path, { method="GET", body }={}){
+  const headers = {};
+  if (body) headers["Content-Type"] = "application/json";
+  if (PIN) headers["x-admin-pin"] = PIN;
+  const res = await fetch(API + path, { method, headers, body: body?JSON.stringify(body):undefined });
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error(data.error || ("Request failed ("+res.status+")"));
+  return data;
+}
+
+// ---- connect ----
+function boot(){
+  const saved = JSON.parse(localStorage.getItem(LS) || "null");
+  $("cApi").value = (saved && saved.api) || D.api || "";
+  if (saved && saved.api){ API = saved.api; PIN = saved.pin || ""; $("cPin").value = PIN; connect(true); }
+}
+async function connect(silent){
+  API = ($("cApi").value || "").trim().replace(/\/$/,"");
+  PIN = ($("cPin").value || "").trim();
+  if (!API){ $("cErr").textContent = "Enter the backend URL."; return; }
+  try {
+    const club = await api(`/club/${CLUB_KEY}`);
+    if (club.name) $("clubName").textContent = club.name;
+    // verify the PIN if one is set, by attempting an admin read
+    await api(`/members/${CLUB_KEY}/all`);
+    localStorage.setItem(LS, JSON.stringify({ api: API, pin: PIN }));
+    $("connect").style.display = "none"; $("main").style.display = ""; $("topbar").style.display = "";
+    loadMembers();
+  } catch(e){
+    if (!silent){ $("cErr").textContent = e.message.includes("PIN") ? "Wrong or missing admin PIN." : e.message; }
+    $("connect").style.display = ""; $("main").style.display = "none"; $("topbar").style.display = "none";
+  }
+}
+function disconnect(){ localStorage.removeItem(LS); location.reload(); }
+
+// ---- roster ----
+let searchTimer;
+function debouncedSearch(){ clearTimeout(searchTimer); searchTimer = setTimeout(loadMembers, 250); }
+async function loadMembers(){
+  const q = ($("search")?.value || "").trim();
+  try {
+    MEMBERS = await api(`/members/${CLUB_KEY}/all${q?`?q=${encodeURIComponent(q)}`:""}`);
+    render();
+  } catch(e){ alert(e.message); }
+}
+function render(){
+  const tb = $("rows"); tb.innerHTML = "";
+  $("empty").style.display = MEMBERS.length ? "none" : "";
+  for (const m of MEMBERS){
+    const tr = document.createElement("tr");
+    const contact = [m.email, m.cell].filter(Boolean).join(" · ");
+    tr.innerHTML = `<td>${esc(m.memberNumber)}</td>
+      <td><b>${esc(m.firstName)} ${esc(m.lastName)}</b></td>
+      <td class="hide-sm">${esc(m.category)}</td>
+      <td><span class="pill s-${esc(m.status)}">${esc(m.status)}</span></td>
+      <td>${m.handicapIndex!=null?esc(m.handicapIndex):"—"}</td>
+      <td class="hide-sm" style="color:var(--faint)">${esc(contact)}</td>
+      <td style="text-align:right"><button class="link" data-id="${m.id}">Edit</button></td>`;
+    tr.querySelector("button").onclick = ()=> openEdit(m);
+    tb.appendChild(tr);
+  }
+  $("tTotal").textContent = MEMBERS.length;
+  $("tActive").textContent = MEMBERS.filter(m=>m.status==="active").length;
+  $("tHcp").textContent = MEMBERS.filter(m=>m.handicapIndex!=null).length;
+  $("tPending").textContent = MEMBERS.filter(m=>m.status==="pending").length;
+}
+
+// ---- add / edit ----
+function openEdit(m){
+  $("editTitle").textContent = m ? "Edit member" : "Add member";
+  $("fId").value = m?.id || "";
+  $("fNumber").value = m?.memberNumber || "";
+  $("fFirst").value = m?.firstName || "";
+  $("fLast").value = m?.lastName || "";
+  $("fEmail").value = m?.email || "";
+  $("fCell").value = m?.cell || "";
+  $("fCategory").value = m?.category || "full";
+  $("fStatus").value = m?.status || "active";
+  $("fHcp").value = m?.handicapIndex ?? "";
+  $("fHna").value = m?.hnaId || "";
+  $("fJoined").value = m?.joinedAt ? String(m.joinedAt).slice(0,10) : "";
+  $("delBtn").style.display = m ? "" : "none";
+  $("editErr").textContent = "";
+  $("editModal").classList.add("on");
+}
+function closeEdit(){ $("editModal").classList.remove("on"); }
+async function saveMember(){
+  const id = $("fId").value;
+  const body = {
+    memberNumber: $("fNumber").value.trim(), firstName: $("fFirst").value.trim(), lastName: $("fLast").value.trim(),
+    email: $("fEmail").value.trim(), cell: $("fCell").value.trim(), category: $("fCategory").value, status: $("fStatus").value,
+    hnaId: $("fHna").value.trim(), joinedAt: $("fJoined").value || null,
+  };
+  const hcp = $("fHcp").value.trim();
+  if (hcp !== "") body.handicapIndex = Number(hcp);
+  if (!body.memberNumber || !body.firstName || !body.lastName){ $("editErr").textContent = "Number, first and last name are required."; return; }
+  try {
+    if (id) await api(`/members/${CLUB_KEY}/${id}`, { method:"PUT", body });
+    else await api(`/members/${CLUB_KEY}`, { method:"POST", body });
+    closeEdit(); loadMembers();
+  } catch(e){ $("editErr").textContent = e.message; }
+}
+async function deleteMember(){
+  const id = $("fId").value; if (!id) return;
+  if (!confirm("Delete this member? This cannot be undone.")) return;
+  try { await api(`/members/${CLUB_KEY}/${id}`, { method:"DELETE" }); closeEdit(); loadMembers(); }
+  catch(e){ $("editErr").textContent = e.message; }
+}
+
+// ---- import ----
+function doImport(ev){
+  const file = ev.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e)=>{
+    try {
+      const wb = XLSX.read(e.target.result, { type:"binary" });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:"" });
+      const members = rows.map(normaliseRow).filter(r=>r.memberNumber && r.firstName && r.lastName);
+      if (!members.length){ alert("No valid rows found. Check the column headers."); return; }
+      const res = await api(`/members/${CLUB_KEY}/import`, { method:"POST", body:{ members } });
+      alert(`Import done — ${res.created} added, ${res.updated} updated, ${res.skipped} skipped.`);
+      loadMembers();
+    } catch(err){ alert("Import failed: " + err.message); }
+    finally { ev.target.value = ""; }
+  };
+  reader.readAsBinaryString(file);
+}
+function normaliseRow(r){
+  const g = (...keys)=>{ for (const k of Object.keys(r)){ if (keys.includes(k.toLowerCase().replace(/[^a-z]/g,""))) return r[k]; } return ""; };
+  const out = {
+    memberNumber: String(g("membernumber","memberno","number","memberid") || "").trim(),
+    firstName: String(g("firstname","first","name","forename") || "").trim(),
+    lastName: String(g("lastname","last","surname") || "").trim(),
+    email: String(g("email") || "").trim(),
+    cell: String(g("cell","phone","mobile","tel") || "").trim(),
+    category: String(g("category","type") || "full").trim().toLowerCase() || "full",
+    status: String(g("status") || "active").trim().toLowerCase() || "active",
+    hnaId: String(g("hnaid","hna") || "").trim(),
+  };
+  const h = g("handicapindex","handicap","hcp","index");
+  if (h!=="" && !isNaN(Number(h))) out.handicapIndex = Number(h);
+  return out;
+}
+
+// ---- HNA sync ----
+async function syncHna(){
+  if (!confirm("Pull handicap indexes from HNA for members that have an HNA id?")) return;
+  try {
+    const res = await api(`/members/${CLUB_KEY}/sync-hna`, { method:"POST", body:{ live:true } });
+    if (res.notConfigured) alert(`HNA live sync isn't configured on the backend yet (${res.candidates} members have an HNA id).\n\nUntil then, enter indexes on each member, or import a handicap column.`);
+    else alert(`HNA sync done — ${res.updated} of ${res.candidates} updated.`);
+    loadMembers();
+  } catch(e){ alert(e.message); }
+}
+
+// ---- PIN ----
+function openPin(){ $("pNew").value=""; $("pinErr").textContent=""; $("pinModal").classList.add("on"); }
+async function savePin(){
+  try {
+    const res = await api(`/club/${CLUB_KEY}/pin`, { method:"POST", body:{ newPin: $("pNew").value } });
+    PIN = $("pNew").value.trim();
+    localStorage.setItem(LS, JSON.stringify({ api: API, pin: PIN }));
+    $("pinModal").classList.remove("on");
+    alert(res.hasAdminPin ? "PIN updated." : "PIN removed.");
+  } catch(e){ $("pinErr").textContent = e.message; }
+}
+
+// ---- export ----
+function exportCsv(){
+  const cols = ["memberNumber","firstName","lastName","email","cell","category","status","handicapIndex","hnaId","joinedAt"];
+  const lines = [cols.join(",")];
+  for (const m of MEMBERS){ lines.push(cols.map(c=>`"${String(m[c]==null?"":m[c]).replace(/"/g,'""')}"`).join(",")); }
+  const blob = new Blob([lines.join("\n")], { type:"text/csv" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "kempton-members.csv"; a.click();
+}
+
+boot();
+</script>
+</body>
+</html>

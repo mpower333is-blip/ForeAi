@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kempton Park GC — Tee Sheet</title>
+<!--
+  Tee-sheet admin for a ForeAi club app. Configure the sheet (first/last tee,
+  interval, players per slot, booking window, open days) and view/manage each
+  day's bookings — see who's on, block slots for events/maintenance, and cancel
+  a booking. Talks to the ForeAi backend (/club, /bookings) with the admin PIN.
+-->
+<style>
+  :root{ --bg:#06170F; --panel:#10261C; --panel2:#16362A; --border:#204636;
+    --lime:#8DFF6B; --text:#F4FBF6; --muted:#C2D2C6; --faint:#87A092; --gold:#FFD36A; --red:#FF6B6B; --sky:#6BD5FF; }
+  *{box-sizing:border-box}
+  body{margin:0;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    background:linear-gradient(160deg,#0C3222,#06170F 60%);min-height:100vh;padding:18px}
+  .wrap{max-width:1080px;margin:0 auto}
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+  .logo img{height:46px;width:auto;background:#fff;padding:4px 8px;border-radius:9px}
+  h1{font-size:20px;margin:0}
+  .evt{color:var(--muted);font-size:13px}
+  .spacer{flex:1}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  input,select{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:9px 11px;font-size:14px;font-family:inherit}
+  label{display:block;font-size:12px;color:var(--faint);margin:8px 0 3px;text-transform:uppercase;letter-spacing:.5px}
+  .btn{border:none;cursor:pointer;background:linear-gradient(135deg,#B6FF8E,#8DFF6B,#46C85A);color:#052012;font-weight:800;padding:10px 14px;border-radius:10px;font-size:14px}
+  .btn.ghost{background:transparent;border:1.5px solid var(--border);color:var(--lime)}
+  .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
+  .btn.red{background:transparent;border:1.5px solid var(--red);color:var(--red)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+  .row4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .days{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .day{padding:7px 12px;border-radius:999px;background:var(--panel2);border:1px solid var(--border);color:var(--muted);cursor:pointer;font-weight:700;font-size:13px;user-select:none}
+  .day.on{background:var(--lime);border-color:var(--lime);color:#052012}
+  .slot{display:flex;align-items:center;gap:12px;padding:10px 8px;border-bottom:1px solid var(--border)}
+  .slot .t{font-weight:800;width:60px}
+  .slot .who{flex:1;color:var(--muted);font-size:14px}
+  .slot .who .mno{color:var(--faint);font-size:12px}
+  .slot.blocked{opacity:.6}
+  .cap{font-size:12px;font-weight:800;padding:2px 9px;border-radius:999px}
+  .cap.open{background:rgba(141,255,107,0.16);color:var(--lime)}
+  .cap.part{background:rgba(255,211,106,0.16);color:var(--gold)}
+  .cap.full{background:var(--panel2);color:var(--faint)}
+  .empty{color:var(--faint);text-align:center;padding:34px}
+  .hint{color:var(--faint);font-size:12px;margin-top:6px;line-height:1.6}
+  .connect{max-width:460px;margin:52px auto;text-align:center}
+  .connect input{width:100%;margin:4px 0}
+  .foreai-back{position:fixed;top:14px;left:14px;z-index:99999;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(6,23,15,0.72);color:#8DFF6B;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;text-decoration:none;border:1px solid rgba(141,255,107,0.45)}
+  @media(max-width:560px){ .row4{grid-template-columns:1fr 1fr} }
+</style>
+<script src="../config.js"></script>
+</head>
+<body>
+<a href="index.html" class="foreai-back" onclick="if(window.history.length>1){window.history.back();return false;}">‹ Back</a>
+<div class="wrap">
+  <header>
+    <span class="logo"><img src="../kempton-logo.png" alt="Kempton Park Golf Club" /></span>
+    <div><h1>Tee Sheet</h1><div class="evt" id="clubName">Kempton Park Golf Club</div></div>
+    <div class="spacer"></div>
+    <div class="bar" id="topbar" style="display:none">
+      <a class="btn ghost sm" href="members.html">👥 Members</a>
+      <button class="btn ghost sm" onclick="disconnect()">Disconnect</button>
+    </div>
+  </header>
+
+  <!-- Connect -->
+  <div id="connect" class="connect">
+    <div class="card">
+      <h1 style="margin-bottom:6px">Tee-sheet admin</h1>
+      <p class="hint">Connect to the club backend to configure and view the tee sheet.</p>
+      <label>Backend URL</label>
+      <input id="cApi" placeholder="https://foreai-backend.onrender.com" />
+      <label>Admin PIN</label>
+      <input id="cPin" type="password" placeholder="Club admin PIN (blank if none set yet)" />
+      <div style="margin-top:12px"><button class="btn" onclick="connect()">Connect</button></div>
+      <p class="hint" id="cErr" style="color:var(--red)"></p>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main" style="display:none">
+    <!-- Settings -->
+    <div class="card">
+      <div class="bar"><b style="font-size:16px">Tee-sheet setup</b><span class="spacer"></span>
+        <button class="btn ghost sm" onclick="loadSettings()">↻ Reload</button></div>
+      <div class="row4" style="margin-top:10px">
+        <div><label>First tee</label><input id="sFirst" type="time" /></div>
+        <div><label>Last tee</label><input id="sLast" type="time" /></div>
+        <div><label>Interval (min)</label><input id="sInterval" type="number" min="1" /></div>
+        <div><label>Players / slot</label><input id="sCap" type="number" min="1" /></div>
+      </div>
+      <div class="row4" style="margin-top:4px">
+        <div><label>Booking window (days)</label><input id="sWindow" type="number" min="0" /></div>
+        <div style="grid-column:span 3"><label>Course id</label><input id="sCourse" placeholder="kempton-park" /></div>
+      </div>
+      <label>Open days</label>
+      <div class="days" id="days"></div>
+      <div style="margin-top:14px"><button class="btn" onclick="saveSettings()">Save setup</button>
+        <span class="hint" id="setMsg" style="margin-left:10px"></span></div>
+    </div>
+
+    <!-- Day view -->
+    <div class="card">
+      <div class="bar">
+        <button class="btn ghost sm" onclick="shiftDay(-1)">‹ Prev</button>
+        <input id="date" type="date" onchange="loadDay()" />
+        <button class="btn ghost sm" onclick="shiftDay(1)">Next ›</button>
+        <button class="btn ghost sm" onclick="loadDay()">↻ Refresh</button>
+        <span class="spacer"></span>
+        <span class="hint" id="dayMeta"></span>
+      </div>
+      <div id="sheet" style="margin-top:10px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CLUB_KEY = "kempton";
+const LS = "foreai.club.admin.v1"; // shared with the members admin page
+const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+let API = "", PIN = "", SETTINGS = null, OPEN = new Set();
+
+const D = window.FOREAI_DEFAULTS || {};
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function pad(n){ return String(n).padStart(2,"0"); }
+function minToTime(m){ return pad(Math.floor(m/60))+":"+pad(m%60); }
+function timeToMin(t){ const [h,m]=String(t||"0:0").split(":").map(Number); return h*60+m; }
+
+async function api(path, { method="GET", body }={}){
+  const headers = {};
+  if (body) headers["Content-Type"] = "application/json";
+  if (PIN) headers["x-admin-pin"] = PIN;
+  const res = await fetch(API + path, { method, headers, body: body?JSON.stringify(body):undefined });
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error(data.error || ("Request failed ("+res.status+")"));
+  return data;
+}
+
+// ---- connect ----
+function boot(){
+  const saved = JSON.parse(localStorage.getItem(LS) || "null");
+  $("cApi").value = (saved && saved.api) || D.api || "";
+  $("date").value = new Date().toISOString().slice(0,10);
+  renderDays();
+  if (saved && saved.api){ API = saved.api; PIN = saved.pin || ""; $("cPin").value = PIN; connect(true); }
+}
+async function connect(silent){
+  API = ($("cApi").value || "").trim().replace(/\/$/,"");
+  PIN = ($("cPin").value || "").trim();
+  if (!API){ $("cErr").textContent = "Enter the backend URL."; return; }
+  try {
+    await loadSettings();
+    // verify PIN with an admin read
+    await api(`/bookings/${CLUB_KEY}/day?date=${$("date").value}`);
+    localStorage.setItem(LS, JSON.stringify({ api: API, pin: PIN }));
+    $("connect").style.display = "none"; $("main").style.display = ""; $("topbar").style.display = "";
+    loadDay();
+  } catch(e){
+    if (!silent) $("cErr").textContent = e.message.includes("PIN") ? "Wrong or missing admin PIN." : e.message;
+    $("connect").style.display = ""; $("main").style.display = "none"; $("topbar").style.display = "none";
+  }
+}
+function disconnect(){ localStorage.removeItem(LS); location.reload(); }
+
+// ---- settings ----
+function renderDays(){
+  const box = $("days"); box.innerHTML = "";
+  DOW.forEach((d,i)=>{
+    const el = document.createElement("span");
+    el.className = "day" + (OPEN.has(i)?" on":""); el.textContent = d;
+    el.onclick = ()=>{ OPEN.has(i)?OPEN.delete(i):OPEN.add(i); renderDays(); };
+    box.appendChild(el);
+  });
+}
+async function loadSettings(){
+  SETTINGS = await api(`/club/${CLUB_KEY}`);
+  if (SETTINGS.name) $("clubName").textContent = SETTINGS.name;
+  $("sFirst").value = minToTime(SETTINGS.firstTeeMin);
+  $("sLast").value = minToTime(SETTINGS.lastTeeMin);
+  $("sInterval").value = SETTINGS.intervalMin;
+  $("sCap").value = SETTINGS.slotCapacity;
+  $("sWindow").value = SETTINGS.bookingWindowDays;
+  $("sCourse").value = SETTINGS.courseId || "";
+  OPEN = new Set(String(SETTINGS.openDays||"0,1,2,3,4,5,6").split(",").map(Number));
+  renderDays();
+}
+async function saveSettings(){
+  const body = {
+    firstTeeMin: timeToMin($("sFirst").value), lastTeeMin: timeToMin($("sLast").value),
+    intervalMin: Number($("sInterval").value), slotCapacity: Number($("sCap").value),
+    bookingWindowDays: Number($("sWindow").value), courseId: $("sCourse").value.trim(),
+    openDays: [...OPEN].sort((a,b)=>a-b).join(","),
+  };
+  try { SETTINGS = await api(`/club/${CLUB_KEY}/settings`, { method:"POST", body });
+    $("setMsg").textContent = "Saved ✓"; setTimeout(()=>$("setMsg").textContent="",2000); loadDay();
+  } catch(e){ $("setMsg").textContent = e.message; }
+}
+
+// ---- day view ----
+function shiftDay(n){ const d = new Date($("date").value+"T12:00:00"); d.setDate(d.getDate()+n); $("date").value = d.toISOString().slice(0,10); loadDay(); }
+async function loadDay(){
+  const date = $("date").value;
+  try {
+    const [sheet, day] = await Promise.all([
+      api(`/bookings/${CLUB_KEY}/slots?date=${date}`),
+      api(`/bookings/${CLUB_KEY}/day?date=${date}`),
+    ]);
+    renderSheet(sheet, day.bookings || []);
+  } catch(e){ $("sheet").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function renderSheet(sheet, bookings){
+  $("dayMeta").textContent = sheet.open ? `${sheet.slots.length} slots · ${sheet.slotCapacity}/slot` : "Course closed this day";
+  const box = $("sheet"); box.innerHTML = "";
+  if (!sheet.open){ box.innerHTML = `<div class="empty">The course is closed on ${sheet.date}. Open the weekday above to allow bookings.</div>`; return; }
+  // Index active bookings by the exact tee instant (timezone-proof — both
+  // endpoints return the same ISO teeAt) for member detail + cancel controls.
+  const byMs = {};
+  for (const b of bookings){ if (b.status==="cancelled") continue; (byMs[new Date(b.teeAt).getTime()] ||= []).push(b); }
+
+  for (const s of sheet.slots){
+    const capClass = s.blocked ? "full" : s.available<=0 ? "full" : s.available<s.capacity ? "part" : "open";
+    const capText = s.blocked ? "Blocked" : s.available<=0 ? "Full" : `${s.available} open`;
+    const list = byMs[new Date(s.teeAt).getTime()] || [];
+    const who = s.blocked
+      ? `<i style="color:var(--faint)">${esc(list[0]?.note||"Blocked")}</i>`
+      : list.length
+        ? list.map(b=>{
+            const m = b.member; const nm = m?`${esc(m.firstName)} ${esc(m.lastName)}`:esc((b.players||[]).join(", "));
+            const extra = m ? `<span class="mno"> · #${esc(m.memberNumber)}${m.handicapIndex!=null?` · h/c ${esc(m.handicapIndex)}`:""}${b.partySize>1?` · ${b.partySize} players`:""}</span>` : "";
+            return `${nm}${extra} <button class="btn red sm" style="margin-left:6px" onclick="cancelBooking('${b.id}')">✕</button>`;
+          }).join("<br>")
+        : `<span style="color:var(--faint)">—</span>`;
+    const div = document.createElement("div");
+    div.className = "slot" + (s.blocked?" blocked":"");
+    div.innerHTML = `<span class="t">${esc(s.time)}</span><span class="who">${who}</span>
+      <span class="cap ${capClass}">${capText}</span>
+      <button class="btn ghost sm" onclick="toggleBlock(${s.minute}, ${s.blocked?false:true})">${s.blocked?"Unblock":"Block"}</button>`;
+    box.appendChild(div);
+  }
+}
+async function toggleBlock(minute, on){
+  try { await api(`/bookings/${CLUB_KEY}/block`, { method:"POST", body:{ date:$("date").value, minute, on } }); loadDay(); }
+  catch(e){ alert(e.message); }
+}
+async function cancelBooking(id){
+  if (!confirm("Cancel this member's booking?")) return;
+  try { await api(`/bookings/${CLUB_KEY}/${id}/cancel`, { method:"POST", body:{} }); loadDay(); }
+  catch(e){ alert(e.message); }
+}
+
+boot();
+</script>
+</body>
+</html>
