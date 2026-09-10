@@ -6,6 +6,7 @@ import { getCourse, frontNinePar, backNinePar } from "../data/courses";
 import { useRound } from "../state/RoundContext";
 import HoleDiagram from "../components/HoleDiagram";
 import SatelliteHole from "../components/SatelliteHole";
+import ZoomableHole from "../components/ZoomableHole";
 import { ydToM } from "../lib/units";
 
 export default function CoursePreviewScreen({ navigation, route }: any) {
@@ -68,10 +69,12 @@ export default function CoursePreviewScreen({ navigation, route }: any) {
       <Card style={{ padding: spacing.sm }}>
         {view === "sat" && hasSat ? (
           <>
-            <SatelliteHole hole={hole} center={course.center} />
+            <ZoomableHole resetKey={`${previewId}-${hole.number}`}>
+              <SatelliteHole hole={hole} center={course.center} />
+            </ZoomableHole>
             <Text style={styles.diagramNote}>
               {hole.green || hole.tee
-                ? "Real satellite imagery, framed on this hole."
+                ? "Real satellite imagery, framed on this hole. Pinch to zoom, drag to pan, double-tap to zoom in/out."
                 : "Real satellite imagery of the course. Mark each hole's tee & green on-course (GPS) to frame holes precisely and enable auto distance-to-pin."}
             </Text>
           </>

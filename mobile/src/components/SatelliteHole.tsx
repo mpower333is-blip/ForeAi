@@ -99,8 +99,8 @@ export default function SatelliteHole({
   const bbox = `${minX},${minY},${maxX},${maxY}`;
   const url =
     `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export` +
-    // 1024² for a crisp, higher-resolution hole photo (was 640²).
-    `?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=1024,1024&format=png&transparent=false&f=image`;
+    // 1536² so the photo stays crisp when the hole view is pinch-zoomed (was 1024²).
+    `?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image`;
 
   const toXY = (p: Coord) => ({
     x: ((p.lng - minX) / (maxX - minX)) * 100,
