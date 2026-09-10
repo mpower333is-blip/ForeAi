@@ -48,3 +48,11 @@ fs.writeFileSync(
 );
 
 console.log(`bundled ${got.length}/${manifest.tiles.length} tiles into ${courseId}`);
+
+// Fail the build if any hole is missing, so a partial offline set never ships.
+// (satTiles.ts is still written above, so a re-run only re-fetches what failed.)
+if (got.length !== manifest.tiles.length) {
+  const missing = manifest.tiles.filter((t) => t.url && !got.includes(t.hole)).map((t) => t.hole);
+  console.error(`ERROR: only ${got.length}/${manifest.tiles.length} tiles bundled — missing holes: ${missing.join(", ")}`);
+  process.exit(1);
+}

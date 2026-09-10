@@ -448,9 +448,9 @@ workflows:
         script: |
           # Downloads each hole's satellite image and regenerates
           # mobile/src/data/satTiles.ts so the whole course ships offline in the
-          # APK. Never fails the build — any hole that can't be fetched falls
-          # back to the app's on-device cache / live imagery.
-          node scripts/fetch-sat-tiles.mjs || echo "tile bundling skipped (fetch failed)"
+          # APK. FAILS the build unless all 18 tiles are bundled, so a partial
+          # offline set never ships (see scripts/fetch-sat-tiles.mjs).
+          node scripts/fetch-sat-tiles.mjs
       - name: Generate native Android project (expo prebuild)
         script: |
           cd mobile
