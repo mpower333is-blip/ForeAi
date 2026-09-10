@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Share, Platform, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import { Screen, ScreenHeader, Card, Button, Chip } from "../components/ui";
 import { colors, spacing, radius, type as ty } from "../theme";
 import { useLocation } from "../hooks/useLocation";
@@ -129,10 +130,25 @@ export default function SurveyApp() {
     const json = JSON.stringify(data, null, 2);
     const fname = (book.course || "course").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + "-coords.json";
     try {
+      // Write the survey to a real .json file and share the FILE (not text) so the
+      // share sheet offers Save to Files / Drive / email attachment. Sharing plain
+      // text gives no "save" option on Android.
       const uri = (FileSystem.cacheDirectory || "") + fname;
       await FileSystem.writeAsStringAsync(uri, json);
-      await Share.share(Platform.OS === "ios" ? { url: uri } : { title: fname, message: json });
-    } catch {}
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: "application/json",
+          dialogTitle: fname,
+          UTI: "public.json",
+        });
+      } else {
+        // Fallback if the OS share dialog isn't available.
+        await Share.share(Platform.OS === "ios" ? { url: uri } : { title: fname, message: json });
+      }
+    } catch {
+      // Last-resort fallback: share the raw text.
+      try { await Share.share({ title: fname, message: json }); } catch {}
+    }
   };
 
   if (!loaded) return <Screen><Text style={styles.dim}>Loading…</Text></Screen>;
