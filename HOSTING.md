@@ -20,6 +20,11 @@ The files in [`clubhouse/`](./clubhouse) are the whole website.
 
 To update later, re-upload the changed file(s) and overwrite.
 
+> **Prefer auto-deploy?** Instead of uploading to cPanel by hand, host the same
+> `clubhouse/` folder on **Firebase Hosting** — a push to `main` then publishes
+> the site itself. See [`docs/firebase-hosting.md`](./docs/firebase-hosting.md).
+> (`config.js` still points at the Render API — only the static pages move.)
+
 ## 2. API → free Node host (recommended for shared cPanel)
 
 Most shared cPanel packages can't run a Node app, so host the API on Render:

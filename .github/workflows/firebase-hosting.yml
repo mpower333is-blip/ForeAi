@@ -1,0 +1,38 @@
+name: Deploy clubhouse to Firebase Hosting
+
+# Auto-publishes the static clubhouse site (clubhouse/) to Firebase Hosting on
+# every push to main that touches it — so the website updates itself instead of
+# being re-uploaded to cPanel by hand.
+#
+# One-time setup in GitHub (Settings → Secrets and variables → Actions):
+#   • Variable  FIREBASE_PROJECT_ID       your Firebase project id
+#   • Secret    FIREBASE_SERVICE_ACCOUNT  the JSON key of a service account with
+#                                         the "Firebase Hosting Admin" role
+# See docs/firebase-hosting.md for how to create those.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "clubhouse/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/firebase-hosting.yml"
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    name: Deploy to live channel
+    runs-on: ubuntu-latest
+    # Skip cleanly on forks / before the secret is configured, rather than fail.
+    if: ${{ github.repository_owner != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          channelId: live
