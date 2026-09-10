@@ -1,7 +1,8 @@
 import React from "react";
 import { View, Text, StyleSheet, Linking, TouchableOpacity, Image } from "react-native";
-import { Screen, Hero, Card, Button, Chip } from "../components/ui";
-import { colors, spacing, radius } from "../theme";
+import { LinearGradient } from "expo-linear-gradient";
+import { Screen, Card, Button, Chip } from "../components/ui";
+import { colors, spacing, gradients } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { CLUB_CONFIG } from "../config/appVariant";
 
@@ -20,15 +21,13 @@ export default function ClubHomeScreen({ navigation }: any) {
 
   return (
     <Screen>
-      <Hero
-        title={club.shortName}
-        tagline={club.tagline}
-        right={
-          <View style={styles.logoBadge}>
-            <Image source={require("../../assets/kempton-logo.png")} style={styles.logoImg} resizeMode="contain" />
-          </View>
-        }
-      />
+      {/* Club crest is the hero — the club's own branding, no text mark. */}
+      <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+        <View style={styles.crestWrap}>
+          <Image source={require("../../assets/kempton-logo.png")} style={styles.crestImg} resizeMode="contain" />
+        </View>
+        {club.tagline ? <Text style={styles.heroTag}>{club.tagline}</Text> : null}
+      </LinearGradient>
 
       {/* The course — the heart of the club app */}
       <Card accent>
@@ -66,21 +65,14 @@ export default function ClubHomeScreen({ navigation }: any) {
         <Button icon="🛒" label="Pro shop & lessons" onPress={() => navigation.navigate("ProShop")} />
       </Card>
 
-      {/* Club event (placeholder — the ECS Golf Day) */}
+      {/* Events — the club's golf days */}
       <Card>
         <View style={styles.rowHead}>
-          <Text style={styles.h}>{club.event.title}</Text>
-          <Chip label="Event" tone="gold" />
+          <Text style={styles.h}>Events</Text>
+          <Chip label="Golf days" tone="gold" />
         </View>
-        <Text style={styles.body}>{club.event.blurb}</Text>
-        <Button icon="🏆" variant="ghost" label="Open events" onPress={() => navigation.navigate("Events")} />
-      </Card>
-
-      {/* Coach — bundled, fully unlocked */}
-      <Card>
-        <Text style={styles.h}>Swing Coach</Text>
-        <Text style={styles.body}>Film a swing and get instant posture and tempo feedback.</Text>
-        <Button icon="🎥" variant="ghost" label="Open coach" onPress={() => navigation.navigate("Coach")} />
+        <Text style={styles.body}>The club's golf days. Open events to join one and score live with your fourball.</Text>
+        <Button icon="🏆" label="Open events" onPress={() => navigation.navigate("Events")} />
       </Card>
 
       {/* About the club */}
@@ -104,15 +96,6 @@ export default function ClubHomeScreen({ navigation }: any) {
         )}
       </Card>
 
-      {/* Sponsors (placeholder names) */}
-      <Card>
-        <Text style={styles.h}>Our sponsors</Text>
-        <View style={styles.sponsorWrap}>
-          {club.sponsors.map((s, i) => (
-            <View key={i} style={styles.sponsor}><Text style={styles.sponsorTxt}>{s}</Text></View>
-          ))}
-        </View>
-      </Card>
 
       <Text style={styles.footer}>Powered by ForeAi</Text>
     </Screen>
@@ -120,15 +103,14 @@ export default function ClubHomeScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  logoBadge: { width: 60, height: 60, borderRadius: 14, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", padding: 4 },
-  logoImg: { width: "100%", height: "100%" },
+  hero: { borderRadius: 28, paddingVertical: 30, paddingHorizontal: 24, marginBottom: spacing.md, alignItems: "center", overflow: "hidden" },
+  crestWrap: { backgroundColor: "#fff", borderRadius: 22, paddingVertical: 16, paddingHorizontal: 24 },
+  crestImg: { width: 210, height: 210 },
+  heroTag: { color: colors.textMuted, fontSize: 16, fontWeight: "600", marginTop: spacing.md, textAlign: "center" },
   rowHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 },
   h: { color: colors.text, fontSize: 17, fontWeight: "800" },
   body: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: 10 },
   muted: { color: colors.textFaint, fontSize: 14, marginTop: 4 },
   link: { color: colors.accent, fontSize: 15, fontWeight: "600", paddingVertical: 4 },
-  sponsorWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 },
-  sponsor: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: colors.bg, minWidth: "46%", alignItems: "center" },
-  sponsorTxt: { color: colors.textFaint, fontSize: 13, fontWeight: "600" },
   footer: { color: colors.textFaint, fontSize: 12, textAlign: "center", marginTop: spacing.lg, marginBottom: spacing.md },
 });

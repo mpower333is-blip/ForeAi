@@ -25,9 +25,7 @@ export type ClubConfig = {
   tagline: string;
   // Placeholder club content — safe defaults the club can correct later.
   about: string;
-  event: { title: string; blurb: string };
   contact: { phone?: string; email?: string; web?: string; address?: string };
-  sponsors: string[]; // names only for now; logos can come later
   // Pro shop bookings. With no booking backend, a request is sent to the shop's
   // real channel (WhatsApp preferred, else email, else an online booking link)
   // pre-filled with the member's details. Leave a field "" to hide that channel.
@@ -48,17 +46,12 @@ const CLUBS: Record<string, ClubConfig> = {
     tagline: "Your course, in your pocket.",
     about:
       "The official app for Kempton Park Golf Club — GPS rangefinder, hole-by-hole maps and a live scorecard for all 18 holes.",
-    event: {
-      title: "ECS Golf Day",
-      blurb: "The club's fundraiser day. Join the event in-app on the day to score live with your fourball.",
-    },
     contact: {
       phone: "",
       email: "",
       web: "",
       address: "Kempton Park, Gauteng",
     },
-    sponsors: ["Your sponsor here", "Your sponsor here", "Your sponsor here"],
     proShop: {
       phone: "+27113948911", // Kempton pro shop
       whatsapp: "",
