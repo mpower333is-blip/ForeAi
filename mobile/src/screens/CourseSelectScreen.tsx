@@ -7,6 +7,7 @@ import { useRound } from "../state/RoundContext";
 import { useLocation } from "../hooks/useLocation";
 import { useCourseCoords } from "../state/CourseCoordsContext";
 import { searchOnline, fetchCourse, isConfigured } from "../services/golfCourseApi";
+import { IS_CLUB_APP, CLUB_COURSE_ID } from "../config/appVariant";
 import {
   searchGolfApi,
   importGolfApiCourse,
@@ -32,6 +33,8 @@ export default function CourseSelectScreen({ navigation, route }: any) {
   // Bundled/imported courses, ordered nearest-first by GPS, then filtered.
   const local = useMemo(() => {
     const nearby = coursesNearest(loc.coord);
+    // A single-club app is locked to its own course — only ever show that one.
+    if (IS_CLUB_APP && CLUB_COURSE_ID) return nearby.filter((c) => c.id === CLUB_COURSE_ID);
     const q = query.trim().toLowerCase();
     if (!q) return nearby;
     return nearby.filter(
@@ -39,9 +42,9 @@ export default function CourseSelectScreen({ navigation, route }: any) {
     );
   }, [query, loc.coord]);
   const nearestId = loc.coord && local[0]?.distanceKm != null ? local[0].id : null;
-  const gioOn = isGolfApiConfigured(); // preferred: real GPS + yardages
-  const gcaOn = isConfigured(); // fallback: 30k courses
-  const onlineOn = gioOn || gcaOn;
+  const gioOn = !IS_CLUB_APP && isGolfApiConfigured(); // preferred: real GPS + yardages
+  const gcaOn = !IS_CLUB_APP && isConfigured(); // fallback: 30k courses
+  const onlineOn = gioOn || gcaOn; // club apps never search other courses
 
   // Debounced online search over the active provider.
   useEffect(() => {
@@ -99,18 +102,22 @@ export default function CourseSelectScreen({ navigation, route }: any) {
         onBack={() => navigation.goBack()}
         title="Choose course"
         subtitle={
-          gioOn
+          IS_CLUB_APP
+            ? "Your home course."
+            : gioOn
             ? "Search real courses with GPS & yardages, or pick a bundled course."
             : gcaOn
             ? "Search 30,000+ courses worldwide, or pick a bundled course."
             : "Pick your course — nearest to you is shown first."
         }
       />
-      <TextField
-        value={query}
-        onChangeText={setQuery}
-        placeholder={onlineOn ? "Search any course…" : "Search e.g. Durban, Leopard Creek"}
-      />
+      {!IS_CLUB_APP && (
+        <TextField
+          value={query}
+          onChangeText={setQuery}
+          placeholder={onlineOn ? "Search any course…" : "Search e.g. Durban, Leopard Creek"}
+        />
+      )}
 
       {error !== "" && <Text style={styles.error}>{error}</Text>}
 

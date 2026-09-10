@@ -16,7 +16,7 @@ import { CourseCoordsProvider } from "./src/state/CourseCoordsContext";
 import { UpgradeGate } from "./src/components/Upsell";
 import WatchShotSync from "./src/components/WatchShotSync";
 import { FeatureKey } from "./src/config/appConfig";
-import { APP_NAME } from "./src/config/appVariant";
+import { APP_NAME, IS_CLUB_APP } from "./src/config/appVariant";
 import { colors } from "./src/theme";
 
 import SurveyApp from "./src/survey/SurveyApp";
@@ -29,6 +29,7 @@ import OnCourseScreen from "./src/screens/OnCourseScreen";
 const SURVEY_ONLY = process.env.EXPO_PUBLIC_SURVEY_ONLY === "1";
 
 import HomeScreen from "./src/screens/HomeScreen";
+import ClubHomeScreen from "./src/screens/ClubHomeScreen";
 import PlayScreen from "./src/screens/PlayScreen";
 import CaddieScreen from "./src/screens/CaddieScreen";
 import SwingScreen from "./src/screens/SwingScreen";
@@ -108,7 +109,7 @@ function Tabs() {
         ),
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Home" component={IS_CLUB_APP ? ClubHomeScreen : HomeScreen} />
       <Tab.Screen name="Play" component={locked(PlayScreen, "round")} options={{ title: "Round" }} />
       <Tab.Screen name="Coach" component={SwingScreen} />
       <Tab.Screen name="Events" component={EventsScreen} />

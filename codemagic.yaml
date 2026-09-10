@@ -409,3 +409,65 @@ workflows:
         notify:
           success: true
           failure: true
+
+  # ── Kempton Park club app (sideload APK) ────────────────────────────────────
+  # A dedicated app for Kempton Park Golf Club, built from this same codebase
+  # with EXPO_PUBLIC_CLUB=kempton: it's branded "Kempton Park Golf" (its own
+  # package com.foreai.kempton), boots into the club home, is locked to the
+  # club's fully-surveyed course and is fully unlocked (no paywall). Output is a
+  # signed .apk the club sideloads / shares by link — no Play listing needed.
+  # Add more clubs by copying this workflow with a different EXPO_PUBLIC_CLUB.
+  foreai-kempton-android:
+    name: Kempton Park Golf — club APK
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      node: 20
+      java: 17
+      groups:
+        - google_play   # reuses the shared upload keystore to sign the APK
+      vars:
+        # Inlined by Expo/Metro at build time AND read by app.config.js for the
+        # com.foreai.kempton package + "Kempton Park Golf" name. Must be present
+        # for every step (prebuild and the gradle build).
+        EXPO_PUBLIC_CLUB: "kempton"
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Install JS dependencies
+        script: |
+          cd mobile
+          npm install
+      - name: Generate native Android project (expo prebuild)
+        script: |
+          cd mobile
+          # Separate package (com.foreai.kempton), not on Play, so the
+          # versionCode only needs to rise each build.
+          export ANDROID_VERSION_CODE=$((2000 + ${BUILD_NUMBER:-1}))
+          echo "Kempton APK versionCode: $ANDROID_VERSION_CODE (package com.foreai.kempton)"
+          npx expo prebuild --platform android --no-install
+      - name: Decode the upload keystore
+        script: |
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/mobile/android/app/upload.keystore"
+      - name: Build the signed APK
+        script: |
+          cd mobile/android
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$PWD/app/upload.keystore" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+          # Name the club APK distinctly (tagged with its versionCode).
+          V=$((2000 + ${BUILD_NUMBER:-1}))
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/ForeAi-Kempton-$V.apk"
+    artifacts:
+      - mobile/android/app/build/outputs/**/ForeAi-Kempton-*.apk
+    publishing:
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
