@@ -53,6 +53,7 @@ function leaderboard(comp: any) {
     stableford: r.stableford,
     thru: r.holesIn,
     status: r.e.status,
+    holeScores: r.e.holeScores || [], // lets the admin card editor pre-fill
   }));
 }
 
