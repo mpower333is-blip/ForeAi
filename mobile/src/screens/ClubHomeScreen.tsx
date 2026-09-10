@@ -53,6 +53,7 @@ export default function ClubHomeScreen({ navigation }: any) {
         <Text style={styles.body}>Your digital membership card, handicap and tee-time bookings — all in one place.</Text>
         <Button icon="🪪" label="My membership card" onPress={() => navigation.navigate("Membership")} />
         <Button icon="⛳" variant="ghost" label="Book a tee time" onPress={() => navigation.navigate("TeeTimes")} />
+        <Button icon="🏆" variant="ghost" label="Competitions" onPress={() => navigation.navigate("Competitions")} />
       </Card>
 
       {/* Pro shop bookings */}
