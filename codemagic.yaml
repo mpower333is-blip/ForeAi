@@ -431,6 +431,10 @@ workflows:
         # com.foreai.kempton package + "Kempton Park Golf" name. Must be present
         # for every step (prebuild and the gradle build).
         EXPO_PUBLIC_CLUB: "kempton"
+        # Point the Kempton app at Kempton's OWN isolated backend + database
+        # (see render.yaml → foreai-kempton-backend), so the club runs on its
+        # own instance rather than the shared ForeAi backend.
+        EXPO_PUBLIC_API_URL: "https://foreai-kempton-backend.onrender.com"
     cache:
       cache_paths:
         - $HOME/.npm

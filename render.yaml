@@ -15,6 +15,15 @@ databases:
     databaseName: foreai
     user: foreai
 
+  # Kempton Park Golf Club's OWN database — isolated from the shared ForeAi data,
+  # so the club runs on their own instance (their members, bookings, events live
+  # only here). Same Prisma schema, separate data. Upgrade the plan from free for
+  # a live, always-on club instance.
+  - name: kempton-db
+    plan: free
+    databaseName: kempton
+    user: kempton
+
 services:
   - type: web
     name: foreai-backend
@@ -31,6 +40,26 @@ services:
       - key: DATABASE_URL
         fromDatabase:
           name: foreai-db
+          property: connectionString
+      - key: NODE_VERSION
+        value: "20"
+
+  # Kempton's dedicated backend — the SAME code as foreai-backend, pointed at
+  # kempton-db. This is the club's isolated instance: https://foreai-kempton-
+  # backend.onrender.com. The Kempton app (EXPO_PUBLIC_API_URL) and the club
+  # admin pages talk to this, so none of Kempton's data touches the shared DB.
+  - type: web
+    name: foreai-kempton-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run build && npm run db:push
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kempton-db
           property: connectionString
       - key: NODE_VERSION
         value: "20"

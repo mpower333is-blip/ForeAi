@@ -173,6 +173,9 @@
 
 <script>
 const CLUB_KEY = "kempton";
+// Kempton runs on its own isolated backend + database (render.yaml →
+// foreai-kempton-backend). Default to it; a saved value or ?api= still overrides.
+const KEMPTON_API = "https://foreai-kempton-backend.onrender.com";
 const LS = "foreai.club.admin.v1"; // shared with the tee-sheet admin page
 let API = "", PIN = "", MEMBERS = [];
 
@@ -193,7 +196,7 @@ async function api(path, { method="GET", body }={}){
 // ---- connect ----
 function boot(){
   const saved = JSON.parse(localStorage.getItem(LS) || "null");
-  $("cApi").value = (saved && saved.api) || D.api || "";
+  $("cApi").value = (saved && saved.api) || KEMPTON_API || D.api || "";
   if (saved && saved.api){ API = saved.api; PIN = saved.pin || ""; $("cPin").value = PIN; connect(true); }
 }
 async function connect(silent){
