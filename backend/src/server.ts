@@ -10,6 +10,9 @@ import strategyRoutes from "./routes/strategy";
 import tournamentRoutes from "./routes/tournaments";
 import weatherRoutes from "./routes/weather";
 import pushRoutes from "./routes/push";
+import clubSettingsRoutes from "./routes/club";
+import memberRoutes from "./routes/members";
+import bookingRoutes from "./routes/bookings";
 import { startLightningWatcher } from "./lib/lightningWatcher";
 
 const app = express();
@@ -39,6 +42,11 @@ app.use("/strategy", strategyRoutes);
 app.use("/tournaments", tournamentRoutes);
 app.use("/weather", weatherRoutes);
 app.use("/push", pushRoutes);
+// Club "complete package": settings/tee-sheet config, membership roster, tee
+// bookings. (/clubs above is the per-user bag of golf clubs — different thing.)
+app.use("/club", clubSettingsRoutes);
+app.use("/members", memberRoutes);
+app.use("/bookings", bookingRoutes);
 
 // Catch-all error handler: a route that throws (e.g. a database hiccup) returns
 // a clean 500 instead of leaving the request hanging. Must be registered last.

@@ -263,6 +263,93 @@ model TournamentSponsor {
   createdAt    DateTime @default(now())
 }
 
+// ---------------------------------------------------------------------------
+// Club membership + tee-time booking — the "complete package" for a club that
+// runs on ForeAi end to end (no external Clubmaster/Teesheet). Everything is
+// scoped by `clubKey` (the EXPO_PUBLIC_CLUB flavour, e.g. "kempton") so one
+// backend can serve several club apps side by side.
+// ---------------------------------------------------------------------------
+
+// Per-club settings: the admin PIN that gates roster/tee-sheet changes, plus
+// the shape of the tee sheet (first/last tee, interval, players per slot, how
+// far ahead members may book). One row per club.
+model ClubSettings {
+  clubKey           String  @id            // "kempton"
+  name              String                 // display name for admin screens
+  adminPin          String?                // gates admin writes (x-admin-pin header)
+  courseId          String  @default("")   // course id the tee sheet runs on
+
+  // Tee-sheet shape (minutes past midnight, club-local time)
+  firstTeeMin       Int     @default(360)  // 06:00 — first bookable tee
+  lastTeeMin        Int     @default(960)  // 16:00 — last bookable tee
+  intervalMin       Int     @default(10)   // minutes between tee slots
+  slotCapacity      Int     @default(4)    // max players per slot (a four-ball)
+  bookingWindowDays Int     @default(14)   // how far ahead members may book
+  openDays          String  @default("0,1,2,3,4,5,6") // open weekdays (0=Sun..6=Sat)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// A club member. The OFFICIAL WHS handicap stays with HNA/GolfRSA — we import
+// and display the index (handicapIndex), we don't compute it.
+model Member {
+  id               String    @id @default(uuid())
+  clubKey          String    @default("kempton")
+
+  memberNumber     String                     // club membership no. (shown on the card)
+  firstName        String
+  lastName         String
+  email            String?
+  cell             String?
+  category         String    @default("full")   // full | social | senior | junior | ladies | life | honorary
+  status           String    @default("active") // active | suspended | pending | resigned
+  joinedAt         DateTime?
+
+  // Handicap (imported from HNA — see /members/sync-hna)
+  handicapIndex    Float?
+  hnaId            String?                      // Handicaps Network Africa member id
+  handicapSyncedAt DateTime?
+
+  // App binding: the phone that claimed this membership (identify + digital card)
+  deviceId         String?
+  photo            String?   @db.Text          // optional member photo (data URL)
+
+  bookings         TeeBooking[]
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([clubKey, memberNumber])
+  @@index([clubKey, lastName])
+  @@index([clubKey, email])
+}
+
+// A tee-time booking (or an admin block when memberId is null). A slot at a
+// given teeAt holds up to ClubSettings.slotCapacity players; a booking takes
+// `partySize` of them. Availability = capacity − sum(active partySize at teeAt).
+model TeeBooking {
+  id           String    @id @default(uuid())
+  clubKey      String    @default("kempton")
+
+  teeAt        DateTime                       // the exact tee slot (date + time, UTC)
+  courseId     String    @default("")
+
+  memberId     String?                        // who booked (null = admin block)
+  member       Member?   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  partySize    Int       @default(1)          // seats this booking takes in the slot
+  players      Json?                          // party member names (strings), booker first
+  note         String?
+  status       String    @default("booked")   // booked | cancelled | blocked
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([clubKey, teeAt])
+  @@index([memberId])
+}
+
 // A phone registered to receive lightning push alerts. The background watcher
 // (src/lib/lightningWatcher) groups devices by rounded location, checks each
 // area's forecast/strikes, and pushes an alert via Expo Push when a storm is a
