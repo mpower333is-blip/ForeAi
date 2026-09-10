@@ -6,6 +6,7 @@ import { useRound } from "../state/RoundContext";
 import { useCourseCoords, HolePointKey } from "../state/CourseCoordsContext";
 import { useLocation } from "../hooks/useLocation";
 import SatelliteHole from "../components/SatelliteHole";
+import ZoomableHole from "../components/ZoomableHole";
 import WeatherPanel from "../components/WeatherPanel";
 import { greenDistancesMeters, bearingDegrees, compass8 } from "../lib/geo";
 import { ydToM } from "../lib/units";
@@ -192,9 +193,11 @@ export default function OnCourseScreen({ navigation }: any) {
           </Card>
 
           <Card style={{ padding: spacing.sm }}>
-            <SatelliteHole hole={satHole} center={undefined} player={loc.coord} />
+            <ZoomableHole resetKey={hole.number}>
+              <SatelliteHole hole={satHole} center={undefined} player={loc.coord} />
+            </ZoomableHole>
             <Text style={styles.hint}>
-              Live satellite view — the blue dot is you, the dashed line your distance to the green. Bunkers, water and trees show where they've been mapped.
+              Live satellite view, oriented the way you play — the blue dot is you, the dashed line your distance to the green. Pinch to zoom. Bunkers, water and trees show where they've been mapped.
             </Text>
           </Card>
         </>
