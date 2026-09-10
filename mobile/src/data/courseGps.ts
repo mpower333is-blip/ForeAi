@@ -21,9 +21,9 @@ export type HoleGps = {
 };
 
 export const COURSE_GPS: Record<string, HoleGps[]> = {
-  // Kempton Park Golf Club — the ECS event venue. Holes 1–9 fully surveyed
-  // (fairway, tees, trees/bunkers/water); holes 10–12 have tee + green F/M/B
-  // from an on-course GPS survey; holes 13–18 have tee + green.
+  // Kempton Park Golf Club — the ECS event venue. Holes 1–12 fully surveyed
+  // (fairway, tees, trees/bunkers/water) from an on-course GPS survey;
+  // holes 13–18 have tee + green.
   "kempton-park": [
     // H1 — on-course GPS survey (survey app): White/Blue/Red tees, fairway, trees/bunkers/water
     { tee: { lat: -26.1070912, lng: 28.2137599 }, tees: [ { name: "White", lat: -26.1068462, lng: 28.2126563 }, { name: "Blue", lat: -26.1070912, lng: 28.2137599 }, { name: "Red", lat: -26.107142, lng: 28.2138393 } ], greenFront: { lat: -26.1099929, lng: 28.2164176 }, green: { lat: -26.1100571, lng: 28.2164607 }, greenBack: { lat: -26.1101082, lng: 28.2166792 },
@@ -140,12 +140,39 @@ export const COURSE_GPS: Record<string, HoleGps[]> = {
         { type: "bunker", points: [ { lat: -26.1067482, lng: 28.2144515 }, { lat: -26.1067664, lng: 28.2144546 }, { lat: -26.1067889, lng: 28.2144509 }, { lat: -26.1068081, lng: 28.2144581 }, { lat: -26.1068276, lng: 28.2144697 }, { lat: -26.1068388, lng: 28.2144883 }, { lat: -26.1068189, lng: 28.2145127 }, { lat: -26.1067985, lng: 28.2145239 }, { lat: -26.106768, lng: 28.2145082 }, { lat: -26.1067441, lng: 28.2144925 }, { lat: -26.1067302, lng: 28.21447 }, { lat: -26.106738, lng: 28.2144482 }, { lat: -26.106762, lng: 28.2144422 } ] },
         { type: "bunker", points: [ { lat: -26.1068597, lng: 28.2142759 }, { lat: -26.1068646, lng: 28.2142529 }, { lat: -26.106885, lng: 28.2142425 }, { lat: -26.1069035, lng: 28.2142355 }, { lat: -26.1069241, lng: 28.2142304 }, { lat: -26.1069422, lng: 28.2142432 }, { lat: -26.1069464, lng: 28.2142672 }, { lat: -26.1069346, lng: 28.2142852 }, { lat: -26.1069146, lng: 28.2142929 }, { lat: -26.1068915, lng: 28.2142989 }, { lat: -26.1068696, lng: 28.2142952 }, { lat: -26.1068509, lng: 28.2142912 } ] }
       ] },
-    // H10 — on-course GPS survey (White tee + green F/M/B)
-    { tees: [{ name: "White", lat: -26.1034593, lng: 28.2156463 }], tee: { lat: -26.1034593, lng: 28.2156463 }, greenFront: { lat: -26.1004079, lng: 28.215527 }, green: { lat: -26.1002884, lng: 28.2154995 }, greenBack: { lat: -26.1001979, lng: 28.2155278 } },
-    // H11 — on-course GPS survey (White tee + green F/M/B)
-    { tees: [{ name: "White", lat: -26.1000907, lng: 28.2150318 }], tee: { lat: -26.1000907, lng: 28.2150318 }, greenFront: { lat: -26.1009339, lng: 28.2140891 }, green: { lat: -26.100992, lng: 28.2140412 }, greenBack: { lat: -26.1011183, lng: 28.2138881 } },
-    // H12 — on-course GPS survey (White tee + green F/M/B)
-    { tees: [{ name: "White", lat: -26.1009737, lng: 28.2127403 }], tee: { lat: -26.1009737, lng: 28.2127403 }, greenFront: { lat: -26.1038945, lng: 28.2153297 }, green: { lat: -26.1040487, lng: 28.2152608 }, greenBack: { lat: -26.1041257, lng: 28.215233 } },
+    // H10 — on-course GPS survey (survey app): tees, fairway, trees/bunkers/water
+    { tee: { lat: -26.1029438, lng: 28.2158297 }, tees: [ { name: "White", lat: -26.1034284, lng: 28.2156351 }, { name: "Blue", lat: -26.1029438, lng: 28.2158297 }, { name: "Red", lat: -26.102923, lng: 28.2158189 } ], greenFront: { lat: -26.1004279, lng: 28.2155304 }, green: { lat: -26.1003125, lng: 28.2155094 }, greenBack: { lat: -26.1001962, lng: 28.2155566 },
+      fairway: [ { lat: -26.1022165, lng: 28.2157882 }, { lat: -26.1018097, lng: 28.2157356 }, { lat: -26.1013627, lng: 28.2156807 }, { lat: -26.1008945, lng: 28.2156035 }, { lat: -26.1005307, lng: 28.2155653 } ],
+      hazards: [
+        { type: "tree", points: [ { lat: -26.1027675, lng: 28.2158105 }, { lat: -26.1026739, lng: 28.2158592 }, { lat: -26.1025321, lng: 28.2159192 }, { lat: -26.1024351, lng: 28.21597 }, { lat: -26.1023813, lng: 28.2159884 }, { lat: -26.1023303, lng: 28.2160029 }, { lat: -26.1021789, lng: 28.2160498 } ] },
+        { type: "tree", points: [ { lat: -26.102159, lng: 28.2155792 }, { lat: -26.1022338, lng: 28.2156058 }, { lat: -26.1022812, lng: 28.2156364 }, { lat: -26.1023886, lng: 28.215643 } ] }
+      ] },
+    // H11 — on-course GPS survey (survey app): tees, fairway, trees/bunkers/water
+    { tee: { lat: -26.100165, lng: 28.2149342 }, tees: [ { name: "White", lat: -26.1000766, lng: 28.2150323 }, { name: "Blue", lat: -26.100165, lng: 28.2149342 }, { name: "Red", lat: -26.1003892, lng: 28.2147928 } ], greenFront: { lat: -26.1009356, lng: 28.2141313 }, green: { lat: -26.1010082, lng: 28.2140396 }, greenBack: { lat: -26.1011064, lng: 28.2138683 },
+      fairway: [ { lat: -26.1005407, lng: 28.2146483 } ],
+      hazards: [
+        { type: "tree", points: [ { lat: -26.1008474, lng: 28.2144916 }, { lat: -26.1009061, lng: 28.2143899 } ] },
+        { type: "tree", points: [ { lat: -26.1008465, lng: 28.2141712 } ] },
+        { type: "tree", points: [ { lat: -26.1007701, lng: 28.2140964 } ] },
+        { type: "bunker", points: [ { lat: -26.1009004, lng: 28.2141678 }, { lat: -26.1009157, lng: 28.2141861 }, { lat: -26.100926, lng: 28.2142098 }, { lat: -26.1009427, lng: 28.2142205 }, { lat: -26.1009605, lng: 28.2142282 }, { lat: -26.100979, lng: 28.2142332 }, { lat: -26.1010012, lng: 28.2142255 }, { lat: -26.101012, lng: 28.2142027 }, { lat: -26.1010121, lng: 28.2141773 }, { lat: -26.1010025, lng: 28.2141537 }, { lat: -26.1009839, lng: 28.2141455 }, { lat: -26.1009635, lng: 28.2141426 }, { lat: -26.1009433, lng: 28.2141444 }, { lat: -26.100923, lng: 28.2141549 }, { lat: -26.1009122, lng: 28.2141713 } ] },
+        { type: "bunker", points: [ { lat: -26.1010394, lng: 28.2141471 }, { lat: -26.1010542, lng: 28.214165 }, { lat: -26.1010786, lng: 28.2141663 }, { lat: -26.1011026, lng: 28.2141552 }, { lat: -26.1011224, lng: 28.2141362 }, { lat: -26.1011329, lng: 28.214111 }, { lat: -26.1011293, lng: 28.2140846 }, { lat: -26.1011092, lng: 28.2140732 }, { lat: -26.1010837, lng: 28.2140797 }, { lat: -26.1010577, lng: 28.2140969 }, { lat: -26.1010373, lng: 28.2141136 }, { lat: -26.1010265, lng: 28.2141311 } ] },
+        { type: "bunker", points: [ { lat: -26.1009766, lng: 28.2139452 }, { lat: -26.1009865, lng: 28.2139636 }, { lat: -26.1009822, lng: 28.2139836 }, { lat: -26.1009669, lng: 28.2140026 }, { lat: -26.1009516, lng: 28.2140221 }, { lat: -26.1009346, lng: 28.2140413 }, { lat: -26.1009129, lng: 28.2140624 }, { lat: -26.1008927, lng: 28.2140572 }, { lat: -26.1008881, lng: 28.2140233 }, { lat: -26.1008912, lng: 28.2139979 }, { lat: -26.1008977, lng: 28.2139773 }, { lat: -26.1009123, lng: 28.2139555 }, { lat: -26.1009289, lng: 28.2139453 }, { lat: -26.100946, lng: 28.2139347 }, { lat: -26.1009665, lng: 28.2139264 } ] }
+      ] },
+    // H12 — on-course GPS survey (survey app): tees, fairway, trees/bunkers/water
+    { tee: { lat: -26.1012015, lng: 28.2131381 }, tees: [ { name: "White", lat: -26.100962, lng: 28.2127603 }, { name: "Blue", lat: -26.1012015, lng: 28.2131381 }, { name: "Red", lat: -26.1012445, lng: 28.2131882 } ], greenFront: { lat: -26.1038879, lng: 28.2153453 }, green: { lat: -26.1040695, lng: 28.2152518 }, greenBack: { lat: -26.1041327, lng: 28.2152305 },
+      fairway: [ { lat: -26.1016711, lng: 28.2140502 }, { lat: -26.102044, lng: 28.214962 }, { lat: -26.1024892, lng: 28.2151641 }, { lat: -26.102624, lng: 28.2152533 }, { lat: -26.1026595, lng: 28.2152617 }, { lat: -26.1027201, lng: 28.2152673 }, { lat: -26.1028749, lng: 28.2152917 }, { lat: -26.1029775, lng: 28.2153006 }, { lat: -26.1030525, lng: 28.2153029 }, { lat: -26.1031443, lng: 28.2153016 }, { lat: -26.1033313, lng: 28.2152995 }, { lat: -26.1034312, lng: 28.2152989 }, { lat: -26.1037262, lng: 28.2152378 } ],
+      hazards: [
+        { type: "tree", points: [ { lat: -26.1014447, lng: 28.2134532 }, { lat: -26.1016085, lng: 28.213646 }, { lat: -26.1016537, lng: 28.2137795 } ] },
+        { type: "bunker", points: [ { lat: -26.10237, lng: 28.2149934 }, { lat: -26.1023464, lng: 28.2149987 }, { lat: -26.1023193, lng: 28.2149814 }, { lat: -26.1023027, lng: 28.214966 }, { lat: -26.1022851, lng: 28.2149505 }, { lat: -26.1022635, lng: 28.2149494 }, { lat: -26.102247, lng: 28.2149335 }, { lat: -26.1022288, lng: 28.2149197 }, { lat: -26.1022187, lng: 28.2148986 }, { lat: -26.1022196, lng: 28.2148751 }, { lat: -26.102235, lng: 28.2148543 }, { lat: -26.1022571, lng: 28.2148571 }, { lat: -26.1022824, lng: 28.2148759 }, { lat: -26.102299, lng: 28.2148953 }, { lat: -26.1023207, lng: 28.214915 }, { lat: -26.1023389, lng: 28.2149332 }, { lat: -26.1023529, lng: 28.2149532 }, { lat: -26.1023645, lng: 28.2149974 } ] },
+        { type: "tree", points: [ { lat: -26.1023322, lng: 28.2149306 } ] },
+        { type: "tree", points: [ { lat: -26.1021993, lng: 28.2148269 } ] },
+        { type: "tree", points: [ { lat: -26.1025168, lng: 28.215028 } ] },
+        { type: "tree", points: [ { lat: -26.102539, lng: 28.215027 } ] },
+        { type: "tree", points: [ { lat: -26.1025788, lng: 28.2148977 } ] },
+        { type: "tree", points: [ { lat: -26.1025577, lng: 28.2149069 } ] },
+        { type: "bunker", points: [ { lat: -26.1038838, lng: 28.2152363 }, { lat: -26.1038997, lng: 28.2152242 }, { lat: -26.1038993, lng: 28.215202 }, { lat: -26.1039004, lng: 28.2151745 }, { lat: -26.1039039, lng: 28.21515 }, { lat: -26.1038965, lng: 28.21513 }, { lat: -26.1038772, lng: 28.2151216 }, { lat: -26.1038607, lng: 28.2151311 }, { lat: -26.1038556, lng: 28.215151 }, { lat: -26.103854, lng: 28.2151775 }, { lat: -26.1038607, lng: 28.2152 }, { lat: -26.1038706, lng: 28.2152234 }, { lat: -26.103884, lng: 28.2152414 }, { lat: -26.103902, lng: 28.2152361 } ] },
+        { type: "bunker", points: [ { lat: -26.1039543, lng: 28.2153961 }, { lat: -26.1039768, lng: 28.2154158 }, { lat: -26.1039805, lng: 28.2154398 }, { lat: -26.103997, lng: 28.2154498 }, { lat: -26.1040187, lng: 28.2154437 }, { lat: -26.1040305, lng: 28.2154259 }, { lat: -26.104036, lng: 28.2153964 }, { lat: -26.1040304, lng: 28.2153764 }, { lat: -26.1040124, lng: 28.2153552 }, { lat: -26.1039938, lng: 28.2153586 }, { lat: -26.1039832, lng: 28.2153763 }, { lat: -26.1039799, lng: 28.2153977 } ] }
+      ] },
     // H13
     { tee: { lat: -26.103618, lng: 28.216632 }, green: { lat: -26.104635, lng: 28.22032 } },
     // H14
