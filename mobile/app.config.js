@@ -13,6 +13,21 @@ const CLUB = process.env.EXPO_PUBLIC_CLUB || "";
 const CLUB_NAMES = { kempton: "Kempton Park Golf" };
 const CLUB_APP_NAME = CLUB_NAMES[CLUB] || "ForeAi";
 const CLUB_PKG = CLUB ? "com.foreai." + CLUB : null;
+// Per-club branding assets (placeholder green/white golf mark; swap for the real
+// club logo later). Falls back to the ForeAi assets for the normal app.
+const CLUB_ASSETS = {
+  kempton: {
+    icon: "./assets/kempton-icon.png",
+    adaptive: "./assets/kempton-adaptive.png",
+    splash: "./assets/kempton-splash.png",
+    bg: "#0B3D2E",
+  },
+};
+const BRAND = CLUB_ASSETS[CLUB] || null;
+const ICON = BRAND ? BRAND.icon : "./assets/icon.png";
+const ADAPTIVE = BRAND ? BRAND.adaptive : "./assets/adaptive-icon.png";
+const SPLASH = BRAND ? BRAND.splash : "./assets/splash-icon.png";
+const SPLASH_BG = BRAND ? BRAND.bg : "#06170F";
 
 export default {
   expo: {
@@ -22,12 +37,12 @@ export default {
     orientation: "portrait",
     scheme: "foreai",
     userInterfaceStyle: "dark",
-    icon: "./assets/icon.png",
+    icon: ICON,
     platforms: ["ios", "android", "web"],
     splash: {
-      image: "./assets/splash-icon.png",
+      image: SPLASH,
       resizeMode: "contain",
-      backgroundColor: "#06170F",
+      backgroundColor: SPLASH_BG,
     },
     ios: {
       // iPhone-first: avoids Apple's separate 13" iPad screenshot requirement.
@@ -63,8 +78,8 @@ export default {
         ? Number(process.env.ANDROID_VERSION_CODE)
         : 1,
       adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-icon.png",
-        backgroundColor: "#06170F",
+        foregroundImage: ADAPTIVE,
+        backgroundColor: SPLASH_BG,
       },
       permissions: [
         "CAMERA",
