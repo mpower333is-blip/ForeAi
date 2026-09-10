@@ -316,6 +316,7 @@ model Member {
   photo            String?   @db.Text          // optional member photo (data URL)
 
   bookings         TeeBooking[]
+  compEntries      CompetitionEntry[]
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -348,6 +349,70 @@ model TeeBooking {
 
   @@index([clubKey, teeAt])
   @@index([memberId])
+}
+
+// ---------------------------------------------------------------------------
+// Club competitions — the recurring medals / Stableford / betterball days on the
+// club calendar. Members enter, submit a card, and see a net/gross/Stableford
+// leaderboard. Scored server-side from the course card (par + stroke index) and
+// each member's handicap index (imported from HNA). Scoped by clubKey.
+// ---------------------------------------------------------------------------
+
+model Competition {
+  id                String   @id @default(uuid())
+  clubKey           String   @default("kempton")
+
+  name              String                        // "Saturday Medal"
+  date              DateTime
+  format            String   @default("stableford") // stableford | stroke | betterball
+  courseId          String   @default("")
+  status            String   @default("open")     // draft | open | closed | results
+
+  // Scoring inputs. The course card is stored on the competition so results are
+  // reproducible and the backend needs no course catalogue. Defaults = Kempton.
+  pars              Int[]                          // 18 hole pars
+  sis               Int[]                          // 18 stroke indexes (1-18)
+  handicapAllowance Int      @default(95)          // % of course handicap (WHS medal 95)
+  slope             Int      @default(113)         // course slope (113 = neutral)
+  courseRating      Float?                         // course rating; defaults to par
+
+  description       String?
+  entries           CompetitionEntry[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([clubKey, date])
+}
+
+model CompetitionEntry {
+  id             String   @id @default(uuid())
+
+  competitionId  String
+  competition    Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+
+  // Link to the roster (null for a guest); name + handicap are snapshotted so a
+  // result stands even if the member's index later changes.
+  memberId       String?
+  member         Member?  @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  playerName     String
+  handicapIndex  Float?                            // snapshot at entry
+  playingHandicap Int    @default(0)               // computed from index + allowance
+
+  holeScores     Int[]                             // 18 gross strokes (0 = not played)
+  grossTotal     Int?
+  netTotal       Int?
+  stableford     Int?
+  status         String   @default("entered")      // entered | submitted | dq | withdrawn
+
+  teeTime        DateTime?
+  groupNo        Int?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([competitionId, memberId])
+  @@index([competitionId])
 }
 
 // A phone registered to receive lightning push alerts. The background watcher
