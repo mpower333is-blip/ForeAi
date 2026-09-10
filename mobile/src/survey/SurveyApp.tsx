@@ -43,6 +43,8 @@ export default function SurveyApp() {
   const [hzType, setHzType] = React.useState<Hz["type"]>("bunker");
   const [waterMode, setWaterMode] = React.useState<"pond" | "river">("pond");
   const [loaded, setLoaded] = React.useState(false);
+  const [importOpen, setImportOpen] = React.useState(false);
+  const [importText, setImportText] = React.useState("");
 
   // Load / persist.
   React.useEffect(() => {
@@ -151,6 +153,46 @@ export default function SurveyApp() {
     }
   };
 
+  // Rebuild a Book from a previously-exported / pasted survey (the text export or
+  // a *-coords.json file), so earlier work is never lost. Merges into the current
+  // book by hole number; existing holes are overwritten by the imported ones.
+  const importSurvey = () => {
+    let raw = importText.trim();
+    if (!raw) { Alert.alert("Nothing to import", "Paste the survey text (or JSON) first."); return; }
+    let data: any;
+    try {
+      // Tolerate leading share-sheet chatter: grab from the first { to the last }.
+      const s = raw.indexOf("{"), e = raw.lastIndexOf("}");
+      if (s >= 0 && e > s) raw = raw.slice(s, e + 1);
+      data = JSON.parse(raw);
+    } catch { Alert.alert("Could not read that", "It doesn't look like a valid survey export."); return; }
+    const holesArr: any[] = Array.isArray(data) ? data : Array.isArray(data.holes) ? data.holes : [];
+    if (!holesArr.length) { Alert.alert("No holes found", "The pasted text had no hole data."); return; }
+    const holes: Record<number, Hole> = { ...book.holes };
+    let maxHole = book.holeCount;
+    for (const h of holesArr) {
+      const n = Number(h.hole); if (!n) continue;
+      maxHole = Math.max(maxHole, n);
+      const dst = emptyHole();
+      if (Array.isArray(h.tees)) for (const t of h.tees) { if (t && t.name) dst.tees[t.name] = { lat: t.lat, lng: t.lng }; }
+      if (h.tee && !Object.keys(dst.tees).length) dst.tees["White"] = { lat: h.tee.lat, lng: h.tee.lng };
+      if (h.green) dst.green = { lat: h.green.lat, lng: h.green.lng };
+      if (h.greenFront) dst.greenFront = { lat: h.greenFront.lat, lng: h.greenFront.lng };
+      if (h.greenBack) dst.greenBack = { lat: h.greenBack.lat, lng: h.greenBack.lng };
+      if (Array.isArray(h.fairway)) dst.fairway = h.fairway.map((p: any) => ({ lat: p.lat, lng: p.lng }));
+      if (Array.isArray(h.hazards)) dst.hazards = h.hazards.map((z: any) => {
+        const pts = (z.points || []).map((p: any) => ({ lat: p.lat, lng: p.lng }));
+        if (z.type === "water") return { type: "water", mode: z.width ? "river" : "pond", ...(z.width ? { width: z.width } : {}), points: pts, _closed: true };
+        return { type: z.type, points: pts, _closed: true };
+      });
+      holes[n] = dst;
+    }
+    const holeCount = maxHole > 9 ? 18 : 9;
+    persist({ course: data.course || book.course || "", holeCount, holes });
+    setImportOpen(false); setImportText(""); setCur(1); setPage("capture");
+    Alert.alert("Imported", `Loaded ${holesArr.length} hole${holesArr.length === 1 ? "" : "s"}. Your work is back — you can keep surveying or save it as a file.`);
+  };
+
   if (!loaded) return <Screen><Text style={styles.dim}>Loading…</Text></Screen>;
 
   return (
@@ -231,7 +273,24 @@ export default function SurveyApp() {
           </Card>
 
           <Card>
-            <Button label="↗ Export / share the survey" variant="ghost" onPress={exportSurvey} />
+            <Button label="💾 Save / send survey file" onPress={exportSurvey} />
+            <Button label={importOpen ? "✕ Cancel import" : "📥 Import from pasted text"} variant="ghost" onPress={() => setImportOpen((v) => !v)} />
+            {importOpen && (
+              <>
+                <Text style={styles.dim}>Paste a survey you shared earlier (the text export or a coords JSON). It loads back into the app, then you can save it as a file.</Text>
+                <TextInput
+                  style={styles.importBox}
+                  value={importText}
+                  onChangeText={setImportText}
+                  placeholder='Paste here — e.g. { "course": "Kempton Park…", "holes": [ … ] }'
+                  placeholderTextColor={colors.textFaint}
+                  multiline
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Button label="⤵ Load pasted survey" onPress={importSurvey} />
+              </>
+            )}
           </Card>
         </>
       )}
@@ -291,6 +350,7 @@ const styles = StyleSheet.create({
   warn: { color: colors.negative, fontSize: 13 },
   lbl: { color: colors.textMuted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1 },
   input: { color: colors.text, fontSize: 16, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: 10, marginTop: 6 },
+  importBox: { color: colors.text, fontSize: 13, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: 10, marginTop: 8, marginBottom: 8, minHeight: 110, textAlignVertical: "top" },
   holeRow: { flexDirection: "row", alignItems: "center", marginTop: spacing.md },
   nav: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
   navTxt: { color: colors.accent, fontSize: 28, fontWeight: "800" },
