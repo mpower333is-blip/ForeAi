@@ -194,7 +194,7 @@ export default function OnCourseScreen({ navigation }: any) {
 
           <Card style={{ padding: spacing.sm }}>
             <ZoomableHole resetKey={hole.number}>
-              <SatelliteHole hole={satHole} center={undefined} player={loc.coord} />
+              <SatelliteHole hole={satHole} center={loc.coord ?? undefined} player={loc.coord} />
             </ZoomableHole>
             <Text style={styles.hint}>
               Live satellite view, oriented the way you play — the blue dot is you, the dashed line your distance to the green. Pinch to zoom. Bunkers, water and trees show where they've been mapped.

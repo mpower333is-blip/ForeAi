@@ -3,6 +3,8 @@ import { View, Text, Image, StyleSheet } from "react-native";
 import Svg, { Line, Circle, Polyline, Polygon } from "react-native-svg";
 import { Hole } from "../data/courses";
 import { Coord, haversineMeters } from "../lib/geo";
+import { holeFrame } from "../lib/holeSatellite";
+import { cachedTile, ensureTile } from "../lib/satelliteCache";
 import { colors } from "../theme";
 
 type HazardArea = { type: "tree" | "water" | "bunker"; points: Coord[] };
@@ -42,87 +44,52 @@ export default function SatelliteHole({
   hole,
   center,
   player,
+  courseId,
 }: {
   hole: Hole;
   center?: Coord;
   player?: Coord | null; // live GPS position, when playing the hole
+  courseId?: string; // enables the offline image cache for this course
 }) {
   const hazards = hole.hazards ?? [];
-  const pts: Coord[] = [];
-  if (hole.tee) pts.push(hole.tee);
-  if (hole.green) pts.push(hole.green);
-  if (hole.greenFront) pts.push(hole.greenFront);
-  if (hole.greenBack) pts.push(hole.greenBack);
-  if (player) pts.push(player);
   const fairway = hole.fairway ?? [];
-  fairway.forEach((p) => pts.push(p));
-  hazards.forEach((hz) => hz.points.forEach((p) => pts.push(p)));
 
-  const perHole = pts.length > 0;
+  // The image is framed ONLY on the hole (never the viewer's location), so the
+  // map always shows the course and the fetched image is stable for caching.
+  const frame = holeFrame(hole, center);
 
-  if (!perHole && !center) {
+  // Prefer a cached copy of this hole's image (offline); fall back to the remote
+  // url, caching it in the background for next time. Hook must run every render.
+  const [imgUri, setImgUri] = React.useState<string>(frame?.url ?? "");
+  React.useEffect(() => {
+    if (!frame) return;
+    setImgUri(frame.url);
+    if (!courseId || !frame.perHole) return;
+    let alive = true;
+    (async () => {
+      const local = await cachedTile(courseId, hole.number);
+      if (local) { if (alive) setImgUri(local); return; }
+      const saved = await ensureTile(courseId, hole.number, frame.url);
+      if (saved && alive) setImgUri(saved);
+    })();
+    return () => { alive = false; };
+  }, [courseId, hole.number, frame?.url, frame?.perHole]);
+
+  if (!frame) {
     return (
       <View style={styles.wrap}>
         <Text style={styles.none}>No GPS location for this course yet.</Text>
       </View>
     );
   }
+  const { perHole, minX, maxX, minY, maxY, rotateDeg, cover } = frame;
 
-  // Build a ground-square bounding box. Per hole: fit all points with padding;
-  // otherwise centre a wide window on the course.
-  let minY: number, maxY: number, minX: number, maxX: number;
-  // Rotation so the hole plays UP the screen (tee at the bottom, green at the
-  // top) — the way you actually play it, instead of north-up. rotateDeg turns
-  // the map+overlays; cover>1 enlarges the fetched box + the layer so the
-  // rotated square still fills the viewport with no empty corners.
-  let rotateDeg = 0, cover = 1;
-  if (perHole) {
-    let loLat = Infinity, hiLat = -Infinity, loLng = Infinity, hiLng = -Infinity;
-    for (const p of pts) {
-      loLat = Math.min(loLat, p.lat); hiLat = Math.max(hiLat, p.lat);
-      loLng = Math.min(loLng, p.lng); hiLng = Math.max(hiLng, p.lng);
-    }
-    const cLat = (loLat + hiLat) / 2;
-    const cLng = (loLng + hiLng) / 2;
-    const cosLat = Math.cos((cLat * Math.PI) / 180);
-
-    // Aim the view down the line of play. Use tee→green when we have them, else
-    // the first→last fairway point.
-    const tAnchor = hole.tee ?? (fairway.length ? fairway[0] : undefined);
-    const gAnchor = hole.green ?? (fairway.length ? fairway[fairway.length - 1] : undefined);
-    if (tAnchor && gAnchor) {
-      const dE = (gAnchor.lng - tAnchor.lng) * cosLat; // east
-      const dN = gAnchor.lat - tAnchor.lat;            // north
-      // Angle of the tee→green vector in screen space (x∝east, y∝-north), then
-      // rotate so it points straight up (screen angle -90°).
-      const alpha = Math.atan2(-dN, dE);
-      const rot = -Math.PI / 2 - alpha;
-      rotateDeg = (rot * 180) / Math.PI;
-      cover = Math.abs(Math.sin(rot)) + Math.abs(Math.cos(rot)); // fill after rotate
-    }
-
-    // Ground extents (degrees), width scaled so the box is square on the ground.
-    const latExt = hiLat - loLat;
-    const lngExtGround = (hiLng - loLng) * cosLat;
-    let half = (Math.max(latExt, lngExtGround) / 2) * 1.25; // 25% padding
-    half = Math.max(half, 0.0011); // never tighter than ~120 m so a hole reads
-    half *= cover; // fetch extra ground so the rotated+scaled layer stays framed
-    minY = cLat - half; maxY = cLat + half;
-    const halfLng = half / cosLat;
-    minX = cLng - halfLng; maxX = cLng + halfLng;
-  } else {
-    const f = center as Coord;
-    const latSpan = 0.02;
-    const lonSpan = latSpan / Math.cos((f.lat * Math.PI) / 180);
-    minY = f.lat - latSpan / 2; maxY = f.lat + latSpan / 2;
-    minX = f.lng - lonSpan / 2; maxX = f.lng + lonSpan / 2;
-  }
-
-  const bbox = `${minX},${minY},${maxX},${maxY}`;
-  const url =
-    `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export` +
-    // 1536² so the photo stays crisp when the hole view is pinch-zoomed (was 1024²).
-    `?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image`;
+  // Show the live position only when you're actually AT the course — otherwise
+  // the map shouldn't plant a "you" dot wherever you opened the app from.
+  const AT_COURSE_M = 2000; // within ~2 km of the hole = on/at the course
+  const anchor = hole.green ?? hole.tee ?? (fairway.length ? fairway[0] : undefined);
+  const atCourse = !!(player && anchor && haversineMeters(player, anchor) <= AT_COURSE_M);
+  const activePlayer: Coord | null = atCourse ? player! : null;
 
   const toXY = (p: Coord) => ({
     x: ((p.lng - minX) / (maxX - minX)) * 100,
@@ -143,7 +110,7 @@ export default function SatelliteHole({
 
   // Distances to the green edges. Measured from the player's live position when
   // playing the hole; otherwise from the tee as a preview.
-  const from = player ?? hole.tee;
+  const from = activePlayer ?? hole.tee;
   const mid = from && hole.green ? Math.round(haversineMeters(from, hole.green)) : null;
   const front = from && hole.greenFront ? Math.round(haversineMeters(from, hole.greenFront)) : null;
   const back = from && hole.greenBack ? Math.round(haversineMeters(from, hole.greenBack)) : null;
@@ -184,7 +151,7 @@ export default function SatelliteHole({
   return (
     <View style={styles.wrap}>
       <View style={[StyleSheet.absoluteFill, { transform: [{ rotate: `${rotateDeg}deg` }, { scale: cover }] }]}>
-      <Image source={{ uri: url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      <Image source={{ uri: imgUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       {perHole && (
         <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100" preserveAspectRatio="none">
           {/* hazards under the line/markers. A mapped area (3+ points) is drawn
@@ -241,17 +208,17 @@ export default function SatelliteHole({
           {hole.tee && <Circle cx={toXY(hole.tee).x} cy={toXY(hole.tee).y} r="1.7" fill="#ffffff" stroke="#0a2016" strokeWidth="0.4" />}
           {hole.green && <Circle cx={toXY(hole.green).x} cy={toXY(hole.green).y} r="2" fill={colors.accent} stroke="#0a2016" strokeWidth="0.4" />}
           {/* live player position + line to the green */}
-          {player && hole.green && (
+          {activePlayer && hole.green && (
             <Line
-              x1={toXY(player).x} y1={toXY(player).y}
+              x1={toXY(activePlayer).x} y1={toXY(activePlayer).y}
               x2={toXY(hole.green).x} y2={toXY(hole.green).y}
               stroke="#4dc3ff" strokeWidth="0.8" strokeDasharray="1.5,1"
             />
           )}
-          {player && (
+          {activePlayer && (
             <>
-              <Circle cx={toXY(player).x} cy={toXY(player).y} r="2.4" fill="#4dc3ff" opacity={0.3} />
-              <Circle cx={toXY(player).x} cy={toXY(player).y} r="1.5" fill="#4dc3ff" stroke="#ffffff" strokeWidth="0.5" />
+              <Circle cx={toXY(activePlayer).x} cy={toXY(activePlayer).y} r="2.4" fill="#4dc3ff" opacity={0.3} />
+              <Circle cx={toXY(activePlayer).x} cy={toXY(activePlayer).y} r="1.5" fill="#4dc3ff" stroke="#ffffff" strokeWidth="0.5" />
             </>
           )}
         </Svg>

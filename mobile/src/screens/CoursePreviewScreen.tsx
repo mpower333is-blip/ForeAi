@@ -8,6 +8,7 @@ import HoleDiagram from "../components/HoleDiagram";
 import SatelliteHole from "../components/SatelliteHole";
 import ZoomableHole from "../components/ZoomableHole";
 import { ydToM } from "../lib/units";
+import { prefetchCourse } from "../lib/satelliteCache";
 
 export default function CoursePreviewScreen({ navigation, route }: any) {
   const { courseId, setCourse, setCurrentHole } = useRound();
@@ -21,6 +22,14 @@ export default function CoursePreviewScreen({ navigation, route }: any) {
   const [view, setView] = useState<"sat" | "schematic">(hasSat ? "sat" : "schematic");
 
   const go = (delta: number) => setIdx((i) => Math.max(0, Math.min(17, i + delta)));
+
+  // Pre-download every hole's satellite image so the course works with no signal.
+  const [dl, setDl] = useState<{ busy: boolean; msg: string }>({ busy: false, msg: "" });
+  const saveOffline = async () => {
+    setDl({ busy: true, msg: "Downloading…" });
+    const res = await prefetchCourse(course, (p) => setDl({ busy: true, msg: `Downloading holes… ${p.done}/${p.total}` }));
+    setDl({ busy: false, msg: res.ok === res.total ? `All ${res.total} holes saved for offline.` : `Saved ${res.ok}/${res.total} holes (needs signal for the rest).` });
+  };
 
   const playThisHole = () => {
     if (!isActiveCourse) setCourse(previewId);
@@ -70,13 +79,22 @@ export default function CoursePreviewScreen({ navigation, route }: any) {
         {view === "sat" && hasSat ? (
           <>
             <ZoomableHole resetKey={`${previewId}-${hole.number}`}>
-              <SatelliteHole hole={hole} center={course.center} />
+              <SatelliteHole hole={hole} center={course.center} courseId={previewId} />
             </ZoomableHole>
             <Text style={styles.diagramNote}>
               {hole.green || hole.tee
                 ? "Real satellite imagery, framed on this hole. Pinch to zoom, drag to pan, double-tap to zoom in/out."
                 : "Real satellite imagery of the course. Mark each hole's tee & green on-course (GPS) to frame holes precisely and enable auto distance-to-pin."}
             </Text>
+            <View style={styles.offlineRow}>
+              <Button
+                variant="ghost"
+                label={dl.busy ? "Saving…" : "⬇ Save course for offline"}
+                onPress={saveOffline}
+                style={styles.flex}
+              />
+            </View>
+            {dl.msg ? <Text style={styles.offlineMsg}>{dl.msg}</Text> : null}
           </>
         ) : (
           <>
@@ -127,6 +145,8 @@ const styles = StyleSheet.create({
   courseName: { color: colors.text, fontSize: 24, fontWeight: "800" },
   courseMeta: { color: colors.textMuted, fontSize: 14, marginTop: 2, marginBottom: spacing.md },
   diagramNote: { color: colors.textFaint, fontSize: 12, fontStyle: "italic", lineHeight: 17, paddingHorizontal: 4, marginTop: 6 },
+  offlineRow: { flexDirection: "row", marginTop: spacing.sm },
+  offlineMsg: { color: colors.accent, fontSize: 12, fontWeight: "700", textAlign: "center", marginTop: 4 },
   viewToggle: { flexDirection: "row", gap: 8, marginBottom: spacing.sm },
   toggleBtn: {
     flex: 1,
