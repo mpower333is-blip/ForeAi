@@ -158,8 +158,8 @@ export default function SatelliteHole({
               as a filled shape — a river, a whole tree line, a bunker outline —
               so one hazard reads as one region. 1–2 point hazards fall back to
               dots (a single tree, a small pot bunker). */}
-          {hazards.map((hz, i) => {
-            const s = HZ_FILL[hz.type] ?? HZ_FILL.tree;
+          {hazards.filter((hz) => hz.type !== "tree").map((hz, i) => {
+            const s = HZ_FILL[hz.type] ?? HZ_FILL.bunker;
             if (hz.points.length >= 3) {
               const poly = hz.points.map((p) => { const q = toXY(p); return `${q.x},${q.y}`; }).join(" ");
               return (
@@ -250,11 +250,10 @@ export default function SatelliteHole({
         </View>
       )}
 
-      {hazards.length > 0 && (
+      {hazards.some((hz) => hz.type === "bunker" || hz.type === "water") && (
         <View style={styles.legend}>
           <Legend color="#e6d29a" label="Bunker" />
           <Legend color="#3a86c8" label="Water" />
-          <Legend color="#2f9e4f" label="Trees" />
         </View>
       )}
 
