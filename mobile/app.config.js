@@ -20,7 +20,7 @@ const CLUB_ASSETS = {
     icon: "./assets/kempton-icon.png",
     adaptive: "./assets/kempton-adaptive.png",
     splash: "./assets/kempton-splash.png",
-    bg: "#0B3D2E",
+    bg: "#FFFFFF", // the club crest sits on white
   },
 };
 const BRAND = CLUB_ASSETS[CLUB] || null;

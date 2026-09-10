@@ -1,6 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet, Linking, TouchableOpacity } from "react-native";
-import { Screen, Hero, FlagMark, Card, Button, Chip } from "../components/ui";
+import { View, Text, StyleSheet, Linking, TouchableOpacity, Image } from "react-native";
+import { Screen, Hero, Card, Button, Chip } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { CLUB_CONFIG } from "../config/appVariant";
@@ -20,7 +20,15 @@ export default function ClubHomeScreen({ navigation }: any) {
 
   return (
     <Screen>
-      <Hero title={club.shortName} tagline={club.tagline} right={<FlagMark size={48} />} />
+      <Hero
+        title={club.shortName}
+        tagline={club.tagline}
+        right={
+          <View style={styles.logoBadge}>
+            <Image source={require("../../assets/kempton-logo.png")} style={styles.logoImg} resizeMode="contain" />
+          </View>
+        }
+      />
 
       {/* The course — the heart of the club app */}
       <Card accent>
@@ -100,6 +108,8 @@ export default function ClubHomeScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
+  logoBadge: { width: 60, height: 60, borderRadius: 14, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", padding: 4 },
+  logoImg: { width: "100%", height: "100%" },
   rowHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 },
   h: { color: colors.text, fontSize: 17, fontWeight: "800" },
   body: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: 10 },
