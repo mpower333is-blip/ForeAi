@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>ForeAi · Live course map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  :root{ --bg:#06170F; --panel:#0f2418; --ink:#eafff2; --muted:#9fc4b0; --line:#1d3a2a; --accent:#39d98a; --sky:#6BD5FF; --stale:#7d8f84; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Arial,sans-serif}
+  .wrap{display:flex;flex-direction:column;height:100%}
+  header{padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+  header .brand{font-weight:800;font-size:16px}
+  header .brand b{color:var(--accent)}
+  header .sub{color:var(--muted);font-size:12px}
+  header .spacer{flex:1}
+  input,button{font:inherit;border-radius:9px;border:1px solid var(--line);background:#0b1f16;color:var(--ink);padding:8px 10px}
+  button{cursor:pointer;font-weight:700;background:var(--accent);color:#062012;border:none}
+  .status{font-size:12px;color:var(--muted)}
+  .main{flex:1;display:flex;min-height:0}
+  #map{flex:1;min-height:0}
+  .side{width:260px;max-width:42vw;border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:10px}
+  .side h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:6px 2px 10px}
+  .p{display:flex;align-items:center;gap:9px;padding:8px;border:1px solid var(--line);border-radius:10px;margin-bottom:7px}
+  .dot{width:12px;height:12px;border-radius:50%;flex:none;box-shadow:0 0 0 2px rgba(0,0,0,.35)}
+  .p .nm{font-weight:700;font-size:14px}
+  .p .mt{font-size:12px;color:var(--muted)}
+  .p.stale .nm{color:var(--stale)}
+  .empty{color:var(--muted);font-size:13px;padding:10px 2px;line-height:1.5}
+  .leaflet-tooltip.foreai{background:#0b1f16;border:1px solid var(--accent);color:#eafff2;font-weight:700}
+  @media(max-width:640px){ .side{position:absolute;right:0;top:56px;bottom:0;z-index:1000;box-shadow:-8px 0 24px rgba(0,0,0,.4)} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand">Fore<b>Ai</b> · Live course map</div>
+      <div class="sub" id="evName">Enter your event code to see players on the course.</div>
+    </div>
+    <div class="spacer"></div>
+    <input id="code" placeholder="EVENT CODE" style="text-transform:uppercase;width:130px" />
+    <button id="go">Show</button>
+    <button id="toggleSide" title="Toggle list" style="background:#0b1f16;color:var(--ink);border:1px solid var(--line)">☰</button>
+    <div class="status" id="status"></div>
+  </header>
+  <div class="main">
+    <div id="map"></div>
+    <div class="side" id="side"><div class="empty">No players yet.</div></div>
+  </div>
+</div>
+
+<script src="../config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+  var P = new URLSearchParams(location.search);
+  var D = window.FOREAI_DEFAULTS || {};
+  var API = (P.get('api') || localStorage.getItem('foreai.api') || D.api || '').replace(/\/$/,'');
+  var CODE = (P.get('code') || localStorage.getItem('foreai.code') || '').toUpperCase();
+  var FRESH_MS = 20*60*1000;   // a player seen within 20 min is "on the course"
+  var POLL_MS = 15000;
+
+  var map = L.map('map', { zoomControl:true }).setView([D.wxLat||-26.1016, D.wxLng||28.236], 16);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom:20, attribution:'Imagery © Esri' }).addTo(map);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom:20, opacity:0.9 }).addTo(map);
+
+  var markers = {};      // playerId -> L.circleMarker
+  var fittedOnce = false;
+  var codeEl = document.getElementById('code');
+  var statusEl = document.getElementById('status');
+  var nameEl = document.getElementById('evName');
+  codeEl.value = CODE;
+
+  // A stable-ish colour per player id (team colours would need group data).
+  function colourFor(id){ var h=0; for(var i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return 'hsl('+(h%360)+',70%,55%)'; }
+  function ago(ms){ var s=Math.round((Date.now()-ms)/1000); if(s<60) return s+'s ago'; var m=Math.round(s/60); if(m<60) return m+'m ago'; return Math.round(m/60)+'h ago'; }
+
+  function render(ev){
+    nameEl.textContent = ev.name ? (ev.name + (ev.courseName? ' · '+ev.courseName : '')) : 'Event '+CODE;
+    var players = (ev.players||[]).filter(function(p){ return typeof p.lat==='number' && typeof p.lng==='number' && p.lastSeen; });
+    var live = players.filter(function(p){ return (Date.now()-p.lastSeen) < FRESH_MS; });
+
+    var seen = {};
+    var pts = [];
+    live.forEach(function(p){
+      seen[p.id]=1;
+      var ll=[p.lat,p.lng]; pts.push(ll);
+      var col=colourFor(p.id);
+      if(markers[p.id]){ markers[p.id].setLatLng(ll); }
+      else {
+        markers[p.id]=L.circleMarker(ll,{radius:9,color:'#062012',weight:2,fillColor:col,fillOpacity:0.95}).addTo(map);
+        markers[p.id].bindTooltip('',{permanent:true,direction:'top',className:'foreai',offset:[0,-6]});
+      }
+      markers[p.id].setStyle({fillColor:col});
+      markers[p.id].setTooltipContent((p.name||'Player')+' · '+ago(p.lastSeen));
+    });
+    // drop markers for players no longer live
+    Object.keys(markers).forEach(function(id){ if(!seen[id]){ map.removeLayer(markers[id]); delete markers[id]; } });
+
+    if(pts.length && !fittedOnce){ try{ map.fitBounds(pts,{padding:[40,40],maxZoom:18}); }catch(e){} fittedOnce=true; }
+
+    // side list — live first, then recently-seen
+    var all = players.sort(function(a,b){ return (b.lastSeen||0)-(a.lastSeen||0); });
+    var side=document.getElementById('side');
+    if(!all.length){ side.innerHTML='<div class="empty">No player positions yet. Players share their location while the app is open and they\'ve joined this event.</div>'; }
+    else {
+      side.innerHTML='<h2>'+live.length+' on the course</h2>'+all.map(function(p){
+        var fresh=(Date.now()-p.lastSeen)<FRESH_MS;
+        return '<div class="p'+(fresh?'':' stale')+'">'
+          +'<span class="dot" style="background:'+colourFor(p.id)+'"></span>'
+          +'<div><div class="nm">'+(p.name||'Player')+'</div><div class="mt">'+ago(p.lastSeen)+(fresh?'':' · offline')+'</div></div>'
+          +'</div>';
+      }).join('');
+    }
+    statusEl.textContent = 'Updated '+new Date().toLocaleTimeString();
+  }
+
+  var timer=null;
+  async function poll(){
+    if(!API || !CODE){ statusEl.textContent=''; return; }
+    try{
+      var r = await fetch(API+'/tournaments/code/'+encodeURIComponent(CODE));
+      if(!r.ok){ statusEl.textContent = r.status===404 ? 'No event with that code.' : 'Server error ('+r.status+')'; return; }
+      render(await r.json());
+    }catch(e){ statusEl.textContent='Offline — retrying…'; }
+  }
+  function start(){
+    if(timer) clearInterval(timer);
+    if(!CODE){ statusEl.textContent='Enter an event code.'; return; }
+    localStorage.setItem('foreai.code', CODE);
+    fittedOnce=false;
+    Object.keys(markers).forEach(function(id){ map.removeLayer(markers[id]); delete markers[id]; });
+    poll(); timer=setInterval(poll, POLL_MS);
+  }
+
+  document.getElementById('go').onclick=function(){ CODE=codeEl.value.trim().toUpperCase(); start(); };
+  codeEl.addEventListener('keydown',function(e){ if(e.key==='Enter'){ CODE=codeEl.value.trim().toUpperCase(); start(); } });
+  document.getElementById('toggleSide').onclick=function(){ var s=document.getElementById('side'); s.style.display=(s.style.display==='none'?'block':'none'); };
+
+  if(CODE) start();
+})();
+</script>
+</body>
+</html>

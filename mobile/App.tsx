@@ -15,6 +15,7 @@ import { ProfileProvider, useProfile } from "./src/state/ProfileContext";
 import { CourseCoordsProvider } from "./src/state/CourseCoordsContext";
 import { UpgradeGate } from "./src/components/Upsell";
 import WatchShotSync from "./src/components/WatchShotSync";
+import LivePresenceSync from "./src/components/LivePresenceSync";
 import { FeatureKey } from "./src/config/appConfig";
 import { APP_NAME, IS_CLUB_APP } from "./src/config/appVariant";
 import { colors } from "./src/theme";
@@ -187,6 +188,7 @@ export default function App() {
             <PlanProvider>
               <GamesProvider>
                 <WatchShotSync />
+                <LivePresenceSync />
                 <Root />
               </GamesProvider>
             </PlanProvider>

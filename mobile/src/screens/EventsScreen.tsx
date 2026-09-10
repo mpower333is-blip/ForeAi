@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Image, Alert } from "react-native";
 import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, TextField, EmptyState } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
@@ -427,22 +427,11 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
     return () => clearInterval(iv);
   }, [isRemote, eventId]);
 
-  // Presence + position heartbeat. Only a registered player on a shared event
-  // shares location, so organisers just browsing never get a permission prompt.
+  // The live GPS heartbeat now runs app-wide (see LivePresenceSync) so your
+  // position keeps reaching the clubhouse WHILE YOU PLAY, not just on this
+  // screen. Location here only powers the weather panel below.
   const sharing = isRemote && !!meId;
   const loc = useLocation(sharing);
-  const coordRef = useRef(loc.coord);
-  coordRef.current = loc.coord;
-  useEffect(() => {
-    if (!sharing || !meId) return;
-    const beat = () => {
-      const c = coordRef.current;
-      t.pingPresence(eventId, meId, c ? { lat: c.lat, lng: c.lng } : undefined);
-    };
-    beat(); // mark live immediately on open
-    const iv = setInterval(beat, 40000);
-    return () => clearInterval(iv);
-  }, [sharing, meId, eventId]);
 
   // If this event's course came from the online database, make sure THIS device
   // has its real card too (so pars/leaderboard are correct after joining).
