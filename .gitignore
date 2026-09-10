@@ -17,3 +17,6 @@ npm-debug.*
 
 # OS
 .DS_Store
+
+# Bundled satellite tiles are downloaded at build time (scripts/fetch-sat-tiles.mjs)
+mobile/assets/sat/

@@ -444,6 +444,13 @@ workflows:
         script: |
           cd mobile
           npm install
+      - name: Bundle offline satellite tiles (all 18 Kempton holes)
+        script: |
+          # Downloads each hole's satellite image and regenerates
+          # mobile/src/data/satTiles.ts so the whole course ships offline in the
+          # APK. Never fails the build — any hole that can't be fetched falls
+          # back to the app's on-device cache / live imagery.
+          node scripts/fetch-sat-tiles.mjs || echo "tile bundling skipped (fetch failed)"
       - name: Generate native Android project (expo prebuild)
         script: |
           cd mobile

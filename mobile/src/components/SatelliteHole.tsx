@@ -5,6 +5,7 @@ import { Hole } from "../data/courses";
 import { Coord, haversineMeters } from "../lib/geo";
 import { holeFrame } from "../lib/holeSatellite";
 import { cachedTile, ensureTile } from "../lib/satelliteCache";
+import { SAT_TILES } from "../data/satTiles";
 import { colors } from "../theme";
 
 type HazardArea = { type: "tree" | "water" | "bunker"; points: Coord[] };
@@ -58,11 +59,13 @@ export default function SatelliteHole({
   // map always shows the course and the fetched image is stable for caching.
   const frame = holeFrame(hole, center);
 
-  // Prefer a cached copy of this hole's image (offline); fall back to the remote
-  // url, caching it in the background for next time. Hook must run every render.
+  // A tile bundled into the app (Kempton ships all 18) — packaged in the binary,
+  // so it loads with zero network and needs no cache. Falls back to the on-device
+  // cache, then the remote url (cached in the background for next time).
+  const bundled = courseId ? SAT_TILES[courseId]?.[hole.number] : undefined;
   const [imgUri, setImgUri] = React.useState<string>(frame?.url ?? "");
   React.useEffect(() => {
-    if (!frame) return;
+    if (!frame || bundled) return; // bundled tile needs no fetch/cache
     setImgUri(frame.url);
     if (!courseId || !frame.perHole) return;
     let alive = true;
@@ -73,7 +76,7 @@ export default function SatelliteHole({
       if (saved && alive) setImgUri(saved);
     })();
     return () => { alive = false; };
-  }, [courseId, hole.number, frame?.url, frame?.perHole]);
+  }, [courseId, hole.number, frame?.url, frame?.perHole, bundled]);
 
   if (!frame) {
     return (
@@ -151,7 +154,7 @@ export default function SatelliteHole({
   return (
     <View style={styles.wrap}>
       <View style={[StyleSheet.absoluteFill, { transform: [{ rotate: `${rotateDeg}deg` }, { scale: cover }] }]}>
-      <Image source={{ uri: imgUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      <Image source={bundled ?? { uri: imgUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       {perHole && (
         <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100" preserveAspectRatio="none">
           {/* hazards under the line/markers. A mapped area (3+ points) is drawn

@@ -9,6 +9,7 @@ import SatelliteHole from "../components/SatelliteHole";
 import ZoomableHole from "../components/ZoomableHole";
 import { ydToM } from "../lib/units";
 import { prefetchCourse } from "../lib/satelliteCache";
+import { SAT_TILES } from "../data/satTiles";
 
 export default function CoursePreviewScreen({ navigation, route }: any) {
   const { courseId, setCourse, setCurrentHole } = useRound();
@@ -86,15 +87,21 @@ export default function CoursePreviewScreen({ navigation, route }: any) {
                 ? "Real satellite imagery, framed on this hole. Pinch to zoom, drag to pan, double-tap to zoom in/out."
                 : "Real satellite imagery of the course. Mark each hole's tee & green on-course (GPS) to frame holes precisely and enable auto distance-to-pin."}
             </Text>
-            <View style={styles.offlineRow}>
-              <Button
-                variant="ghost"
-                label={dl.busy ? "Saving…" : "⬇ Save course for offline"}
-                onPress={saveOffline}
-                style={styles.flex}
-              />
-            </View>
-            {dl.msg ? <Text style={styles.offlineMsg}>{dl.msg}</Text> : null}
+            {Object.keys(SAT_TILES[previewId] ?? {}).length > 0 ? (
+              <Text style={styles.offlineMsg}>✓ This course is saved for offline use.</Text>
+            ) : (
+              <>
+                <View style={styles.offlineRow}>
+                  <Button
+                    variant="ghost"
+                    label={dl.busy ? "Saving…" : "⬇ Save course for offline"}
+                    onPress={saveOffline}
+                    style={styles.flex}
+                  />
+                </View>
+                {dl.msg ? <Text style={styles.offlineMsg}>{dl.msg}</Text> : null}
+              </>
+            )}
           </>
         ) : (
           <>

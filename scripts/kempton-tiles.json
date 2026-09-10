@@ -1,0 +1,96 @@
+{
+  "courseId": "kempton-park",
+  "generatedAt": "2026-09-10T20:21:11.600Z",
+  "tiles": [
+    {
+      "hole": 1,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.21123566744328,-26.111588063251673,28.218176632556723,-26.105355336748325&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.21123566744328,-26.111588063251673,28.218176632556723,-26.105355336748325"
+    },
+    {
+      "hole": 2,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.216097849189175,-26.110594717417772,28.220787950810823,-26.10638318258223&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.216097849189175,-26.110594717417772,28.220787950810823,-26.10638318258223"
+    },
+    {
+      "hole": 3,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.21714408109657,-26.111638508987934,28.222718418903433,-26.106632991012066&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.21714408109657,-26.111638508987934,28.222718418903433,-26.106632991012066"
+    },
+    {
+      "hole": 4,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.218236415808317,-26.110953952341767,28.22269308419168,-26.106952047658233&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.218236415808317,-26.110953952341767,28.22269308419168,-26.106952047658233"
+    },
+    {
+      "hole": 5,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.217586537150023,-26.10837663744465,28.220258862849978,-26.105976962555346&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.217586537150023,-26.10837663744465,28.220258862849978,-26.105976962555346"
+    },
+    {
+      "hole": 6,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.213934665179824,-26.10842106459139,28.219311534820175,-26.10359273540861&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.213934665179824,-26.10842106459139,28.219311534820175,-26.10359273540861"
+    },
+    {
+      "hole": 7,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.213924422511777,-26.10877263270936,28.219044777488225,-26.104174667290636&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.213924422511777,-26.10877263270936,28.219044777488225,-26.104174667290636"
+    },
+    {
+      "hole": 8,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.213232540899053,-26.10945314529021,28.219002959100944,-26.104271454709796&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.213232540899053,-26.10945314529021,28.219002959100944,-26.104271454709796"
+    },
+    {
+      "hole": 9,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.213005011798558,-26.107638894670416,28.216048388201443,-26.104906005329582&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.213005011798558,-26.107638894670416,28.216048388201443,-26.104906005329582"
+    },
+    {
+      "hole": 10,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.213670853961755,-26.103463686670832,28.21788834603824,-26.099676313329166&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.213670853961755,-26.103463686670832,28.21788834603824,-26.099676313329166"
+    },
+    {
+      "hole": 11,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.21266946727895,-26.102204130009348,28.216133032721054,-26.099093769990652&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.21266946727895,-26.102204130009348,28.216133032721054,-26.099093769990652"
+    },
+    {
+      "hole": 12,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.211466794091915,-26.10520590606628,28.21712110590808,-26.100128293933714&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.211466794091915,-26.10520590606628,28.21712110590808,-26.100128293933714"
+    },
+    {
+      "hole": 13,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.215551436170728,-26.1067083393536,28.221549763829273,-26.101321860646397&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.215551436170728,-26.1067083393536,28.221549763829273,-26.101321860646397"
+    },
+    {
+      "hole": 14,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.217507309676122,-26.10534575148743,28.22212779032388,-26.101196548512565&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.217507309676122,-26.10534575148743,28.22212779032388,-26.101196548512565"
+    },
+    {
+      "hole": 15,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.21525961420645,-26.103492017539413,28.22016768579355,-26.099084482460587&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.21525961420645,-26.103492017539413,28.22016768579355,-26.099084482460587"
+    },
+    {
+      "hole": 16,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.21530706359435,-26.104019267765896,28.21996683640565,-26.099834732234104&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.21530706359435,-26.104019267765896,28.21996683640565,-26.099834732234104"
+    },
+    {
+      "hole": 17,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.21546159876928,-26.104503321842657,28.21855150123072,-26.101728578157342&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.21546159876928,-26.104503321842657,28.21855150123072,-26.101728578157342"
+    },
+    {
+      "hole": 18,
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=28.21211519314958,-26.107541701838144,28.21633620685042,-26.103751298161853&bboxSR=4326&imageSR=4326&size=1536,1536&format=png&transparent=false&f=image",
+      "bbox": "28.21211519314958,-26.107541701838144,28.21633620685042,-26.103751298161853"
+    }
+  ]
+}
