@@ -60,7 +60,12 @@ export default function SurveyApp() {
 
   const markTee = () => { if (coord) setHole({ ...hole, tees: { ...hole.tees, [teeColor]: coord } }); };
   const markGreen = (k: "green" | "greenFront" | "greenBack") => { if (coord) setHole({ ...hole, [k]: coord }); };
-  const addFairway = () => { if (coord) setHole({ ...hole, fairway: [...hole.fairway, coord] }); };
+  const addFairway = () => {
+    if (!coord) return;
+    const last = hole.fairway[hole.fairway.length - 1];
+    if (last && last.lat === coord.lat && last.lng === coord.lng) return; // GPS hasn't moved yet
+    setHole({ ...hole, fairway: [...hole.fairway, coord] });
+  };
   const undoFairway = () => setHole({ ...hole, fairway: hole.fairway.slice(0, -1) });
 
   const openHz = hole.hazards[hole.hazards.length - 1];
@@ -74,6 +79,8 @@ export default function SurveyApp() {
                               : { type: hzType, points: [] };
       list.push(hz);
     }
+    const last = hz.points[hz.points.length - 1];
+    if (last && last.lat === coord.lat && last.lng === coord.lng) return; // GPS hasn't moved yet
     hz.points = [...hz.points, coord];
     setHole({ ...hole, hazards: list });
   };
