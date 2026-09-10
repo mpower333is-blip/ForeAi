@@ -158,9 +158,10 @@ export default function SatelliteHole({
               as a filled shape — a river, a whole tree line, a bunker outline —
               so one hazard reads as one region. 1–2 point hazards fall back to
               dots (a single tree, a small pot bunker). */}
-          {hazards.filter((hz) => hz.type !== "tree").map((hz, i) => {
-            const s = HZ_FILL[hz.type] ?? HZ_FILL.bunker;
-            if (hz.points.length >= 3) {
+          {hazards
+            .filter((hz) => hz.type !== "tree" && hz.points.length >= 3)
+            .map((hz, i) => {
+              const s = HZ_FILL[hz.type] ?? HZ_FILL.bunker;
               const poly = hz.points.map((p) => { const q = toXY(p); return `${q.x},${q.y}`; }).join(" ");
               return (
                 <Polygon
@@ -173,12 +174,7 @@ export default function SatelliteHole({
                   strokeLinejoin="round"
                 />
               );
-            }
-            return hz.points.map((p, j) => {
-              const q = toXY(p);
-              return <Circle key={`hz${i}-${j}`} cx={q.x} cy={q.y} r={s.r} fill={s.fill} opacity={s.dotOpacity} />;
-            });
-          })}
+            })}
           {/* Playing route: tee → fairway waypoints → green. Falls back to a
               straight tee→green line when no fairway path has been mapped. */}
           {hole.tee && hole.green && fairway.length > 0 ? (
@@ -250,7 +246,7 @@ export default function SatelliteHole({
         </View>
       )}
 
-      {hazards.some((hz) => hz.type === "bunker" || hz.type === "water") && (
+      {hazards.some((hz) => (hz.type === "bunker" || hz.type === "water") && hz.points.length >= 3) && (
         <View style={styles.legend}>
           <Legend color="#e6d29a" label="Bunker" />
           <Legend color="#3a86c8" label="Water" />
