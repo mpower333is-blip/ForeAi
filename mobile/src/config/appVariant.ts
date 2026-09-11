@@ -31,6 +31,7 @@ export type ClubConfig = {
     email?: string; // primary/general email
     web?: string;
     address?: string;
+    phones?: { label: string; number: string }[]; // extra labelled numbers (e.g. pro shop staff)
     emails?: { label: string; address: string }[]; // extra department emails
   };
   // Pro shop bookings. With no booking backend, a request is sent to the shop's
@@ -59,6 +60,10 @@ const CLUBS: Record<string, ClubConfig> = {
       email: "clubmanager@kemptongolfclub.co.za",
       web: "kemptongolfclub.co.za",
       address: "Green Avenue, Zuurfontein, Kempton Park, 1619",
+      phones: [
+        { label: "Pro shop · Ben", number: "079 908 8910" },
+        { label: "Pro shop · Ettiene", number: "084 444 0292" },
+      ],
       emails: [
         { label: "Course info", address: "captain@kemptongolfclub.co.za" },
         { label: "Events & clubhouse", address: "portia@kemptongolfclub.co.za" },

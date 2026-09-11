@@ -110,6 +110,11 @@ export default function ClubHomeScreen({ navigation }: any) {
           <View style={{ gap: 4, marginTop: 4 }}>
             {c.phone ? <TouchableOpacity onPress={() => open(`tel:${c.phone!.replace(/\s/g, "")}`)}><Text style={styles.link}>📞 {c.phone} <Text style={styles.muted}>· Reception</Text></Text></TouchableOpacity> : null}
             {c.phoneAlt ? <TouchableOpacity onPress={() => open(`tel:${c.phoneAlt!.replace(/\s/g, "")}`)}><Text style={styles.link}>📞 {c.phoneAlt} <Text style={styles.muted}>· if lines are down</Text></Text></TouchableOpacity> : null}
+            {(c.phones ?? []).map((p) => (
+              <TouchableOpacity key={p.number} onPress={() => open(`tel:${p.number.replace(/\s/g, "")}`)}>
+                <Text style={styles.link}>📞 {p.number} <Text style={styles.muted}>· {p.label}</Text></Text>
+              </TouchableOpacity>
+            ))}
             {c.web ? <TouchableOpacity onPress={() => open(c.web!.startsWith("http") ? c.web : `https://${c.web}`)}><Text style={styles.link}>🌐 {c.web}</Text></TouchableOpacity> : null}
             {c.address ? <Text style={styles.body}>📍 {c.address}</Text> : null}
             {c.email ? <TouchableOpacity onPress={() => open(`mailto:${c.email}`)}><Text style={styles.link}>✉️ {c.email} <Text style={styles.muted}>· Club manager</Text></Text></TouchableOpacity> : null}
