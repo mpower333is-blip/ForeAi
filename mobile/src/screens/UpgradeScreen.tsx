@@ -10,6 +10,7 @@ import {
   PACKAGE_PRICE,
   FREE_FEATURES,
   PRO_FEATURES,
+  IAP_ENABLED,
 } from "../config/appConfig";
 
 // Required on a subscription paywall by both App Store and Play Store. Both are
@@ -54,6 +55,22 @@ export default function UpgradeScreen({ navigation }: any) {
   };
 
   const hasPlans = configured && packages.length > 0;
+
+  // Where in-app purchases are disabled (iOS ships free, no paywall), this screen
+  // must carry NO subscription language at all — even though nothing navigates
+  // here. Show a plain "everything's included" view instead.
+  if (!IAP_ENABLED) {
+    return (
+      <Screen>
+        <View style={styles.head}>
+          <IconChip emoji="⛳" tone="gold" />
+          <Text style={styles.title}>All features included</Text>
+          <Text style={styles.subtitle}>Every feature is unlocked and free — enjoy your round.</Text>
+        </View>
+        <Button variant="ghost" label="Back" onPress={() => navigation.goBack()} />
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
