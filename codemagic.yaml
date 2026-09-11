@@ -421,6 +421,15 @@ workflows:
     name: Kempton Park Golf — club APK
     instance_type: linux_x2
     max_build_duration: 60
+    # Kempton work lives on the `kempton` branch — auto-build the club APK on
+    # every push there (other workflows keep their own branch config).
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: kempton
+          include: true
+          source: true
     environment:
       node: 20
       java: 17

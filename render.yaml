@@ -52,6 +52,7 @@ services:
     name: foreai-kempton-backend
     runtime: node
     plan: free
+    branch: kempton   # deploy the club backend from the Kempton branch
     rootDir: backend
     buildCommand: npm install && npm run build && npm run db:push
     startCommand: npm start
