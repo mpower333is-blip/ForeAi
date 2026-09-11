@@ -25,7 +25,14 @@ export type ClubConfig = {
   tagline: string;
   // Placeholder club content — safe defaults the club can correct later.
   about: string;
-  contact: { phone?: string; email?: string; web?: string; address?: string };
+  contact: {
+    phone?: string; // main reception
+    phoneAlt?: string; // backup line ("when the lines are down")
+    email?: string; // primary/general email
+    web?: string;
+    address?: string;
+    emails?: { label: string; address: string }[]; // extra department emails
+  };
   // Pro shop bookings. With no booking backend, a request is sent to the shop's
   // real channel (WhatsApp preferred, else email, else an online booking link)
   // pre-filled with the member's details. Leave a field "" to hide that channel.
@@ -48,9 +55,15 @@ const CLUBS: Record<string, ClubConfig> = {
       "The official app for Kempton Park Golf Club — GPS rangefinder, hole-by-hole maps and a live scorecard for all 18 holes.",
     contact: {
       phone: "011 970 1038", // reception (pro shop is in proShop below)
-      email: "mike@kemptongolfclub.co.za",
+      phoneAlt: "071 687 1592", // when the reception lines are down
+      email: "clubmanager@kemptongolfclub.co.za",
       web: "kemptongolfclub.co.za",
       address: "Green Avenue, Zuurfontein, Kempton Park, 1619",
+      emails: [
+        { label: "Course info", address: "captain@kemptongolfclub.co.za" },
+        { label: "Events & clubhouse", address: "portia@kemptongolfclub.co.za" },
+        { label: "Bookings & enquiries", address: "proshop@kemptongolfclub.co.za" },
+      ],
     },
     proShop: {
       phone: "+27113948911", // Kempton pro shop

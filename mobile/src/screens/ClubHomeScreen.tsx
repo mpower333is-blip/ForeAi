@@ -108,10 +108,16 @@ export default function ClubHomeScreen({ navigation }: any) {
         <Text style={styles.h}>Contact</Text>
         {hasContact ? (
           <View style={{ gap: 4, marginTop: 4 }}>
-            {c.phone ? <TouchableOpacity onPress={() => open(`tel:${c.phone!.replace(/\s/g, "")}`)}><Text style={styles.link}>📞 {c.phone}</Text></TouchableOpacity> : null}
-            {c.email ? <TouchableOpacity onPress={() => open(`mailto:${c.email}`)}><Text style={styles.link}>✉️ {c.email}</Text></TouchableOpacity> : null}
+            {c.phone ? <TouchableOpacity onPress={() => open(`tel:${c.phone!.replace(/\s/g, "")}`)}><Text style={styles.link}>📞 {c.phone} <Text style={styles.muted}>· Reception</Text></Text></TouchableOpacity> : null}
+            {c.phoneAlt ? <TouchableOpacity onPress={() => open(`tel:${c.phoneAlt!.replace(/\s/g, "")}`)}><Text style={styles.link}>📞 {c.phoneAlt} <Text style={styles.muted}>· if lines are down</Text></Text></TouchableOpacity> : null}
             {c.web ? <TouchableOpacity onPress={() => open(c.web!.startsWith("http") ? c.web : `https://${c.web}`)}><Text style={styles.link}>🌐 {c.web}</Text></TouchableOpacity> : null}
             {c.address ? <Text style={styles.body}>📍 {c.address}</Text> : null}
+            {c.email ? <TouchableOpacity onPress={() => open(`mailto:${c.email}`)}><Text style={styles.link}>✉️ {c.email} <Text style={styles.muted}>· Club manager</Text></Text></TouchableOpacity> : null}
+            {(c.emails ?? []).map((e) => (
+              <TouchableOpacity key={e.address} onPress={() => open(`mailto:${e.address}`)}>
+                <Text style={styles.link}>✉️ {e.address} <Text style={styles.muted}>· {e.label}</Text></Text>
+              </TouchableOpacity>
+            ))}
           </View>
         ) : (
           <Text style={styles.muted}>Club contact details go here.</Text>
