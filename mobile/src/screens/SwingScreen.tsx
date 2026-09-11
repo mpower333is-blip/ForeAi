@@ -143,7 +143,9 @@ export default function SwingScreen({ navigation }: any) {
         </View>
 
         {!permission?.granted && (
-          <Button label="Enable camera" onPress={requestPermission} variant="ghost" />
+          // Neutral wording (not "Enable camera") so we don't pressure the
+          // permission decision — App Review Guideline 5.1.1(iv).
+          <Button label="Continue" onPress={requestPermission} variant="ghost" />
         )}
       </Card>
 
