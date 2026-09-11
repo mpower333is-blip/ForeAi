@@ -47,10 +47,10 @@ const CLUBS: Record<string, ClubConfig> = {
     about:
       "The official app for Kempton Park Golf Club — GPS rangefinder, hole-by-hole maps and a live scorecard for all 18 holes.",
     contact: {
-      phone: "",
-      email: "",
-      web: "",
-      address: "Kempton Park, Gauteng",
+      phone: "011 970 1038", // reception (pro shop is in proShop below)
+      email: "mike@kemptongolfclub.co.za",
+      web: "kemptongolfclub.co.za",
+      address: "Green Avenue, Zuurfontein, Kempton Park, 1619",
     },
     proShop: {
       phone: "+27113948911", // Kempton pro shop

@@ -108,7 +108,7 @@ export default function ClubHomeScreen({ navigation }: any) {
         <Text style={styles.h}>Contact</Text>
         {hasContact ? (
           <View style={{ gap: 4, marginTop: 4 }}>
-            {c.phone ? <TouchableOpacity onPress={() => open(`tel:${c.phone}`)}><Text style={styles.link}>📞 {c.phone}</Text></TouchableOpacity> : null}
+            {c.phone ? <TouchableOpacity onPress={() => open(`tel:${c.phone!.replace(/\s/g, "")}`)}><Text style={styles.link}>📞 {c.phone}</Text></TouchableOpacity> : null}
             {c.email ? <TouchableOpacity onPress={() => open(`mailto:${c.email}`)}><Text style={styles.link}>✉️ {c.email}</Text></TouchableOpacity> : null}
             {c.web ? <TouchableOpacity onPress={() => open(c.web!.startsWith("http") ? c.web : `https://${c.web}`)}><Text style={styles.link}>🌐 {c.web}</Text></TouchableOpacity> : null}
             {c.address ? <Text style={styles.body}>📍 {c.address}</Text> : null}
