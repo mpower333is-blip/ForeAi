@@ -5,6 +5,10 @@ Store listing assets for the Kempton club app (bundle id `com.foreai.kempton`,
 the club's navy + gold theme, rendered at the App Store 6.7" iPhone size.
 
 ## Files
+- `proposal.html` — the club-facing sales proposal one-pager (branded navy+gold,
+  crest inlined). Open in a browser or share. Pricing: R9,500 once-off setup, then
+  R1,950/month or R21,000/year. Live version:
+  https://claude.ai/code/artifact/2e374120-7cb6-42d8-ac45-f36540705ac7
 - `app-icon-1024.png` — 1024×1024 App Store icon (no alpha). Same crest as the
   in-app assets (`mobile/assets/kempton-icon.png`).
 - `screenshots/` — **6.7" iPhone (1290×2796)** — use for the 6.7"/6.9" slot.
