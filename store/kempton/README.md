@@ -68,6 +68,31 @@ club info are all open. "Link membership" is optional and only personalises the
 digital card; it is not needed to use the app. No account or payment is required.
 ```
 
+**App Privacy — Data Collection** (App Store Connect → App Privacy)
+
+Answer **"Yes, we collect data from this app."** The app stores member data on the
+Kempton backend when someone links their membership, books a tee time, or enters a
+competition. There are **no** analytics or advertising SDKs.
+
+Declare **only** these data types, each: used for **App Functionality** only,
+**linked** to the user's identity, **not** used for tracking.
+
+| Category | Data type | Notes |
+|---|---|---|
+| Contact Info | Name | member profile |
+| Contact Info | Email Address | member profile / bookings |
+| Contact Info | Phone Number | only if member phone numbers are stored |
+| Identifiers | User ID | membership number / linked account |
+| Other Data | Other Data Types | handicap index (no golf-specific field) |
+
+Do **NOT** declare:
+- **Location** — the GPS rangefinder uses location **on-device only**; it is never
+  sent to or stored on the backend, so it is not "collected".
+- Health & Fitness, Financial Info, Purchases (no payments yet), Contacts,
+  Browsing/Search History, Sensitive Info, Usage Data, Diagnostics.
+
+Resulting label: "Data Linked to You — used for App Functionality, no tracking."
+
 **TestFlight test information** (required for external testing):
 - Feedback email: proshop@kemptongolfclub.co.za
 - Beta App Review contact: a real name + phone + email
