@@ -44,15 +44,16 @@ export type Course = {
 // tee; the other tees are scaled from it until we have a course's real per-tee
 // scorecard. Par and stroke index don't change with the tee; GPS distances are
 // measured live, so they're always exact regardless of tee.
-export type TeeId = "red" | "white" | "blue" | "pro";
+export type TeeId = "red" | "white" | "blue";
 export type Tee = { id: TeeId; name: string; who: string; factor: number };
+// Kempton's tees: Red = Ladies, Blue = Men's (the exact surveyed card = base),
+// White = Championship (the back tees). No separate "Pro/Back" tee.
 export const TEES: Tee[] = [
   { id: "red", name: "Red", who: "Ladies", factor: 0.85 },
-  { id: "white", name: "White", who: "Men's", factor: 1.0 },
-  { id: "blue", name: "Blue", who: "Championship", factor: 1.06 },
-  { id: "pro", name: "Pro", who: "Back", factor: 1.12 },
+  { id: "blue", name: "Blue", who: "Men's", factor: 1.0 },
+  { id: "white", name: "White", who: "Championship", factor: 1.06 },
 ];
-export const DEFAULT_TEE: TeeId = "white";
+export const DEFAULT_TEE: TeeId = "blue";
 
 export function teeFactor(id: TeeId): number {
   return TEES.find((t) => t.id === id)?.factor ?? 1;
@@ -143,7 +144,7 @@ function buildLayout(parTotal: number, totalYards?: number): Hole[] {
 // runtime, so the app isn't tied to a hard-coded national list.
 // prettier-ignore
 const RAW_COURSES: Raw[] = [
-  { id: "kempton-park", name: "Kempton Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.1016, lng: 28.236 },
+  { id: "kempton-park", name: "Kempton Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.1051, lng: 28.2170 },
   // East Rand courses we're surveying — layout is a placeholder until we
   // capture each hole's GPS on-site (and drop in the real scorecard). Centres
   // are approximate, just to sort them nearest-first and centre the map.

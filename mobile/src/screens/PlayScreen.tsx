@@ -9,6 +9,7 @@ import ScoreCaptureCard from "../components/ScoreCaptureCard";
 import StatsEntry from "../components/StatsEntry";
 import { useAutoShotTracker } from "../hooks/useAutoShotTracker";
 import { TEES } from "../data/courses";
+import { IS_CLUB_APP } from "../config/appVariant";
 import { Coord, compass8 } from "../lib/geo";
 import { ydToM, mphToKmh, fToC } from "../lib/units";
 import { fetchWeather, windForShot } from "../services/weather";
@@ -183,9 +184,12 @@ export default function PlayScreen({ navigation }: any) {
           <TouchableOpacity onPress={() => navigation.navigate("CoursePreview")}>
             <Text style={styles.courseChange}>Preview</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate("CourseSelect")}>
-            <Text style={styles.courseChange}>Change ›</Text>
-          </TouchableOpacity>
+          {/* A club app is locked to its one course — no "change course". */}
+          {!IS_CLUB_APP && (
+            <TouchableOpacity onPress={() => navigation.navigate("CourseSelect")}>
+              <Text style={styles.courseChange}>Change ›</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
