@@ -20,7 +20,9 @@ the club's navy + gold theme, rendered at the App Store 6.7" iPhone size.
 
 ## Listing metadata (paste into App Store Connect)
 
-- **Name:** Kempton Park Golf
+- **Name (App Store display):** Kempton Park Golf Club
+  (the in-app icon label / built app name stays "Kempton Park Golf" — the App
+  Store display name does not have to match the on-device name)
 - **Subtitle:** GPS, tee times & live scores
 - **Category:** Sports
 - **Age rating:** 4+
