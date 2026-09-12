@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../config/db";
 import { requireAdmin } from "./club";
+import { raiseBookingGreenFee } from "../lib/invoices";
 
 // Tee-time booking.
 //
@@ -182,6 +183,8 @@ router.post("/:clubKey", async (req, res) => {
       note: b.note ? String(b.note) : null,
     },
   });
+  // Raise a green-fee invoice if the club charges green fees on booking.
+  await raiseBookingGreenFee(booking).catch(() => {});
   res.json(booking);
 });
 

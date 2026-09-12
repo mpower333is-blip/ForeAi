@@ -57,6 +57,7 @@ export default function ClubHomeScreen({ navigation }: any) {
         <Button icon="🪪" label="My membership card" onPress={() => navigation.navigate("Membership")} />
         <Button icon="⛳" variant="ghost" label="Book a tee time" onPress={() => navigation.navigate("TeeTimes")} />
         <Button icon="🏆" variant="ghost" label="Competitions" onPress={() => navigation.navigate("Competitions")} />
+        <Button icon="💳" variant="ghost" label="My account & payments" onPress={() => navigation.navigate("Payments")} />
       </Card>
 
       {/* Club news */}

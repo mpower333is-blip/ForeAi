@@ -79,6 +79,51 @@ profile is created automatically — no manual profile management.
 > own distribution signing key; the `foreai-kempton-ios` workflow would then point at
 > a Kempton-specific integration + signing group instead of the shared ones.
 
+## Payments (dues, green fees, competition entries, levies)
+
+The club takes money through the app. It's built provider-agnostic and ships in
+two modes, chosen automatically by whether PayFast keys are set on the backend:
+
+- **EFT / record-only (default, no setup):** members see the club's banking
+  details + a unique invoice reference in the app; the office marks invoices paid
+  in the admin. Works today — nothing to configure but the banking block.
+- **PayFast (card + Instant EFT):** set the env vars below and the same "Pay"
+  button opens PayFast's hosted checkout; an ITN webhook marks the invoice paid.
+  No code change — just config.
+
+So the whole payments system can be **demonstrated now on EFT**, and live card
+payments switched on later by adding the club's PayFast credentials.
+
+**What's wired**
+- **Backend:** `FeeSchedule` (price list), `Invoice`, `Payment` models; routes at
+  `/payments` (member: `mine`, `checkout`, `config`; admin: `fees`, `invoices`,
+  `mark-paid`, `cancel`, `issue-dues`; webhook: `payfast/notify`). Green fees can
+  auto-invoice on booking (`ClubSettings.chargeGreenFeeOnBooking` + an active
+  green-fee fee); competition entries auto-invoice when the competition has an
+  `entryFeeCents`.
+- **App:** a **My account** screen (`Payments`) — outstanding invoices, pay by
+  card/EFT, and payment history. Linked from the club home Membership card.
+- **Admin:** `clubhouse/manage/payments.html` — price list, raise invoices, the
+  annual dues run, mark-paid, and the currency / banking / green-fee settings.
+
+**To turn on PayFast** (later), set these on `foreai-kempton-backend` (Render →
+Environment) and redeploy:
+
+```
+PAYFAST_MERCHANT_ID    = <from the club's PayFast account>
+PAYFAST_MERCHANT_KEY   = <from the club's PayFast account>
+PAYFAST_PASSPHRASE     = <the passphrase set in PayFast settings>   # recommended
+PAYFAST_SANDBOX        = true      # while testing; remove/false for live
+PUBLIC_BASE_URL        = https://foreai-kempton-backend.onrender.com  # for the ITN/return URLs
+```
+
+Then set the PayFast **ITN / notify URL** to
+`https://foreai-kempton-backend.onrender.com/payments/kempton/payfast/notify`.
+No app rebuild is needed — the app asks the backend which mode is live.
+
+> iOS note: dues, green fees and competition entries are **real-world services**,
+> so Apple permits external payment (PayFast) — no In-App Purchase requirement.
+
 ## Branch & deployments
 
 Kempton work lives on the **`kempton`** branch (a superset of `main` — it carries all

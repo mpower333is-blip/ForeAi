@@ -57,6 +57,10 @@ router.post("/:clubKey/settings", async (req, res) => {
         slotCapacity: Math.max(1, num(b.slotCapacity, s.slotCapacity)),
         bookingWindowDays: Math.max(0, num(b.bookingWindowDays, s.bookingWindowDays)),
         openDays: b.openDays != null ? String(b.openDays) : s.openDays,
+        currency: b.currency != null ? String(b.currency) : s.currency,
+        bankingDetails: "bankingDetails" in b ? (b.bankingDetails ? String(b.bankingDetails) : null) : s.bankingDetails,
+        chargeGreenFeeOnBooking:
+          "chargeGreenFeeOnBooking" in b ? !!b.chargeGreenFeeOnBooking : s.chargeGreenFeeOnBooking,
       },
     });
     res.json(publicSettings(updated));

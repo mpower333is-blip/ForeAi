@@ -8,93 +8,94 @@ datasource db {
 }
 
 model User {
-  id         String   @id @default(uuid())
-  email      String   @unique
-  handicap   Float?
+  id       String @id @default(uuid())
+  email    String @unique
+  handicap Float?
 
-  rounds     Round[]
-  clubs      Club[]
+  rounds Round[]
+  clubs  Club[]
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Round {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  userId      String
-  user        User @relation(fields:[userId], references:[id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  courseName  String
-  totalScore  Int
+  courseName String
+  totalScore Int
 
-  shots       Shot[]
+  shots Shot[]
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Shot {
-  id               String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  roundId          String
-  round            Round @relation(fields:[roundId], references:[id])
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id])
 
-  hole             Int
+  hole Int
 
-  club             String
-  yardage          Int
+  club    String
+  yardage Int
 
-  lie              String?
-  wind             Int?
-  elevation        Int?
+  lie       String?
+  wind      Int?
+  elevation Int?
 
-  result           String
-  dispersion       String?
+  result     String
+  dispersion String?
 
-  expectedStrokes  Float?
-  strokesGained    Float?
+  expectedStrokes Float?
+  strokesGained   Float?
 
-  createdAt        DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Club {
-  id           String @id @default(uuid())
+  id String @id @default(uuid())
 
-  userId       String
-  user         User @relation(fields:[userId], references:[id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  name         String
-  avgCarry     Int
+  name     String
+  avgCarry Int
 
-  dispersion   Int?
+  dispersion Int?
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 }
+
 // ---------------------------------------------------------------------------
 // Tournaments / golf days — the shared "system" that lets many devices join
 // one event, self-register, and see live scores.
 // ---------------------------------------------------------------------------
 
 model Tournament {
-  id          String   @id @default(uuid())
-  code        String   @unique // short human-friendly join code (players use this)
+  id          String  @id @default(uuid())
+  code        String  @unique // short human-friendly join code (players use this)
   // Organiser admin PIN. Separate from the public join code: the code lets people
   // JOIN/register + view; changing anything (approve/delete registrations, edit
   // sponsors/settings) requires this PIN. Null = no PIN set yet (open, legacy).
   adminPin    String?
   name        String
-  courseId    String            // id from the app's course catalog
-  format      String   @default("stroke") // "stroke" | "stableford"
-  firstTeeMin Int      @default(480)
-  intervalMin Int      @default(10)
-  shotgun     Boolean  @default(false)
+  courseId    String // id from the app's course catalog
+  format      String  @default("stroke") // "stroke" | "stableford"
+  firstTeeMin Int     @default(480)
+  intervalMin Int     @default(10)
+  shotgun     Boolean @default(false)
   cause       String?
-  causePhoto  String?  // photo of the person/cause the day supports (data URL)
+  causePhoto  String? // photo of the person/cause the day supports (data URL)
   // Per-event branding + money (set by the organiser at setup). Makes each event
   // self-contained instead of hard-coding one company's details in the website.
-  logo        String?  @db.Text // the event's own logo (data URL)
-  banking     String?  @db.Text // banking details block shown on the registration forms
-  teamFee     Int?     // entry fee per four-ball team (for office totals + forms)
-  holeFee     Int?     // fee per hole sponsor
+  logo        String? @db.Text // the event's own logo (data URL)
+  banking     String? @db.Text // banking details block shown on the registration forms
+  teamFee     Int? // entry fee per four-ball team (for office totals + forms)
+  holeFee     Int? // fee per hole sponsor
   // Organiser's custom reminders, pushed to every player's phone as local
   // notifications. JSON array of { offsetMin, title, body } — offsetMin is
   // minutes before the first tee (e.g. 3 days = 4320) for "pay your team fee".
@@ -108,20 +109,20 @@ model Tournament {
   registrations TournamentRegistration[]
   shotMarks     TournamentShotMark[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // A submission from the shared online registration form (team entry, hole
 // sponsor or prize sponsor). Keeps the full company/contact record for the
 // office; players & sponsors are also created so entries import immediately.
 model TournamentRegistration {
-  id           String @id @default(uuid())
+  id String @id @default(uuid())
 
   tournamentId String
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
-  type          String  // "team" | "hole" | "prize"
+  type          String // "team" | "hole" | "prize"
   company       String
   regNumber     String?
   vatNumber     String?
@@ -136,61 +137,61 @@ model TournamentRegistration {
 
   // If this submission created a sponsor (hole/prize), its id — so deleting the
   // submission in the office also removes the sponsor it imported (no orphans).
-  sponsorId     String?
+  sponsorId String?
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model TournamentGroup {
-  id           String @id @default(uuid())
+  id String @id @default(uuid())
 
   tournamentId String
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
-  order        Int // position on the tee sheet (drives the tee time)
+  order Int // position on the tee sheet (drives the tee time)
 
-  players      TournamentPlayer[]
+  players TournamentPlayer[]
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model TournamentPlayer {
-  id           String @id @default(uuid())
+  id String @id @default(uuid())
 
   tournamentId String
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
-  groupId      String?
-  group        TournamentGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  groupId String?
+  group   TournamentGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
-  name         String
-  handicap     Float  @default(0)
-  deviceId     String? // the phone that registered this player (for "me")
+  name     String
+  handicap Float   @default(0)
+  deviceId String? // the phone that registered this player (for "me")
 
   // Live presence + position ("who's on the app / where is each team").
   // Updated by a heartbeat from the player's phone while the event is open.
-  lastSeen     DateTime? // last heartbeat — recent = on the app right now
-  lat          Float?    // last known GPS position (optional, if shared)
-  lng          Float?
+  lastSeen DateTime? // last heartbeat — recent = on the app right now
+  lat      Float? // last known GPS position (optional, if shared)
+  lng      Float?
 
-  scores       TournamentScore[]
+  scores TournamentScore[]
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model TournamentScore {
-  id           String @id @default(uuid())
+  id String @id @default(uuid())
 
   tournamentId String
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
-  playerId     String
-  player       TournamentPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  playerId String
+  player   TournamentPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
-  hole         Int
-  strokes      Int
+  hole    Int
+  strokes Int
 
-  updatedAt    DateTime @updatedAt
+  updatedAt DateTime @updatedAt
 
   @@unique([playerId, hole])
 }
@@ -198,29 +199,29 @@ model TournamentScore {
 // On-course side games during a tournament/golf day (closest to the pin,
 // longest drive, etc.) tracked across the whole field.
 model TournamentContest {
-  id           String @id @default(uuid())
+  id String @id @default(uuid())
 
   tournamentId String
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
-  type         String // "closest" | "longest"
-  hole         Int
+  type String // "closest" | "longest"
+  hole Int
 
-  results      TournamentContestResult[]
+  results TournamentContestResult[]
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model TournamentContestResult {
-  id         String @id @default(uuid())
+  id String @id @default(uuid())
 
-  contestId  String
-  contest    TournamentContest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  contestId String
+  contest   TournamentContest @relation(fields: [contestId], references: [id], onDelete: Cascade)
 
-  playerId   String
-  value      Float // yards: distance from pin (closest) or drive length (longest)
+  playerId String
+  value    Float // yards: distance from pin (closest) or drive length (longest)
 
-  updatedAt  DateTime @updatedAt
+  updatedAt DateTime @updatedAt
 
   @@unique([contestId, playerId])
 }
@@ -229,19 +230,19 @@ model TournamentContestResult {
 // GPS + the selected club + the hole. The phone polls these to log shots
 // hands-free even while it sits in the cart. Append-only, lightweight.
 model TournamentShotMark {
-  id           String @id @default(uuid())
+  id String @id @default(uuid())
 
   tournamentId String
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
-  playerId     String
-  hole         Int?
-  club         String?
-  lat          Float?
-  lng          Float?
-  source       String @default("watch") // "watch" | "phone"
+  playerId String
+  hole     Int?
+  club     String?
+  lat      Float?
+  lng      Float?
+  source   String  @default("watch") // "watch" | "phone"
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([tournamentId, playerId, createdAt])
 }
@@ -249,18 +250,18 @@ model TournamentShotMark {
 // Sponsors for a fundraiser golf day — title/hole/prize/general sponsors shown
 // in the app and on the clubhouse board.
 model TournamentSponsor {
-  id           String @id @default(uuid())
+  id String @id @default(uuid())
 
   tournamentId String
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
-  name         String
-  tier         String // "title" | "hole" | "prize" | "general"
-  hole         Int?   // for hole sponsors
-  message      String?
-  logo         String? // the sponsor's logo as a data URL (uploaded on registration)
+  name    String
+  tier    String // "title" | "hole" | "prize" | "general"
+  hole    Int? // for hole sponsors
+  message String?
+  logo    String? // the sponsor's logo as a data URL (uploaded on registration)
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 // ---------------------------------------------------------------------------
@@ -274,52 +275,62 @@ model TournamentSponsor {
 // the shape of the tee sheet (first/last tee, interval, players per slot, how
 // far ahead members may book). One row per club.
 model ClubSettings {
-  clubKey           String  @id            // "kempton"
-  name              String                 // display name for admin screens
-  adminPin          String?                // gates admin writes (x-admin-pin header)
-  courseId          String  @default("")   // course id the tee sheet runs on
+  clubKey  String  @id // "kempton"
+  name     String // display name for admin screens
+  adminPin String? // gates admin writes (x-admin-pin header)
+  courseId String  @default("") // course id the tee sheet runs on
 
   // Tee-sheet shape (minutes past midnight, club-local time)
-  firstTeeMin       Int     @default(360)  // 06:00 — first bookable tee
-  lastTeeMin        Int     @default(960)  // 16:00 — last bookable tee
-  intervalMin       Int     @default(10)   // minutes between tee slots
-  slotCapacity      Int     @default(4)    // max players per slot (a four-ball)
-  bookingWindowDays Int     @default(14)   // how far ahead members may book
-  openDays          String  @default("0,1,2,3,4,5,6") // open weekdays (0=Sun..6=Sat)
+  firstTeeMin       Int    @default(360) // 06:00 — first bookable tee
+  lastTeeMin        Int    @default(960) // 16:00 — last bookable tee
+  intervalMin       Int    @default(10) // minutes between tee slots
+  slotCapacity      Int    @default(4) // max players per slot (a four-ball)
+  bookingWindowDays Int    @default(14) // how far ahead members may book
+  openDays          String @default("0,1,2,3,4,5,6") // open weekdays (0=Sun..6=Sat)
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  // Payments. The club takes money for dues, green fees, competition entries and
+  // levies. Two modes, driven by whether PayFast env keys are present on the
+  // backend: "manual" (EFT — the app shows these banking details + a reference,
+  // the office marks invoices paid) and "payfast" (hosted card/Instant-EFT
+  // checkout). `bankingDetails` is the EFT block shown in manual mode.
+  currency                String  @default("ZAR")
+  bankingDetails          String? @db.Text
+  chargeGreenFeeOnBooking Boolean @default(false) // raise a green-fee invoice per booking
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // A club member. The OFFICIAL WHS handicap stays with HNA/GolfRSA — we import
 // and display the index (handicapIndex), we don't compute it.
 model Member {
-  id               String    @id @default(uuid())
-  clubKey          String    @default("kempton")
+  id      String @id @default(uuid())
+  clubKey String @default("kempton")
 
-  memberNumber     String                     // club membership no. (shown on the card)
-  firstName        String
-  lastName         String
-  email            String?
-  cell             String?
-  category         String    @default("full")   // full | social | senior | junior | ladies | life | honorary
-  status           String    @default("active") // active | suspended | pending | resigned
-  joinedAt         DateTime?
+  memberNumber String // club membership no. (shown on the card)
+  firstName    String
+  lastName     String
+  email        String?
+  cell         String?
+  category     String    @default("full") // full | social | senior | junior | ladies | life | honorary
+  status       String    @default("active") // active | suspended | pending | resigned
+  joinedAt     DateTime?
 
   // Handicap (imported from HNA — see /members/sync-hna)
   handicapIndex    Float?
-  hnaId            String?                      // Handicaps Network Africa member id
+  hnaId            String? // Handicaps Network Africa member id
   handicapSyncedAt DateTime?
 
   // App binding: the phone that claimed this membership (identify + digital card)
-  deviceId         String?
-  photo            String?   @db.Text          // optional member photo (data URL)
+  deviceId String?
+  photo    String? @db.Text // optional member photo (data URL)
 
-  bookings         TeeBooking[]
-  compEntries      CompetitionEntry[]
+  bookings    TeeBooking[]
+  compEntries CompetitionEntry[]
+  invoices    Invoice[]
 
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([clubKey, memberNumber])
   @@index([clubKey, lastName])
@@ -330,22 +341,22 @@ model Member {
 // given teeAt holds up to ClubSettings.slotCapacity players; a booking takes
 // `partySize` of them. Availability = capacity − sum(active partySize at teeAt).
 model TeeBooking {
-  id           String    @id @default(uuid())
-  clubKey      String    @default("kempton")
+  id      String @id @default(uuid())
+  clubKey String @default("kempton")
 
-  teeAt        DateTime                       // the exact tee slot (date + time, UTC)
-  courseId     String    @default("")
+  teeAt    DateTime // the exact tee slot (date + time, UTC)
+  courseId String   @default("")
 
-  memberId     String?                        // who booked (null = admin block)
-  member       Member?   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId String? // who booked (null = admin block)
+  member   Member? @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
-  partySize    Int       @default(1)          // seats this booking takes in the slot
-  players      Json?                          // party member names (strings), booker first
-  note         String?
-  status       String    @default("booked")   // booked | cancelled | blocked
+  partySize Int     @default(1) // seats this booking takes in the slot
+  players   Json? // party member names (strings), booker first
+  note      String?
+  status    String  @default("booked") // booked | cancelled | blocked
 
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([clubKey, teeAt])
   @@index([memberId])
@@ -359,57 +370,59 @@ model TeeBooking {
 // ---------------------------------------------------------------------------
 
 model Competition {
-  id                String   @id @default(uuid())
-  clubKey           String   @default("kempton")
+  id      String @id @default(uuid())
+  clubKey String @default("kempton")
 
-  name              String                        // "Saturday Medal"
-  date              DateTime
-  format            String   @default("stableford") // stableford | stroke | betterball
-  courseId          String   @default("")
-  status            String   @default("open")     // draft | open | closed | results
+  name     String // "Saturday Medal"
+  date     DateTime
+  format   String   @default("stableford") // stableford | stroke | betterball
+  courseId String   @default("")
+  status   String   @default("open") // draft | open | closed | results
+
+  entryFeeCents Int? // entry fee (cents, club currency); null/0 = free
 
   // Scoring inputs. The course card is stored on the competition so results are
   // reproducible and the backend needs no course catalogue. Defaults = Kempton.
-  pars              Int[]                          // 18 hole pars
-  sis               Int[]                          // 18 stroke indexes (1-18)
-  handicapAllowance Int      @default(95)          // % of course handicap (WHS medal 95)
-  slope             Int      @default(113)         // course slope (113 = neutral)
-  courseRating      Float?                         // course rating; defaults to par
+  pars              Int[] // 18 hole pars
+  sis               Int[] // 18 stroke indexes (1-18)
+  handicapAllowance Int    @default(95) // % of course handicap (WHS medal 95)
+  slope             Int    @default(113) // course slope (113 = neutral)
+  courseRating      Float? // course rating; defaults to par
 
-  description       String?
-  entries           CompetitionEntry[]
+  description String?
+  entries     CompetitionEntry[]
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([clubKey, date])
 }
 
 model CompetitionEntry {
-  id             String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  competitionId  String
-  competition    Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
 
   // Link to the roster (null for a guest); name + handicap are snapshotted so a
   // result stands even if the member's index later changes.
-  memberId       String?
-  member         Member?  @relation(fields: [memberId], references: [id], onDelete: SetNull)
-  playerName     String
-  handicapIndex  Float?                            // snapshot at entry
-  playingHandicap Int    @default(0)               // computed from index + allowance
+  memberId        String?
+  member          Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  playerName      String
+  handicapIndex   Float? // snapshot at entry
+  playingHandicap Int     @default(0) // computed from index + allowance
 
-  holeScores     Int[]                             // 18 gross strokes (0 = not played)
-  grossTotal     Int?
-  netTotal       Int?
-  stableford     Int?
-  status         String   @default("entered")      // entered | submitted | dq | withdrawn
+  holeScores Int[] // 18 gross strokes (0 = not played)
+  grossTotal Int?
+  netTotal   Int?
+  stableford Int?
+  status     String @default("entered") // entered | submitted | dq | withdrawn
 
-  teeTime        DateTime?
-  groupNo        Int?
+  teeTime DateTime?
+  groupNo Int?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([competitionId, memberId])
   @@index([competitionId])
@@ -421,22 +434,105 @@ model CompetitionEntry {
 // ---------------------------------------------------------------------------
 
 model Notice {
-  id         String   @id @default(uuid())
-  clubKey    String   @default("kempton")
+  id      String @id @default(uuid())
+  clubKey String @default("kempton")
 
   title      String
   body       String   @db.Text
-  category   String   @default("news")     // news | event | notice | result | urgent
-  pinned     Boolean  @default(false)      // keep at the top of the board
-  image      String?  @db.Text             // optional banner image (data URL)
-  authorName String?                       // e.g. "The Committee"
+  category   String   @default("news") // news | event | notice | result | urgent
+  pinned     Boolean  @default(false) // keep at the top of the board
+  image      String?  @db.Text // optional banner image (data URL)
+  authorName String? // e.g. "The Committee"
   status     String   @default("published") // draft | published
-  publishAt  DateTime @default(now())      // go-live + sort date
+  publishAt  DateTime @default(now()) // go-live + sort date
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([clubKey, status, publishAt])
+}
+
+// ---------------------------------------------------------------------------
+// Payments — the club's money side. A FeeSchedule is the price list (dues by
+// category, green fees, competition entries, levies). An Invoice is a charge
+// raised against a member (or a named guest); a Payment records how it was
+// settled. Provider-agnostic: settle by EFT (office marks paid) or PayFast
+// hosted checkout (ITN webhook marks paid). All scoped by clubKey. Amounts are
+// integer cents in the club currency (ClubSettings.currency, default ZAR).
+// ---------------------------------------------------------------------------
+
+model FeeSchedule {
+  id      String @id @default(uuid())
+  clubKey String @default("kempton")
+
+  type        String // dues | green_fee | comp_entry | levy
+  name        String // "Full membership 2026", "Weekday green fee"
+  category    String? // dues: member category it applies to; null = any
+  period      String? // dues: "annual" | "monthly"; null otherwise
+  amountCents Int
+  active      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clubKey, type, active])
+}
+
+model Invoice {
+  id      String @id @default(uuid())
+  clubKey String @default("kempton")
+
+  number String // human reference (also PayFast m_payment_id / EFT ref)
+
+  memberId   String?
+  member     Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  payerName  String // snapshot: member or guest name
+  payerEmail String?
+
+  type        String // dues | green_fee | comp_entry | levy
+  description String
+  amountCents Int
+  status      String    @default("unpaid") // unpaid | paid | cancelled | refunded
+  dueAt       DateTime?
+  paidAt      DateTime?
+
+  // Soft links to what raised the invoice (no FK — the source may be deleted and
+  // the financial record must survive). One booking / entry raises one invoice.
+  bookingId     String? @unique
+  competitionId String?
+  entryId       String? @unique
+  feeId         String?
+
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clubKey, number])
+  @@index([clubKey, status])
+  @@index([clubKey, type])
+  @@index([memberId])
+}
+
+model Payment {
+  id      String @id @default(uuid())
+  clubKey String @default("kempton")
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  provider    String // manual | payfast
+  providerRef String? // pf_payment_id / EFT reference
+  amountCents Int
+  status      String  @default("completed") // pending | completed | failed
+  note        String?
+  raw         Json? // gateway payload (audit)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clubKey, invoiceId])
+  @@index([providerRef])
 }
 
 // A phone registered to receive lightning push alerts. The background watcher
@@ -445,12 +541,12 @@ model Notice {
 // danger — so players are warned even with the app closed. `token` is the Expo
 // push token; `enabled` flips off when the player turns lightning alerts off.
 model PushDevice {
-  id        String   @id @default(uuid())
-  token     String   @unique // Expo push token (ExponentPushToken[...])
-  platform  String?  // "ios" | "android"
-  lat       Float?   // last watched location (course centre or live GPS)
-  lng       Float?
-  enabled   Boolean  @default(true)
+  id       String  @id @default(uuid())
+  token    String  @unique // Expo push token (ExponentPushToken[...])
+  platform String? // "ios" | "android"
+  lat      Float? // last watched location (course centre or live GPS)
+  lng      Float?
+  enabled  Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

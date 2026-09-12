@@ -3,6 +3,7 @@ import prisma from "../config/db";
 import { requireAdmin } from "./club";
 import { cardFor } from "../data/clubCards";
 import { courseHandicap, playingHandicap, scoreRound, countback, Card } from "../lib/scoring";
+import { raiseCompEntryInvoice } from "../lib/invoices";
 
 // Club competitions: the calendar of medals / Stableford / betterball days.
 // Members enter (using their roster handicap), submit a card, and see a live
@@ -107,6 +108,10 @@ function compData(clubKey: string, b: any, existing?: any) {
     pars: arr(b.pars, existing?.pars ?? card.pars),
     sis: arr(b.sis, existing?.sis ?? card.sis),
     description: b.description != null ? String(b.description) : existing?.description ?? null,
+    entryFeeCents:
+      b.entryFeeCents != null
+        ? Math.max(0, Math.round(Number(b.entryFeeCents)) || 0)
+        : existing?.entryFeeCents ?? null,
   };
 }
 
@@ -162,7 +167,11 @@ router.post("/:clubKey/:id/enter", async (req, res) => {
     index = m.handicapIndex;
     const dup = await prisma.competitionEntry.findFirst({ where: { competitionId: comp.id, memberId } });
     if (dup && dup.status !== "withdrawn") return res.status(409).json({ error: "You're already entered" });
-    if (dup) { const r = await prisma.competitionEntry.update({ where: { id: dup.id }, data: { status: "entered" } }); return res.json(r); }
+    if (dup) {
+      const r = await prisma.competitionEntry.update({ where: { id: dup.id }, data: { status: "entered" } });
+      await raiseCompEntryInvoice({ id: r.id, clubKey, competitionId: comp.id, memberId, playerName }).catch(() => {});
+      return res.json(r);
+    }
   } else {
     // Guests may only be added by an admin.
     const s = await settings(clubKey);
@@ -175,6 +184,8 @@ router.post("/:clubKey/:id/enter", async (req, res) => {
   const entry = await prisma.competitionEntry.create({
     data: { competitionId: comp.id, memberId, playerName, handicapIndex: index, playingHandicap: ph, holeScores: [] },
   });
+  // Raise an entry-fee invoice if the competition has an entry fee.
+  await raiseCompEntryInvoice({ id: entry.id, clubKey, competitionId: comp.id, memberId, playerName }).catch(() => {});
   res.json(entry);
 });
 
