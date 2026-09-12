@@ -35,8 +35,11 @@
   }
 
   *{box-sizing:border-box}
+  html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);
-    font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+    font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{size:A4;margin:14mm}
   .page{max-width:940px;margin:0 auto;padding-inline:20px;padding-block:0 64px}
   a{color:inherit}
 
