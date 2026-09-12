@@ -7,8 +7,10 @@ the club's navy + gold theme, rendered at the App Store 6.7" iPhone size.
 ## Files
 - `app-icon-1024.png` — 1024×1024 App Store icon (no alpha). Same crest as the
   in-app assets (`mobile/assets/kempton-icon.png`).
-- `screenshots/` — 6.7" iPhone (1290×2796), upload under iOS App → Screenshots
-  (6.7" covers all iPhone sizes; the app is iPhone-only, so no iPad set needed):
+- `screenshots/` — **6.7" iPhone (1290×2796)** — use for the 6.7"/6.9" slot.
+- `screenshots-6.5/` — the same six at **6.5" iPhone (1284×2778)** — use if App
+  Store Connect shows a 6.5" Display slot (it rejects 1290×2796).
+  (The app is iPhone-only, so no iPad set is needed.) The six screens are:
   - `01_home.png` — home / crest hero + feature cards
   - `02_gps.png` — GPS rangefinder (front/middle/back)
   - `03_membership.png` — digital membership card + QR check-in
