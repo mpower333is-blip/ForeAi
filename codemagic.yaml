@@ -11,6 +11,7 @@
 #   foreai-surveyor-android  ForeAi Survey → app-release.apk  (standalone survey app, sideload)
 #   foreai-kempton-android   Kempton Park → ForeAi-Kempton-*.apk (club app, sideload)
 #   foreai-kempton-android-play  Kempton Park → ForeAi-Kempton-*.aab (Google Play, run manually)
+#   foreai-kempton-watch-android Kempton Park watch → ForeAi-Kempton-Watch-*.aab (Wear OS, Play)
 #   foreai-kempton-ios       Kempton Park → TestFlight / .ipa (club app, needs Apple setup*)
 #
 # The phone and watch are ONE Play app (com.foreai.mobile). In Play you choose
@@ -162,6 +163,55 @@ workflows:
     publishing:
       # No auto-publish (see note above): the watch AAB is emailed to you and
       # uploaded manually into the com.foreai.mobile release beside the phone AAB.
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # Kempton Park club watch — Wear OS AAB for Google Play. Same wear/ source as
+  # foreai-watch-android, built with the Kempton install id / name / backend so it
+  # ships inside the Kempton Play app (com.foreai.kempton) as its Wear OS form
+  # factor. Run MANUALLY for a Play release; upload beside the phone .aab.
+  # versionCode sits in the 93000+ lane so it never clashes with the Kempton
+  # phone bundles (3000+) in the same Play app.
+  foreai-kempton-watch-android:
+    name: Kempton Park Watch — Wear OS AAB (Play)
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      java: 17
+      groups:
+        - google_play   # CM_KEYSTORE (+ password/alias) — the shared upload key
+      vars:
+        WEAR_APP_ID: "com.foreai.kempton"          # same install id as the Kempton phone app
+        WEAR_APP_NAME: "Kempton Park Golf"
+        WEAR_API_BASE: "https://foreai-kempton-backend.onrender.com"
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Build the signed Kempton Wear OS release AAB
+        script: |
+          cd wear
+          # 93000+ lane: unique against the Kempton phone bundles (3000+) in the
+          # same Play app. Each rebuild bumps BUILD_NUMBER, so it keeps rising.
+          export ANDROID_VERSION_CODE=$((93000 + ${BUILD_NUMBER:-1}))
+          echo "Kempton WATCH versionCode: $ANDROID_VERSION_CODE (com.foreai.kempton, Wear OS)"
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/wear/upload.keystore"
+          curl -sSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle.zip
+          unzip -q -o /tmp/gradle.zip -d "$HOME/gradle-dist"
+          "$HOME/gradle-dist/gradle-8.7/bin/gradle" :app:bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$CM_BUILD_DIR/wear/upload.keystore" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+          V=$((93000 + ${BUILD_NUMBER:-1}))
+          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/ForeAi-Kempton-Watch-$V.aab"
+    artifacts:
+      - wear/app/build/outputs/**/ForeAi-Kempton-Watch-*.aab
+    publishing:
       email:
         recipients:
           - mpower333is@gmail.com

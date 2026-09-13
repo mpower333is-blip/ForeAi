@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ForeAi Golf</string>
+    <!-- app_name is generated at build time via resValue in app/build.gradle.kts
+         (defaults to "ForeAi Golf"; club flavours override with WEAR_APP_NAME). -->
 </resources>

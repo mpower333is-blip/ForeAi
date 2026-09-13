@@ -17,7 +17,11 @@ android {
         // release, and the watch bundle must carry the phone's package to be
         // accepted. applicationId can differ from namespace (kept as
         // com.foreai.wear) — only the install id must match the app.
-        applicationId = "com.foreai.mobile"
+        //
+        // Club flavours (e.g. Kempton) build the SAME watch source with a
+        // different install id / name / backend via env vars, so the club's watch
+        // ships inside its own Play app. Defaults keep the ForeAi build unchanged.
+        applicationId = System.getenv("WEAR_APP_ID") ?: "com.foreai.mobile"
         minSdk = 30 // Wear OS 3+
         targetSdk = 35
         // Same app as the phone → versionCodes must be unique across both. CI
@@ -25,6 +29,13 @@ android {
         // never collides with the phone's low numbers. versionName is shown as 1.0.
         versionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInt()
         versionName = "1.0"
+        // Watch display name + backend, overridable per flavour (defaults = ForeAi).
+        resValue("string", "app_name", System.getenv("WEAR_APP_NAME") ?: "ForeAi Golf")
+        buildConfigField(
+            "String",
+            "API_BASE",
+            "\"${System.getenv("WEAR_API_BASE") ?: "https://foreai-backend.onrender.com"}\"",
+        )
     }
 
     buildTypes {
@@ -42,6 +53,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true // for API_BASE (buildConfigField above)
     }
     composeOptions {
         // Matches Kotlin 1.9.24 (see the Compose–Kotlin compatibility map).

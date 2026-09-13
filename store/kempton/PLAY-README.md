@@ -96,3 +96,21 @@ Everything needed to publish the Kempton club app on Google Play. The signed
 > Play App Signing: Google holds the app signing key; you upload with the upload
 > key baked into the `google_play` Codemagic group. Keep that keystore safe — it's
 > how every future update is authenticated.
+
+## Wear OS watch app (optional, same Play app)
+
+The Kempton watch app is the golf-day companion (join an event by code and score
+from the wrist), built from the shared `wear/` source with the Kempton install id,
+name and backend. It ships **inside the same Kempton Play app** as its **Wear OS
+form factor** — the same model as ForeAi's phone+watch.
+
+1. Build it: Codemagic → **`foreai-kempton-watch-android`** → Start build → it
+   emails `ForeAi-Kempton-Watch-<versionCode>.aab` (93000+ lane, so it never
+   clashes with the phone bundles at 3000+).
+2. Play Console → the Kempton app → **Test and release** → create/edit a release
+   → add the watch `.aab` **alongside** the phone `.aab` (Play detects it as the
+   Wear OS form factor).
+3. Signed with the same shared upload key, so no extra signing setup.
+
+> The watch talks to `foreai-kempton-backend` and carries the "Kempton Park Golf"
+> name. It's optional — publish the phone app first; add the watch when you want it.
