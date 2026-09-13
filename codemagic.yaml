@@ -656,7 +656,7 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: true
+        submit_to_testflight: false   # upload to TestFlight only; submit to external beta review manually
       email:
         recipients:
           - mpower333is@gmail.com
