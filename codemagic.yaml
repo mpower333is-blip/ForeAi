@@ -10,6 +10,7 @@
 #   foreai-ios               ForeAi phone → TestFlight / .ipa (needs Apple setup*)
 #   foreai-surveyor-android  ForeAi Survey → app-release.apk  (standalone survey app, sideload)
 #   foreai-kempton-android   Kempton Park → ForeAi-Kempton-*.apk (club app, sideload)
+#   foreai-kempton-android-play  Kempton Park → ForeAi-Kempton-*.aab (Google Play, run manually)
 #   foreai-kempton-ios       Kempton Park → TestFlight / .ipa (club app, needs Apple setup*)
 #
 # The phone and watch are ONE Play app (com.foreai.mobile). In Play you choose
@@ -486,6 +487,71 @@ workflows:
           mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/ForeAi-Kempton-$V.apk"
     artifacts:
       - mobile/android/app/build/outputs/**/ForeAi-Kempton-*.apk
+    publishing:
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ── Kempton Park club app — Android for Google Play (.aab) ──────────────────
+  # Same build as foreai-kempton-android, but produces a Play-signed .aab (Google
+  # Play requires an app bundle, not an APK). RUN THIS MANUALLY when releasing to
+  # Play — the sideload-APK workflow above still auto-builds on every push for
+  # quick testing/sharing. One-time Play setup: create the com.foreai.kempton app
+  # in Play Console, enrol in Play App Signing (register the shared upload key
+  # from the google_play group), then upload this .aab to a track (Internal
+  # testing first, then Production). Later uploads just need a higher versionCode.
+  foreai-kempton-android-play:
+    name: Kempton Park Golf — Play .aab
+    instance_type: linux_x2
+    max_build_duration: 60
+    # No triggering block: run on demand from the Codemagic UI for a Play release.
+    environment:
+      node: 20
+      java: 17
+      groups:
+        - google_play   # shared upload keystore (CM_KEYSTORE + password/alias)
+      vars:
+        EXPO_PUBLIC_CLUB: "kempton"
+        EXPO_PUBLIC_API_URL: "https://foreai-kempton-backend.onrender.com"
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Install JS dependencies
+        script: |
+          cd mobile
+          npm install
+      - name: Bundle offline satellite tiles (all 18 Kempton holes)
+        script: |
+          # Fails the build unless all 18 tiles are bundled (scripts/fetch-sat-tiles.mjs).
+          node scripts/fetch-sat-tiles.mjs
+      - name: Generate native Android project (expo prebuild)
+        script: |
+          cd mobile
+          # Play requires a strictly increasing versionCode on every upload. Use a
+          # 3000+ base so Play uploads never clash with the 2000+ sideload APKs.
+          export ANDROID_VERSION_CODE=$((3000 + ${BUILD_NUMBER:-1}))
+          echo "Kempton Play versionCode: $ANDROID_VERSION_CODE (package com.foreai.kempton)"
+          npx expo prebuild --platform android --no-install
+      - name: Decode the upload keystore
+        script: |
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/mobile/android/app/upload.keystore"
+      - name: Build the signed .aab
+        script: |
+          cd mobile/android
+          ./gradlew bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$PWD/app/upload.keystore" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+          V=$((3000 + ${BUILD_NUMBER:-1}))
+          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/ForeAi-Kempton-$V.aab"
+    artifacts:
+      - mobile/android/app/build/outputs/**/ForeAi-Kempton-*.aab
     publishing:
       email:
         recipients:
