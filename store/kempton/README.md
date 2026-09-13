@@ -100,7 +100,7 @@ Do **NOT** declare:
 Resulting label: "Data Linked to You — used for App Functionality, no tracking."
 
 **TestFlight test information** (required for external testing):
-- Feedback email: proshop@kemptongolfclub.co.za
+- Feedback email: golfforeai@gmail.com
 - Beta App Review / App Review contact: Marcell Laubscher · +27 71 423 1990 ·
   marcell.laubscher@outlook.com (as entered in App Store Connect)
 
