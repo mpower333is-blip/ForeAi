@@ -101,7 +101,8 @@ Resulting label: "Data Linked to You — used for App Functionality, no tracking
 
 **TestFlight test information** (required for external testing):
 - Feedback email: proshop@kemptongolfclub.co.za
-- Beta App Review contact: a real name + phone + email
+- Beta App Review / App Review contact: Marcell Laubscher · +27 71 423 1990 ·
+  marcell.laubscher@outlook.com (as entered in App Store Connect)
 
 ## Regenerating the screenshots
 They are rendered from HTML mockups via headless Chromium at 3× (430×932 →

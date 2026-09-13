@@ -61,7 +61,6 @@ const CLUBS: Record<string, ClubConfig> = {
       web: "kemptongolfclub.co.za",
       address: "Green Avenue, Zuurfontein, Kempton Park, 1619",
       phones: [
-        { label: "Pro shop · Ben", number: "079 908 8910" },
         { label: "Pro shop · Ettiene", number: "084 444 0292" },
       ],
       emails: [
