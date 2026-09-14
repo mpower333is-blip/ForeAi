@@ -88,6 +88,11 @@ export default {
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
       ],
+      // expo-sensors pulls in ACTIVITY_RECOGNITION (for its Pedometer), which we
+      // never use — only the Accelerometer (swing/shot capture). Google treats
+      // ACTIVITY_RECOGNITION as a Health permission and demands a declaration, so
+      // strip it from the merged manifest.
+      blockedPermissions: ["android.permission.ACTIVITY_RECOGNITION"],
     },
     web: {
       bundler: "metro",
