@@ -70,9 +70,12 @@ Everything needed to publish the Kempton club app on Google Play. The signed
   for children → not in the Families programme.
 - **Data safety** (mirrors the App Store privacy label):
   - Does your app collect or share user data? **Yes** (collects; does **not** share).
-  - Data types collected: **Name**, **Email address**, (optional **Phone number**),
-    and **Other** (golf handicap index). No location is collected — the GPS
-    rangefinder runs on-device only and is never sent to the backend.
+  - Data types collected: **Name**, **Email address**, **User IDs** (membership
+    number), **Other info** (golf handicap index), and **Device or other IDs**
+    (device id + push token, to bind the membership to the phone and send alerts).
+    No location is collected — the GPS rangefinder runs on-device only and is
+    never sent to the backend. No financial data (card payments run on PayFast's
+    web checkout, outside the app).
   - For each: purpose **App functionality**; **linked** to the user; **not** used
     for tracking/advertising.
   - Is all data **encrypted in transit**? **Yes** (HTTPS).
