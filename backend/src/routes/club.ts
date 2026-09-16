@@ -1,5 +1,6 @@
 import { Router } from "express";
 import prisma from "../config/db";
+import { bearerClaims } from "../lib/auth";
 
 // Per-club settings: the admin PIN that gates roster + tee-sheet changes, and
 // the shape of the tee sheet. One row per clubKey (the app flavour, e.g.
@@ -25,6 +26,17 @@ function publicSettings(s: any) {
 // Admin gate — shared shape with the tournaments router. Returns true if the
 // request may proceed; otherwise it has already sent 403 and the caller returns.
 export function requireAdmin(s: { adminPin: string | null }, req: any, res: any): boolean {
+  // A signed-in organiser authorises admin actions — the login replaces the PIN.
+  const claims = bearerClaims(req);
+  if (claims) {
+    const clubKey = req.params?.clubKey;
+    // A club-bound organiser may only manage their own club.
+    if (claims.clubKey && clubKey && claims.clubKey !== clubKey) {
+      res.status(403).json({ error: "Your account manages a different club." });
+      return false;
+    }
+    return true;
+  }
   if (!s.adminPin) return true; // no PIN configured yet — open (club sets one first)
   const given = String(req.header("x-admin-pin") ?? req.body?.adminPin ?? "");
   if (given && given === s.adminPin) return true;

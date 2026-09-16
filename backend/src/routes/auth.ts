@@ -34,7 +34,7 @@ router.post("/register", async (req, res) => {
     const user = await prisma.adminUser.create({
       data: { email, passwordHash: hashPassword(password), name, clubKey },
     });
-    const token = signToken({ sub: user.id, email: user.email, name: user.name, role: user.role });
+    const token = signToken({ sub: user.id, email: user.email, name: user.name, role: user.role, clubKey: user.clubKey });
     res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, clubKey: user.clubKey } });
   } catch (e) {
     console.error("register error", e);
@@ -52,7 +52,7 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Incorrect email or password." });
     }
     await prisma.adminUser.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-    const token = signToken({ sub: user.id, email: user.email, name: user.name, role: user.role });
+    const token = signToken({ sub: user.id, email: user.email, name: user.name, role: user.role, clubKey: user.clubKey });
     res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, clubKey: user.clubKey } });
   } catch (e) {
     console.error("login error", e);

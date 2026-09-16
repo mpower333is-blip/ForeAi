@@ -1,5 +1,6 @@
 import { Router } from "express";
 import prisma from "../config/db";
+import { bearerClaims } from "../lib/auth";
 
 const router = Router();
 
@@ -97,7 +98,16 @@ async function respondWithEvent(id: string, res: any) {
 // if the event has no PIN set (legacy/unset), the action is allowed. Once a PIN
 // is set, the `x-admin-pin` header must match. Returns true if the request may
 // proceed; otherwise it has already sent a 403 and the caller should return.
-function requireAdminPin(t: { adminPin: string | null }, req: any, res: any): boolean {
+function requireAdminPin(t: { adminPin: string | null; ownerId?: string | null }, req: any, res: any): boolean {
+  // A signed-in organiser authorises admin actions — the login replaces the PIN.
+  // If the event has an owner it must be them; unowned/legacy events accept any
+  // valid organiser token.
+  const claims = bearerClaims(req);
+  if (claims) {
+    if (!t.ownerId || t.ownerId === claims.sub) return true;
+    res.status(403).json({ error: "This event belongs to another organiser." });
+    return false;
+  }
   if (!t.adminPin) return true; // no PIN configured yet — open
   const given = String(req.header("x-admin-pin") ?? req.body?.adminPin ?? "");
   if (given && given === t.adminPin) return true;
@@ -110,7 +120,7 @@ function requireAdminPin(t: { adminPin: string | null }, req: any, res: any): bo
 async function gateAdmin(req: any, res: any): Promise<boolean> {
   const t = await prisma.tournament.findUnique({
     where: { id: req.params.id },
-    select: { adminPin: true },
+    select: { adminPin: true, ownerId: true },
   });
   if (!t) {
     res.status(404).json({ error: "Tournament not found" });
@@ -126,6 +136,9 @@ router.post("/", async (req, res) => {
     if (!name || !courseId) {
       return res.status(400).json({ error: "name and courseId are required" });
     }
+    // If created while signed in on the web, the event belongs to that organiser
+    // (so only they can manage it later, without needing a PIN).
+    const owner = bearerClaims(req);
 
     // Retry a few times in the unlikely event of a code collision.
     let created = null;
@@ -141,6 +154,7 @@ router.post("/", async (req, res) => {
             intervalMin: intervalMin ?? 10,
             shotgun: !!shotgun,
             adminPin: adminPin ? String(adminPin) : null,
+            ownerId: owner?.sub ?? null,
           },
         });
       } catch {

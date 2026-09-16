@@ -30,7 +30,15 @@ export function verifyPassword(pw: string, stored: string): boolean {
 
 const b64 = (s: string | Buffer) => Buffer.from(s).toString("base64url");
 
-export type TokenPayload = { sub: string; email: string; name?: string | null; role?: string };
+export type TokenPayload = { sub: string; email: string; name?: string | null; role?: string; clubKey?: string | null };
+
+// Read + verify the organiser token from an Authorization: Bearer header.
+// Returns the claims, or null if there is no valid token.
+export function bearerClaims(req: { headers: Record<string, any>; header?: (n: string) => any }): (TokenPayload & { exp: number }) | null {
+  const hdr = (req.header ? req.header("authorization") : req.headers?.authorization) || "";
+  const token = typeof hdr === "string" && hdr.startsWith("Bearer ") ? hdr.slice(7) : "";
+  return verifyToken(token);
+}
 
 export function signToken(payload: TokenPayload, days = 30): string {
   const body = { ...payload, iat: Date.now(), exp: Date.now() + days * 86400000 };
