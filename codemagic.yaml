@@ -27,10 +27,10 @@
 #                                  (com.foreai.surveyor — the course-survey tool)
 #   foreai-firestore-apk           ForeAi → ForeAi-Firestore-*.apk, built with
 #                                  EXPO_PUBLIC_USE_FIRESTORE=1 (events on Firestore).
-#                                  Package suffix .fstest → installs alongside the
-#                                  real app. Deploy firestore.rules first.
+#                                  Same package id → UPDATES the sideloaded app in
+#                                  place. Deploy firestore.rules first.
 #   foreai-kempton-firestore-apk   Kempton → Kempton-Firestore-*.apk, Firestore on
-#                                  for events AND club data. Also .fstest, side-by-side.
+#                                  for events AND club data. Same package id, in place.
 #
 # (The Wear OS workflow was removed; the wear/ code is untouched and a workflow can
 #  be restored from git history if you need to build the watch again.)
@@ -537,11 +537,12 @@ workflows:
 
   # ═══════════════ 6) ForeAi — Firestore TEST APK (sideload) ═══════════════
   # A sideloadable .apk of the MAIN app built with EXPO_PUBLIC_USE_FIRESTORE=1, so
-  # events run on Firestore instead of Render — for testing the cutover. A package
-  # suffix (.fstest) + "(FS)" name make it install ALONGSIDE the real app, so your
-  # production ForeAi is untouched. Signed with the shared upload keystore.
-  # PREREQUISITE: deploy firestore.rules (rules.next → rules) first, or Firestore
-  # writes are denied. See docs/render-firebase-cutover.md.
+  # events run on Firestore instead of Render — for testing the cutover. Same
+  # package id (com.foreai.mobile) + the shared upload keystore, so it UPDATES the
+  # sideloaded app IN PLACE (no Play version yet — we're waiting on Google). Its
+  # versionCode lane (9000+) is above the store lanes so it installs over an older
+  # sideload. PREREQUISITE: deploy firestore.rules (rules.next → rules) first, or
+  # Firestore writes are denied. See docs/render-firebase-cutover.md.
   foreai-firestore-apk:
     name: ForeAi — Firestore TEST APK
     instance_type: linux_x2
@@ -553,7 +554,6 @@ workflows:
         - google_play   # reuses the shared upload keystore to sign the APK
       vars:
         EXPO_PUBLIC_USE_FIRESTORE: "1"
-        EXPO_PUBLIC_PKG_SUFFIX: "fstest"
     cache:
       cache_paths:
         - $HOME/.npm
@@ -567,7 +567,7 @@ workflows:
         script: |
           cd mobile
           export ANDROID_VERSION_CODE=$((9000 + ${BUILD_NUMBER:-1}))
-          echo "ForeAi Firestore TEST APK versionCode: $ANDROID_VERSION_CODE (package com.foreai.mobile.fstest)"
+          echo "ForeAi Firestore TEST APK versionCode: $ANDROID_VERSION_CODE (package com.foreai.mobile — updates the sideloaded app in place)"
           npx expo prebuild --platform android --no-install
       - name: Decode the upload keystore
         script: |
@@ -595,8 +595,9 @@ workflows:
   # ═══════════════ 7) Kempton — Firestore TEST APK (sideload) ═══════════════
   # Sideloadable .apk of the Kempton flavour with EXPO_PUBLIC_USE_FIRESTORE=1, so
   # BOTH events and club data (members, tee sheet, competitions, news) run on
-  # Firestore. Package suffix (.fstest) installs it alongside the real Kempton app.
-  # Bundles the offline satellite tiles like the Kempton store build.
+  # Firestore. Same package id (com.foreai.kempton) + shared keystore, so it
+  # UPDATES the sideloaded Kempton app IN PLACE. Bundles the offline satellite
+  # tiles like the Kempton store build.
   # PREREQUISITE: deploy firestore.rules first (writes are denied otherwise).
   foreai-kempton-firestore-apk:
     name: Kempton Park Golf — Firestore TEST APK
@@ -610,7 +611,6 @@ workflows:
       vars:
         EXPO_PUBLIC_CLUB: "kempton"
         EXPO_PUBLIC_USE_FIRESTORE: "1"
-        EXPO_PUBLIC_PKG_SUFFIX: "fstest"
     cache:
       cache_paths:
         - $HOME/.npm
@@ -628,7 +628,7 @@ workflows:
         script: |
           cd mobile
           export ANDROID_VERSION_CODE=$((9500 + ${BUILD_NUMBER:-1}))
-          echo "Kempton Firestore TEST APK versionCode: $ANDROID_VERSION_CODE (package com.foreai.kempton.fstest)"
+          echo "Kempton Firestore TEST APK versionCode: $ANDROID_VERSION_CODE (package com.foreai.kempton — updates the sideloaded app in place)"
           npx expo prebuild --platform android --no-install
       - name: Decode the upload keystore
         script: |
