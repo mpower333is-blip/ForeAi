@@ -55,6 +55,32 @@
   // see the page; everyone else is bounced back to the management hub. The DB is
   // the source of truth, so a stale local copy is re-checked against /auth/me
   // before blocking (and refreshed if the account was just granted access).
+  // Inject a small "signed in as … · Sign out" bar so an organiser can sign out
+  // from any management page (bottom-right, clear of the back button/toolbars).
+  function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function mountBar() {
+    if (document.getElementById("foreai-userbar")) return;
+    var u = window.FOREAI_AUTH.user || {};
+    var who = u.name || u.email || "organiser";
+    var style = document.createElement("style");
+    style.textContent =
+      "#foreai-userbar{position:fixed;bottom:14px;right:14px;z-index:99998;display:flex;align-items:center;gap:10px;" +
+      "background:rgba(8,18,38,.92);border:1px solid #26407A;border-radius:999px;padding:8px 14px;" +
+      "font:600 13px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#B7C6E6;" +
+      "-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 4px 16px rgba(0,0,0,.35)}" +
+      "#foreai-userbar .fu-who{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+      "#foreai-userbar .fu-out{color:#F3C33B;font-weight:800;text-decoration:none;cursor:pointer}" +
+      "#foreai-userbar .fu-out:hover{text-decoration:underline}";
+    document.head.appendChild(style);
+    var bar = document.createElement("div");
+    bar.id = "foreai-userbar";
+    bar.innerHTML = '<span class="fu-who">🔓 ' + esc(who) + '</span><span style="opacity:.5">·</span><a class="fu-out" href="#">Sign out</a>';
+    bar.querySelector(".fu-out").addEventListener("click", function (e) { e.preventDefault(); window.FOREAI_AUTH.signOut(); });
+    document.body.appendChild(bar);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mountBar);
+  else mountBar();
+
   var REQUIRE_CLUB = window.FOREAI_REQUIRE_CLUB || null;
   if (REQUIRE_CLUB) {
     var bounce = function () {
