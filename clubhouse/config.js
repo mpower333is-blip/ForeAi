@@ -20,4 +20,12 @@ window.FOREAI_DEFAULTS = {
   // Weather + lightning now runs on a Firebase Cloud Function (migrated off
   // Render). Pages use this instead of api + "/weather". Override with ?wx=...
   weatherUrl: "https://europe-west1-foreai-f9cfa.cloudfunctions.net/weather",
+
+  // Render → Firebase cutover flag for EVENTS. While false, every page talks to
+  // the Render backend exactly as today (the live ECS / Kempton / Kruinsig
+  // events are untouched). Flip to true — TOGETHER with a matching app build
+  // (EXPO_PUBLIC_USE_FIRESTORE=1) and the deployed Firestore rules — to move
+  // events onto Firestore. Test first on a single page with ?fs=1 (or ?fs=0 to
+  // force off). See docs/render-firebase-cutover.md.
+  useFirestore: false,
 };

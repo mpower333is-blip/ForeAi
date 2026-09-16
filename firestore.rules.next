@@ -70,7 +70,9 @@ service cloud.firestore {
       }
       match /contests/{contestId} {
         allow read: if true;
-        allow create, update, delete: if isEventAdmin(eventId);
+        // The REST backend never gated side-games, and the organiser's own device
+        // (app) or browser adds them — keep parity: any signed-in client.
+        allow create, update, delete: if isSignedIn();
         match /results/{resultId} {
           allow read: if true;
           allow create, update, delete: if isSignedIn();

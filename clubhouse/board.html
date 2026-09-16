@@ -85,6 +85,8 @@
     <script src="firebase-config.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="events-fs.js"></script>
 </head>
   <body>
 <a href="index.html" class="foreai-back" onclick="if(window.history.length>1){window.history.back();return false;}">‹ Back</a>
@@ -310,8 +312,20 @@
       // polling. If Firestore isn't configured, errors, or the event isn't
       // mirrored yet, polling stays in charge.
       function startRealtime() {
-        if (!fs || !eventId) return;
+        if (!eventId) return;
         if (unsub) { unsub(); unsub = null; }
+        // Firestore cutover path: assemble the event live from its native
+        // subcollections (same store the app writes). No mirror doc, no polling.
+        if (window.EventsFS && EventsFS.enabled) {
+          stopPolling();
+          unsub = EventsFS.subscribeEvent(eventId, (ev) => {
+            baseEvent = ev;
+            render(ev);
+            setConn(true, true);
+          });
+          return;
+        }
+        if (!fs) return;
         unsub = fs.collection("events").doc(eventId).onSnapshot(
           (doc) => {
             if (!doc.exists) return;           // not mirrored yet — polling covers us

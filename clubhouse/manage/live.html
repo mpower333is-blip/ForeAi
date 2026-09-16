@@ -55,6 +55,8 @@
 <script src="../firebase-config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="../events-fs.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 (function(){
@@ -164,7 +166,26 @@
   }
   // Returns true if a realtime subscription was established for this code.
   async function startFirestore(){
-    if(!fs || !CODE) return false;
+    if(!CODE) return false;
+    // Firestore cutover path: assemble the event live from native subcollections
+    // (positions carry only lat/lng/lastSeen now — names come from players).
+    if(window.EventsFS && EventsFS.enabled){
+      try{
+        var id = await EventsFS.idForCode(CODE);
+        if(!id) return false;
+        unsubEv = EventsFS.subscribeEvent(id, function(ev){
+          evName = ev.name || null;
+          positions = {};
+          (ev.players||[]).forEach(function(p){
+            if(typeof p.lat==='number' && typeof p.lng==='number')
+              positions[p.id] = { id:p.id, name:p.name, lat:p.lat, lng:p.lng, lastSeen:p.lastSeen };
+          });
+          paintFromFirestore();
+        });
+        return true;
+      }catch(e){ return false; }
+    }
+    if(!fs) return false;
     try{
       var codeSnap = await fs.collection('eventCodes').doc(CODE).get();
       if(!codeSnap.exists) return false;               // not mirrored yet → fall back

@@ -64,6 +64,12 @@
   .toast.show{opacity:1}
 </style>
   <script src="config.js"></script>
+  <!-- Firestore events cutover (inert unless FOREAI_DEFAULTS.useFirestore or ?fs=1). -->
+  <script src="firebase-config.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="events-fs.js"></script>
 </head>
 <body>
 <a class="signin-link" href="index.html" style="left:14px;right:auto">‹ Home</a>
