@@ -67,6 +67,14 @@
 
   <section>
     <h2>👤 Organisers</h2>
+    <div class="addbar">
+      <input id="newOrgName" placeholder="Name" style="width:150px" />
+      <input id="newOrgEmail" placeholder="email@school.co.za" style="width:210px" />
+      <input id="newOrgPass" placeholder="Password (min 6)" style="width:150px" />
+      <input id="newOrgClub" placeholder="clubkey (optional)" style="width:150px" />
+      <button class="btn" onclick="createOrganiser()">+ Add organiser</button>
+      <span class="msg" id="orgMsg"></span>
+    </div>
     <div class="card" id="organisers"><div class="empty">Loading…</div></div>
   </section>
 </div>
@@ -182,6 +190,16 @@
       payStatus:tr.querySelector('.e-status').value, payFee:tr.querySelector('.e-fee').value||null,
     }); btn.textContent='Saved'; setTimeout(function(){btn.textContent='Save';},1200); }
     catch(e){ alert(e.message); }
+  };
+  window.createOrganiser=async function(){
+    var name=$('newOrgName').value.trim(), email=$('newOrgEmail').value.trim(), password=$('newOrgPass').value, clubKey=$('newOrgClub').value.trim();
+    $('orgMsg').textContent='';
+    if(!email||!password){ $('orgMsg').textContent='Email and password required.'; return; }
+    try{
+      await api('/admin/organisers','POST',{name:name||null,email:email,password:password,clubKey:clubKey||null});
+      $('newOrgName').value='';$('newOrgEmail').value='';$('newOrgPass').value='';$('newOrgClub').value='';
+      $('orgMsg').textContent='Created ✓ — they can sign in now.'; load();
+    }catch(e){ $('orgMsg').textContent=e.message; }
   };
   window.saveUser=async function(btn){
     var tr=btn.closest('tr'), id=tr.dataset.id;

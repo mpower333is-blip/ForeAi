@@ -1,6 +1,9 @@
 import { Router } from "express";
+import admin from "firebase-admin";
 import prisma from "../config/db";
 import { requireAuth } from "../lib/auth";
+import { db as _fs } from "../lib/firebaseAdmin"; // side-effect: initialises the Admin SDK if FIREBASE_SERVICE_ACCOUNT is set
+void _fs;
 
 // Platform super-admin API. Every route requires a valid token whose role is
 // "owner" (granted by SUPER_ADMIN_EMAILS). Lets the platform owner see every
@@ -86,6 +89,41 @@ router.patch("/clubs/:clubKey", async (req, res) => {
   if (b.subFee !== undefined) data.subFee = b.subFee == null || b.subFee === "" ? null : Number(b.subFee);
   const club = await prisma.clubSettings.update({ where: { clubKey: req.params.clubKey }, data });
   res.json({ ok: true, clubKey: club.clubKey });
+});
+
+// Create a new organiser login directly (owner onboards a school/club without
+// the person having to self-register). Mints the Firebase Auth account (what the
+// web sign-in uses) and the matching AdminUser record. Requires the Admin SDK to
+// be configured on the server (FIREBASE_SERVICE_ACCOUNT).
+router.post("/organisers", async (req, res) => {
+  const email = String(req.body?.email ?? "").trim().toLowerCase();
+  const password = String(req.body?.password ?? "");
+  const name = req.body?.name ? String(req.body.name).trim() : null;
+  const clubKey = req.body?.clubKey ? String(req.body.clubKey).trim() : null;
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: "Enter a valid email address." });
+  if (password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters." });
+  if (!admin.apps.length) {
+    return res.status(503).json({ error: "Firebase isn't configured on the server (set FIREBASE_SERVICE_ACCOUNT). Until then, ask the organiser to self-register on the sign-in page." });
+  }
+  try {
+    let fbUser;
+    try {
+      fbUser = await admin.auth().createUser({ email, password, displayName: name || undefined });
+    } catch (e: any) {
+      if (e?.code === "auth/email-already-exists") return res.status(409).json({ error: "An account with that email already exists." });
+      if (e?.code === "auth/invalid-password") return res.status(400).json({ error: "Password is too weak (min 6 characters)." });
+      throw e;
+    }
+    const user = await prisma.adminUser.upsert({
+      where: { email },
+      update: { name, ...(clubKey !== null ? { clubKey } : {}) },
+      create: { email, passwordHash: "firebase", name, clubKey },
+    });
+    res.json({ ok: true, uid: fbUser.uid, user: { id: user.id, email: user.email, name: user.name, clubKey: user.clubKey, role: user.role } });
+  } catch (e) {
+    console.error("create organiser failed", e);
+    res.status(500).json({ error: "Could not create the organiser account." });
+  }
 });
 
 // Assign an organiser to a club (or clear it) / change their role.
