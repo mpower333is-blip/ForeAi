@@ -109,18 +109,21 @@ service cloud.firestore {
 
       match /members/{memberId} {
         allow read: if isSignedIn();
-        allow write: if isClubAdmin(clubKey);
+        allow create, delete: if isClubAdmin(clubKey);           // admin manages the roster
+        // Admin edits the roster; a member's app may only bind its own device (claim).
+        allow update: if isClubAdmin(clubKey)
+          || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deviceId']));
       }
       match /bookings/{bookingId} {
         allow read: if isSignedIn();
-        allow write: if isClubAdmin(clubKey);
+        allow write: if isSignedIn();                            // members book/cancel; admin blocks slots
       }
       match /competitions/{compId} {
         allow read: if isSignedIn();
-        allow write: if isClubAdmin(clubKey);
+        allow create, update, delete: if isClubAdmin(clubKey);   // admin runs the calendar
         match /entries/{entryId} {
           allow read: if isSignedIn();
-          allow write: if isClubAdmin(clubKey);
+          allow write: if isSignedIn();                          // members enter / withdraw / submit a card
         }
       }
       match /notices/{noticeId} {
