@@ -22,9 +22,15 @@
 # with the matching bundle id, then run the workflow (it creates the bundle id +
 # profile and uploads to TestFlight).
 #
-# Plus a 5th, non-store build:
-#   foreai-surveyor-android  ForeAi Survey → ForeAi-Survey-*.apk  (sideload,
-#                            com.foreai.surveyor — boots into the course-survey tool)
+# Plus non-store, sideloadable APK builds:
+#   foreai-surveyor-android        ForeAi Survey → ForeAi-Survey-*.apk
+#                                  (com.foreai.surveyor — the course-survey tool)
+#   foreai-firestore-apk           ForeAi → ForeAi-Firestore-*.apk, built with
+#                                  EXPO_PUBLIC_USE_FIRESTORE=1 (events on Firestore).
+#                                  Package suffix .fstest → installs alongside the
+#                                  real app. Deploy firestore.rules first.
+#   foreai-kempton-firestore-apk   Kempton → Kempton-Firestore-*.apk, Firestore on
+#                                  for events AND club data. Also .fstest, side-by-side.
 #
 # (The Wear OS workflow was removed; the wear/ code is untouched and a workflow can
 #  be restored from git history if you need to build the watch again.)
@@ -521,6 +527,124 @@ workflows:
           mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/ForeAi-Survey-$V.apk"
     artifacts:
       - mobile/android/app/build/outputs/**/ForeAi-Survey-*.apk
+    publishing:
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ═══════════════ 6) ForeAi — Firestore TEST APK (sideload) ═══════════════
+  # A sideloadable .apk of the MAIN app built with EXPO_PUBLIC_USE_FIRESTORE=1, so
+  # events run on Firestore instead of Render — for testing the cutover. A package
+  # suffix (.fstest) + "(FS)" name make it install ALONGSIDE the real app, so your
+  # production ForeAi is untouched. Signed with the shared upload keystore.
+  # PREREQUISITE: deploy firestore.rules (rules.next → rules) first, or Firestore
+  # writes are denied. See docs/render-firebase-cutover.md.
+  foreai-firestore-apk:
+    name: ForeAi — Firestore TEST APK
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      node: 20
+      java: 17
+      groups:
+        - google_play   # reuses the shared upload keystore to sign the APK
+      vars:
+        EXPO_PUBLIC_USE_FIRESTORE: "1"
+        EXPO_PUBLIC_PKG_SUFFIX: "fstest"
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Install JS dependencies
+        script: |
+          cd mobile
+          npm install
+      - name: Generate native Android project (expo prebuild)
+        script: |
+          cd mobile
+          export ANDROID_VERSION_CODE=$((9000 + ${BUILD_NUMBER:-1}))
+          echo "ForeAi Firestore TEST APK versionCode: $ANDROID_VERSION_CODE (package com.foreai.mobile.fstest)"
+          npx expo prebuild --platform android --no-install
+      - name: Decode the upload keystore
+        script: |
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/mobile/android/app/upload.keystore"
+      - name: Build the signed APK
+        script: |
+          cd mobile/android
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$PWD/app/upload.keystore" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+          V=$((9000 + ${BUILD_NUMBER:-1}))
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/ForeAi-Firestore-$V.apk"
+    artifacts:
+      - mobile/android/app/build/outputs/**/ForeAi-Firestore-*.apk
+    publishing:
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ═══════════════ 7) Kempton — Firestore TEST APK (sideload) ═══════════════
+  # Sideloadable .apk of the Kempton flavour with EXPO_PUBLIC_USE_FIRESTORE=1, so
+  # BOTH events and club data (members, tee sheet, competitions, news) run on
+  # Firestore. Package suffix (.fstest) installs it alongside the real Kempton app.
+  # Bundles the offline satellite tiles like the Kempton store build.
+  # PREREQUISITE: deploy firestore.rules first (writes are denied otherwise).
+  foreai-kempton-firestore-apk:
+    name: Kempton Park Golf — Firestore TEST APK
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      node: 20
+      java: 17
+      groups:
+        - google_play
+      vars:
+        EXPO_PUBLIC_CLUB: "kempton"
+        EXPO_PUBLIC_USE_FIRESTORE: "1"
+        EXPO_PUBLIC_PKG_SUFFIX: "fstest"
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Install JS dependencies
+        script: |
+          cd mobile
+          npm install
+      - name: Bundle offline satellite tiles (all 18 Kempton holes)
+        script: |
+          cd mobile
+          node scripts/fetch-sat-tiles.mjs
+      - name: Generate native Android project (expo prebuild)
+        script: |
+          cd mobile
+          export ANDROID_VERSION_CODE=$((9500 + ${BUILD_NUMBER:-1}))
+          echo "Kempton Firestore TEST APK versionCode: $ANDROID_VERSION_CODE (package com.foreai.kempton.fstest)"
+          npx expo prebuild --platform android --no-install
+      - name: Decode the upload keystore
+        script: |
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/mobile/android/app/upload.keystore"
+      - name: Build the signed APK
+        script: |
+          cd mobile/android
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$PWD/app/upload.keystore" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+          V=$((9500 + ${BUILD_NUMBER:-1}))
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/Kempton-Firestore-$V.apk"
+    artifacts:
+      - mobile/android/app/build/outputs/**/Kempton-Firestore-*.apk
     publishing:
       email:
         recipients:

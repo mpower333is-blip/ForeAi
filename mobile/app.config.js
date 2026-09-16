@@ -23,6 +23,15 @@ const CLUB_ASSETS = {
     bg: "#FFFFFF", // the club crest sits on white
   },
 };
+// Optional package/name suffix for a SIDE-BY-SIDE test build (e.g. the Firestore
+// cutover APK): set EXPO_PUBLIC_PKG_SUFFIX=fstest and the app gets its own package
+// id + a tagged name, so it installs ALONGSIDE the real app instead of replacing
+// it. Unset (default) → the normal production packages, so live builds are
+// unaffected.
+const PKG_SUFFIX = (process.env.EXPO_PUBLIC_PKG_SUFFIX || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+const withSuffix = (pkg) => (PKG_SUFFIX ? pkg + "." + PKG_SUFFIX : pkg);
+const NAME_TAG = PKG_SUFFIX ? " (FS)" : "";
+
 const BRAND = CLUB_ASSETS[CLUB] || null;
 const ICON = BRAND ? BRAND.icon : "./assets/icon.png";
 const ADAPTIVE = BRAND ? BRAND.adaptive : "./assets/adaptive-icon.png";
@@ -31,7 +40,7 @@ const SPLASH_BG = BRAND ? BRAND.bg : "#06170F";
 
 export default {
   expo: {
-    name: SURVEY_ONLY ? "ForeAi Survey" : CLUB ? CLUB_APP_NAME : "ForeAi",
+    name: (SURVEY_ONLY ? "ForeAi Survey" : CLUB ? CLUB_APP_NAME : "ForeAi") + NAME_TAG,
     slug: "foreai",
     version: "1.0.0",
     orientation: "portrait",
@@ -48,7 +57,7 @@ export default {
       // iPhone-first: avoids Apple's separate 13" iPad screenshot requirement.
       // (An iPhone app still runs on iPad in compatibility mode.)
       supportsTablet: false,
-      bundleIdentifier: SURVEY_ONLY ? "com.foreai.surveyor" : CLUB_PKG || "com.foreai.mobile",
+      bundleIdentifier: withSuffix(SURVEY_ONLY ? "com.foreai.surveyor" : CLUB_PKG || "com.foreai.mobile"),
       infoPlist: {
         NSCameraUsageDescription:
           "ForeAi uses the camera to frame your swing and give you posture feedback.",
@@ -64,7 +73,7 @@ export default {
       },
     },
     android: {
-      package: SURVEY_ONLY ? "com.foreai.surveyor" : CLUB_PKG || "com.foreai.mobile",
+      package: withSuffix(SURVEY_ONLY ? "com.foreai.surveyor" : CLUB_PKG || "com.foreai.mobile"),
       // Firebase config for FCM push (lightning alerts when the app is closed).
       // Only set once you've added google-services.json (see docs/push-setup.md)
       // and pointed GOOGLE_SERVICES_JSON at it — left unset, builds work as-is
