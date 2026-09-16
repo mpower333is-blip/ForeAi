@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// ForeAi Firestore security rules.
+//
+// Phase 2 (events): the backend mirrors event state here as a realtime read-model.
+// All WRITES happen through the backend via the Admin SDK, which bypasses these
+// rules — so clients get read-only access and cannot tamper with scores/positions.
+// The live course map is shown on clubhouse TVs without a login, so the event
+// read-model is publicly readable (the same data the backend already serves by
+// join code). Everything not yet migrated stays locked down.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Event read-model (meta + roster) and its subcollections (positions, …).
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if false;
+      match /{sub=**} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
+    // Join-code → eventId lookup.
+    match /eventCodes/{code} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Everything else is denied until its migration phase adds explicit rules.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -52,6 +52,9 @@
 </div>
 
 <script src="../config.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 (function(){
@@ -61,6 +64,16 @@
   var CODE = (P.get('code') || localStorage.getItem('foreai.code') || '').toUpperCase();
   var FRESH_MS = 20*60*1000;   // a player seen within 20 min is "on the course"
   var POLL_MS = 15000;
+
+  // Firestore realtime (read-model mirror). Falls back to backend polling if
+  // Firestore isn't configured, the event isn't mirrored yet, or an error occurs.
+  var fs = null;
+  try{
+    if(window.FIREBASE_CONFIG && window.firebase){
+      if(!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+      fs = firebase.firestore();
+    }
+  }catch(e){ fs = null; }
 
   var map = L.map('map', { zoomControl:true }).setView([D.wxLat||-26.1016, D.wxLng||28.236], 16);
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -79,9 +92,10 @@
   function colourFor(id){ var h=0; for(var i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return 'hsl('+(h%360)+',70%,55%)'; }
   function ago(ms){ var s=Math.round((Date.now()-ms)/1000); if(s<60) return s+'s ago'; var m=Math.round(s/60); if(m<60) return m+'m ago'; return Math.round(m/60)+'h ago'; }
 
-  function render(ev){
-    nameEl.textContent = ev.name ? (ev.name + (ev.courseName? ' · '+ev.courseName : '')) : 'Event '+CODE;
-    var players = (ev.players||[]).filter(function(p){ return typeof p.lat==='number' && typeof p.lng==='number' && p.lastSeen; });
+  // Draw a normalised list of positions: [{id,name,lat,lng,lastSeen}, …].
+  function renderPositions(name, arr, source){
+    nameEl.textContent = name || ('Event '+CODE);
+    var players = (arr||[]).filter(function(p){ return typeof p.lat==='number' && typeof p.lng==='number' && p.lastSeen; });
     var live = players.filter(function(p){ return (Date.now()-p.lastSeen) < FRESH_MS; });
 
     var seen = {};
@@ -116,9 +130,16 @@
           +'</div>';
       }).join('');
     }
-    statusEl.textContent = 'Updated '+new Date().toLocaleTimeString();
+    statusEl.textContent = (source==='live'?'● Live · ':'Updated ')+new Date().toLocaleTimeString();
   }
 
+  // Normalise a backend event payload into the position array renderPositions wants.
+  function render(ev){
+    var name = ev.name ? (ev.name + (ev.courseName? ' · '+ev.courseName : '')) : null;
+    renderPositions(name, ev.players||[], 'poll');
+  }
+
+  // ---- Backend polling (fallback) --------------------------------------
   var timer=null;
   async function poll(){
     if(!API || !CODE){ statusEl.textContent=''; return; }
@@ -128,13 +149,53 @@
       render(await r.json());
     }catch(e){ statusEl.textContent='Offline — retrying…'; }
   }
-  function start(){
+  function startPolling(){
     if(timer) clearInterval(timer);
+    poll(); timer=setInterval(poll, POLL_MS);
+  }
+
+  // ---- Firestore realtime ----------------------------------------------
+  var unsubPos=null, unsubEv=null;
+  function stopFirestore(){ if(unsubPos){unsubPos();unsubPos=null;} if(unsubEv){unsubEv();unsubEv=null;} }
+  var evName=null, positions={};
+  function paintFromFirestore(){
+    var arr = Object.keys(positions).map(function(k){ return positions[k]; });
+    renderPositions(evName, arr, 'live');
+  }
+  // Returns true if a realtime subscription was established for this code.
+  async function startFirestore(){
+    if(!fs || !CODE) return false;
+    try{
+      var codeSnap = await fs.collection('eventCodes').doc(CODE).get();
+      if(!codeSnap.exists) return false;               // not mirrored yet → fall back
+      var eventId = codeSnap.data().eventId;
+      if(!eventId) return false;
+      evName=null; positions={};
+      unsubEv = fs.collection('events').doc(eventId).onSnapshot(function(doc){
+        var d = doc.data()||{};
+        evName = d.name ? (d.name + (d.courseName? ' · '+d.courseName : '')) : null;
+        paintFromFirestore();
+      }, function(){ /* ignore, positions still stream */ });
+      unsubPos = fs.collection('events').doc(eventId).collection('positions').onSnapshot(function(snap){
+        positions={};
+        snap.forEach(function(doc){ var d=doc.data(); positions[doc.id]={ id:d.id||doc.id, name:d.name, lat:d.lat, lng:d.lng, lastSeen:d.lastSeen }; });
+        paintFromFirestore();
+      }, function(){ /* transient — keep last paint */ });
+      return true;
+    }catch(e){ return false; }
+  }
+
+  // ---- Orchestration ---------------------------------------------------
+  async function start(){
+    if(timer){ clearInterval(timer); timer=null; }
+    stopFirestore();
     if(!CODE){ statusEl.textContent='Enter an event code.'; return; }
     localStorage.setItem('foreai.code', CODE);
     fittedOnce=false;
     Object.keys(markers).forEach(function(id){ map.removeLayer(markers[id]); delete markers[id]; });
-    poll(); timer=setInterval(poll, POLL_MS);
+    statusEl.textContent='Connecting…';
+    var live = await startFirestore();
+    if(!live) startPolling();          // no Firestore mirror → poll the backend
   }
 
   document.getElementById('go').onclick=function(){ CODE=codeEl.value.trim().toUpperCase(); start(); };

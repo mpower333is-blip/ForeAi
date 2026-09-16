@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../config/db";
 import { bearerClaims } from "../lib/auth";
+import { mirrorEvent, mirrorPosition } from "../lib/eventMirror";
 
 const router = Router();
 
@@ -91,7 +92,9 @@ function serialize(t: NonNullable<LoadedTournament>) {
 async function respondWithEvent(id: string, res: any) {
   const t = await loadRaw(id);
   if (!t) return res.status(404).json({ error: "Tournament not found" });
-  res.json(serialize(t));
+  const data = serialize(t);
+  mirrorEvent(data as any); // realtime read-model in Firestore (fire-and-forget)
+  res.json(data);
 }
 
 // Reject an admin action unless it carries the event's PIN. Backward-compatible:
@@ -181,7 +184,9 @@ router.get("/code/:code", async (req, res) => {
       include: includeAll,
     });
     if (!t) return res.status(404).json({ error: "No event with that code" });
-    res.json(serialize(t));
+    const data = serialize(t);
+    mirrorEvent(data as any);
+    res.json(data);
   } catch (err) {
     console.error("code lookup failed:", err);
     res.status(503).json({ error: "Database unavailable" });
@@ -273,7 +278,7 @@ router.delete("/:id/players/:playerId", async (req, res) => {
 router.put("/:id/players/:playerId/ping", async (req, res) => {
   const { lat, lng } = req.body ?? {};
   try {
-    await prisma.tournamentPlayer.update({
+    const pl = await prisma.tournamentPlayer.update({
       where: { id: req.params.playerId },
       data: {
         lastSeen: new Date(),
@@ -281,6 +286,8 @@ router.put("/:id/players/:playerId/ping", async (req, res) => {
         ...(typeof lng === "number" ? { lng } : {}),
       },
     });
+    // Realtime position for the live map — one cheap Firestore write per beat.
+    mirrorPosition(req.params.id, { id: pl.id, name: pl.name, lat: pl.lat, lng: pl.lng, lastSeen: pl.lastSeen ? pl.lastSeen.getTime() : Date.now() });
     res.json({ ok: true });
   } catch {
     // Player may have been removed — don't error the heartbeat.
