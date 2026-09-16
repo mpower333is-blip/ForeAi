@@ -1,0 +1,10 @@
+{
+  "name": "foreai-migration",
+  "description": "One-off Postgres -> Firestore data migration for retiring Render.",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "pg": "^8.13.0"
+  }
+}

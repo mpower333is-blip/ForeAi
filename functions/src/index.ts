@@ -1,9 +1,10 @@
-import { onRequest } from "firebase-functions/v2/https";
+import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { setGlobalOptions } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import { buildReport, diagnoseProviders } from "./weatherCore";
 import { sendExpoPush, ExpoPushMessage } from "./expoPush";
+import { clubKeyForEmail } from "./clubAdmins";
 
 // ForeAi Cloud Functions — the server-only jobs that can't run in the app or a
 // browser, migrated off Render. Provider keys (XWEATHER_*, TWC_*) are read from
@@ -15,6 +16,37 @@ admin.initializeApp();
 const db = admin.firestore();
 
 setGlobalOptions({ region: "europe-west1", maxInstances: 10 });
+
+// ── Organiser provisioning ──────────────────────────────────────────────────
+// The web calls this after a Firebase sign-in (replacing POST /auth/firebase).
+// It creates/updates the caller's adminUsers/{uid} doc and sets clubKey from the
+// CLUB_ADMIN_EMAILS mapping — the authoritative, server-only source of clubKey,
+// so no one can grant themselves a club by writing their own doc (rules deny
+// client writes to adminUsers). Returns the account so the web can gate the UI.
+export const provisionOrganiser = onCall(async (req) => {
+  const auth = req.auth;
+  if (!auth) throw new HttpsError("unauthenticated", "Sign in first.");
+  const uid = auth.uid;
+  const email = String(auth.token.email || "").trim().toLowerCase();
+  const mappedClub = clubKeyForEmail(email);
+
+  const ref = db.collection("adminUsers").doc(uid);
+  const snap = await ref.get();
+  const prev = (snap.exists ? snap.data() : {}) as any;
+
+  const data: any = {
+    email: email || prev.email || null,
+    name: auth.token.name || prev.name || null,
+    // Mapping wins; otherwise keep any clubKey already set (e.g. set by an admin).
+    clubKey: mappedClub ?? prev.clubKey ?? null,
+    role: prev.role || "organiser",
+    updatedAt: Date.now(),
+  };
+  if (!snap.exists) data.createdAt = Date.now();
+  await ref.set(data, { merge: true });
+
+  return { uid, email: data.email, name: data.name, clubKey: data.clubKey, role: data.role };
+});
 
 // ── Weather + live lightning ────────────────────────────────────────────────
 // Mirrors the old GET /weather?lat=&lng=[&debug=1]. The app and the clubhouse
