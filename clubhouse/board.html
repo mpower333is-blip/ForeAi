@@ -82,6 +82,9 @@
       @media (prefers-reduced-motion: reduce) { .wxAlert.warning.flash { animation: none; } }
     </style>
     <script src="config.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
   <body>
 <a href="index.html" class="foreai-back" onclick="if(window.history.length>1){window.history.back();return false;}">‹ Back</a>
@@ -164,6 +167,18 @@
       let apiBase = $("apiBase").value;
       let eventId = null;
       let timer = null;
+      let baseEvent = null;      // full event (with images) from the backend
+      let unsub = null;          // Firestore realtime listener
+
+      // Firestore realtime read-model (Phase 2/3). Falls back to backend polling
+      // when Firestore isn't configured or the event isn't mirrored yet.
+      let fs = null;
+      try {
+        if (window.FIREBASE_CONFIG && window.firebase) {
+          if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+          fs = firebase.firestore();
+        }
+      } catch (e) { fs = null; }
 
       // ── Live weather / lightning alert for the venue ──
       const wxLat = _q.get("wxlat") ? Number(_q.get("wxlat")) : _D.wxLat;
@@ -270,16 +285,44 @@
         try {
           const res = await fetch(`${apiBase}/tournaments/${eventId}`);
           if (!res.ok) throw new Error("lost connection");
-          render(await res.json());
-          setConn(true);
+          const ev = await res.json();
+          baseEvent = ev;
+          render(ev);
+          setConn(true, false);
         } catch (e) {
           setConn(false);
         }
       }
 
-      function setConn(live) {
+      function setConn(live, realtime) {
         $("dot").className = "dot" + (live ? " live" : "");
-        $("conn").textContent = live ? "live · auto-refresh" : "reconnecting…";
+        $("conn").textContent = live ? (realtime ? "live · realtime" : "live · auto-refresh") : "reconnecting…";
+      }
+
+      function stopPolling() { if (timer) { clearInterval(timer); timer = null; } }
+      function startPolling() { stopPolling(); poll(); timer = setInterval(poll, 5000); }
+
+      // Subscribe to the Firestore read-model. The backend mirrors the full event
+      // on every write, so a listener gives us realtime scores/positions with no
+      // polling. If Firestore isn't configured, errors, or the event isn't
+      // mirrored yet, polling stays in charge.
+      function startRealtime() {
+        if (!fs || !eventId) return;
+        if (unsub) { unsub(); unsub = null; }
+        unsub = fs.collection("events").doc(eventId).onSnapshot(
+          (doc) => {
+            if (!doc.exists) return;           // not mirrored yet — polling covers us
+            stopPolling();                     // realtime takes over
+            const d = doc.data();
+            const merged = Object.assign({}, baseEvent || {}, d);
+            // The mirror drops inline base64 images to stay under Firestore's
+            // 1 MB doc cap; keep the cause photo the backend gave us.
+            if (!merged.causePhoto && baseEvent && baseEvent.causePhoto) merged.causePhoto = baseEvent.causePhoto;
+            render(merged);
+            setConn(true, true);
+          },
+          () => { startPolling(); }            // realtime dropped — fall back
+        );
       }
 
       async function connect() {
@@ -287,12 +330,14 @@
           $("cfgMsg").textContent = "connecting…";
           const ev = await resolveEvent();
           eventId = ev.id;
+          baseEvent = ev;
           saveCfg();
           $("cfgMsg").textContent = "";
           render(ev);
-          setConn(true);
-          if (timer) clearInterval(timer);
-          timer = setInterval(poll, 5000);
+          setConn(true, false);
+          if (unsub) { unsub(); unsub = null; }
+          startPolling();     // baseline that always works
+          startRealtime();    // upgrades to realtime when the mirror is live
         } catch (e) {
           $("cfgMsg").innerHTML = '<span class="err">' + e.message + "</span>";
           setConn(false);
@@ -312,7 +357,9 @@
           });
           if (!res.ok) throw new Error("register failed");
           $("pName").value = "";
-          render(await res.json());
+          const ev = await res.json();
+          baseEvent = ev;
+          render(ev);
         } catch (e) {
           $("regMsg").textContent = "Could not register (check connection).";
         }

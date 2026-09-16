@@ -20,6 +20,37 @@ Order of migration (each is a shippable step):
    Functions (or a tiny keep-alive service).
 6. **Data copy** — one-off script Postgres → Firestore, then retire Render.
 
+## Progress
+
+- ✅ **Phase 1 — Auth.** Organiser web login runs on Firebase Auth
+  (`clubhouse/manage/signin.html` + `auth-guard.js`); the backend verifies the
+  Firebase ID token (`backend/src/lib/firebase.ts`) and exchanges it for a
+  session token via `POST /auth/firebase`.
+- ✅ **Phase 2 — Live positions read-model.** The backend mirrors each GPS
+  heartbeat to `events/{id}/positions/{playerId}` (`eventMirror.mirrorPosition`);
+  `clubhouse/manage/live.html` subscribes with `onSnapshot`, polling fallback.
+- ✅ **Phase 3 — Event/score read-model.** `eventMirror.mirrorEvent` now writes
+  the **full** event read-model (meta + roster + groups + scores + contests +
+  contest results + sponsors) to `events/{id}` on every backend write, so the
+  clubhouse board (`board.html`) reads scores/leaderboard in realtime via
+  `onSnapshot` with a polling fallback. Inline `data:` images are dropped from
+  the mirror to stay under Firestore's 1 MB doc cap; the board overlays the
+  cause photo it fetched once from the backend.
+  - **Not yet done in Phase 3:** the *source of truth* is still Postgres — the
+    app and board still WRITE through the Express backend, which mirrors to
+    Firestore. Making clients write directly to Firestore (and enforcing the
+    write rules below) is the Phase 4 cutover and needs an app rebuild.
+
+### Read-model shape (as implemented)
+
+Differs slightly from the draft data model below: for the realtime read-model
+we keep **scores as a nested map on the event doc** (`events/{id}.scores =
+{playerId: {hole: strokes}}`) rather than a `scores/{playerId_hole}`
+subcollection, so a single `onSnapshot` on the event doc drives the whole
+board. Live positions stay in the `positions` subcollection (one small write
+per heartbeat). When we do the Phase 4 client-write cutover we may split scores
+into a subcollection to reduce write contention.
+
 ## Firebase products we'll use
 
 - **Firestore (Native mode)** — the database.
