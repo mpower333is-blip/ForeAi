@@ -22,9 +22,12 @@
 # with the matching bundle id, then run the workflow (it creates the bundle id +
 # profile and uploads to TestFlight).
 #
-# (The Wear OS and standalone Survey APK workflows were removed to keep the branch
-#  to these 4 store builds. Their code — wear/ and EXPO_PUBLIC_SURVEY_ONLY — is
-#  untouched; restore a workflow from git history if you need to build them again.)
+# Plus a 5th, non-store build:
+#   foreai-surveyor-android  ForeAi Survey → ForeAi-Survey-*.apk  (sideload,
+#                            com.foreai.surveyor — boots into the course-survey tool)
+#
+# (The Wear OS workflow was removed; the wear/ code is untouched and a workflow can
+#  be restored from git history if you need to build the watch again.)
 #
 # ── ONE-TIME iOS SETUP ──
 #   In Codemagic → Teams → Integrations → App Store Connect → connect an API key
@@ -458,6 +461,67 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ═══════════════ 5) ForeAi Survey — standalone APK (sideload) ═══════════════
+  # Builds the "ForeAi Survey" app (com.foreai.surveyor) from the same codebase
+  # with EXPO_PUBLIC_SURVEY_ONLY=1: it boots straight into the course-survey tool
+  # (drop tees/greens/hazards on the satellite, export coords). Output is a signed
+  # .apk you sideload onto any phone — no Play listing. Its own package, so it
+  # installs alongside the main ForeAi app.
+  foreai-surveyor-android:
+    name: ForeAi Survey — standalone APK
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      node: 20
+      java: 17
+      groups:
+        - google_play   # reuses the shared upload keystore to sign the APK
+      vars:
+        EXPO_PUBLIC_SURVEY_ONLY: "1"
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Install JS dependencies
+        script: |
+          cd mobile
+          npm install
+      - name: Bundle the latest survey tool into the app
+        script: |
+          cd mobile
+          # Regenerate src/survey/surveyHtml.ts from clubhouse/manage/survey.html
+          # so the app always ships the current survey tool.
+          node scripts/bundle-survey.js
+      - name: Generate native Android project (expo prebuild)
+        script: |
+          cd mobile
+          export ANDROID_VERSION_CODE=$((1000 + ${BUILD_NUMBER:-1}))
+          echo "Survey APK versionCode: $ANDROID_VERSION_CODE (package com.foreai.surveyor)"
+          npx expo prebuild --platform android --no-install
+      - name: Decode the upload keystore
+        script: |
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/mobile/android/app/upload.keystore"
+      - name: Build the signed APK
+        script: |
+          cd mobile/android
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$PWD/app/upload.keystore" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+          V=$((1000 + ${BUILD_NUMBER:-1}))
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/ForeAi-Survey-$V.apk"
+    artifacts:
+      - mobile/android/app/build/outputs/**/ForeAi-Survey-*.apk
+    publishing:
       email:
         recipients:
           - mpower333is@gmail.com
