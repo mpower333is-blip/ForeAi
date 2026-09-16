@@ -95,6 +95,33 @@ Both halves of the events cutover are now in the tree, **inert until flagged on*
   the flip. `events-fs.js` loads **after** `auth-guard.js` so its shim wraps the
   token layer: `/tournaments/**` → Firestore, `/auth/**` → Bearer as before.
 
+## Status — club data (app side) is written, behind the same flag
+
+The member-facing club features are now ported for the app too, selected by the
+same `EXPO_PUBLIC_USE_FIRESTORE=1` guard:
+
+- **`services/clubFirestore.ts`** — Firestore implementations of the member-facing
+  surface of `membershipApi` (club info, member lookup/claim, tee-sheet slots,
+  book/cancel), `competitionsApi` (list/detail/enter/withdraw/submit score), and
+  `newsApi` (list/item). `membershipApi.ts` / `competitionsApi.ts` /
+  `newsApi.ts` select it under the flag (dead-code-eliminated otherwise). Admin
+  work (roster CRUD, imports, HNA sync, creating competitions, blocking slots)
+  stays on the web office — the app never did those.
+- **`lib/compScoring.ts`** — a faithful on-device port of the backend's WHS
+  scoring (`lib/scoring.ts`) so competition leaderboards compute identically to
+  Render. **Verified** against the server file with a 20,000-case differential
+  test (course/playing handicap, per-hole strokes, `scoreRound`, countback — incl.
+  plus handicaps and varied slope/rating/allowance): zero divergence.
+- Tee-sheet slot generation and all booking validation are ported from
+  `routes/bookings.ts` (club-local SAST +02:00), keyed by `teeMs` so a day's
+  slots need no composite index.
+
+Firestore model: `clubs/{clubKey}` (settings) + subcollections `members`,
+`bookings`, `competitions` (+ `entries`), `notices` — matching
+`firestore.rules.next`. So one flag-on app build now covers **events + club
+data**. The web club pages (`manage/members|teesheet|competitions|news`) are the
+remaining port before the club side can flip.
+
 ### Known caveat before the flip: organiser identity on the manage pages
 
 The office/admin pages authenticate with the **Render Bearer token**

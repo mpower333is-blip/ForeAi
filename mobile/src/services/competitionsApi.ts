@@ -61,7 +61,7 @@ async function j<T>(path: string, init?: RequestInit): Promise<T> {
 const CK = () => CLUB || "kempton";
 const jsonBody = (b: unknown): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) });
 
-export const competitionsApi = {
+const competitionsRestApi = {
   list: (status?: string) => j<CompetitionSummary[]>(`/competitions/${CK()}${status ? `?status=${status}` : ""}`),
   detail: (id: string, memberId?: string) => j<CompetitionDetail>(`/competitions/${CK()}/${id}${memberId ? `?memberId=${encodeURIComponent(memberId)}` : ""}`),
   enter: (id: string, memberId: string) => j<CompEntry>(`/competitions/${CK()}/${id}/enter`, jsonBody({ memberId })),
@@ -69,3 +69,11 @@ export const competitionsApi = {
   submitScore: (id: string, memberId: string, holeScores: number[]) =>
     j<{ entry: CompEntry; result: any }>(`/competitions/${CK()}/${id}/score`, jsonBody({ memberId, holeScores })),
 };
+
+// Firestore under EXPO_PUBLIC_USE_FIRESTORE=1 (build-time constant → dead-code-
+// eliminated from normal builds). See docs/render-firebase-cutover.md.
+export const competitionsApi: typeof competitionsRestApi =
+  process.env.EXPO_PUBLIC_USE_FIRESTORE === "1"
+    ? // eslint-disable-next-line @typescript-eslint/no-var-requires
+      (require("./clubFirestore").competitionsFsApi as unknown as typeof competitionsRestApi)
+    : competitionsRestApi;

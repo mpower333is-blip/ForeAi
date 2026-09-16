@@ -74,7 +74,7 @@ async function j<T>(path: string, init?: RequestInit): Promise<T> {
 
 const CK = () => CLUB || "kempton";
 
-export const membershipApi = {
+const membershipRestApi = {
   club: () => j<ClubInfo>(`/club/${CK()}`),
 
   // Identify / claim a membership for this device.
@@ -107,3 +107,12 @@ export const membershipApi = {
       body: JSON.stringify({ memberId }),
     }),
 };
+
+// Firestore under EXPO_PUBLIC_USE_FIRESTORE=1 (build-time constant → the require
+// and the firebase SDK are dead-code-eliminated from every normal build). See
+// tournamentApi.ts / docs/render-firebase-cutover.md.
+export const membershipApi: typeof membershipRestApi =
+  process.env.EXPO_PUBLIC_USE_FIRESTORE === "1"
+    ? // eslint-disable-next-line @typescript-eslint/no-var-requires
+      (require("./clubFirestore").membershipFsApi as unknown as typeof membershipRestApi)
+    : membershipRestApi;

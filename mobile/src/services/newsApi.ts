@@ -24,7 +24,15 @@ async function j<T>(path: string): Promise<T> {
 }
 const CK = () => CLUB || "kempton";
 
-export const newsApi = {
+const newsRestApi = {
   list: () => j<Notice[]>(`/news/${CK()}`),
   item: (id: string) => j<Notice>(`/news/${CK()}/item/${id}`),
 };
+
+// Firestore under EXPO_PUBLIC_USE_FIRESTORE=1 (build-time constant → dead-code-
+// eliminated from normal builds). See docs/render-firebase-cutover.md.
+export const newsApi: typeof newsRestApi =
+  process.env.EXPO_PUBLIC_USE_FIRESTORE === "1"
+    ? // eslint-disable-next-line @typescript-eslint/no-var-requires
+      (require("./clubFirestore").newsFsApi as unknown as typeof newsRestApi)
+    : newsRestApi;
