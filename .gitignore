@@ -20,3 +20,11 @@ npm-debug.*
 
 # Bundled satellite tiles are downloaded at build time (scripts/fetch-sat-tiles.mjs)
 mobile/assets/sat/
+
+# Firebase Cloud Functions
+functions/node_modules/
+functions/lib/
+functions/.env
+functions/.env.*
+!functions/.env.example
+.firebase/

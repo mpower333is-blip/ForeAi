@@ -41,6 +41,36 @@ Order of migration (each is a shippable step):
     Firestore. Making clients write directly to Firestore (and enforcing the
     write rules below) is the Phase 4 cutover and needs an app rebuild.
 
+## Retiring Render — cutover plan
+
+Decision: **get fully off Render** and consolidate on Firebase. Blaze plan
+approved (needed for Cloud Functions). Render currently runs a large app: 15
+route groups and 22 models (app data — users, rounds, shots, AI caddie,
+strategy, events; club data — members, competitions, tee sheet, news, bookings)
+plus background jobs, deployed as **two** services (ForeAi + Kempton).
+
+Guiding rule stays: build the Firebase side in parallel, keep Render running,
+then do **one coordinated cutover**. The unavoidable catch: both mobile apps
+read/write through the Express API, so the cutover needs a **Codemagic rebuild**
+of each app — it can't happen over the air.
+
+Sequence:
+1. **Server jobs → Cloud Functions** (`functions/`). Weather + lightning done;
+   HNA sync and push-send/register next. *(in progress)*
+2. **Firestore data model + security rules** for events and club data (write
+   path — replaces the admin-PIN / owner checks with Firestore rules + Auth).
+3. **Web pages → Firestore** (board, live, office, members, tee sheet,
+   competitions, news, register). Easy to switch — just re-upload.
+4. **Mobile apps → Firestore** (`services/api.ts` → Firebase SDK). Needs a
+   rebuild of both the ForeAi and Kempton flavors. Players use Anonymous Auth so
+   the "just play" flow is unchanged.
+5. **Data copy** — one-off `firebase-admin` script, Postgres → Firestore.
+6. **Cut over & delete Render** — repoint everything, verify, then shut down
+   both Render services and the Postgres databases.
+
+What YOU do for step 1: enable Blaze, `npm i -g firebase-tools`, `firebase
+login`, then `firebase deploy --only functions` (see `functions/README.md`).
+
 ### Read-model shape (as implemented)
 
 Differs slightly from the draft data model below: for the realtime read-model
