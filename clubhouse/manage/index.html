@@ -20,13 +20,18 @@
   .soon .tag{ float:right; font-size:11px; color:var(--faint); border:1px solid var(--line); border-radius:999px; padding:2px 8px; }
   .note{ background:#0C1B38; border:1px dashed var(--line); border-radius:12px; padding:12px 14px; color:var(--faint); font-size:13px; margin-top:18px; }
   .note b{ color:var(--text); }
+  .userbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; font-size:13px; color:var(--faint); }
+  .userbar a{ color:var(--accent); font-weight:700; text-decoration:none; cursor:pointer; }
+  .hide{ display:none; }
+  body.gate .wrap > *:not(#userbar){ visibility:hidden; }
 </style>
 </head>
-<body>
+<body class="gate">
 <div class="wrap">
   <span class="lock">🔒 PRIVATE — ADMIN ONLY</span>
   <h1>ForeAi Management</h1>
-  <p class="sub">Organiser tools for the ECS Golf Day. This area should be password-protected in cPanel (see the note below).</p>
+  <p class="sub">Organiser tools for events, members and competitions.</p>
+  <div class="userbar hide" id="userbar"><span id="who"></span><a id="signout">Sign out</a></div>
 
   <a class="card" href="survey.html">
     <h2>🛰️ Course Survey</h2>
@@ -75,5 +80,47 @@
     After that, <b>foreai.co.za/manage/</b> asks for that login, so only you can reach these tools. The public pages (register, board, get) stay open as normal.
   </div>
 </div>
+
+<script src="../config.js"></script>
+<script>
+(function(){
+  var P = new URLSearchParams(location.search);
+  var D = window.FOREAI_DEFAULTS || {};
+  var API = (P.get('api') || localStorage.getItem('foreai.api') || D.api || '').replace(/\/$/,'');
+  var TOKEN_KEY = 'foreai.auth.token', USER_KEY = 'foreai.auth.user';
+  var token = localStorage.getItem(TOKEN_KEY);
+
+  function toSignin(){ location.href = 'signin.html?next=' + encodeURIComponent('index.html'); }
+  function signOut(){ localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); toSignin(); }
+
+  if (!token) { toSignin(); return; }
+
+  // Verify the token with the backend; show the portal only once confirmed.
+  fetch(API + '/auth/me', { headers: { Authorization: 'Bearer ' + token } })
+    .then(function(r){
+      if (r.status === 401) { signOut(); return null; }
+      return r.ok ? r.json() : null;
+    })
+    .then(function(data){
+      // Reveal the portal (even if /auth/me is unreachable but we hold a token,
+      // so a backend blip doesn't lock the organiser out).
+      document.body.classList.remove('gate');
+      var u = (data && data.user) || JSON.parse(localStorage.getItem(USER_KEY) || '{}');
+      var bar = document.getElementById('userbar');
+      document.getElementById('who').textContent = 'Signed in as ' + (u.name || u.email || 'organiser');
+      bar.classList.remove('hide');
+    })
+    .catch(function(){
+      // Offline / server down — trust the stored token rather than lock out.
+      document.body.classList.remove('gate');
+      var u = JSON.parse(localStorage.getItem(USER_KEY) || '{}');
+      var bar = document.getElementById('userbar');
+      document.getElementById('who').textContent = 'Signed in as ' + (u.name || u.email || 'organiser');
+      bar.classList.remove('hide');
+    });
+
+  document.getElementById('signout').onclick = signOut;
+})();
+</script>
 </body>
 </html>

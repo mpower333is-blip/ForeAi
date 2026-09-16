@@ -18,6 +18,21 @@ model User {
   createdAt  DateTime @default(now())
 }
 
+// Organiser / club login accounts for the web management portal (foreai.co.za
+// → manage/). Email + password (scrypt-hashed). Separate from the golfer `User`
+// above and from the per-club admin PIN — this is the person who signs in to run
+// events, members, competitions and school leagues.
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  clubKey      String?  // the club this organiser manages, if any
+  role         String   @default("organiser")
+  createdAt    DateTime @default(now())
+  lastLoginAt  DateTime?
+}
+
 model Round {
   id          String   @id @default(uuid())
 
