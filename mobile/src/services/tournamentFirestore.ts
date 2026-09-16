@@ -3,9 +3,12 @@
 // drop-in: each mutation writes the one doc it changes and then re-assembles the
 // full TEvent (the app polls get()/getByCode(), so this stays compatible).
 //
-// NOT WIRED YET: nothing imports this module, so it is not bundled and the
-// current app build is unchanged. At the flip build, tournamentApi.ts selects
-// this when EXPO_PUBLIC_USE_FIRESTORE=1. See docs/render-firebase-cutover.md.
+// WIRING: tournamentApi.ts selects this module only when the app is built with
+// EXPO_PUBLIC_USE_FIRESTORE=1 (the coordinated flip build). Because that env var
+// is inlined at build time, the require() there is dead-code-eliminated from
+// every normal build, so this module — and the firebase SDK — is not bundled and
+// the current ForeAi / Kempton builds are unchanged. See
+// docs/render-firebase-cutover.md.
 //
 // Model (native subcollections, see firestore.rules.next):
 //   events/{id}                                 meta

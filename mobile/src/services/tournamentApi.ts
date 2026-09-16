@@ -30,7 +30,7 @@ function tag(ev: TEvent | null): TEvent | null {
   return ev ? { ...ev, remote: true } : null;
 }
 
-export const tournamentApi = {
+const tournamentRestApi = {
   create: (input: {
     name: string;
     courseId: string;
@@ -103,3 +103,16 @@ export const tournamentApi = {
   ping: (id: string, playerId: string, coord?: { lat: number; lng: number }) =>
     req<{ ok: boolean }>(`/${id}/players/${playerId}/ping`, "PUT", coord ?? {}),
 };
+
+// The events layer selects Firestore ONLY in the coordinated flip build, marked
+// with EXPO_PUBLIC_USE_FIRESTORE=1. Expo inlines that env var at build time, so
+// the branch below is a compile-time constant: in every normal build the
+// require() — and with it the entire firebase SDK — is dead-code-eliminated, and
+// the existing ForeAi / Kempton / Surveyor builds keep using the REST backend
+// exactly as before. The Firestore adapter mirrors this surface (extra optional
+// args like the organiser PIN are simply ignored), so callers need no changes.
+export const tournamentApi: typeof tournamentRestApi =
+  process.env.EXPO_PUBLIC_USE_FIRESTORE === "1"
+    ? // eslint-disable-next-line @typescript-eslint/no-var-requires
+      (require("./tournamentFirestore").tournamentFsApi as unknown as typeof tournamentRestApi)
+    : tournamentRestApi;
