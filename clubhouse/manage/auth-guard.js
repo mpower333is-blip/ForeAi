@@ -43,7 +43,9 @@
     signOut: function () {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
-      location.href = "signin.html";
+      // ?signout=1 tells the sign-in page to also end the Firebase session,
+      // otherwise it would silently re-exchange it and sign us back in.
+      location.href = "signin.html?signout=1";
     },
   };
 

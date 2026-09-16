@@ -88,7 +88,9 @@
   var token = localStorage.getItem(TOKEN_KEY);
 
   function toSignin(){ location.href = 'signin.html?next=' + encodeURIComponent('index.html'); }
-  function signOut(){ localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); toSignin(); }
+  // Sign-out must also end the Firebase session (via ?signout=1), otherwise the
+  // sign-in page re-exchanges it and signs the organiser straight back in.
+  function signOut(){ localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); location.href = 'signin.html?signout=1'; }
 
   if (!token) { toSignin(); return; }
 

@@ -59,6 +59,7 @@
   var API = (P.get('api') || localStorage.getItem('foreai.api') || D.api || '').replace(/\/$/,'');
   var TOKEN_KEY = 'foreai.auth.token', USER_KEY = 'foreai.auth.user';
   var next = P.get('next') || 'index.html';
+  var signout = P.get('signout') === '1';
   var mode = 'login';
 
   var el = function(id){ return document.getElementById(id); };
@@ -66,6 +67,13 @@
 
   firebase.initializeApp(window.FIREBASE_CONFIG);
   var auth = firebase.auth();
+
+  // Arrived here to sign out: clear our session AND the Firebase session, so the
+  // auto-exchange below can't silently sign the organiser straight back in.
+  if (signout) {
+    try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); } catch (e) {}
+    auth.signOut().catch(function(){});
+  }
 
   function show(text, ok){ msg.textContent = text; msg.className = 'msg ' + (ok ? 'ok' : 'err'); }
 
@@ -144,10 +152,12 @@
   el('forgotLink').onclick = forgot;
   el('password').addEventListener('keydown', function(e){ if (e.key === 'Enter') submit(); });
 
-  // Already signed in with Firebase? Exchange + continue.
-  auth.onAuthStateChanged(function(user){ if (user && !localStorage.getItem(TOKEN_KEY)) finish(user); });
+  // Already signed in with Firebase? Exchange + continue — unless we came here to
+  // sign out, in which case we wait for the user to sign in again explicitly.
+  auth.onAuthStateChanged(function(user){ if (!signout && user && !localStorage.getItem(TOKEN_KEY)) finish(user); });
 
   setMode('login');
+  if (signout) show('You have been signed out.', true);
 })();
 </script>
 </body>
