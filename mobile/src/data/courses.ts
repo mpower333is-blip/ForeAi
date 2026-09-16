@@ -150,7 +150,7 @@ const RAW_COURSES: Raw[] = [
   { id: "serengeti-serengeti", name: "Serengeti — Whistling Thorn", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.021, lng: 28.418 },
   { id: "serengeti-masai", name: "Serengeti — Masai Mara (Signature)", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.0432, lng: 28.2925 },
   { id: "modderfontein", name: "Modderfontein Golf Club", town: "Modderfontein", province: "Gauteng", par: 72, lat: -26.093, lng: 28.164 },
-  { id: "avion-park", name: "Avion Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.123, lng: 28.219 },
+  { id: "avion-park", name: "Avion Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 35, lat: -26.0982, lng: 28.2478 },
   // Curated national list of well-known SA courses (names + province/city + par
   // only). No coords/contacts/exact layout — those come from the live Golf Course
   // API when opened online, or a scorecard. Flagged approximate until then.

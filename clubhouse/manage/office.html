@@ -113,7 +113,7 @@
           <option value="stroke">Stroke play</option>
           <option value="scramble">4-ball scramble</option>
         </select>
-        <button class="btn" style="width:100%;margin-top:6px" onclick="createEvent()">Create event</button>
+        <button class="btn" style="width:100%;margin-top:6px" onclick="newEvent()">Create event</button>
         <div class="msg" id="createMsg" style="margin-top:8px"></div>
       </div>
     </div>
@@ -216,7 +216,7 @@
 
   // Create a new event from the web (organiser signed in → the event is owned by
   // them). Returns a join code they can use in the app, share, and import teams to.
-  async function createEvent(){
+  async function newEvent(){
     var name=(document.getElementById('newName').value||'').trim();
     var courseId=(document.getElementById('newCourse').value||'').trim()||'custom';
     var format=document.getElementById('newFormat').value;
