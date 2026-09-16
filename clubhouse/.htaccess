@@ -1,0 +1,12 @@
+# ForeAi clubhouse — never cache the app files, so a re-upload shows up
+# immediately (no more hard-refreshing). Images/fonts can still cache.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|js|json)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+  <FilesMatch "\.(png|jpg|jpeg|gif|svg|webp|ico|woff2?)$">
+    Header set Cache-Control "public, max-age=86400"
+  </FilesMatch>
+</IfModule>
