@@ -111,6 +111,7 @@
         <span class="company">📥 Import Excel / CSV</span>
         <button class="btn" onclick="document.getElementById('xlsxFiles').click()">Choose files…</button>
         <input id="xlsxFiles" type="file" accept=".xlsx,.xls,.csv" multiple style="display:none" onchange="importFiles(this.files)" />
+        <a class="btn ghost" href="../ForeAi-team-list-template.xlsx" download style="text-decoration:none;display:inline-flex;align-items:center">⬇ Blank team template</a>
       </div>
       <div class="hint">Two ways to load entries — mix &amp; match: <b>(1)</b> the individual team / hole / prize <b>forms</b> people emailed, or <b>(2)</b> one <b>team-list spreadsheet</b> — a sheet with a <i>Company/Team</i> column and either <i>Player 1…4</i> columns (one team per row) or a <i>Player Name</i> column (one player per row, grouped by company). Handicap columns are picked up if present. It reads everything here (nothing uploaded), shows a preview, then adds them — duplicates are skipped.</div>
       <div id="importPreview"></div>
