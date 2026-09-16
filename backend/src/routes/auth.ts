@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../config/db";
 import { hashPassword, verifyPassword, signToken, requireAuth } from "../lib/auth";
+import { verifyFirebaseIdToken } from "../lib/firebase";
 
 // Organiser / club login for the web management portal.
 //   POST /auth/register  { email, password, name?, clubKey?, signupCode? }
@@ -57,6 +58,38 @@ router.post("/login", async (req, res) => {
   } catch (e) {
     console.error("login error", e);
     res.status(500).json({ error: "Could not sign in." });
+  }
+});
+
+// Exchange a Firebase Authentication ID token for a ForeAi session token.
+// The website signs in with Firebase Auth (passwords, resets, Google) and posts
+// the resulting ID token here; we verify it, upsert the organiser account, and
+// return the same session token the rest of the API already understands.
+router.post("/firebase", async (req, res) => {
+  try {
+    const idToken = String(req.body?.idToken || "");
+    let claims;
+    try {
+      claims = await verifyFirebaseIdToken(idToken);
+    } catch (e) {
+      return res.status(401).json({ error: "Could not verify your Firebase sign-in." });
+    }
+    const email = normEmail(claims.email);
+    if (!email) return res.status(400).json({ error: "Your account has no email address." });
+
+    let user = await prisma.adminUser.findUnique({ where: { email } });
+    if (!user) {
+      user = await prisma.adminUser.create({
+        data: { email, passwordHash: "firebase", name: claims.name || null },
+      });
+    } else {
+      await prisma.adminUser.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    }
+    const token = signToken({ sub: user.id, email: user.email, name: user.name, role: user.role, clubKey: user.clubKey });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, clubKey: user.clubKey } });
+  } catch (e) {
+    console.error("firebase exchange error", e);
+    res.status(500).json({ error: "Could not sign you in." });
   }
 });
 

@@ -15,13 +15,14 @@
   input{ width:100%; font:inherit; padding:11px 12px; border-radius:10px; border:1px solid var(--line); background:#0A1830; color:var(--text); }
   button{ width:100%; margin-top:18px; font:inherit; font-weight:800; padding:12px; border:none; border-radius:10px; background:var(--accent); color:#1A1400; cursor:pointer; }
   button:disabled{ opacity:.6; }
+  button.google{ margin-top:10px; background:#fff; color:#222; }
   .toggle{ text-align:center; margin-top:16px; color:var(--faint); font-size:14px; }
   .toggle a{ color:var(--accent); font-weight:700; cursor:pointer; text-decoration:none; }
+  .forgot{ text-align:right; margin-top:8px; font-size:13px; }
+  .forgot a{ color:var(--faint); cursor:pointer; text-decoration:none; }
   .msg{ margin-top:14px; font-size:14px; min-height:18px; }
   .msg.err{ color:var(--err); }
   .msg.ok{ color:var(--accent); }
-  .row2{ display:flex; gap:10px; }
-  .row2 > div{ flex:1; }
   .hide{ display:none; }
 </style>
 </head>
@@ -38,20 +39,19 @@
   <input id="email" type="email" autocomplete="email" placeholder="you@club.co.za" />
   <label>Password</label>
   <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
-  <div id="codeWrap" class="hide">
-    <label>Sign-up code (if your club uses one)</label>
-    <input id="signupCode" placeholder="Optional" />
-  </div>
+  <div class="forgot" id="forgot"><a id="forgotLink">Forgot password?</a></div>
 
   <button id="go">Sign in</button>
+  <button id="google" class="google">Continue with Google</button>
   <div class="msg" id="msg"></div>
 
-  <div class="toggle" id="toggle">
-    New organiser? <a id="toggleLink">Create an account</a>
-  </div>
+  <div class="toggle" id="toggle">New organiser? <a id="toggleLink">Create an account</a></div>
 </div>
 
+<script src="../firebase-config.js"></script>
 <script src="../config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script>
 (function(){
   var P = new URLSearchParams(location.search);
@@ -59,59 +59,94 @@
   var API = (P.get('api') || localStorage.getItem('foreai.api') || D.api || '').replace(/\/$/,'');
   var TOKEN_KEY = 'foreai.auth.token', USER_KEY = 'foreai.auth.user';
   var next = P.get('next') || 'index.html';
-  var mode = 'login'; // or 'register'
+  var mode = 'login';
 
   var el = function(id){ return document.getElementById(id); };
   var msg = el('msg'), btn = el('go');
 
-  // Already signed in? Verify and skip to the portal.
-  var existing = localStorage.getItem(TOKEN_KEY);
-  if (existing && API) {
-    fetch(API + '/auth/me', { headers: { Authorization: 'Bearer ' + existing } })
-      .then(function(r){ if (r.ok) location.href = next; })
-      .catch(function(){});
-  }
-
-  function setMode(m){
-    mode = m;
-    var reg = m === 'register';
-    el('title').textContent = reg ? 'Create organiser account' : 'Organiser sign in';
-    el('subtitle').textContent = reg ? 'Set up a login to run events, members and competitions.' : 'Sign in to manage events, members and competitions.';
-    el('nameWrap').classList.toggle('hide', !reg);
-    el('codeWrap').classList.toggle('hide', !reg);
-    el('password').setAttribute('autocomplete', reg ? 'new-password' : 'current-password');
-    btn.textContent = reg ? 'Create account' : 'Sign in';
-    el('toggle').innerHTML = reg
-      ? 'Already have an account? <a id="toggleLink">Sign in</a>'
-      : 'New organiser? <a id="toggleLink">Create an account</a>';
-    el('toggleLink').onclick = function(){ setMode(reg ? 'login' : 'register'); msg.textContent=''; };
-  }
+  firebase.initializeApp(window.FIREBASE_CONFIG);
+  var auth = firebase.auth();
 
   function show(text, ok){ msg.textContent = text; msg.className = 'msg ' + (ok ? 'ok' : 'err'); }
 
+  // Verify the signed-in Firebase user with our backend, get a session token,
+  // then continue into the portal.
+  async function finish(user){
+    try {
+      var idToken = await user.getIdToken();
+      var r = await fetch(API + '/auth/firebase', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ idToken: idToken }) });
+      var data = await r.json().catch(function(){ return {}; });
+      if (!r.ok) { show(data.error || 'Signed in, but the server rejected it.'); return; }
+      localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user || { email: user.email }));
+      show('Signed in — taking you in…', true);
+      location.href = next;
+    } catch (e) { show('Signed in, but could not reach the server.'); }
+  }
+
+  function friendly(err){
+    var c = (err && err.code) || '';
+    if (c.indexOf('wrong-password')>=0 || c.indexOf('invalid-credential')>=0 || c.indexOf('user-not-found')>=0) return 'Incorrect email or password.';
+    if (c.indexOf('email-already-in-use')>=0) return 'An account with that email already exists — try signing in.';
+    if (c.indexOf('weak-password')>=0) return 'Password must be at least 6 characters.';
+    if (c.indexOf('invalid-email')>=0) return 'Enter a valid email address.';
+    if (c.indexOf('too-many-requests')>=0) return 'Too many attempts — please wait a moment.';
+    return (err && err.message) || 'Something went wrong.';
+  }
+
+  function setMode(m){
+    mode = m; var reg = m === 'register';
+    el('title').textContent = reg ? 'Create organiser account' : 'Organiser sign in';
+    el('subtitle').textContent = reg ? 'Set up a login to run events, members and competitions.' : 'Sign in to manage events, members and competitions.';
+    el('nameWrap').classList.toggle('hide', !reg);
+    el('forgot').classList.toggle('hide', reg);
+    el('password').setAttribute('autocomplete', reg ? 'new-password' : 'current-password');
+    btn.textContent = reg ? 'Create account' : 'Sign in';
+    el('toggle').innerHTML = reg ? 'Already have an account? <a id="toggleLink">Sign in</a>' : 'New organiser? <a id="toggleLink">Create an account</a>';
+    el('toggleLink').onclick = function(){ setMode(reg ? 'login' : 'register'); msg.textContent=''; };
+  }
+
   async function submit(){
-    if (!API) { show('Backend not configured. Add it in config.js.'); return; }
     var email = el('email').value.trim(), password = el('password').value;
     if (!email || !password) { show('Enter your email and password.'); return; }
     btn.disabled = true; show('');
-    var path = mode === 'register' ? '/auth/register' : '/auth/login';
-    var body = { email: email, password: password };
-    if (mode === 'register') { body.name = el('name').value.trim(); body.signupCode = el('signupCode').value.trim(); }
     try {
-      var r = await fetch(API + path, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
-      var data = await r.json().catch(function(){ return {}; });
-      if (!r.ok) { show(data.error || 'Something went wrong. Please try again.'); btn.disabled=false; return; }
-      localStorage.setItem(TOKEN_KEY, data.token);
-      localStorage.setItem(USER_KEY, JSON.stringify(data.user || {}));
-      show('Signed in — taking you in…', true);
-      location.href = next;
-    } catch (e) {
-      show('Could not reach the server. Check your connection.'); btn.disabled=false;
-    }
+      var cred;
+      if (mode === 'register') {
+        cred = await auth.createUserWithEmailAndPassword(email, password);
+        var nm = el('name').value.trim();
+        if (nm) { try { await cred.user.updateProfile({ displayName: nm }); } catch(e){} }
+      } else {
+        cred = await auth.signInWithEmailAndPassword(email, password);
+      }
+      await finish(cred.user);
+    } catch (e) { show(friendly(e)); btn.disabled = false; }
+  }
+
+  async function google(){
+    show('');
+    try {
+      var provider = new firebase.auth.GoogleAuthProvider();
+      var cred = await auth.signInWithPopup(provider);
+      await finish(cred.user);
+    } catch (e) { show(friendly(e)); }
+  }
+
+  async function forgot(){
+    var email = el('email').value.trim();
+    if (!email) { show('Enter your email above first, then tap "Forgot password?".'); return; }
+    try { await auth.sendPasswordResetEmail(email); show('Password reset email sent to ' + email + '.', true); }
+    catch (e) { show(friendly(e)); }
   }
 
   btn.onclick = submit;
+  el('google').onclick = google;
+  el('forgotLink').onclick = forgot;
   el('password').addEventListener('keydown', function(e){ if (e.key === 'Enter') submit(); });
+
+  // Already signed in with Firebase? Exchange + continue.
+  auth.onAuthStateChanged(function(user){ if (user && !localStorage.getItem(TOKEN_KEY)) finish(user); });
+
   setMode('login');
 })();
 </script>
