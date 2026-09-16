@@ -24,6 +24,9 @@
   .userbar a{ color:var(--accent); font-weight:700; text-decoration:none; cursor:pointer; }
   .hide{ display:none; }
   body.gate .wrap > *:not(#userbar){ visibility:hidden; }
+  .club-only{ display:none; }
+  .club-head{ margin:22px 0 10px; font-size:12px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); display:flex; align-items:center; gap:8px; }
+  .club-head::before{ content:""; flex:none; width:8px; height:8px; border-radius:50%; background:var(--accent); }
 </style>
 </head>
 <body class="gate">
@@ -48,25 +51,30 @@
     <p>See where every player is on the course during the golf day. Enter the event code — positions update live from the app.</p>
   </a>
 
-  <a class="card" href="members.html">
-    <h2>👥 Members</h2>
-    <p>Manage the club roster the app reads: add/edit/import members, set category &amp; status, and sync handicap indexes from HNA.</p>
-  </a>
+  <!-- Club-only tools: shown only to the club's own account (clubKey match). -->
+  <div class="club-only" data-club="kempton" id="clubTools">
+    <div class="club-head" id="clubHead">Kempton Park Golf Club</div>
 
-  <a class="card" href="teesheet.html">
-    <h2>⛳ Tee Sheet</h2>
-    <p>Configure the tee sheet and view each day's bookings — see who's on, block slots for events, and cancel bookings.</p>
-  </a>
+    <a class="card" href="members.html">
+      <h2>👥 Members</h2>
+      <p>Manage the club roster the app reads: add/edit/import members, set category &amp; status, and sync handicap indexes from HNA.</p>
+    </a>
 
-  <a class="card" href="competitions.html">
-    <h2>🏆 Competitions</h2>
-    <p>Run club medals &amp; Stableford days: create competitions, manage the field, capture cards, and publish the net/gross leaderboard.</p>
-  </a>
+    <a class="card" href="teesheet.html">
+      <h2>⛳ Tee Sheet</h2>
+      <p>Configure the tee sheet and view each day's bookings — see who's on, block slots for events, and cancel bookings.</p>
+    </a>
 
-  <a class="card" href="news.html">
-    <h2>📰 Club News</h2>
-    <p>Post announcements, results and notices that members read in the app — pin important ones and add a photo.</p>
-  </a>
+    <a class="card" href="competitions.html">
+      <h2>🏆 Competitions</h2>
+      <p>Run club medals &amp; Stableford days: create competitions, manage the field, capture cards, and publish the net/gross leaderboard.</p>
+    </a>
+
+    <a class="card" href="news.html">
+      <h2>📰 Club News</h2>
+      <p>Post announcements, results and notices that members read in the app — pin important ones and add a photo.</p>
+    </a>
+  </div>
 
 </div>
 
@@ -84,6 +92,18 @@
 
   if (!token) { toSignin(); return; }
 
+  // Show a signed-in organiser their portal, and reveal club-only tool groups
+  // only when their account's clubKey matches that group's data-club.
+  function present(u){
+    document.body.classList.remove('gate');
+    var bar = document.getElementById('userbar');
+    document.getElementById('who').textContent = 'Signed in as ' + (u.name || u.email || 'organiser');
+    bar.classList.remove('hide');
+    document.querySelectorAll('.club-only[data-club]').forEach(function(el){
+      if (u.clubKey && el.dataset.club === u.clubKey) el.style.display = '';
+    });
+  }
+
   // Verify the token with the backend; show the portal only once confirmed.
   fetch(API + '/auth/me', { headers: { Authorization: 'Bearer ' + token } })
     .then(function(r){
@@ -91,21 +111,15 @@
       return r.ok ? r.json() : null;
     })
     .then(function(data){
-      // Reveal the portal (even if /auth/me is unreachable but we hold a token,
-      // so a backend blip doesn't lock the organiser out).
-      document.body.classList.remove('gate');
-      var u = (data && data.user) || JSON.parse(localStorage.getItem(USER_KEY) || '{}');
-      var bar = document.getElementById('userbar');
-      document.getElementById('who').textContent = 'Signed in as ' + (u.name || u.email || 'organiser');
-      bar.classList.remove('hide');
+      var u = (data && data.user) || {};
+      if (data && data.user) { try { localStorage.setItem(USER_KEY, JSON.stringify(data.user)); } catch(e){} }
+      else { try { u = JSON.parse(localStorage.getItem(USER_KEY) || '{}'); } catch(e){ u = {}; } }
+      present(u);
     })
     .catch(function(){
       // Offline / server down — trust the stored token rather than lock out.
-      document.body.classList.remove('gate');
-      var u = JSON.parse(localStorage.getItem(USER_KEY) || '{}');
-      var bar = document.getElementById('userbar');
-      document.getElementById('who').textContent = 'Signed in as ' + (u.name || u.email || 'organiser');
-      bar.classList.remove('hide');
+      var u = {}; try { u = JSON.parse(localStorage.getItem(USER_KEY) || '{}'); } catch(e){}
+      present(u);
     });
 
   document.getElementById('signout').onclick = signOut;
