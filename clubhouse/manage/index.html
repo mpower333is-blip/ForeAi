@@ -102,7 +102,7 @@
     document.getElementById('who').textContent = 'Signed in as ' + (u.name || u.email || 'organiser');
     bar.classList.remove('hide');
     document.querySelectorAll('.club-only[data-club]').forEach(function(el){
-      if (u.clubKey && el.dataset.club === u.clubKey) el.style.display = '';
+      if (u.clubKey && el.dataset.club === u.clubKey) el.style.display = 'block';
     });
   }
 
