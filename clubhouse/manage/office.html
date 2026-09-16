@@ -108,11 +108,11 @@
     <div id="adminBar"></div>
     <div class="card" style="display:flex;flex-direction:column;gap:8px">
       <div class="row" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span class="company">📥 Import emailed Excel forms</span>
-        <button class="btn" onclick="document.getElementById('xlsxFiles').click()">Choose .xlsx files…</button>
-        <input id="xlsxFiles" type="file" accept=".xlsx" multiple style="display:none" onchange="importFiles(this.files)" />
+        <span class="company">📥 Import Excel / CSV</span>
+        <button class="btn" onclick="document.getElementById('xlsxFiles').click()">Choose files…</button>
+        <input id="xlsxFiles" type="file" accept=".xlsx,.xls,.csv" multiple style="display:none" onchange="importFiles(this.files)" />
       </div>
-      <div class="hint">Select the team / hole / prize forms people emailed. It reads them here (nothing uploaded), shows a preview, then adds them to the event — duplicates are skipped.</div>
+      <div class="hint">Two ways to load entries — mix &amp; match: <b>(1)</b> the individual team / hole / prize <b>forms</b> people emailed, or <b>(2)</b> one <b>team-list spreadsheet</b> — a sheet with a <i>Company/Team</i> column and either <i>Player 1…4</i> columns (one team per row) or a <i>Player Name</i> column (one player per row, grouped by company). Handicap columns are picked up if present. It reads everything here (nothing uploaded), shows a preview, then adds them — duplicates are skipped.</div>
       <div id="importPreview"></div>
     </div>
     <details class="card" id="setupBox">
@@ -568,6 +568,80 @@
     }
     return {type:type, body:b};
   }
+  // ---- bulk team-list spreadsheet parsing -------------------------------
+  // A single sheet listing many teams, in either layout:
+  //   WIDE — one team per row: [Company | Player 1 | Hcp | Player 2 | Hcp | …]
+  //   TALL — one player per row, grouped by a Company/Team column.
+  function cellStr(v){ return v==null?'':String(v).trim(); }
+  function toHcp(v){ var n=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:n; }
+  function colType(h){
+    h=(h||'').toLowerCase();
+    if(/hand ?i?cap|\bhcp\b|h\/?cap|h'?cap/.test(h)) return 'handicap';
+    if(/\bplayer\b|\bgolfer\b/.test(h)) return 'player';
+    if(/\bcompany\b|\bteam\b|four ?ball|\bentry\b|organi[sz]ation|\bclub\b|\bgroup\b/.test(h)) return 'company';
+    if(/\bname\b/.test(h)) return 'player';
+    return 'other';
+  }
+  function classifyHeader(row){
+    var players=[], hcaps=[], companyCol=-1;
+    for(var i=0;i<row.length;i++){
+      var t=colType(cellStr(row[i]));
+      if(t==='player') players.push(i);
+      else if(t==='handicap') hcaps.push(i);
+      else if(t==='company' && companyCol<0) companyCol=i;
+    }
+    if(!players.length) return null;
+    // Guard against a stray "name" cell being mistaken for a header row.
+    if(players.length<2 && companyCol<0) return null;
+    return { companyCol:companyCol, players:players, hcaps:hcaps };
+  }
+  // Nearest handicap column to a player column, before the next player column.
+  function hcapFor(playerCol, cols){
+    var next=Infinity; cols.players.forEach(function(pc){ if(pc>playerCol && pc<next) next=pc; });
+    var best=-1; cols.hcaps.forEach(function(hc){ if(hc>playerCol && hc<next && (best<0||hc<best)) best=hc; });
+    return best;
+  }
+  function parseBulkSheet(aoa){
+    var headerRow=-1, cols=null;
+    for(var r=0;r<Math.min(aoa.length,20);r++){
+      var c=classifyHeader(aoa[r]||[]);
+      if(c){ headerRow=r; cols=c; break; }
+    }
+    if(headerRow<0) return null;
+    var entries=[];
+    if(cols.players.length>=2){
+      // WIDE: one team per row.
+      for(var r=headerRow+1;r<aoa.length;r++){
+        var row=aoa[r]||[];
+        var company=cols.companyCol>=0?cellStr(row[cols.companyCol]):'';
+        var players=[];
+        cols.players.forEach(function(pc){
+          var nm=cellStr(row[pc]); if(!nm) return;
+          var hc=hcapFor(pc,cols); players.push({ name:nm, handicap:hc>=0?toHcp(row[hc]):0 });
+        });
+        if(!players.length) continue;
+        entries.push({ type:'team', body:{ company:company||('Team '+(entries.length+1)), teams:[{players:players}], teamCount:1 } });
+      }
+    } else {
+      // TALL: one player per row, grouped by company.
+      var nameCol=cols.players[0], hcpCol=cols.hcaps.length?cols.hcaps[0]:-1;
+      var order=[], byCompany={};
+      for(var r=headerRow+1;r<aoa.length;r++){
+        var row=aoa[r]||[];
+        var nm=cellStr(row[nameCol]); if(!nm) continue;
+        var company=(cols.companyCol>=0?cellStr(row[cols.companyCol]):'')||'Unassigned';
+        if(!byCompany[company]){ byCompany[company]=[]; order.push(company); }
+        byCompany[company].push({ name:nm, handicap:hcpCol>=0?toHcp(row[hcpCol]):0 });
+      }
+      order.forEach(function(company){
+        var pls=byCompany[company], teams=[];
+        for(var i=0;i<pls.length;i+=4) teams.push({ players:pls.slice(i,i+4) });
+        entries.push({ type:'team', body:{ company:company, teams:teams, teamCount:teams.length } });
+      });
+    }
+    return entries.length?entries:null;
+  }
+
   async function importFiles(files){
     IMPORT=[]; var pv=document.getElementById('importPreview'); pv.innerHTML='<div class="hint">Reading…</div>';
     for(var i=0;i<files.length;i++){
@@ -576,7 +650,13 @@
         var wb=XLSX.read(buf,{type:'array'});
         var ws=wb.Sheets[wb.SheetNames[0]];
         var aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
-        var p=parseForm(aoa); p.file=files[i].name; IMPORT.push(p);
+        var p=parseForm(aoa);
+        if(p.type){ p.file=files[i].name; IMPORT.push(p); }        // single emailed form
+        else {
+          var bulk=parseBulkSheet(aoa);                            // team-list spreadsheet
+          if(bulk){ bulk.forEach(function(e){ e.file=files[i].name; IMPORT.push(e); }); }
+          else IMPORT.push({ type:null, body:{}, file:files[i].name });
+        }
       }catch(e){ IMPORT.push({type:null,body:{},file:files[i].name,err:String(e)}); }
     }
     document.getElementById('xlsxFiles').value='';
@@ -590,7 +670,7 @@
       var b=p.body, det='';
       if(!p.type) det='<span style="color:var(--red)">unrecognised form</span>';
       else if(!b.company) det='<span style="color:var(--red)">no company name found</span>';
-      else if(p.type==='team') det=(b.teams[0].players.length)+' players'+(b.teamCount>1?(' · '+b.teamCount+' teams'):'');
+      else if(p.type==='team'){ var np=(b.teams||[]).reduce(function(s,t){return s+((t.players||[]).length);},0); var nt=(b.teams||[]).length; det=np+' player'+(np===1?'':'s')+(nt>1?(' · '+nt+' teams'):''); }
       else if(p.type==='hole') det='hole pref: '+(b.holePreference||'any');
       else det=(b.prizeType==='cash'?('cash '+(b.cashAmount||'')):('items: '+((b.prizes||[]).join(', ')||'—')));
       var dup=p.type&&b.company&&isDup(p);
