@@ -183,12 +183,15 @@
       // ── Live weather / lightning alert for the venue ──
       const wxLat = _q.get("wxlat") ? Number(_q.get("wxlat")) : _D.wxLat;
       const wxLng = _q.get("wxlng") ? Number(_q.get("wxlng")) : _D.wxLng;
+      // Weather now comes from the Firebase Cloud Function (off Render); fall back
+      // to the old backend's /weather only if no function URL is configured.
+      const wxUrl = _q.get("wx") || _D.weatherUrl || (apiBase ? apiBase.replace(/\/$/, "") + "/weather" : "");
       async function pollWeather() {
-        if (typeof wxLat !== "number" || typeof wxLng !== "number" || !apiBase) return;
+        if (typeof wxLat !== "number" || typeof wxLng !== "number" || !wxUrl) return;
         const el = $("wxAlert");
         const show = (cls, html) => { el.className = "wxAlert " + cls; el.innerHTML = html; el.style.display = "flex"; };
         try {
-          const r = await fetch(`${apiBase.replace(/\/$/, "")}/weather?lat=${wxLat}&lng=${wxLng}`);
+          const r = await fetch(`${wxUrl}?lat=${wxLat}&lng=${wxLng}`);
           if (!r.ok) {
             show("clear", '<div class="ic">⚡</div><div><div class="lab">Weather</div><div class="msg">Feed connecting… (backend deploying?)</div></div>');
             return;

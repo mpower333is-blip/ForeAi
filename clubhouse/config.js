@@ -16,4 +16,8 @@ window.FOREAI_DEFAULTS = {
   // ?wxlat=..&wxlng=.. Set to null to hide the weather alert entirely.
   wxLat: -26.106,
   wxLng: 28.212,
+
+  // Weather + lightning now runs on a Firebase Cloud Function (migrated off
+  // Render). Pages use this instead of api + "/weather". Override with ?wx=...
+  weatherUrl: "https://europe-west1-foreai-f9cfa.cloudfunctions.net/weather",
 };
