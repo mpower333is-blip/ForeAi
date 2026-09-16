@@ -52,6 +52,7 @@
 <script src="../config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-functions-compat.js"></script>
 <script>
 (function(){
   var P = new URLSearchParams(location.search);
@@ -77,9 +78,22 @@
 
   function show(text, ok){ msg.textContent = text; msg.className = 'msg ' + (ok ? 'ok' : 'err'); }
 
+  // Firestore cutover: create/refresh this organiser's adminUsers/{uid} record
+  // via the provisionOrganiser Cloud Function (the server-only source of
+  // clubKey + role, from CLUB_ADMIN_EMAILS / SUPER_ADMIN_EMAILS). This is what
+  // lets the manage pages' Firestore writes pass isClubAdmin / isEventAdmin.
+  // Fail-soft: if the function isn't deployed yet, or the call fails, sign-in
+  // still proceeds (the Render session below is unaffected).
+  async function provisionOrganiser(){
+    try {
+      await firebase.app().functions('europe-west1').httpsCallable('provisionOrganiser')();
+    } catch (e) { /* not deployed / offline — ignore, don't block sign-in */ }
+  }
+
   // Verify the signed-in Firebase user with our backend, get a session token,
   // then continue into the portal.
   async function finish(user){
+    await provisionOrganiser();
     try {
       var idToken = await user.getIdToken();
       var r = await fetch(API + '/auth/firebase', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ idToken: idToken }) });
