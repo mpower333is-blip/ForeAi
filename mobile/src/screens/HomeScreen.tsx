@@ -11,6 +11,7 @@ import { useProfile } from "../state/ProfileContext";
 import { PACKAGE_NAME } from "../config/appConfig";
 import { signed } from "../lib/golfEngine";
 import { ydToM } from "../lib/units";
+import { coursesNearest } from "../data/courses";
 
 // A feature card with an icon chip, headline, blurb and CTA.
 function FeatureCard({
@@ -60,7 +61,7 @@ function FeatureCard({
 }
 
 export default function HomeScreen({ navigation }: any) {
-  const { shots, totalStrokesGained, categorySG, course, currentHole, courseName } = useRound();
+  const { shots, totalStrokesGained, categorySG, course, currentHole, courseName, setCourse } = useRound();
   const { isPro } = usePlan();
   const { name } = useProfile();
   const cats = categorySG();
@@ -82,6 +83,15 @@ export default function HomeScreen({ navigation }: any) {
   const wxCoord = loc.coord ?? courseCenter;
   const toUpgrade = () => navigation.navigate("Upgrade");
   const firstName = (name || "").trim().split(" ")[0];
+
+  // Nearest bundled course to the player, for the one-tap "Start a round".
+  const nearby = React.useMemo(() => coursesNearest(loc.coord), [loc.coord]);
+  const nearest = nearby[0];
+  const nearestKm = nearest?.distanceKm;
+  const startRound = () => {
+    if (nearest) setCourse(nearest.id);
+    navigation.navigate("Play");
+  };
 
   return (
     <Screen>
@@ -108,6 +118,43 @@ export default function HomeScreen({ navigation }: any) {
         </Card>
       )}
 
+      {/* Primary action — play a round on the nearest course */}
+      <Card accent>
+        <View style={styles.featHead}>
+          <IconChip emoji="🚩" />
+          <View style={styles.featHeadText}>
+            <Text style={styles.cardHeadline}>Play Golf</Text>
+          </View>
+        </View>
+        <Text style={styles.cardBody}>Find a nearby course and start scoring.</Text>
+        <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate("CourseSelect")} style={styles.nearestRow}>
+          <Text style={styles.pin}>📍</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.nearestLabel}>{nearest && nearestKm != null ? "Nearest course" : "Your course"}</Text>
+            <Text style={styles.nearestName} numberOfLines={1}>{nearest ? nearest.name : courseName}</Text>
+            {nearestKm != null && (
+              <Text style={styles.nearestKm}>{nearestKm < 10 ? nearestKm.toFixed(1) : Math.round(nearestKm)} km away</Text>
+            )}
+          </View>
+          <Text style={styles.courseChipCta}>Change ›</Text>
+        </TouchableOpacity>
+        <Button label="START A ROUND" onPress={startRound} />
+      </Card>
+
+      {/* Join a golf day / competition */}
+      <Card>
+        <View style={styles.featHead}>
+          <IconChip emoji="🏁" tone="gold" />
+          <View style={styles.featHeadText}>
+            <Text style={styles.cardHeadline}>Playing in a golf day?</Text>
+          </View>
+        </View>
+        <Text style={styles.cardBody}>Join with a code or find your event, then score live with your fourball.</Text>
+        <Button variant="ghost" label="JOIN A GOLF DAY" onPress={() => navigation.navigate("Events")} />
+      </Card>
+
+      <WeatherPanel coord={wxCoord} />
+
       <View style={styles.grid}>
         <StatTile
           label="Round SG"
@@ -124,30 +171,10 @@ export default function HomeScreen({ navigation }: any) {
         />
       </View>
 
-      <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate("CourseSelect")} style={styles.courseChipRow}>
-        <Text style={styles.courseChipLabel}>⛳ Playing</Text>
-        <Text style={styles.courseChipName} numberOfLines={1}>{courseName}</Text>
-        <Text style={styles.courseChipCta}>Change ›</Text>
-      </TouchableOpacity>
-
-      <WeatherPanel coord={wxCoord} />
-
       <View style={styles.sectionRow}>
         <View style={styles.sectionBar} />
         <Text style={styles.sectionTitle}>Jump back in</Text>
       </View>
-
-      <FeatureCard
-        emoji="🏌️"
-        primary
-        badge="LIVE"
-        title="Live Round"
-        body="Track shots, get club calls and watch your strokes gained update in real time."
-        cta="Go to Round"
-        onPress={() => navigation.navigate("Play")}
-        locked={demo}
-        onUpgrade={toUpgrade}
-      />
 
       <FeatureCard
         emoji="📍"
@@ -270,6 +297,22 @@ const styles = StyleSheet.create({
   courseChipLabel: { color: colors.textMuted, fontSize: 14, fontWeight: "700" },
   courseChipName: { color: colors.text, fontSize: 14, fontWeight: "700", flex: 1, marginLeft: 10 },
   courseChipCta: { color: colors.accent, fontSize: 14, fontWeight: "700" },
+
+  nearestRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+    marginBottom: 12,
+  },
+  pin: { fontSize: 20 },
+  nearestLabel: { color: colors.accent, fontSize: 12, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5 },
+  nearestName: { color: colors.text, fontSize: 16, fontWeight: "800", marginTop: 1 },
+  nearestKm: { color: colors.textMuted, fontSize: 13, marginTop: 1 },
 
   sectionRow: { flexDirection: "row", alignItems: "center", marginBottom: spacing.sm },
   sectionBar: { width: 4, height: 22, borderRadius: 2, backgroundColor: colors.accent, marginRight: 10 },
