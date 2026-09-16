@@ -97,6 +97,7 @@ async function main() {
       firstTeeMin: t.firstTeeMin, intervalMin: t.intervalMin, shotgun: !!t.shotgun,
       cause: t.cause ?? null, causePhoto: t.causePhoto ?? null, logo: t.logo ?? null,
       banking: t.banking ?? null, teamFee: t.teamFee ?? null, holeFee: t.holeFee ?? null,
+      playerFee: t.playerFee ?? null,
       reminders: t.reminders ?? [], ownerUid: null,
       createdAt: ms(t.createdAt), updatedAt: ms(t.updatedAt),
     });
@@ -156,13 +157,17 @@ async function main() {
     await w.set(db.collection("clubs").doc(m.clubKey).collection("members").doc(m.id), {
       memberNumber: m.memberNumber, firstName: m.firstName, lastName: m.lastName, email: m.email ?? null, cell: m.cell ?? null,
       category: m.category, status: m.status, joinedAt: ms(m.joinedAt), handicapIndex: num(m.handicapIndex),
-      hnaId: m.hnaId ?? null, handicapSyncedAt: ms(m.handicapSyncedAt), deviceId: m.deviceId ?? null, photo: m.photo ?? null,
+      hnaId: m.hnaId ?? null, handicapSyncedAt: m.handicapSyncedAt ? new Date(m.handicapSyncedAt).toISOString() : null, deviceId: m.deviceId ?? null, photo: m.photo ?? null,
       createdAt: ms(m.createdAt), updatedAt: ms(m.updatedAt),
     });
   }
   for (const b of await rows("TeeBooking")) {
+    // The tee sheet queries + keys slots by teeMs (epoch millis) and shows teeAt
+    // as an ISO string — write BOTH so migrated bookings appear on the sheet.
+    const teeMs = ms(b.teeAt);
     await w.set(db.collection("clubs").doc(b.clubKey).collection("bookings").doc(b.id), {
-      teeAt: ms(b.teeAt), courseId: b.courseId, memberId: b.memberId ?? null, partySize: b.partySize,
+      teeMs, teeAt: teeMs != null ? new Date(teeMs).toISOString() : null,
+      courseId: b.courseId, memberId: b.memberId ?? null, partySize: b.partySize,
       players: b.players ?? null, note: b.note ?? null, status: b.status, createdAt: ms(b.createdAt), updatedAt: ms(b.updatedAt),
     });
   }
@@ -170,7 +175,7 @@ async function main() {
   for (const c of await rows("Competition")) {
     compClub[c.id] = c.clubKey;
     await w.set(db.collection("clubs").doc(c.clubKey).collection("competitions").doc(c.id), {
-      name: c.name, date: ms(c.date), format: c.format, courseId: c.courseId, status: c.status,
+      name: c.name, date: c.date ? new Date(c.date).toISOString() : null, format: c.format, courseId: c.courseId, status: c.status,
       pars: c.pars ?? [], sis: c.sis ?? [], handicapAllowance: c.handicapAllowance, slope: c.slope,
       courseRating: num(c.courseRating), description: c.description ?? null, createdAt: ms(c.createdAt), updatedAt: ms(c.updatedAt),
     });
@@ -186,7 +191,9 @@ async function main() {
   for (const n of await rows("Notice")) {
     await w.set(db.collection("clubs").doc(n.clubKey).collection("notices").doc(n.id), {
       title: n.title, body: n.body, category: n.category, pinned: !!n.pinned, image: n.image ?? null,
-      authorName: n.authorName ?? null, status: n.status, publishAt: ms(n.publishAt), createdAt: ms(n.createdAt), updatedAt: ms(n.updatedAt),
+      authorName: n.authorName ?? null, status: n.status,
+      publishAt: n.publishAt ? new Date(n.publishAt).toISOString() : new Date().toISOString(),
+      createdAt: ms(n.createdAt), updatedAt: ms(n.updatedAt),
     });
   }
 
