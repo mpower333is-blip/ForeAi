@@ -20,19 +20,34 @@ service cloud.firestore {
 
     // ---- helpers ---------------------------------------------------------
     function isSignedIn() { return request.auth != null; }
+
+    // Platform owners (main admins) — full access to every club + event. Listed
+    // HERE, not in an env var or the console, so provisioning needs ZERO Firebase
+    // setup: these accounts are owners the moment they sign in. Emails are not
+    // secrets. Add/remove an owner by editing this list and re-publishing.
+    function owners() {
+      return ['marcell.laubscher@outlook.com', 'mpower333is@gmail.com'];
+    }
+    function myEmail() { return isSignedIn() ? request.auth.token.email : ''; }
+    function isSuperAdmin() { return isSignedIn() && myEmail() in owners(); }
+
     function isOrganiser() {
       return isSignedIn() && exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid));
     }
-    function myClubKey() {
-      return get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.clubKey;
+    function adminData() {
+      return get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data;
     }
-    function isClubAdmin(k) { return isOrganiser() && myClubKey() == k; }
+    function myClubKey() { return isOrganiser() ? adminData().clubKey : null; }
+    // Owner = a hardcoded super-admin, or an organiser whose record says owner.
+    function isOwner() { return isSuperAdmin() || (isOrganiser() && adminData().role == 'owner'); }
+    function isClubAdmin(k) { return isOwner() || (isOrganiser() && myClubKey() == k); }
     function eventOwner(eid) {
       return get(/databases/$(database)/documents/events/$(eid)).data.ownerUid;
     }
-    // Event admin = the owner, or any organiser for a legacy (ownerless) event.
+    // Event admin = an owner, the event's own creator, or any organiser for a
+    // legacy (ownerless) event.
     function isEventAdmin(eid) {
-      return isSignedIn() && (eventOwner(eid) == request.auth.uid || (eventOwner(eid) == null && isOrganiser()));
+      return isSignedIn() && (isOwner() || eventOwner(eid) == request.auth.uid || (eventOwner(eid) == null && isOrganiser()));
     }
 
     // ---- golfer app data (per user) --------------------------------------
@@ -43,10 +58,25 @@ service cloud.firestore {
       }
     }
 
-    // ---- organiser accounts (clubKey is server-set; clients never write) --
+    // ---- organiser accounts (self-service — no Cloud Function / console) --
+    //  • on sign-in you may CREATE your own record, but only as a plain
+    //    'organiser' with no club — you cannot grant yourself a club or owner;
+    //  • you may UPDATE your own record's profile fields, but never change your
+    //    own role or clubKey (no self-escalation);
+    //  • an owner may read and write ANYONE's record (assign a club, promote).
+    // So Marcell (an owner email above) becomes the main admin automatically, and
+    // Jurian self-provisions as an organiser who can only manage his OWN events.
     match /adminUsers/{uid} {
-      allow read: if isSignedIn() && request.auth.uid == uid;
-      allow write: if false; // provisioned by a Cloud Function (Admin SDK)
+      allow read: if isSignedIn() && (request.auth.uid == uid || isOwner());
+      allow create: if isOwner()
+        || (request.auth.uid == uid
+            && request.resource.data.role == 'organiser'
+            && request.resource.data.clubKey == null);
+      allow update: if isOwner()
+        || (request.auth.uid == uid
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.clubKey == resource.data.clubKey);
+      allow delete: if isOwner();
     }
 
     // ---- events (golf days) ----------------------------------------------

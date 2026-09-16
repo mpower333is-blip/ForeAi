@@ -138,27 +138,38 @@ data**.
 So both app and web now have the entire Firestore data layer (events + club),
 all behind the `useFirestore` / `EXPO_PUBLIC_USE_FIRESTORE` flags.
 
-### Identity: what makes admin writes work (and the one housekeeping item)
+### Identity: fully self-service (no console / env / function)
 
-`firestore.rules` gates admin writes on the organiser's Firebase identity
-(event `ownerUid`, or `isClubAdmin` via an `adminUsers/{uid}` doc). This lines up
-with the existing flow: **`signin.html` signs the organiser into Firebase**
-(email/Google) and that session persists across the manage pages, so
-`events-fs.js` / `club-fs.js` run writes under the organiser's real uid — not the
-anonymous fallback (anon only covers the public read/register pages). The one
-requirement to satisfy before the flip: every organiser must have an
-`adminUsers/{uid}` doc with their `clubKey`, created by the `provisionOrganiser`
-Cloud Function (or written by the data migration). Club-bound admin writes and
-`isEventAdmin` on legacy (ownerless) events depend on it. Events'
-contests/players/scores stay open (matching the ungated REST routes), so live
-scoring and the board never depend on this.
+Provisioning needs **zero Firebase setup**. The model:
+
+- **Owners (main admins)** are a hardcoded email list in `firestore.rules`
+  (`owners()` — currently Marcell + the dev account). Emails aren't secrets, so
+  putting them in the rules means those accounts are owners the instant they sign
+  in — full access to every club and event. No env var, no console.
+- **Everyone else self-provisions.** On sign-in, `signin.html` writes the user's
+  own `adminUsers/{uid}` record straight to Firestore as a plain `organiser` with
+  no club. The rules make this safe: you can create only your OWN record, only as
+  `organiser` with `clubKey: null`, and can never change your own role/clubKey —
+  so no one can grant themselves a club or owner. An owner may write anyone's
+  record (assign a club, promote) — the basis for an in-app organiser manager.
+- **What each role can do:** an owner manages everything; a plain organiser (e.g.
+  Jurian) owns and manages only the **events they create** (`ownerUid` == them);
+  a club organiser (owner-assigned `clubKey`) manages that club's data. Events'
+  players/scores/contests stay open to any signed-in user, so live scoring and
+  the board never depend on identity.
+
+The manage hub reads role/clubKey from Firestore (owner emails + the
+`adminUsers` record), so the right tools appear automatically — Marcell sees the
+owner + club tools, Jurian sees only the general event tools. `provisionOrganiser`
+and `CLUB_ADMIN_EMAILS` are no longer required (the function stays in the repo,
+unused).
 
 ### To test (single flagged page, no risk to live)
 
-1. Deploy the rules: `firebase deploy --only firestore:rules` (from the repo
-   root). Without this, writes are denied.
-2. Make sure the organiser you sign in as has an `adminUsers/{uid}` doc with the
-   right `clubKey` (run `provisionOrganiser`, or the migration).
+1. Publish `firestore.rules` (console → Firestore → Rules → paste → Publish, or
+   `firebase deploy --only firestore:rules`). Without this, writes are denied.
+2. Sign in on the manage site — that's it. An owner email gets full access; any
+   other account self-provisions as an organiser. No `adminUsers` doc to create.
 3. **Events:** open `office.html?fs=1`, create an event, add teams; open
    `board.html?fs=1` with the same code — scores/positions stream live from
    Firestore. Nothing hits Render on those tabs.

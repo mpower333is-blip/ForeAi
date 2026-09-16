@@ -89,6 +89,10 @@
 </div>
 
 <script src="../config.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
 (function(){
   var P = new URLSearchParams(location.search);
@@ -111,31 +115,67 @@
     var bar = document.getElementById('userbar');
     document.getElementById('who').textContent = 'Signed in as ' + (u.name || u.email || 'organiser');
     bar.classList.remove('hide');
+    var owner = u.role === 'owner';
+    // Owner (main admin) sees every club's tools; a club organiser sees only
+    // their own club; a plain organiser (e.g. Jurian) sees neither — just the
+    // general event tools, which manage only the events they own.
     document.querySelectorAll('.club-only[data-club]').forEach(function(el){
-      if (u.clubKey && el.dataset.club === u.clubKey) el.style.display = 'block';
+      if (owner || (u.clubKey && el.dataset.club === u.clubKey)) el.style.display = 'block';
     });
     document.querySelectorAll('.owner-only[data-role]').forEach(function(el){
-      if (u.role && el.dataset.role === u.role) el.style.display = 'block';
+      if (owner) el.style.display = 'block';
     });
   }
 
-  // Verify the token with the backend; show the portal only once confirmed.
-  fetch(API + '/auth/me', { headers: { Authorization: 'Bearer ' + token } })
-    .then(function(r){
-      if (r.status === 401) { signOut(); return null; }
-      return r.ok ? r.json() : null;
-    })
-    .then(function(data){
-      var u = (data && data.user) || {};
-      if (data && data.user) { try { localStorage.setItem(USER_KEY, JSON.stringify(data.user)); } catch(e){} }
-      else { try { u = JSON.parse(localStorage.getItem(USER_KEY) || '{}'); } catch(e){ u = {}; } }
-      present(u);
-    })
-    .catch(function(){
-      // Offline / server down — trust the stored token rather than lock out.
-      var u = {}; try { u = JSON.parse(localStorage.getItem(USER_KEY) || '{}'); } catch(e){}
-      present(u);
+  // Effective role/clubKey come from Firestore (the hands-off source of truth):
+  // the hardcoded owner emails are owners; everyone else uses their adminUsers
+  // record (self-provisioned on sign-in). No Render env / console needed.
+  var OWNER_EMAILS = ['marcell.laubscher@outlook.com', 'mpower333is@gmail.com'];
+  function firestoreGate(){
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+    } catch (e) { return Promise.resolve(null); }
+    var auth = firebase.auth();
+    return new Promise(function(resolve){
+      var done = false;
+      var t = setTimeout(function(){ if (!done){ done = true; resolve(null); } }, 4000);
+      auth.onAuthStateChanged(function(user){
+        if (done) return; done = true; clearTimeout(t);
+        if (!user) { resolve(null); return; }
+        var mail = (user.email || '').trim().toLowerCase();
+        firebase.firestore().collection('adminUsers').doc(user.uid).get().then(function(s){
+          var d = s.exists ? s.data() : {};
+          var role = OWNER_EMAILS.indexOf(mail) >= 0 ? 'owner' : (d.role || 'organiser');
+          resolve({ name: user.displayName || d.name || null, email: mail, role: role, clubKey: d.clubKey || null });
+        }).catch(function(){
+          var role = OWNER_EMAILS.indexOf(mail) >= 0 ? 'owner' : 'organiser';
+          resolve({ name: user.displayName || null, email: mail, role: role, clubKey: null });
+        });
+      });
     });
+  }
+
+  // Resolve the user from both sources: Firestore drives role/clubKey (the
+  // hands-off source of truth), while Render (or the stored user) supplies the
+  // name and validates the legacy session. Only sign out if BOTH reject.
+  Promise.all([
+    fetch(API + '/auth/me', { headers: { Authorization: 'Bearer ' + token } })
+      .then(function(r){ if (r.status === 401) return { unauth: true }; return r.ok ? r.json() : null; })
+      .catch(function(){ return null; }),
+    firestoreGate()
+  ]).then(function(res){
+    var me = res[0], fs = res[1];
+    if (me && me.unauth && !fs) { signOut(); return; }
+    var ru = (me && me.user) || {};
+    if (me && me.user) { try { localStorage.setItem(USER_KEY, JSON.stringify(me.user)); } catch(e){} }
+    else { try { ru = JSON.parse(localStorage.getItem(USER_KEY) || '{}'); } catch(e){ ru = {}; } }
+    present({
+      name: (fs && fs.name) || ru.name || ru.email || null,
+      email: (fs && fs.email) || ru.email || null,
+      role: (fs && fs.role) || ru.role || 'organiser',
+      clubKey: (fs && fs.clubKey != null) ? fs.clubKey : (ru.clubKey || null),
+    });
+  });
 
   document.getElementById('signout').onclick = signOut;
 })();
