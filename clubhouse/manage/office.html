@@ -107,12 +107,17 @@
       <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px;text-align:left">
         <div class="hint" style="margin-bottom:6px;color:var(--gold)"><b>No event yet? Create one</b></div>
         <input id="newName" placeholder="Event name (e.g. Kruinsig League — Round 1)" />
-        <input id="newCourse" placeholder="Course / venue (optional)" />
+        <select id="newCourse" style="width:100%;margin:6px 0">
+          <option value="avion-park">Avion Park Golf Club</option>
+          <option value="kempton-park">Kempton Park Golf Club</option>
+          <option value="custom">Other / not listed</option>
+        </select>
         <select id="newFormat" style="width:100%;margin:6px 0">
           <option value="stableford">Stableford (points)</option>
           <option value="stroke">Stroke play</option>
           <option value="scramble">4-ball scramble</option>
         </select>
+        <input id="newPlayerFee" type="number" min="0" placeholder="Fee per player (R) — e.g. 60" />
         <button class="btn" style="width:100%;margin-top:6px" onclick="newEvent()">Create event</button>
         <div class="msg" id="createMsg" style="margin-top:8px"></div>
       </div>
@@ -147,6 +152,7 @@
           <textarea id="setBank" rows="5" placeholder="Payment to: ...\nBank: ...\nAccount: ...\nBranch: ...\nReference: ..." style="width:100%;margin-top:4px;background:#0a1730;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px"></textarea>
         </div>
         <div class="row" style="display:flex;gap:14px;flex-wrap:wrap">
+          <label class="hint">Fee per player (R) <input id="setPlayerFee" type="number" style="width:100px;margin-left:6px" /></label>
           <label class="hint">Team fee (R) <input id="setTeamFee" type="number" style="width:100px;margin-left:6px" /></label>
           <label class="hint">Hole fee (R) <input id="setHoleFee" type="number" style="width:100px;margin-left:6px" /></label>
         </div>
@@ -198,9 +204,13 @@
   function money(n){ return 'R ' + (n||0).toLocaleString('en-ZA'); }
   function parseAmount(s){ if(s==null) return 0; var m=String(s).replace(/[^0-9.]/g,''); return parseFloat(m)||0; }
   function teamCount(r){ var p=r.payload||{}; return p.teamCount || (Array.isArray(p.teams)?p.teams.length:1) || 1; }
+  // Actual players in a registration (falls back to 4 per team if none listed).
+  function playerCount(r){ var p=r.payload||{}; var teams=Array.isArray(p.teams)?p.teams:[]; var n=teams.reduce(function(s,t){return s+((t.players||[]).length);},0); return n||teamCount(r)*4; }
   function amountFor(r){
-    var tf=(EVENT&&EVENT.teamFee)||TEAM_FEE, hf=(EVENT&&EVENT.holeFee)||HOLE_FEE;
-    if(r.type==='team') return teamCount(r)*tf;
+    var pf=(EVENT&&EVENT.playerFee), tf=(EVENT&&EVENT.teamFee)||TEAM_FEE, hf=(EVENT&&EVENT.holeFee)||HOLE_FEE;
+    // Per-player pricing (e.g. school leagues R60/child) when a player fee is set;
+    // otherwise the classic per-team fee.
+    if(r.type==='team') return pf ? playerCount(r)*pf : teamCount(r)*tf;
     if(r.type==='hole') return hf;
     if(r.type==='prize') return (r.payload&&r.payload.prizeType==='cash')?parseAmount(r.payload.cashAmount):0;
     return 0;
@@ -220,6 +230,7 @@
     var name=(document.getElementById('newName').value||'').trim();
     var courseId=(document.getElementById('newCourse').value||'').trim()||'custom';
     var format=document.getElementById('newFormat').value;
+    var playerFee=(document.getElementById('newPlayerFee').value||'').trim();
     var m=document.getElementById('createMsg'); m.style.color='var(--faint)';
     if(!name){ m.style.color='var(--red)'; m.textContent='Enter an event name.'; return; }
     CFG.api=(document.getElementById('inApi').value||CFG.api||'').replace(/\/$/,'');
@@ -228,7 +239,7 @@
       // auth-guard.js attaches the organiser token, so the backend sets this
       // account as the event owner.
       var r=await fetch(CFG.api+'/tournaments',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({name:name,courseId:courseId,format:format})});
+        body:JSON.stringify({name:name,courseId:courseId,format:format,playerFee:playerFee||null})});
       if(!r.ok){ var e=await r.json().catch(function(){return{};}); throw new Error(e.error||('HTTP '+r.status)); }
       var ev=await r.json();
       CFG.code=(ev.code||'').toUpperCase();
@@ -283,7 +294,7 @@
     renderGames();
     // tiles
     var teams=REGS.filter(r=>r.type==='team'), holes=REGS.filter(r=>r.type==='hole'), prizes=REGS.filter(r=>r.type==='prize');
-    var players=teams.reduce((s,r)=>s+teamCount(r)*4,0);
+    var players=teams.reduce((s,r)=>s+playerCount(r),0);
     var expected=REGS.reduce((s,r)=>s+amountFor(r),0);
     var received=REGS.filter(r=>r.status==='paid'||r.status==='confirmed').reduce((s,r)=>s+amountFor(r),0);
     var ph=phoneTally();
@@ -539,6 +550,7 @@
     document.getElementById('setBank').value = EVENT.banking||'';
     document.getElementById('setTeamFee').value = EVENT.teamFee!=null?EVENT.teamFee:'';
     document.getElementById('setHoleFee').value = EVENT.holeFee!=null?EVENT.holeFee:'';
+    document.getElementById('setPlayerFee').value = EVENT.playerFee!=null?EVENT.playerFee:'';
     document.getElementById('setCause').value = EVENT.cause||'';
     REMINDERS = (EVENT.reminders||[]).map(function(r){ return { offsetMin:+r.offsetMin||1440, body:r.body||'' }; });
     renderReminders();
@@ -549,6 +561,7 @@
     var body={ banking: document.getElementById('setBank').value,
       teamFee: parseInt(document.getElementById('setTeamFee').value,10) || null,
       holeFee: parseInt(document.getElementById('setHoleFee').value,10) || null,
+      playerFee: parseInt(document.getElementById('setPlayerFee').value,10) || null,
       reminders: REMINDERS.filter(function(r){ return r.body && r.body.trim(); }).map(function(r){ return { offsetMin:+r.offsetMin||0, title:'⛳ '+((EVENT&&EVENT.name)||'Golf day'), body:r.body.trim() }; }),
       cause: document.getElementById('setCause').value || null };
     if(NEW_LOGO) body.logo=NEW_LOGO;

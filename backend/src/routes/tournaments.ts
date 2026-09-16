@@ -54,6 +54,7 @@ function serialize(t: NonNullable<LoadedTournament>) {
     banking: t.banking,
     teamFee: t.teamFee,
     holeFee: t.holeFee,
+    playerFee: t.playerFee,
     reminders: Array.isArray(t.reminders) ? t.reminders : [],
     sponsors: t.sponsors.map((s) => ({
       id: s.id,
@@ -135,7 +136,7 @@ async function gateAdmin(req: any, res: any): Promise<boolean> {
 // Create an event, returning a join code that other devices use.
 router.post("/", async (req, res) => {
   try {
-    const { name, courseId, format, firstTeeMin, intervalMin, shotgun, adminPin } = req.body;
+    const { name, courseId, format, firstTeeMin, intervalMin, shotgun, adminPin, playerFee } = req.body;
     if (!name || !courseId) {
       return res.status(400).json({ error: "name and courseId are required" });
     }
@@ -158,6 +159,7 @@ router.post("/", async (req, res) => {
             shotgun: !!shotgun,
             adminPin: adminPin ? String(adminPin) : null,
             ownerId: owner?.sub ?? null,
+            ...(playerFee != null && playerFee !== "" ? { playerFee: Number(playerFee) } : {}),
           },
         });
       } catch {
@@ -217,7 +219,7 @@ router.put("/:id/admin-pin", async (req, res) => {
 // Update event settings.
 router.patch("/:id", async (req, res) => {
   if (!(await gateAdmin(req, res))) return;
-  const { name, format, firstTeeMin, intervalMin, shotgun, cause, causePhoto, logo, banking, teamFee, holeFee, reminders } = req.body;
+  const { name, format, firstTeeMin, intervalMin, shotgun, cause, causePhoto, logo, banking, teamFee, holeFee, playerFee, reminders } = req.body;
   // Sanitise custom reminders: keep only { offsetMin:number, title, body }, cap the list.
   const cleanReminders =
     reminders !== undefined
@@ -244,6 +246,7 @@ router.patch("/:id", async (req, res) => {
       ...(banking !== undefined ? { banking } : {}),
       ...(teamFee !== undefined ? { teamFee: teamFee == null ? null : Number(teamFee) } : {}),
       ...(holeFee !== undefined ? { holeFee: holeFee == null ? null : Number(holeFee) } : {}),
+      ...(playerFee !== undefined ? { playerFee: playerFee == null || playerFee === "" ? null : Number(playerFee) } : {}),
       ...(cleanReminders !== undefined ? { reminders: cleanReminders } : {}),
     },
   });
