@@ -119,29 +119,52 @@ same `EXPO_PUBLIC_USE_FIRESTORE=1` guard:
 Firestore model: `clubs/{clubKey}` (settings) + subcollections `members`,
 `bookings`, `competitions` (+ `entries`), `notices` — matching
 `firestore.rules.next`. So one flag-on app build now covers **events + club
-data**. The web club pages (`manage/members|teesheet|competitions|news`) are the
-remaining port before the club side can flip.
+data**.
 
-### Known caveat before the flip: organiser identity on the manage pages
+## Status — club data (web side) is written, behind the same flag
 
-The office/admin pages authenticate with the **Render Bearer token**
-(`auth-guard.js`), not Firebase. So under the Firestore path `events-fs.js` signs
-in **anonymously**, and the anon user only counts as the event's admin for events
-**it created in that same browser** (it becomes `ownerUid`). Admin-gated writes
-in `firestore.rules.next` — event-meta `PATCH`, sponsor delete, registration
-status/delete — will be denied for an event created elsewhere (e.g. on the app).
-Contests/players/scores are open (matching the ungated REST routes), so scoring
-and the board work regardless. **Follow-up for the flip:** bridge the manage
-pages to Firebase Auth (email/password) so the organiser's real uid +
-`adminUsers/{uid}` doc drive the rules. Until then, test office against an event
-the office browser created.
+- **`clubhouse/club-fs.js`** — the web twin of `clubFirestore.ts`, covering the
+  FULL club surface (member-facing **and** admin): club settings, roster CRUD +
+  bulk import + manual handicap entries, tee-sheet slots/day view + block +
+  cancel, competitions list/detail/create/edit/delete/enter/withdraw/score, and
+  notices list/all/item/create/edit/delete. Same shim design as `events-fs.js`
+  (routes `/club|/members|/bookings|/competitions|/news` → Firestore). Wired into
+  `manage/members`, `manage/teesheet`, `manage/competitions`, `manage/news`. Its
+  WHS scoring transcription is **verified** against the server with the same
+  20,000-case differential test.
+- A live HNA handicap *pull* still needs a server, so `sync-hna {live:true}`
+  reports `notConfigured`; manual/CSV handicap entries work.
 
-### To test the events path (single flagged page, no risk to live)
+So both app and web now have the entire Firestore data layer (events + club),
+all behind the `useFirestore` / `EXPO_PUBLIC_USE_FIRESTORE` flags.
+
+### Identity: what makes admin writes work (and the one housekeeping item)
+
+`firestore.rules.next` gates admin writes on the organiser's Firebase identity
+(event `ownerUid`, or `isClubAdmin` via an `adminUsers/{uid}` doc). This lines up
+with the existing flow: **`signin.html` signs the organiser into Firebase**
+(email/Google) and that session persists across the manage pages, so
+`events-fs.js` / `club-fs.js` run writes under the organiser's real uid — not the
+anonymous fallback (anon only covers the public read/register pages). The one
+requirement to satisfy before the flip: every organiser must have an
+`adminUsers/{uid}` doc with their `clubKey`, created by the `provisionOrganiser`
+Cloud Function (or written by the data migration). Club-bound admin writes and
+`isEventAdmin` on legacy (ownerless) events depend on it. Events'
+contests/players/scores stay open (matching the ungated REST routes), so live
+scoring and the board never depend on this.
+
+### To test (single flagged page, no risk to live)
 
 1. Deploy the rules: promote `firestore.rules.next` → `firestore.rules` and
    `firebase deploy --only firestore:rules`. Without this, writes are denied.
-2. Open e.g. `office.html?fs=1`, create an event, add teams; open
-   `board.html?fs=1` with the same code — scores/positions should stream live
-   from Firestore. Nothing hits Render on those tabs.
-3. When satisfied, flip `useFirestore: true` in `config.js` **and** ship the apps
-   with `EXPO_PUBLIC_USE_FIRESTORE=1` — together (the coordinated flip).
+2. Make sure the organiser you sign in as has an `adminUsers/{uid}` doc with the
+   right `clubKey` (run `provisionOrganiser`, or the migration).
+3. **Events:** open `office.html?fs=1`, create an event, add teams; open
+   `board.html?fs=1` with the same code — scores/positions stream live from
+   Firestore. Nothing hits Render on those tabs.
+4. **Club:** sign in, then open `manage/members.html?fs=1`, `manage/teesheet.html?fs=1`,
+   `manage/competitions.html?fs=1`, `manage/news.html?fs=1` — add a member, block a
+   slot, create a competition + score it, post a notice; all read/write Firestore.
+5. When satisfied, flip `useFirestore: true` in `config.js` **and** ship the apps
+   with `EXPO_PUBLIC_USE_FIRESTORE=1` — together (the coordinated flip). After the
+   flip, retire Render (both services + Postgres) once the data migration has run.
