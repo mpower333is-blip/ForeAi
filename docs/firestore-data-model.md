@@ -2,7 +2,7 @@
 
 The collections that replace the Postgres/Prisma schema when Render is retired.
 Mapped 1:1 from `backend/prisma/schema.prisma`. Rules live in
-`firestore.rules.next` (promoted to `firestore.rules` at the web cutover — see
+`firestore.rules` (the live rules file — see
 `docs/firebase-migration.md`).
 
 ## Auth model (replaces admin PINs)
@@ -66,7 +66,7 @@ Notes:
 - **`updatedAt`** is written by the client on each write (or by a Function) — no
   Prisma `@updatedAt` equivalent.
 
-## Access control (summary — see `firestore.rules.next`)
+## Access control (summary — see `firestore.rules`)
 
 | Data | Read | Write |
 |---|---|---|

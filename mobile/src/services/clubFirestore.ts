@@ -16,7 +16,7 @@
 // match Render exactly — the scoring port (lib/compScoring.ts) is verified
 // against the server file with a differential test.
 //
-// Model (matches firestore.rules.next — clubs/{clubKey}/...):
+// Model (matches firestore.rules — clubs/{clubKey}/...):
 //   clubs/{clubKey}                                   settings (public read)
 //   clubs/{clubKey}/members/{memberId}                roster
 //   clubs/{clubKey}/bookings/{bookingId}              tee bookings (teeMs keyed)

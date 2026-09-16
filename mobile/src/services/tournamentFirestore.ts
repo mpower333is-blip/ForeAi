@@ -10,7 +10,7 @@
 // the current ForeAi / Kempton builds are unchanged. See
 // docs/render-firebase-cutover.md.
 //
-// Model (native subcollections, see firestore.rules.next):
+// Model (native subcollections, see firestore.rules):
 //   events/{id}                                 meta
 //   events/{id}/players/{playerId}              {name,handicap,deviceId,groupId}
 //   events/{id}/positions/{playerId}            {lat,lng,lastSeen} (GPS heartbeat)

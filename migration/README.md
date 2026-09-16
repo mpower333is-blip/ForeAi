@@ -32,12 +32,12 @@ Get each `DATABASE_URL` from Render → the database → **External Database URL
 - **Skips AdminUser** — organiser accounts are re-created under their Firebase
   Auth uid on next sign-in (the `provisionOrganiser` function). Migrated events
   therefore get `ownerUid = null` (any organiser may manage them — the legacy
-  path in `firestore.rules.next`).
+  path in `firestore.rules`).
 - All timestamps become epoch millis (numbers), matching the realtime read-model.
 
 ## When to run
 
 At the **cutover** (migration plan step 5), after the apps + web are pointed at
-Firestore and `firestore.rules.next` is promoted to `firestore.rules`. Running
+Firestore and `firestore.rules` is deployed. Running
 earlier is harmless (it just seeds Firestore), but the backend mirror also keeps
 events in sync until then.

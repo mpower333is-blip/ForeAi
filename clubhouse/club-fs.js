@@ -12,10 +12,10 @@
 // IDENTITY: admin writes need the organiser's Firebase session. signin.html
 // signs the organiser into Firebase (email/Google) and that session persists
 // here, so writes run under their uid and satisfy isClubAdmin(clubKey) in
-// firestore.rules.next (given their adminUsers/{uid} doc). Anonymous fallback
+// firestore.rules (given their adminUsers/{uid} doc). Anonymous fallback
 // covers the public read paths.
 //
-// Model (matches firestore.rules.next):
+// Model (matches firestore.rules):
 //   clubs/{clubKey}                                   settings
 //   clubs/{clubKey}/members/{memberId}                roster
 //   clubs/{clubKey}/bookings/{bookingId}              tee bookings (teeMs keyed)

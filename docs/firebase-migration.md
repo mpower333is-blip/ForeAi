@@ -62,7 +62,7 @@ Sequence:
    Also deployed-ready: `provisionOrganiser` (onCall) — creates `adminUsers/{uid}`
    and sets `clubKey` from `CLUB_ADMIN_EMAILS`, replacing `POST /auth/firebase`.
 2. ✅ **Firestore data model + security rules** — `docs/firestore-data-model.md`
-   and `firestore.rules.next` (promoted at the web cutover).
+   and `firestore.rules` (the live rules file).
 3. **Web pages → Firestore** (board, live, office, members, tee sheet,
    competitions, news, register). Easy to switch — just re-upload.
 4. **Mobile apps → Firestore** (`services/api.ts` → Firebase SDK). Needs a

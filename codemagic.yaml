@@ -541,7 +541,7 @@ workflows:
   # package id (com.foreai.mobile) + the shared upload keystore, so it UPDATES the
   # sideloaded app IN PLACE (no Play version yet — we're waiting on Google). Its
   # versionCode lane (9000+) is above the store lanes so it installs over an older
-  # sideload. PREREQUISITE: deploy firestore.rules (rules.next → rules) first, or
+  # sideload. PREREQUISITE: deploy firestore.rules first, or
   # Firestore writes are denied. See docs/render-firebase-cutover.md.
   foreai-firestore-apk:
     name: ForeAi — Firestore TEST APK

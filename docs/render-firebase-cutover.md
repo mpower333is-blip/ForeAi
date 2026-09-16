@@ -26,7 +26,7 @@ So the cutover = move **events** and **club data** to Firestore. That's it.
 
 ## Firestore representation (resolved)
 
-Use the **native subcollection model** from `firestore.rules.next` as the single
+Use the **native subcollection model** from `firestore.rules` as the single
 source of truth, and have every reader (app, board, office, live) **assemble the
 event client-side** by subscribing to the event doc + its subcollections. Retire
 the Postgres→Firestore mirror once clients write Firestore directly — no
@@ -50,7 +50,7 @@ poll). A small `assembleEvent(snapshots)` builds the `TEvent` the app already us
 3. **Web → Firestore** — office, board, live, register (events) and members,
    tee sheet, competitions, news (club). They already sign in with Firebase;
    swap their fetches for the Firestore SDK.
-4. **Deploy rules** — promote `firestore.rules.next` → `firestore.rules`.
+4. **Deploy rules** — `firestore.rules` (already the live rules file).
 5. **Migrate data** — `migration/migrate-to-firestore.mjs`, once per Render DB.
 6. **Flip + retire** — build both apps with the flag on, upload the web, verify a
    full event end-to-end, then switch off both Render services + Postgres.
@@ -118,7 +118,7 @@ same `EXPO_PUBLIC_USE_FIRESTORE=1` guard:
 
 Firestore model: `clubs/{clubKey}` (settings) + subcollections `members`,
 `bookings`, `competitions` (+ `entries`), `notices` — matching
-`firestore.rules.next`. So one flag-on app build now covers **events + club
+`firestore.rules`. So one flag-on app build now covers **events + club
 data**.
 
 ## Status — club data (web side) is written, behind the same flag
@@ -140,7 +140,7 @@ all behind the `useFirestore` / `EXPO_PUBLIC_USE_FIRESTORE` flags.
 
 ### Identity: what makes admin writes work (and the one housekeeping item)
 
-`firestore.rules.next` gates admin writes on the organiser's Firebase identity
+`firestore.rules` gates admin writes on the organiser's Firebase identity
 (event `ownerUid`, or `isClubAdmin` via an `adminUsers/{uid}` doc). This lines up
 with the existing flow: **`signin.html` signs the organiser into Firebase**
 (email/Google) and that session persists across the manage pages, so
@@ -155,8 +155,8 @@ scoring and the board never depend on this.
 
 ### To test (single flagged page, no risk to live)
 
-1. Deploy the rules: promote `firestore.rules.next` → `firestore.rules` and
-   `firebase deploy --only firestore:rules`. Without this, writes are denied.
+1. Deploy the rules: `firebase deploy --only firestore:rules` (from the repo
+   root). Without this, writes are denied.
 2. Make sure the organiser you sign in as has an `adminUsers/{uid}` doc with the
    right `clubKey` (run `provisionOrganiser`, or the migration).
 3. **Events:** open `office.html?fs=1`, create an event, add teams; open
