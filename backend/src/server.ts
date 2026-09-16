@@ -16,6 +16,7 @@ import bookingRoutes from "./routes/bookings";
 import competitionRoutes from "./routes/competitions";
 import newsRoutes from "./routes/news";
 import authRoutes from "./routes/auth";
+import adminRoutes from "./routes/admin";
 import { startLightningWatcher } from "./lib/lightningWatcher";
 import { seedClubs } from "./lib/seedClub";
 
@@ -49,6 +50,7 @@ app.use("/push", pushRoutes);
 // Club "complete package": settings/tee-sheet config, membership roster, tee
 // bookings. (/clubs above is the per-user bag of golf clubs — different thing.)
 app.use("/auth", authRoutes);
+app.use("/admin", adminRoutes);
 app.use("/club", clubSettingsRoutes);
 app.use("/members", memberRoutes);
 app.use("/bookings", bookingRoutes);

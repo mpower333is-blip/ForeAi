@@ -3,6 +3,14 @@ import prisma from "../config/db";
 import { hashPassword, verifyPassword, signToken, requireAuth } from "../lib/auth";
 import { verifyFirebaseIdToken } from "../lib/firebase";
 import { clubKeyForEmail } from "../lib/clubAdmins";
+import { isSuperAdmin } from "../lib/superAdmins";
+
+// Platform owners get role="owner" (server-controlled), everyone else stays
+// "organiser". Applied on every sign-in so the allowlist is authoritative.
+function roleForEmail(email: string, current?: string | null): string {
+  if (isSuperAdmin(email)) return "owner";
+  return current || "organiser";
+}
 
 // Organiser / club login for the web management portal.
 //   POST /auth/register  { email, password, name?, clubKey?, signupCode? }
@@ -36,7 +44,7 @@ router.post("/register", async (req, res) => {
     // A club-admin email mapping (env) is authoritative over any requested clubKey.
     const mappedClub = clubKeyForEmail(email);
     const user = await prisma.adminUser.create({
-      data: { email, passwordHash: hashPassword(password), name, clubKey: mappedClub ?? clubKey },
+      data: { email, passwordHash: hashPassword(password), name, clubKey: mappedClub ?? clubKey, role: roleForEmail(email) },
     });
     const token = signToken({ sub: user.id, email: user.email, name: user.name, role: user.role, clubKey: user.clubKey });
     res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, clubKey: user.clubKey } });
@@ -55,15 +63,20 @@ router.post("/login", async (req, res) => {
     if (!user || !verifyPassword(password, user.passwordHash)) {
       return res.status(401).json({ error: "Incorrect email or password." });
     }
-    // Keep the account's clubKey in sync with the club-admin email mapping.
+    // Keep clubKey and role in sync with the env allowlists.
     const mappedClub = clubKeyForEmail(user.email);
     const clubKey = mappedClub ?? user.clubKey;
+    const role = roleForEmail(user.email, user.role);
     await prisma.adminUser.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date(), ...(mappedClub && mappedClub !== user.clubKey ? { clubKey: mappedClub } : {}) },
+      data: {
+        lastLoginAt: new Date(),
+        ...(mappedClub && mappedClub !== user.clubKey ? { clubKey: mappedClub } : {}),
+        ...(role !== user.role ? { role } : {}),
+      },
     });
-    const token = signToken({ sub: user.id, email: user.email, name: user.name, role: user.role, clubKey });
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, clubKey } });
+    const token = signToken({ sub: user.id, email: user.email, name: user.name, role, clubKey });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role, clubKey } });
   } catch (e) {
     console.error("login error", e);
     res.status(500).json({ error: "Could not sign in." });
@@ -90,13 +103,18 @@ router.post("/firebase", async (req, res) => {
     let user = await prisma.adminUser.findUnique({ where: { email } });
     if (!user) {
       user = await prisma.adminUser.create({
-        data: { email, passwordHash: "firebase", name: claims.name || null, clubKey: mappedClub },
+        data: { email, passwordHash: "firebase", name: claims.name || null, clubKey: mappedClub, role: roleForEmail(email) },
       });
     } else {
-      // Keep the account's clubKey in sync with the club-admin email mapping.
+      // Keep clubKey and role in sync with the env allowlists.
+      const role = roleForEmail(email, user.role);
       user = await prisma.adminUser.update({
         where: { id: user.id },
-        data: { lastLoginAt: new Date(), ...(mappedClub && mappedClub !== user.clubKey ? { clubKey: mappedClub } : {}) },
+        data: {
+          lastLoginAt: new Date(),
+          ...(mappedClub && mappedClub !== user.clubKey ? { clubKey: mappedClub } : {}),
+          ...(role !== user.role ? { role } : {}),
+        },
       });
     }
     const token = signToken({ sub: user.id, email: user.email, name: user.name, role: user.role, clubKey: user.clubKey });
@@ -111,11 +129,15 @@ router.get("/me", requireAuth, async (req, res) => {
   const claims = (req as any).auth as { sub: string };
   let user = await prisma.adminUser.findUnique({ where: { id: claims.sub } });
   if (!user) return res.status(401).json({ error: "Account not found." });
-  // Promote/sync clubKey from the club-admin email mapping so a designated club
-  // admin gains access without having to sign out and back in.
+  // Promote/sync clubKey + owner role from the env allowlists so a designated
+  // club admin or platform owner gains access without signing out and back in.
   const mappedClub = clubKeyForEmail(user.email);
-  if (mappedClub && mappedClub !== user.clubKey) {
-    user = await prisma.adminUser.update({ where: { id: user.id }, data: { clubKey: mappedClub } });
+  const role = roleForEmail(user.email, user.role);
+  if ((mappedClub && mappedClub !== user.clubKey) || role !== user.role) {
+    user = await prisma.adminUser.update({
+      where: { id: user.id },
+      data: { ...(mappedClub && mappedClub !== user.clubKey ? { clubKey: mappedClub } : {}), ...(role !== user.role ? { role } : {}) },
+    });
   }
   res.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role, clubKey: user.clubKey } });
 });

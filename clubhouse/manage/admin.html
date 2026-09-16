@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ForeAi — Platform Admin</title>
+<style>
+  :root{ --bg:#081226; --panel:#0F2143; --panel2:#132a54; --line:#26407A; --text:#F2F6FF; --muted:#B7C6E6; --faint:#7F92B6; --gold:#F3C33B; --sky:#6BD5FF; --green:#46C85A; --red:#FF6B6B; --amber:#FFCF5C; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:64px 16px 60px}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 4px}
+  .sub{color:var(--faint);margin:0 0 20px;font-size:14px}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0 22px}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .tile .k{color:var(--faint);font-size:12px;text-transform:uppercase;letter-spacing:1px}
+  .tile .v{font-size:26px;font-weight:800;margin-top:4px}
+  .tile .v.gold{color:var(--gold)} .tile .v.red{color:var(--red)} .tile .v.green{color:var(--green)}
+  section{margin-bottom:26px}
+  h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:0;overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:middle}
+  th{color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.06em;background:var(--panel2)}
+  tr:last-child td{border-bottom:none}
+  .muted{color:var(--faint)} .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+  .pill{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px}
+  .p-trial{background:rgba(107,213,255,.15);color:var(--sky)} .p-active{background:rgba(70,200,90,.16);color:var(--green)}
+  .p-overdue{background:rgba(255,107,107,.16);color:var(--red)} .p-cancelled{background:rgba(127,146,182,.16);color:var(--faint)}
+  .p-unpaid{background:rgba(255,207,92,.16);color:var(--amber)} .p-paid{background:rgba(70,200,90,.16);color:var(--green)} .p-waived{background:rgba(127,146,182,.16);color:var(--faint)}
+  select,input{font:inherit;background:#0A1830;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 8px;font-size:13px}
+  .btn{border:none;cursor:pointer;background:linear-gradient(135deg,#FCE38A,#F3C33B,#D9A62A);color:#20160a;font-weight:800;padding:8px 12px;border-radius:9px;font-size:13px}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--gold)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .addbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  a.back{position:fixed;top:14px;left:14px;z-index:50;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(8,18,38,.72);color:var(--gold);font-weight:800;font-size:14px;text-decoration:none;border:1px solid var(--line)}
+  .msg{font-size:13px;color:var(--faint);margin-left:8px}
+  .empty{padding:16px;color:var(--faint)}
+  body.gate .wrap{visibility:hidden}
+</style>
+  <script src="../config.js"></script>
+  <script src="auth-guard.js"></script>
+</head>
+<body class="gate">
+<a class="back" href="index.html">‹ Hub</a>
+<div class="wrap">
+  <h1>🛡️ Platform Admin</h1>
+  <p class="sub">Every organiser, club and event on ForeAi — and who's paying.</p>
+
+  <div class="tiles" id="tiles"></div>
+
+  <section>
+    <h2>🏌️ Clubs · subscriptions</h2>
+    <div class="addbar">
+      <input id="newClubKey" placeholder="clubkey (e.g. kempton)" style="width:170px" />
+      <input id="newClubName" placeholder="Club name" style="width:220px" />
+      <button class="btn" onclick="createClub()">+ Add club</button>
+      <span class="msg" id="clubMsg"></span>
+    </div>
+    <div class="card" id="clubs"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section>
+    <h2>📅 Events · golf-day fees</h2>
+    <div class="card" id="events"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section>
+    <h2>👤 Organisers</h2>
+    <div class="card" id="organisers"><div class="empty">Loading…</div></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var P=new URLSearchParams(location.search);
+  var D=window.FOREAI_DEFAULTS||{};
+  var API=(P.get('api')||localStorage.getItem('foreai.api')||D.api||'').replace(/\/$/,'');
+  var $=function(id){return document.getElementById(id);};
+  var esc=function(s){return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+  var money=function(n){return n==null?'—':'R '+Number(n).toLocaleString('en-ZA');};
+  var when=function(d){return d?new Date(d).toLocaleDateString('en-ZA'):'—';};
+  var DATA=null;
+
+  // Owner gate: only role "owner" (SUPER_ADMIN_EMAILS) may see this page.
+  fetch(API+'/auth/me').then(function(r){return r.ok?r.json():null;}).then(function(d){
+    var role=d&&d.user&&d.user.role;
+    if(role!=='owner'){ alert('This page is for the ForeAi platform owner.'); location.href='index.html'; return; }
+    document.body.classList.remove('gate');
+    load();
+  }).catch(function(){ alert('Could not verify access.'); location.href='index.html'; });
+
+  function load(){
+    fetch(API+'/admin/overview').then(function(r){ if(!r.ok) throw new Error('overview '+r.status); return r.json(); })
+      .then(function(d){ DATA=d; render(); })
+      .catch(function(e){ $('clubs').innerHTML='<div class="empty">Could not load ('+esc(e.message)+').</div>'; });
+  }
+
+  function render(){
+    var t=DATA.totals||{};
+    var subs=(DATA.clubs||[]);
+    var activeSubs=subs.filter(function(c){return c.subStatus==='active';}).length;
+    var overdue=subs.filter(function(c){return c.subStatus==='overdue';}).length;
+    var unpaidEvents=(DATA.events||[]).filter(function(e){return e.payStatus==='unpaid';}).length;
+    var annual=subs.reduce(function(s,c){return s+(c.subStatus==='active'?(c.subFee||0):0);},0);
+    $('tiles').innerHTML=[
+      ['Organisers',t.organisers,''],['Clubs',t.clubs,''],['Events',t.events,''],
+      ['Active subs',activeSubs,'green'],['Overdue',overdue,'red'],['Unpaid events',unpaidEvents,'red'],
+      ['Annual (active)',money(annual),'gold'],
+    ].map(function(x){return '<div class="tile"><div class="k">'+x[0]+'</div><div class="v '+x[2]+'">'+x[1]+'</div></div>';}).join('');
+
+    // Clubs
+    $('clubs').innerHTML = subs.length ? '<table><tr><th>Club</th><th>Members</th><th>Plan</th><th>Status</th><th>Renews</th><th>Fee/yr</th><th></th></tr>'+
+      subs.map(function(c){
+        return '<tr data-club="'+esc(c.clubKey)+'">'
+          +'<td><b>'+esc(c.name)+'</b><div class="muted mono">'+esc(c.clubKey)+'</div></td>'
+          +'<td>'+c.members+'</td>'
+          +'<td><input class="c-plan" value="'+esc(c.plan||'')+'" placeholder="Club Annual" style="width:120px" /></td>'
+          +'<td><select class="c-status">'+opts(['trial','active','overdue','cancelled'],c.subStatus)+'</select></td>'
+          +'<td><input class="c-renew" type="date" value="'+(c.subRenewAt?new Date(c.subRenewAt).toISOString().slice(0,10):'')+'" /></td>'
+          +'<td><input class="c-fee" type="number" value="'+(c.subFee!=null?c.subFee:'')+'" placeholder="0" style="width:90px" /></td>'
+          +'<td><button class="btn" onclick="saveClub(this)">Save</button></td></tr>';
+      }).join('')+'</table>' : '<div class="empty">No clubs yet. Add one above.</div>';
+
+    // Events
+    var ev=DATA.events||[];
+    $('events').innerHTML = ev.length ? '<table><tr><th>Event</th><th>Code</th><th>Players</th><th>Entries</th><th>Fee</th><th>Status</th><th></th></tr>'+
+      ev.map(function(e){
+        return '<tr data-id="'+esc(e.id)+'">'
+          +'<td><b>'+esc(e.name)+'</b><div class="muted">'+when(e.createdAt)+'</div></td>'
+          +'<td class="mono">'+esc(e.code)+'</td>'
+          +'<td>'+e.players+'</td><td>'+e.registrations+'</td>'
+          +'<td><input class="e-fee" type="number" value="'+(e.payFee!=null?e.payFee:'')+'" placeholder="0" style="width:90px" /></td>'
+          +'<td><select class="e-status">'+opts(['unpaid','paid','waived'],e.payStatus)+'</select></td>'
+          +'<td><button class="btn" onclick="saveEvent(this)">Save</button></td></tr>';
+      }).join('')+'</table>' : '<div class="empty">No events yet.</div>';
+
+    // Organisers
+    var org=DATA.organisers||[];
+    var clubKeys=subs.map(function(c){return c.clubKey;});
+    $('organisers').innerHTML = org.length ? '<table><tr><th>Organiser</th><th>Club</th><th>Role</th><th>Joined</th><th>Last in</th><th></th></tr>'+
+      org.map(function(u){
+        var clubOpts='<option value="">— none —</option>'+clubKeys.map(function(k){return '<option value="'+esc(k)+'"'+(u.clubKey===k?' selected':'')+'>'+esc(k)+'</option>';}).join('');
+        return '<tr data-id="'+esc(u.id)+'">'
+          +'<td><b>'+esc(u.name||'—')+'</b><div class="muted">'+esc(u.email)+'</div></td>'
+          +'<td><select class="u-club">'+clubOpts+'</select></td>'
+          +'<td><select class="u-role">'+opts(['organiser','owner'],u.role||'organiser')+'</select></td>'
+          +'<td>'+when(u.createdAt)+'</td><td>'+when(u.lastLoginAt)+'</td>'
+          +'<td><button class="btn" onclick="saveUser(this)">Save</button></td></tr>';
+      }).join('')+'</table>' : '<div class="empty">No organisers yet.</div>';
+  }
+
+  function opts(list,sel){ return list.map(function(v){return '<option value="'+v+'"'+(v===sel?' selected':'')+'>'+v+'</option>';}).join(''); }
+  function pill(kind,v){ return '<span class="pill p-'+v+'">'+v+'</span>'; }
+
+  async function api(path,method,body){
+    var r=await fetch(API+path,{method:method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+    if(!r.ok){ var e=await r.json().catch(function(){return{};}); throw new Error(e.error||('HTTP '+r.status)); }
+    return r.json();
+  }
+
+  window.createClub=async function(){
+    var clubKey=$('newClubKey').value.trim(), name=$('newClubName').value.trim();
+    $('clubMsg').textContent='';
+    if(!clubKey||!name){ $('clubMsg').textContent='Enter a clubkey and name.'; return; }
+    try{ await api('/admin/clubs','POST',{clubKey:clubKey,name:name}); $('newClubKey').value='';$('newClubName').value=''; load(); }
+    catch(e){ $('clubMsg').textContent=e.message; }
+  };
+  window.saveClub=async function(btn){
+    var tr=btn.closest('tr'), k=tr.dataset.club;
+    try{ await api('/admin/clubs/'+encodeURIComponent(k),'PATCH',{
+      plan:tr.querySelector('.c-plan').value||null,
+      subStatus:tr.querySelector('.c-status').value,
+      subRenewAt:tr.querySelector('.c-renew').value||null,
+      subFee:tr.querySelector('.c-fee').value||null,
+    }); btn.textContent='Saved'; setTimeout(function(){btn.textContent='Save';},1200); }
+    catch(e){ alert(e.message); }
+  };
+  window.saveEvent=async function(btn){
+    var tr=btn.closest('tr'), id=tr.dataset.id;
+    try{ await api('/admin/events/'+encodeURIComponent(id)+'/pay','PATCH',{
+      payStatus:tr.querySelector('.e-status').value, payFee:tr.querySelector('.e-fee').value||null,
+    }); btn.textContent='Saved'; setTimeout(function(){btn.textContent='Save';},1200); }
+    catch(e){ alert(e.message); }
+  };
+  window.saveUser=async function(btn){
+    var tr=btn.closest('tr'), id=tr.dataset.id;
+    try{ await api('/admin/users/'+encodeURIComponent(id),'PATCH',{
+      clubKey:tr.querySelector('.u-club').value||null, role:tr.querySelector('.u-role').value,
+    }); btn.textContent='Saved'; setTimeout(function(){btn.textContent='Save';},1200); }
+    catch(e){ alert(e.message); }
+  };
+})();
+</script>
+</body>
+</html>

@@ -119,6 +119,10 @@ model Tournament {
   // minutes before the first tee (e.g. 3 days = 4320) for "pay your team fee".
   reminders   Json?
 
+  // Platform billing (super-admin console): per-event fee status.
+  payStatus   String   @default("unpaid") // unpaid | paid | waived (school/charity)
+  payFee      Int?     // fee charged for this event (ZAR), for the owner's records
+
   players       TournamentPlayer[]
   groups        TournamentGroup[]
   scores        TournamentScore[]
@@ -305,6 +309,12 @@ model ClubSettings {
   slotCapacity      Int     @default(4)    // max players per slot (a four-ball)
   bookingWindowDays Int     @default(14)   // how far ahead members may book
   openDays          String  @default("0,1,2,3,4,5,6") // open weekdays (0=Sun..6=Sat)
+
+  // Platform billing (super-admin console): the club's subscription.
+  plan              String?                    // plan label, e.g. "Club Annual"
+  subStatus         String   @default("trial")  // trial | active | overdue | cancelled
+  subRenewAt        DateTime?                   // next renewal date
+  subFee            Int?                        // annual fee (ZAR)
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

@@ -25,6 +25,8 @@
   .hide{ display:none; }
   body.gate .wrap > *:not(#userbar){ visibility:hidden; }
   .club-only{ display:none; }
+  .owner-only{ display:none; }
+  a.card.owner{ border-color:var(--accent); background:linear-gradient(160deg,#14306a,#0f2143); }
   .club-head{ margin:22px 0 10px; font-size:12px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); display:flex; align-items:center; gap:8px; }
   .club-head::before{ content:""; flex:none; width:8px; height:8px; border-radius:50%; background:var(--accent); }
 </style>
@@ -35,6 +37,14 @@
   <h1>ForeAi Management</h1>
   <p class="sub">Organiser tools for events, members and competitions.</p>
   <div class="userbar hide" id="userbar"><span id="who"></span><a id="signout">Sign out</a></div>
+
+  <!-- Platform owner only (role = owner) -->
+  <div class="owner-only" data-role="owner" id="ownerTools">
+    <a class="card owner" href="admin.html">
+      <h2>🛡️ Platform Admin</h2>
+      <p>Every organiser, club and event on ForeAi — subscriptions, golf-day fees and who's paying. Add clubs and assign organisers.</p>
+    </a>
+  </div>
 
   <a class="card" href="survey.html">
     <h2>🛰️ Course Survey</h2>
@@ -103,6 +113,9 @@
     bar.classList.remove('hide');
     document.querySelectorAll('.club-only[data-club]').forEach(function(el){
       if (u.clubKey && el.dataset.club === u.clubKey) el.style.display = 'block';
+    });
+    document.querySelectorAll('.owner-only[data-role]').forEach(function(el){
+      if (u.role && el.dataset.role === u.role) el.style.display = 'block';
     });
   }
 
