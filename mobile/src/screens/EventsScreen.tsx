@@ -14,6 +14,7 @@ import {
 } from "../services/golfCourseApi";
 import { useTournament } from "../state/TournamentContext";
 import { useLocation } from "../hooks/useLocation";
+import { useNavigation } from "@react-navigation/native";
 import WeatherPanel from "../components/WeatherPanel";
 import { scheduleEventReminders } from "../lib/eventReminders";
 import CourseMap from "../components/CourseMap";
@@ -620,6 +621,7 @@ function IdentityCard({ event }: { event: TEvent }) {
 
 function PlayersTab({ event }: { event: TEvent }) {
   const { addPlayer, removePlayer, myPlayerId, isOrganiser } = useTournament();
+  const nav = useNavigation<any>();
   const [name, setName] = useState("");
   const [hcp, setHcp] = useState(18);
 
@@ -633,6 +635,20 @@ function PlayersTab({ event }: { event: TEvent }) {
     setHcp(18);
   };
 
+  // Add players from the reusable directory (build it once, reuse across events
+  // — e.g. school leagues). Skips players already registered by name.
+  const addFromDirectory = () => {
+    nav.navigate("PlayerDirectory", {
+      pick: true,
+      onPick: (players: { name: string; handicap: number }[]) => {
+        const have = new Set(event.players.map((p) => p.name.trim().toLowerCase()));
+        players.forEach((p) => {
+          if (!have.has(p.name.trim().toLowerCase())) addPlayer(event.id, p.name.trim(), p.handicap);
+        });
+      },
+    });
+  };
+
   return (
     <>
       {/* Identifying yourself is done via the "Who are you?" card at the top.
@@ -643,6 +659,7 @@ function PlayersTab({ event }: { event: TEvent }) {
           <TextField label="Name" value={name} onChangeText={setName} placeholder="Player name" />
           <Stepper label="Handicap" value={hcp} onChange={setHcp} step={1} min={0} max={54} unit="" />
           <Button label="Add player" onPress={add} />
+          <Button variant="ghost" label="👥 Add from directory" onPress={addFromDirectory} />
         </Card>
       )}
 

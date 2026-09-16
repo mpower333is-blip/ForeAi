@@ -33,6 +33,7 @@ const SURVEY_ONLY = process.env.EXPO_PUBLIC_SURVEY_ONLY === "1";
 import HomeScreen from "./src/screens/HomeScreen";
 import ClubHomeScreen from "./src/screens/ClubHomeScreen";
 import ProShopScreen from "./src/screens/ProShopScreen";
+import PlayerDirectoryScreen from "./src/screens/PlayerDirectoryScreen";
 import MembershipScreen from "./src/screens/MembershipScreen";
 import TeeTimesScreen from "./src/screens/TeeTimesScreen";
 import CompetitionsScreen from "./src/screens/CompetitionsScreen";
@@ -160,6 +161,7 @@ function Root() {
         <Stack.Screen name="Survey" component={OnCourseScreen} />
         <Stack.Screen name="CourseSelect" component={CourseSelectScreen} />
         <Stack.Screen name="ProShop" component={ProShopScreen} />
+        <Stack.Screen name="PlayerDirectory" component={PlayerDirectoryScreen} />
         {/* Club "complete package": digital membership card + tee-time booking. */}
         <Stack.Screen name="Membership" component={MembershipScreen} />
         <Stack.Screen name="TeeTimes" component={TeeTimesScreen} />

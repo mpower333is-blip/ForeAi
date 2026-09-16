@@ -75,6 +75,7 @@ export default function ProfileScreen({ navigation }: any) {
         <MoreLink emoji="📊" label="Strokes-gained stats" onPress={() => navigation.navigate("Stats")} />
         <MoreLink emoji="🧭" label="Course strategy" onPress={() => navigation.navigate("Strategy")} />
         <MoreLink emoji="🎮" label="Range games" onPress={() => navigation.navigate("Games")} />
+        <MoreLink emoji="👥" label="Player directory" onPress={() => navigation.navigate("PlayerDirectory")} />
         <MoreLink emoji="⌚" label="Set up your watch" onPress={() => navigation.navigate("WatchSetup")} last={!IAP_ENABLED} />
         {IAP_ENABLED && (
           <MoreLink emoji="⛳" label="ForeAi Pro" onPress={() => navigation.navigate("Upgrade")} last />
