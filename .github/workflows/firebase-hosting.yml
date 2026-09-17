@@ -4,11 +4,11 @@ name: Deploy clubhouse to Firebase Hosting
 # every push to main that touches it — so the website updates itself instead of
 # being re-uploaded to cPanel by hand.
 #
-# One-time setup in GitHub (Settings → Secrets and variables → Actions):
-#   • Variable  FIREBASE_PROJECT_ID       your Firebase project id
-#   • Secret    FIREBASE_SERVICE_ACCOUNT  the JSON key of a service account with
-#                                         the "Firebase Hosting Admin" role
-# See docs/firebase-hosting.md for how to create those.
+# One-time setup in GitHub (Settings → Secrets and variables → Actions → Secrets):
+#   • Secret  FIREBASE_SERVICE_ACCOUNT  the JSON key of a service account with the
+#                                       "Firebase Hosting Admin" role.
+# The project id is pinned below (matches .firebaserc), so no variable is needed.
+# See docs/firebase-hosting.md for how to create the secret.
 
 on:
   push:
@@ -50,5 +50,5 @@ jobs:
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          projectId: foreai-f9cfa
           channelId: live

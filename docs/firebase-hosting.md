@@ -5,44 +5,48 @@ The clubhouse website (`clubhouse/` — hub, get, register, board, and the
 global CDN and — with the included GitHub Action — **redeploys itself on every
 push**, so you stop re-uploading files to cPanel `public_html` by hand.
 
-Nothing about the app or the API changes: `clubhouse/config.js` still points the
-pages at the Render backend (`https://foreai-backend.onrender.com`, or your
-`api.foreai.co.za`). Firebase only replaces where the *static pages* live.
+Nothing about the app or the data changes: the site now runs on **Firestore**
+(events, club data and organiser login all use Firebase — see
+`docs/render-firebase-cutover.md`), and `clubhouse/config.js` has
+`useFirestore: true`. Firebase Hosting only replaces *where the static pages
+live* — swapping the manual cPanel upload for an automatic deploy.
 
 The config already committed:
 
 - `firebase.json` — serves `clubhouse/` as-is, keeps the current file URLs
-  (`/get.html`, `/manage/members.html`, …), and tells browsers not to hard-cache
-  `config.js` or the HTML so edits show up immediately.
-- `.firebaserc` — the project id for local `firebase deploy` (replace the
-  placeholder, or run `firebase use <project-id>`).
-- `.github/workflows/firebase-hosting.yml` — auto-deploy on push to `main`.
+  (`/get.html`, `/manage/office.html`, …), and tells browsers not to hard-cache
+  `config.js` or any HTML, so edits show up immediately (no cPanel/LiteSpeed
+  cache to purge).
+- `.firebaserc` — the project id (`foreai-f9cfa`) for local `firebase deploy`.
+- `.github/workflows/firebase-hosting.yml` — auto-deploy on push to `main`. The
+  project id is pinned in the workflow, so only one secret is needed.
 
 ---
 
-## 1. Pick a Firebase project
+## 1. Firebase project
 
-Reuse the **existing FCM project** (the one already set up for push, per
-`docs/push-setup.md`) — one project happily does both push and hosting — or
-create a new one at <https://console.firebase.google.com>. Note its
-**Project ID** (Project settings → General, e.g. `foreai-12345`).
+The project is **`foreai-f9cfa`** — the same one used for Firestore and push.
+Nothing to pick or create.
 
-## 2. Turn on auto-deploy (recommended — no manual uploads ever again)
+## 2. Turn on auto-deploy (one secret — no manual uploads ever again)
 
-In GitHub → **Settings → Secrets and variables → Actions**:
+In GitHub → **Settings → Secrets and variables → Actions → Secrets tab →
+New repository secret**:
 
-1. **Variables** tab → **New repository variable**
-   - Name `FIREBASE_PROJECT_ID`, value = your project id.
-2. **Secrets** tab → **New repository secret**
-   - Name `FIREBASE_SERVICE_ACCOUNT`, value = a service-account JSON key:
-     Firebase console → ⚙ **Project settings → Service accounts →
-     Generate new private key** → paste the whole downloaded JSON as the secret.
-     (That service account already has the Hosting Admin role.)
+- Name: `FIREBASE_SERVICE_ACCOUNT`
+- Value: a service-account JSON key —
+  Firebase console (project `foreai-f9cfa`) → ⚙ **Project settings →
+  Service accounts → Generate new private key** → paste the **entire** downloaded
+  JSON file contents as the secret value. (That service account already carries
+  the Firebase Hosting Admin role.)
 
-That's it. The next push that touches `clubhouse/` deploys automatically; you can
-also trigger it from the **Actions** tab → *Deploy clubhouse to Firebase
-Hosting* → **Run workflow**. Your site goes live at
-`https://<project-id>.web.app`.
+That's it — no variable to add, the project id is pinned in the workflow. The
+next push that touches `clubhouse/` deploys automatically; you can also trigger
+it from the **Actions** tab → *Deploy clubhouse to Firebase Hosting* →
+**Run workflow**. The site goes live at `https://foreai-f9cfa.web.app`.
+
+Until the secret is set, the workflow **passes with the deploy skipped** (it logs
+a notice) instead of failing — so no more failure emails.
 
 ## 3. Deploy by hand (fallback / first push)
 
@@ -51,8 +55,8 @@ On a laptop with Node:
 ```bash
 npm install -g firebase-tools
 firebase login
-firebase use <project-id>        # or edit .firebaserc
-firebase deploy --only hosting   # run from the repo root
+firebase use foreai-f9cfa         # already the default in .firebaserc
+firebase deploy --only hosting    # run from the repo root
 ```
 
 ## 4. Point foreai.co.za at Firebase (optional)
@@ -73,8 +77,9 @@ use the `*.web.app` URL until you're happy.
 
 Firebase Hosting has **no built-in password protection** for a folder, unlike
 cPanel's Directory Privacy. That's acceptable here because **every read and write
-from the admin pages is gated by the club admin PIN on the backend** — with no
-PIN, the Members and Tee Sheet pages load but can't show or change anything.
+from the admin pages is gated by the Firestore security rules** — an organiser
+must sign in, and the owner console is limited to hard-coded owner emails, so the
+`manage/` pages load but can't show or change anything without a valid session.
 
 If you want the pages themselves hidden too, options are:
 
