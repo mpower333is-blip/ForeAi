@@ -6,11 +6,10 @@
 
 import { Conditions, StrategyInput } from "../lib/golfEngine";
 
-// The live backend. Override with EXPO_PUBLIC_API_URL for local dev (use your
-// machine's LAN IP, e.g. http://192.168.1.20:5000, so a phone can reach it).
-export const API_BASE =
-  (process.env.EXPO_PUBLIC_API_URL as string | undefined) ??
-  "https://foreai-backend.onrender.com";
+// Render is retired — the app runs on Firestore for shared features and the
+// on-device engine for solo play, so there is no default backend. These sync
+// calls fail soft (no-op) unless EXPO_PUBLIC_API_URL is set for local dev.
+export const API_BASE = (process.env.EXPO_PUBLIC_API_URL as string | undefined) ?? "";
 
 async function post<T>(path: string, body: unknown): Promise<T | null> {
   try {

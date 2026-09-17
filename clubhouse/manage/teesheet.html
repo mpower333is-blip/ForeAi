@@ -81,7 +81,7 @@
       <h1 style="margin-bottom:6px">Tee-sheet admin</h1>
       <p class="hint">Connect to the club backend to configure and view the tee sheet.</p>
       <label>Backend URL</label>
-      <input id="cApi" placeholder="https://foreai-backend.onrender.com" />
+      <input id="cApi" placeholder="" />
       <label>Admin PIN</label>
       <input id="cPin" type="password" placeholder="Club admin PIN (blank if none set yet)" />
       <div style="margin-top:12px"><button class="btn" onclick="connect()">Connect</button></div>
@@ -130,7 +130,7 @@
 const CLUB_KEY = "kempton";
 // Kempton runs on its own isolated backend + database (render.yaml →
 // foreai-kempton-backend). Default to it; a saved value or ?api= still overrides.
-const KEMPTON_API = "https://foreai-kempton-backend.onrender.com";
+const KEMPTON_API = "";
 const LS = "foreai.club.admin.v1"; // shared with the members admin page
 const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 let API = "", PIN = "", SETTINGS = null, OPEN = new Set();

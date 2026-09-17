@@ -56,6 +56,8 @@ workflows:
       java: 17
       groups:
         - google_play
+      vars:
+        EXPO_PUBLIC_USE_FIRESTORE: "1"   # Render retired — the app runs on Firestore
     cache:
       cache_paths:
         - $HOME/.npm
@@ -112,8 +114,7 @@ workflows:
         - google_play
       vars:
         EXPO_PUBLIC_CLUB: "kempton"
-        # Kempton runs on its own isolated backend (see render.yaml).
-        EXPO_PUBLIC_API_URL: "https://foreai-kempton-backend.onrender.com"
+        EXPO_PUBLIC_USE_FIRESTORE: "1"   # Render retired — the app runs on Firestore
     cache:
       cache_paths:
         - $HOME/.npm
@@ -175,6 +176,7 @@ workflows:
         - ios_signing
       vars:
         BUNDLE_ID: "com.foreai.mobile"
+        EXPO_PUBLIC_USE_FIRESTORE: "1"   # Render retired — the app runs on Firestore
     scripts:
       - name: Install JS dependencies
         script: |
@@ -334,7 +336,7 @@ workflows:
       vars:
         BUNDLE_ID: "com.foreai.kempton"
         EXPO_PUBLIC_CLUB: "kempton"
-        EXPO_PUBLIC_API_URL: "https://foreai-kempton-backend.onrender.com"
+        EXPO_PUBLIC_USE_FIRESTORE: "1"   # Render retired — the app runs on Firestore
     scripts:
       - name: Install JS dependencies
         script: |

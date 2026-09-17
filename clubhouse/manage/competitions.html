@@ -90,7 +90,7 @@
     <div class="card">
       <h1 style="margin-bottom:6px">Competitions admin</h1>
       <p class="hint">Connect to the club backend to run competitions.</p>
-      <label>Backend URL</label><input id="cApi" placeholder="https://foreai-kempton-backend.onrender.com" />
+      <label>Backend URL</label><input id="cApi" placeholder="" />
       <label>Admin PIN</label><input id="cPin" type="password" placeholder="Club admin PIN" />
       <div style="margin-top:12px"><button class="btn" onclick="connect()">Connect</button></div>
       <p class="hint" id="cErr" style="color:var(--red)"></p>
@@ -194,7 +194,7 @@
 
 <script>
 const CLUB_KEY = "kempton";
-const KEMPTON_API = "https://foreai-kempton-backend.onrender.com";
+const KEMPTON_API = "";
 const LS = "foreai.club.admin.v1";
 let API = "", PIN = "", CUR = null, DETAIL = null, CARD = { pars:[], sis:[] }, CARD_ENTRY = null;
 
