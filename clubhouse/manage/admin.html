@@ -111,25 +111,27 @@
   });
 
   function load(){
-    Promise.all([
+    // Load each section independently so one denied/failed read never blanks the
+    // whole page.
+    Promise.allSettled([
       db.collection('events').get(),
       db.collection('adminUsers').get(),
       db.collection('clubs').get(),
     ]).then(function(res){
-      var evSnap = res[0];
-      ORGS = res[1].docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
-      CLUBS = res[2].docs.map(function(d){ return Object.assign({ clubKey:d.id }, d.data()); });
-      // Count players per event (parallel).
-      return Promise.all(evSnap.docs.map(function(d){
-        return d.ref.collection('players').get().then(function(ps){
-          return Object.assign({ id:d.id, players: ps.size }, d.data());
-        });
-      }));
-    }).then(function(events){
-      EVENTS = events.sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); });
-      render();
-    }).catch(function(e){
-      $('events').innerHTML = '<div class="empty">Could not load ('+esc(e.message||e)+').</div>';
+      ORGS = res[1].status === 'fulfilled' ? res[1].value.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); }) : [];
+      CLUBS = res[2].status === 'fulfilled' ? res[2].value.docs.map(function(d){ return Object.assign({ clubKey:d.id }, d.data()); }) : [];
+      if (res[1].status !== 'fulfilled') $('organisers').innerHTML = '<div class="empty">Could not load organisers ('+esc((res[1].reason&&res[1].reason.message)||res[1].reason)+').</div>';
+      if (res[2].status !== 'fulfilled') $('clubs').innerHTML = '<div class="empty">Could not load clubs.</div>';
+      if (res[0].status !== 'fulfilled') { $('events').innerHTML = '<div class="empty">Could not load events ('+esc((res[0].reason&&res[0].reason.message)||res[0].reason)+').</div>'; EVENTS = []; render(); return; }
+      // Count players per event (parallel; tolerate a per-event failure).
+      Promise.all(res[0].value.docs.map(function(d){
+        return d.ref.collection('players').get()
+          .then(function(ps){ return Object.assign({ id:d.id, players: ps.size }, d.data()); })
+          .catch(function(){ return Object.assign({ id:d.id, players: 0 }, d.data()); });
+      })).then(function(events){
+        EVENTS = events.sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); });
+        render();
+      });
     });
   }
 

@@ -28,8 +28,12 @@ service cloud.firestore {
     function owners() {
       return ['marcell.laubscher@outlook.com', 'mpower333is@gmail.com'];
     }
-    function myEmail() { return isSignedIn() ? request.auth.token.email : ''; }
-    function isSuperAdmin() { return isSignedIn() && myEmail() in owners(); }
+    // Lower-cased so the owners() match is case-insensitive (Firebase may store
+    // the address with different capitalisation than the user typed).
+    function myEmail() {
+      return (isSignedIn() && request.auth.token.email != null) ? request.auth.token.email.lower() : '';
+    }
+    function isSuperAdmin() { return myEmail() in owners(); }
 
     function isOrganiser() {
       return isSignedIn() && exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid));
