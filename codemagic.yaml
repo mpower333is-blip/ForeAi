@@ -62,6 +62,7 @@ workflows:
         - google_play
       vars:
         EXPO_PUBLIC_USE_FIRESTORE: "1"   # Render retired — the app runs on Firestore
+        EXPO_PUBLIC_IAP_LIVE: "1"        # real subscriptions (foreai_pro_monthly/annual) via react-native-iap
     cache:
       cache_paths:
         - $HOME/.npm
