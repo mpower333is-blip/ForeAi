@@ -105,7 +105,14 @@
   <div class="connect" id="connect">
     <div class="card">
       <h1 style="margin-bottom:4px">Connect to your event</h1>
-      <div class="hint" style="margin-bottom:12px">Enter the event join code and your ForeAi backend address.</div>
+      <!-- Firestore mode: pick from the events you manage — no code to type. -->
+      <div id="myEventsWrap" style="display:none;margin:6px 0 14px;text-align:left">
+        <div class="hint" style="margin-bottom:6px;color:var(--gold)"><b>Your events</b></div>
+        <select id="myEvents" onchange="pickEvent(this.value)" style="width:100%"></select>
+        <div class="hint" style="margin-top:6px">Pick an event to open its office — no code needed.</div>
+        <div class="hint" id="orCode" style="margin:12px 0 4px">…or join another event by code:</div>
+      </div>
+      <div class="hint" id="connectHint" style="margin-bottom:12px">Enter the event join code and your ForeAi backend address.</div>
       <input id="inCode" placeholder="Join code (e.g. EC5GLF)" maxlength="10" />
       <input id="inApi" placeholder="Backend URL (https://your-backend)" />
       <button class="btn" style="width:100%;margin-top:10px" onclick="connect()">Connect</button>
@@ -231,6 +238,49 @@
     await load(true);
   }
   function disconnect(){ lsDel('ecs_api'); lsDel('ecs_code'); location.href=location.pathname; }
+
+  // ---- Firestore mode: pick an event from a dropdown (no code to type) -------
+  function fsOn(){ return !!(window.EventsFS && window.EventsFS.enabled); }
+  function escH(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  function pickEvent(code){
+    if(!code) return;
+    CFG.code=String(code).toUpperCase();
+    CFG.api=CFG.api||(document.getElementById('inApi').value||'')||(window.FOREAI_DEFAULTS&&FOREAI_DEFAULTS.api)||'';
+    lsSet('ecs_code',CFG.code); lsSet('ecs_api',CFG.api);
+    load(true);
+  }
+
+  // Fill "Your events" with the events this organiser may manage (owner sees all;
+  // others see events they own or are linked to as a co-admin).
+  async function loadMyEvents(){
+    if(!fsOn()||!window.firebase) return;
+    var wrap=document.getElementById('myEventsWrap'), sel=document.getElementById('myEvents');
+    if(!wrap||!sel) return;
+    var api=document.getElementById('inApi'); if(api) api.style.display='none';       // backend URL is irrelevant on Firestore
+    var hint=document.getElementById('connectHint'); if(hint) hint.style.display='none';
+    try{
+      var db=firebase.firestore(), user=firebase.auth().currentUser;
+      var uid=user?user.uid:null, mail=user?String(user.email||'').toLowerCase():'';
+      var OWNERS=['marcell.laubscher@outlook.com','mpower333is@gmail.com'];
+      var isOwner=OWNERS.indexOf(mail)>=0;
+      if(uid&&!isOwner){ try{ var d=await db.collection('adminUsers').doc(uid).get(); if(d.exists&&d.data().role==='owner') isOwner=true; }catch(e){} }
+      var snap=await db.collection('events').get();
+      var events=snap.docs.map(function(dc){ return Object.assign({id:dc.id},dc.data()); })
+        .filter(function(e){
+          if(isOwner) return true;
+          if(!uid) return false;
+          return e.ownerUid===uid || (Array.isArray(e.admins)&&e.admins.indexOf(uid)>=0);
+        })
+        .sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+      if(!events.length){ wrap.style.display='none'; return; }
+      sel.innerHTML='<option value="">— select your event —</option>'+events.map(function(e){
+        return '<option value="'+escH(e.code||'')+'">'+escH(e.name||e.code||'event')+'</option>';
+      }).join('');
+      wrap.style.display='';
+    }catch(e){ /* fall back to manual code entry */ }
+  }
+  if(window.firebase){ try{ firebase.auth().onAuthStateChanged(function(u){ if(u) loadMyEvents(); }); }catch(e){} }
 
   // Create a new event from the web (organiser signed in → the event is owned by
   // them). Returns a join code they can use in the app, share, and import teams to.
