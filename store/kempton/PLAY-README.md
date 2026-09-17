@@ -55,10 +55,10 @@ Everything needed to publish the Kempton club app on Google Play. The signed
 - **App category:** Sports
 - **Tags:** golf, sports
 - **Contact details:** email `golfforeai@gmail.com` · website `https://kemptongolfclub.co.za`
-- **Privacy Policy:** `https://foreai.co.za/privacy.html`
+- **Privacy Policy:** `https://foreai.co.za/kempton-privacy.html`
 
 ## App content (all required before publishing)
-- **Privacy policy:** https://foreai.co.za/privacy.html
+- **Privacy policy:** https://foreai.co.za/kempton-privacy.html
 - **Ads:** No, the app contains no ads.
 - **App access:** All functionality is available without special access — no login
   required to review the app. ("Link membership" is optional and only personalises
