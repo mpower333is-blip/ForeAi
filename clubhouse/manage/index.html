@@ -152,7 +152,8 @@
         var mail = (user.email || '').trim().toLowerCase();
         firebase.firestore().collection('adminUsers').doc(user.uid).get().then(function(s){
           var d = s.exists ? s.data() : {};
-          var role = OWNER_EMAILS.indexOf(mail) >= 0 ? 'owner' : (d.role || 'organiser');
+          // Owner is ONLY a hardcoded owner email — never the user's own role field.
+          var role = OWNER_EMAILS.indexOf(mail) >= 0 ? 'owner' : 'organiser';
           resolve({ name: user.displayName || d.name || null, email: mail, role: role, clubKey: d.clubKey || null });
         }).catch(function(){
           var role = OWNER_EMAILS.indexOf(mail) >= 0 ? 'owner' : 'organiser';

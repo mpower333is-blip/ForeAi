@@ -263,8 +263,7 @@
       var db=firebase.firestore(), user=firebase.auth().currentUser;
       var uid=user?user.uid:null, mail=user?String(user.email||'').toLowerCase():'';
       var OWNERS=['marcell.laubscher@outlook.com','mpower333is@gmail.com'];
-      var isOwner=OWNERS.indexOf(mail)>=0;
-      if(uid&&!isOwner){ try{ var d=await db.collection('adminUsers').doc(uid).get(); if(d.exists&&d.data().role==='owner') isOwner=true; }catch(e){} }
+      var isOwner=OWNERS.indexOf(mail)>=0; // owner = hardcoded emails only
       var snap=await db.collection('events').get();
       var events=snap.docs.map(function(dc){ return Object.assign({id:dc.id},dc.data()); })
         .filter(function(e){

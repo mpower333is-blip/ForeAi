@@ -76,7 +76,7 @@
         var mail = (u.email || "").trim().toLowerCase();
         db.collection("adminUsers").doc(u.uid).get().then(function (s) {
           var d = s.exists ? s.data() : {};
-          var isOwner = OWNER_EMAILS.indexOf(mail) >= 0 || d.role === "owner";
+          var isOwner = OWNER_EMAILS.indexOf(mail) >= 0; // hardcoded owners only
           var clubKey = d.clubKey || null;
           window.FOREAI_AUTH = {
             user: { email: mail, name: u.displayName || d.name || null, role: isOwner ? "owner" : (d.role || "organiser"), clubKey: clubKey },

@@ -42,8 +42,9 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data;
     }
     function myClubKey() { return isOrganiser() ? adminData().clubKey : null; }
-    // Owner = a hardcoded super-admin, or an organiser whose record says owner.
-    function isOwner() { return isSuperAdmin() || (isOrganiser() && adminData().role == 'owner'); }
+    // Owner = ONLY a hardcoded platform owner (owners() email list). A user's own
+    // adminUsers.role never grants owner, so a stray 'owner' role can't escalate.
+    function isOwner() { return isSuperAdmin(); }
     function isClubAdmin(k) { return isOwner() || (isOrganiser() && myClubKey() == k); }
     function eventData(eid) {
       return get(/databases/$(database)/documents/events/$(eid)).data;

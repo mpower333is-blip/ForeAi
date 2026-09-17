@@ -103,7 +103,7 @@
     var mail = (user.email||'').trim().toLowerCase();
     var isSuper = OWNER_EMAILS.indexOf(mail) >= 0;
     db.collection('adminUsers').doc(user.uid).get().then(function(s){
-      var role = isSuper ? 'owner' : ((s.exists && s.data().role) || 'organiser');
+      var role = isSuper ? 'owner' : 'organiser'; // owner = hardcoded emails only
       if (role !== 'owner') { alert('This page is for the ForeAi owner.'); location.href='index.html'; return; }
       // Make sure the owner has their own organiser record, so they show up in
       // the Organisers list and the per-event Owner dropdown even if they never
@@ -198,7 +198,7 @@
         return '<tr data-id="'+esc(u.id)+'">'
           +'<td><b>'+esc(u.name||'—')+'</b><div class="muted">'+esc(u.email||'')+(isSuper?' · <span style="color:var(--gold)">main admin</span>':'')+'</div></td>'
           +'<td><select class="u-club"'+(isSuper?' disabled':'')+'>'+clubOpts+'</select></td>'
-          +'<td><select class="u-role"'+(isSuper?' disabled':'')+'>'+opts(['organiser','owner'], isSuper?'owner':(u.role||'organiser'))+'</select></td>'
+          +'<td>'+(isSuper?'<span style="color:var(--gold)">owner</span>':'organiser')+'</td>'
           +'<td>'+when(u.createdAt)+'</td>'
           +'<td>'+(isSuper?'<span class="muted">—</span>':'<button class="btn" onclick="saveUser(this)">Save</button>')+'</td>'
           +'</tr>';
@@ -216,9 +216,10 @@
   window.saveUser = function(btn){
     var tr = btn.closest('tr'), id = tr.dataset.id;
     var clubKey = tr.querySelector('.u-club').value || null;
-    var role = tr.querySelector('.u-role').value;
     btn.textContent = 'Saving…';
-    db.collection('adminUsers').doc(id).set({ clubKey: clubKey, role: role, updatedAt: Date.now() }, { merge: true })
+    // Only the club is assignable here — owner is the hardcoded email list, so a
+    // stored role can't grant owner. Also clear any stray role from earlier.
+    db.collection('adminUsers').doc(id).set({ clubKey: clubKey, role: 'organiser', updatedAt: Date.now() }, { merge: true })
       .then(function(){ btn.textContent = 'Saved'; setTimeout(function(){ btn.textContent='Save'; }, 1200); load(); })
       .catch(function(e){ btn.textContent='Save'; alert('Could not save: '+(e.message||e)); });
   };
