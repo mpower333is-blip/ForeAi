@@ -91,6 +91,11 @@ async function main() {
   }
 
   // ===== events (tournaments) ================================================
+  // Map Render organiser id -> email, so migrated events remember who created
+  // them (their Firebase uid is unknown, but the email is enough to display).
+  const adminEmail = {};
+  for (const a of await rows("AdminUser")) adminEmail[a.id] = a.email ?? null;
+
   for (const t of await rows("Tournament")) {
     await w.set(db.collection("events").doc(t.id), {
       code: t.code, name: t.name, courseId: t.courseId, format: t.format,
@@ -99,6 +104,7 @@ async function main() {
       banking: t.banking ?? null, teamFee: t.teamFee ?? null, holeFee: t.holeFee ?? null,
       playerFee: t.playerFee ?? null,
       reminders: t.reminders ?? [], ownerUid: null,
+      creatorEmail: t.ownerId ? (adminEmail[t.ownerId] ?? null) : null,
       createdAt: ms(t.createdAt), updatedAt: ms(t.updatedAt),
     });
     if (t.code) await w.set(db.collection("eventCodes").doc(t.code), { eventId: t.id });

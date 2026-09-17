@@ -151,16 +151,20 @@
     ].map(function(x){ return '<div class="tile"><div class="k">'+x[0]+'</div><div class="v '+x[2]+'">'+x[1]+'</div></div>'; }).join('');
 
     // Events — every event, no join code needed. Open manages/views it directly.
-    $('events').innerHTML = EVENTS.length ? '<table><tr><th>Event</th><th>Code</th><th>Players</th><th>Owner</th><th>Created</th><th></th></tr>'+
+    $('events').innerHTML = EVENTS.length ? '<table><tr><th>Event</th><th>Code</th><th>Players</th><th>Created by</th><th>Owner</th><th>Created</th><th></th></tr>'+
       EVENTS.map(function(e){
         var code = esc(e.code||'');
         var ownerOpts = '<option value="">— unassigned —</option>'+ORGS.map(function(o){
           return '<option value="'+esc(o.id)+'"'+(e.ownerUid===o.id?' selected':'')+'>'+esc(o.email||o.name||o.id)+'</option>';
         }).join('');
+        // Creator: the email stored on the event, else the current owner's email.
+        var ownerOrg = ORGS.filter(function(x){ return x.id===e.ownerUid; })[0];
+        var creator = e.creatorEmail || (ownerOrg && (ownerOrg.email||ownerOrg.name)) || '—';
         return '<tr>'
           +'<td><b>'+esc(e.name||'—')+'</b>'+(e.cause?'<div class="muted">'+esc(e.cause)+'</div>':'')+'</td>'
           +'<td class="mono">'+code+'</td>'
           +'<td>'+(e.players||0)+'</td>'
+          +'<td class="muted">'+esc(creator)+'</td>'
           +'<td><select class="e-owner" data-id="'+esc(e.id)+'" onchange="setEventOwner(this)">'+ownerOpts+'</select></td>'
           +'<td>'+when(e.createdAt)+'</td>'
           +'<td><a class="lnk" href="office.html?fs=1&code='+encodeURIComponent(e.code||'')+'">Office</a> · '
