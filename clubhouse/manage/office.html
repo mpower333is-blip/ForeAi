@@ -782,6 +782,22 @@
       } }
     return '';
   }
+  // Like findVal but NEVER falls through to the cell below — used for the
+  // stacked "Player 1..4" rows, where the name is always in the column to the
+  // right. (The below-fallback would otherwise read the next "Player N" label
+  // as a name, pulling a one-name four-ball through as three players.)
+  function findRight(aoa, re){
+    for(var r=0;r<aoa.length;r++){ var row=aoa[r]||[];
+      for(var c=0;c<row.length;c++){ var cell=row[c]==null?'':String(row[c]).trim();
+        if(cell && re.test(cell)){
+          var after=cell.replace(/^[^:]*:/,'').trim();
+          if(after && !re.test(after)) return after;
+          var right=valRight(row,c); if(right && !re.test(right)) return right;
+          return '';
+        }
+      } }
+    return '';
+  }
   function detectType(aoa){
     var big=aoa.map(function(r){return (r||[]).map(function(x){return x==null?'':String(x);}).join(' ');}).join(' \n ').toUpperCase();
     if(/FOUR-BALL TEAM|TEAM REGISTRATION|TR-01/.test(big)) return 'team';
@@ -801,14 +817,16 @@
       cell:findVal(aoa,/^cell\b/i)||null,
       email:findVal(aoa,/^e-?mail\b/i)||null };
     if(type==='team'){
-      var players=[]; for(var n=1;n<=4;n++){ var nm=findVal(aoa,new RegExp('player\\s*'+n,'i')); if(nm) players.push({name:nm}); }
+      var players=[]; for(var n=1;n<=4;n++){ var nm=findRight(aoa,new RegExp('player\\s*'+n+'\\b','i')); if(nm) players.push({name:nm}); }
       b.teamCount=parseInt(findVal(aoa,/number of four-ball teams/i),10)||1;
       b.teams=[{players:players}];
     } else if(type==='hole'){
       b.holePreference=findVal(aoa,/hole number preference/i)||'';
     } else if(type==='prize'){
       var cash=findVal(aoa,/cash prize amount/i);
-      var prizes=[]; for(var n=1;n<=3;n++){ var pz=findVal(aoa,new RegExp('prize\\s*'+n+'\\s*:','i')); if(pz) prizes.push(pz); }
+      // Right-only lookup (like players) so a blank "Prize 2:" doesn't read the
+      // "Prize 3:" label below it as a prize.
+      var prizes=[]; for(var n=1;n<=3;n++){ var pz=findRight(aoa,new RegExp('prize\\s*'+n+'\\s*:','i')); if(pz) prizes.push(pz); }
       b.prizeType=cash?'cash':'item'; b.cashAmount=cash||''; b.prizes=prizes;
     }
     return {type:type, body:b};
