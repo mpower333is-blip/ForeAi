@@ -134,10 +134,9 @@ export default {
       "expo-notifications",
       // expo-iap — native subscriptions (StoreKit + Google Play Billing 8) via
       // the OpenIAP spec. Its config plugin wires the Android/iOS billing setup.
+      // (Expo SDK 54 ships Kotlin 2.2 / AGP 8.9, so no dependency workarounds
+      // are needed — the earlier androidx.core / Kotlin pins are gone.)
       "expo-iap",
-      // expo-iap's OpenIAP dep pulls androidx.core 1.18.0 (needs AGP 8.9.1);
-      // pin it back to 1.16.0 so it builds on Expo SDK 53's AGP 8.8.2.
-      "./plugins/withCoreVersionFix",
       // Apple Watch (watchOS) companion target — only wired in when
       // EXPO_PUBLIC_WATCH=1, so normal phone builds are untouched. The SwiftUI
       // sources live in targets/watch/ (see targets/watch/README.md).
@@ -169,13 +168,16 @@ export default {
               "# Expo modules (registered via reflection)",
               "-keep class expo.modules.** { *; }",
               "-keep class com.facebook.react.turbomodule.** { *; }",
-              "# react-native-reanimated / gesture-handler / screens / svg",
+              "# react-native-reanimated 4 + worklets / gesture-handler / screens / svg",
               "-keep class com.swmansion.reanimated.** { *; }",
+              "-keep class com.swmansion.worklets.** { *; }",
               "-keep class com.swmansion.gesturehandler.** { *; }",
               "-keep class com.swmansion.rnscreens.** { *; }",
               "-keep class com.horcrux.svg.** { *; }",
-              "# react-native-iap (Google Play Billing / StoreKit bridge)",
-              "-keep class com.dooboolab.** { *; }",
+              "# expo-iap / OpenIAP (Google Play Billing 8 bridge)",
+              "-keep class expo.modules.iap.** { *; }",
+              "-keep class io.github.hyochan.** { *; }",
+              "-keep class com.android.billingclient.** { *; }",
               "# Keep native method names + annotations",
               "-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod",
               "-keepclasseswithmembernames class * { native <methods>; }",

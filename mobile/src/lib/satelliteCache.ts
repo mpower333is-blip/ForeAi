@@ -5,7 +5,9 @@
 // are cached on first view, and a course can be pre-downloaded in full via
 // prefetchCourse() so it works fully offline on the course.
 
-import * as FileSystem from "expo-file-system";
+// SDK 54 moved the classic file-system API (documentDirectory, downloadAsync,
+// getInfoAsync…) to the /legacy entry; the new File/Directory API isn't a drop-in.
+import * as FileSystem from "expo-file-system/legacy";
 import { holeFrame } from "./holeSatellite";
 import type { Course } from "../data/courses";
 import type { Coord } from "./geo";

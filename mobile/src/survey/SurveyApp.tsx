@@ -1,7 +1,8 @@
 import React from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as FileSystem from "expo-file-system";
+// SDK 54: classic cacheDirectory/writeAsStringAsync live under /legacy now.
+import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as Clipboard from "expo-clipboard";
 import { Screen, ScreenHeader, Card, Button, Chip } from "../components/ui";
