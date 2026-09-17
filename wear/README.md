@@ -1,9 +1,11 @@
 # ForeAi — Wear OS app
 
-A **standalone Wear OS** companion for the ForeAi golf day. It talks straight to
-the same backend the phones use (`https://foreai-backend.onrender.com`) and the
-same event (join code `3YG6JS`), so scores entered on the watch land on the same
-live leaderboard — the phone can stay in the bag.
+A **standalone Wear OS** companion for the ForeAi golf day. It reads and writes
+the **same Firestore store** the phones and clubhouse website use (project
+`foreai-f9cfa`) and the same event (join code `3YG6JS`), so scores entered on the
+watch land on the same live leaderboard — the phone can stay in the bag. (Render
+is retired; Firebase is initialised in code from the shared public config in
+`ForeAiWearApp.kt`, so there's no `google-services.json` to manage.)
 
 This is a **separate native Android project** from `../mobile` (which is the
 Expo/React Native phone app). It is **not** built by the Expo prebuild or the

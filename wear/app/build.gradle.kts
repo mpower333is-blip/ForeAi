@@ -62,9 +62,16 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
     implementation("androidx.core:core-splashscreen:1.0.1")
 
-    // Networking to the ForeAi backend (JSON parsed with the built-in org.json).
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Firestore + anonymous Auth — the watch reads/writes the same store as the
+    // phones and website (project foreai-f9cfa). Firebase is initialised in code
+    // (ForeAiWearApp) from an explicit config, so NO google-services.json / plugin
+    // is needed and the app builds in CI without an extra secret file.
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-auth")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    // await() bridges Firebase Tasks into coroutines.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

@@ -32,8 +32,11 @@
 #   foreai-kempton-firestore-apk   Kempton → Kempton-Firestore-*.apk, Firestore on
 #                                  for events AND club data. Same package id, in place.
 #
-# (The Wear OS workflow was removed; the wear/ code is untouched and a workflow can
-#  be restored from git history if you need to build the watch again.)
+#   foreai-watch-android           Wear OS AAB (ForeAi-Watch-*.aab) for the watch
+#                                  form factor of com.foreai.mobile. The wear/ app
+#                                  now runs on Firestore (no Render), so scores on
+#                                  the watch land on the same live leaderboard.
+#                                  Emailed to you; upload beside the phone AAB.
 #
 # ── ONE-TIME iOS SETUP ──
 #   In Codemagic → Teams → Integrations → App Store Connect → connect an API key
@@ -127,7 +130,9 @@ workflows:
       - name: Bundle offline satellite tiles (all 18 Kempton holes)
         script: |
           # Regenerates mobile/src/data/satTiles.ts so the whole course ships
-          # offline in the bundle. FAILS unless all 18 tiles are bundled.
+          # offline in the bundle. Retries each tile; a hole still missing after
+          # retries is a warning (app falls back to live imagery), never a build
+          # failure — so a flaky tile server can't block a release.
           node scripts/fetch-sat-tiles.mjs
       - name: Generate native Android project (expo prebuild)
         script: |
@@ -647,6 +652,60 @@ workflows:
           mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/Kempton-Firestore-$V.apk"
     artifacts:
       - mobile/android/app/build/outputs/**/Kempton-Firestore-*.apk
+    publishing:
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ═══════════════ Wear OS — Android AAB (Play) ═══════════════
+  # Play-signed .aab for the WATCH form factor of com.foreai.mobile. The wear/ app
+  # runs on Firestore (Firebase is initialised in code from the shared public
+  # config — no google-services.json needed). Needs the `google_play` env group
+  # (CM_KEYSTORE + password/alias — the SAME upload key as the phone). The AAB is
+  # emailed to you; upload it into the com.foreai.mobile release as the Wear OS
+  # form factor (in Play you pick "mobile" or "Wear OS" per release).
+  foreai-watch-android:
+    name: ForeAi Watch — Wear OS AAB (Play)
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      java: 17
+      groups:
+        - google_play
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Build the signed Wear OS release AAB
+        script: |
+          cd wear
+          # Offset the versionCode into the 90000+ range so every upload sits above
+          # any code already used in the Play app (the phone uses low numbers). Each
+          # rebuild bumps BUILD_NUMBER, so it keeps rising.
+          export ANDROID_VERSION_CODE=$((90000 + ${BUILD_NUMBER:-1}))
+          echo "=================================================="
+          echo "  WATCH versionCode for this build: $ANDROID_VERSION_CODE"
+          echo "  (Wear OS form factor — its own 90000+ lane, separate from the phone)"
+          echo "=================================================="
+          # Decode the shared upload keystore (same key the phone app is signed with
+          # — one upload key can sign multiple apps).
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/wear/upload.keystore"
+          # The wear project has no committed Gradle wrapper jar; fetch the pinned
+          # Gradle (8.7, matching gradle-wrapper.properties) and build.
+          curl -sSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle.zip
+          unzip -q -o /tmp/gradle.zip -d "$HOME/gradle-dist"
+          "$HOME/gradle-dist/gradle-8.7/bin/gradle" :app:bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$CM_BUILD_DIR/wear/upload.keystore" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+          V=$((90000 + ${BUILD_NUMBER:-1}))
+          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/ForeAi-Watch-$V.aab"
+    artifacts:
+      - wear/app/build/outputs/**/ForeAi-Watch-*.aab
     publishing:
       email:
         recipients:
