@@ -28,6 +28,7 @@
   .btn{border:none;cursor:pointer;background:linear-gradient(135deg,#FCE38A,#F3C33B,#D9A62A);color:#20160a;font-weight:800;padding:8px 12px;border-radius:9px;font-size:13px;text-decoration:none;display:inline-block}
   .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--gold)}
   .lnk{color:var(--sky);text-decoration:none;font-weight:700}
+  .lnk.del{color:var(--red);font-size:12px}
   .addbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
   a.back{position:fixed;top:14px;left:14px;z-index:50;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(8,18,38,.72);color:var(--gold);font-weight:800;font-size:14px;text-decoration:none;border:1px solid var(--line)}
   .msg{font-size:13px;color:var(--faint);margin-left:8px}
@@ -125,9 +126,11 @@
       if (res[0].status !== 'fulfilled') { $('events').innerHTML = '<div class="empty">Could not load events ('+esc((res[0].reason&&res[0].reason.message)||res[0].reason)+').</div>'; EVENTS = []; render(); return; }
       // Count players per event (parallel; tolerate a per-event failure).
       Promise.all(res[0].value.docs.map(function(d){
+        // Spread the doc first, THEN our computed fields, so a stale embedded
+        // `players` array (left by the old mirror) can't clobber the real count.
         return d.ref.collection('players').get()
-          .then(function(ps){ return Object.assign({ id:d.id, players: ps.size }, d.data()); })
-          .catch(function(){ return Object.assign({ id:d.id, players: 0 }, d.data()); });
+          .then(function(ps){ return Object.assign({}, d.data(), { id:d.id, players: ps.size }); })
+          .catch(function(){ return Object.assign({}, d.data(), { id:d.id, players: 0 }); });
       })).then(function(events){
         EVENTS = events.sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); });
         render();
@@ -161,7 +164,8 @@
           +'<td><select class="e-owner" data-id="'+esc(e.id)+'" onchange="setEventOwner(this)">'+ownerOpts+'</select></td>'
           +'<td>'+when(e.createdAt)+'</td>'
           +'<td><a class="lnk" href="office.html?fs=1&code='+encodeURIComponent(e.code||'')+'">Office</a> · '
-          +'<a class="lnk" href="board.html?fs=1&code='+encodeURIComponent(e.code||'')+'">Board</a></td>'
+          +'<a class="lnk" href="board.html?fs=1&code='+encodeURIComponent(e.code||'')+'">Board</a><br>'
+          +'<a class="lnk del" href="javascript:void(0)" onclick="deleteEvent(\''+esc(e.id)+'\')">Delete</a></td>'
           +'</tr>';
       }).join('')+'</table>' : '<div class="empty">No events yet.</div>';
 
@@ -197,6 +201,31 @@
     db.collection('adminUsers').doc(id).set({ clubKey: clubKey, role: role, updatedAt: Date.now() }, { merge: true })
       .then(function(){ btn.textContent = 'Saved'; setTimeout(function(){ btn.textContent='Save'; }, 1200); load(); })
       .catch(function(e){ btn.textContent='Save'; alert('Could not save: '+(e.message||e)); });
+  };
+
+  // Delete an event and all its data (Firestore has no cascade, so wipe the
+  // subcollections, then the event doc, then its join code).
+  window.deleteEvent = function(id){
+    var e = EVENTS.filter(function(x){ return x.id===id; })[0];
+    if (!e) return;
+    if (!confirm('Delete "'+(e.name||'this event')+'" (code '+(e.code||'?')+') and ALL its teams/scores? This cannot be undone.')) return;
+    var evRef = db.collection('events').doc(id);
+    var subs = ['players','positions','groups','scores','sponsors','registrations','contests'];
+    Promise.all(subs.map(function(name){
+      return evRef.collection(name).get().then(function(snap){
+        if (snap.empty) return null;
+        var batch = db.batch();
+        snap.forEach(function(d){ batch.delete(d.ref); });
+        return batch.commit();
+      }).catch(function(){ return null; });
+    })).then(function(){
+      return evRef.delete();
+    }).then(function(){
+      if (e.code) return db.collection('eventCodes').doc(String(e.code).toUpperCase()).delete().catch(function(){});
+    }).then(function(){
+      EVENTS = EVENTS.filter(function(x){ return x.id!==id; });
+      render();
+    }).catch(function(err){ alert('Delete failed: '+(err.message||err)); });
   };
 
   window.setEventOwner = function(sel){

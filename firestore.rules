@@ -133,7 +133,8 @@ service cloud.firestore {
     match /eventCodes/{code} {
       allow read: if true;                                          // join-by-code lookup
       allow create: if isSignedIn();
-      allow update, delete: if false;                              // codes are immutable
+      allow update: if false;                                       // codes are immutable
+      allow delete: if isOwner();                                   // owner cleans up a deleted event's code
     }
 
     // ---- club data (scoped by clubKey via the path) ----------------------
