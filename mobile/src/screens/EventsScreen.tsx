@@ -360,6 +360,11 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
 
       {events.map((e) => {
         const course = getCourse(e.courseId);
+        // Event logo for the list: a bundled logo (logoKey), else the event's own
+        // uploaded logo (data URL, set on the web/office), else the ECS fallback.
+        const evLogo =
+          EVENT_LOGOS[e.logoKey ?? ""] ??
+          (e.logo ? { uri: e.logo } : /\becs\b/i.test(e.name) ? EVENT_LOGOS.ecs : null);
         return (
           <TouchableOpacity
             key={e.id}
@@ -380,7 +385,14 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
           >
             <Card>
               <View style={styles.cardTitleRow}>
-                <Text style={styles.eventName}>{e.name}</Text>
+                <View style={styles.eventTitleLeft}>
+                  {evLogo ? (
+                    <Image source={evLogo} style={styles.eventListLogo} resizeMode="contain" />
+                  ) : null}
+                  <Text style={styles.eventName} numberOfLines={1}>
+                    {e.name}
+                  </Text>
+                </View>
                 {e.remote ? (
                   <View style={styles.codeBadge}>
                     <Text style={styles.codeBadgeText}>{e.code}</Text>
@@ -1387,7 +1399,9 @@ const styles = StyleSheet.create({
   onlineLabel: { color: colors.textFaint, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1 },
   realTag: { color: colors.accent, fontSize: 12, fontWeight: "600", marginLeft: spacing.sm },
 
-  eventName: { color: colors.text, fontSize: 20, fontWeight: "800" },
+  eventName: { color: colors.text, fontSize: 20, fontWeight: "800", flexShrink: 1 },
+  eventTitleLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1, marginRight: 8 },
+  eventListLogo: { width: 36, height: 36, borderRadius: 7, backgroundColor: "#FFFFFF" },
   eventMeta: { color: colors.textMuted, fontSize: 14, marginTop: 3 },
 
   back: { color: colors.accent, fontSize: 16, marginBottom: spacing.sm },
