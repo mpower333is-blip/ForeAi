@@ -108,10 +108,24 @@
     } catch (e) { /* rules/offline — ignore, don't block sign-in */ }
   }
 
+  function fsOn(){
+    if (P.get('fs') === '1') return true;
+    if (P.get('fs') === '0') return false;
+    return !!(window.FOREAI_DEFAULTS && window.FOREAI_DEFAULTS.useFirestore);
+  }
+
   // Verify the signed-in Firebase user with our backend, get a session token,
   // then continue into the portal.
   async function finish(user){
     await selfProvision(user);
+    // Firestore cutover: the Firebase session IS the login — no Render exchange,
+    // so Render can be retired. The destination page's auth-guard gates on the
+    // same Firebase session.
+    if (fsOn()) {
+      show('Signed in — taking you in…', true);
+      location.href = next;
+      return;
+    }
     try {
       var idToken = await user.getIdToken();
       var r = await fetch(API + '/auth/firebase', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ idToken: idToken }) });

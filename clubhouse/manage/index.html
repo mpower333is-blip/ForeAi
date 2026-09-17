@@ -101,12 +101,19 @@
   var TOKEN_KEY = 'foreai.auth.token', USER_KEY = 'foreai.auth.user';
   var token = localStorage.getItem(TOKEN_KEY);
 
-  function toSignin(){ location.href = 'signin.html?next=' + encodeURIComponent('index.html'); }
+  function toSignin(){ var fs = fsOn() ? 'fs=1&' : ''; location.href = 'signin.html?' + fs + 'next=' + encodeURIComponent('index.html' + location.search); }
   // Sign-out must also end the Firebase session (via ?signout=1), otherwise the
   // sign-in page re-exchanges it and signs the organiser straight back in.
   function signOut(){ localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); location.href = 'signin.html?signout=1'; }
 
-  if (!token) { toSignin(); return; }
+  function fsOn(){
+    if (P.get('fs') === '1') return true;
+    if (P.get('fs') === '0') return false;
+    return !!D.useFirestore;
+  }
+  // Firestore mode gates on the Firebase session (below), so no Render token
+  // is required. Legacy mode still needs the token.
+  if (!fsOn() && !token) { toSignin(); return; }
 
   // Show a signed-in organiser their portal, and reveal club-only tool groups
   // only when their account's clubKey matches that group's data-club.
@@ -155,27 +162,35 @@
     });
   }
 
-  // Resolve the user from both sources: Firestore drives role/clubKey (the
-  // hands-off source of truth), while Render (or the stored user) supplies the
-  // name and validates the legacy session. Only sign out if BOTH reject.
-  Promise.all([
-    fetch(API + '/auth/me', { headers: { Authorization: 'Bearer ' + token } })
-      .then(function(r){ if (r.status === 401) return { unauth: true }; return r.ok ? r.json() : null; })
-      .catch(function(){ return null; }),
-    firestoreGate()
-  ]).then(function(res){
-    var me = res[0], fs = res[1];
-    if (me && me.unauth && !fs) { signOut(); return; }
-    var ru = (me && me.user) || {};
-    if (me && me.user) { try { localStorage.setItem(USER_KEY, JSON.stringify(me.user)); } catch(e){} }
-    else { try { ru = JSON.parse(localStorage.getItem(USER_KEY) || '{}'); } catch(e){ ru = {}; } }
-    present({
-      name: (fs && fs.name) || ru.name || ru.email || null,
-      email: (fs && fs.email) || ru.email || null,
-      role: (fs && fs.role) || ru.role || 'organiser',
-      clubKey: (fs && fs.clubKey != null) ? fs.clubKey : (ru.clubKey || null),
+  if (fsOn()) {
+    // Firestore cutover: the Firebase session is the only source of truth. No
+    // Render token, no /auth/me — so Render can be retired.
+    firestoreGate().then(function(fs){
+      if (!fs) { toSignin(); return; }
+      present({ name: fs.name, email: fs.email, role: fs.role, clubKey: fs.clubKey });
     });
-  });
+  } else {
+    // Legacy: Render validates the session + supplies the name; Firestore drives
+    // role/clubKey. Only sign out if BOTH reject.
+    Promise.all([
+      fetch(API + '/auth/me', { headers: { Authorization: 'Bearer ' + token } })
+        .then(function(r){ if (r.status === 401) return { unauth: true }; return r.ok ? r.json() : null; })
+        .catch(function(){ return null; }),
+      firestoreGate()
+    ]).then(function(res){
+      var me = res[0], fs = res[1];
+      if (me && me.unauth && !fs) { signOut(); return; }
+      var ru = (me && me.user) || {};
+      if (me && me.user) { try { localStorage.setItem(USER_KEY, JSON.stringify(me.user)); } catch(e){} }
+      else { try { ru = JSON.parse(localStorage.getItem(USER_KEY) || '{}'); } catch(e){ ru = {}; } }
+      present({
+        name: (fs && fs.name) || ru.name || ru.email || null,
+        email: (fs && fs.email) || ru.email || null,
+        role: (fs && fs.role) || ru.role || 'organiser',
+        clubKey: (fs && fs.clubKey != null) ? fs.clubKey : (ru.clubKey || null),
+      });
+    });
+  }
 
   document.getElementById('signout').onclick = signOut;
 })();
