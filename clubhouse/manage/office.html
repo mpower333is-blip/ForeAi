@@ -212,6 +212,11 @@
 </div>
 
 <script>
+  // Build marker — bump on every change so a stale (cached) upload is obvious.
+  // Check the browser console for this line; if it's older than the build you
+  // uploaded, the server/CDN is still serving a cached office.html.
+  var OFFICE_BUILD = "2026-09-17d (findRight import fix)";
+  console.log("[office] build " + OFFICE_BUILD);
   // Safe storage (localStorage can throw in sandboxed/private contexts).
   function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
   function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
