@@ -1,4 +1,4 @@
-// Web stub for the purchases service — react-native-iap is native-only, so the
+// Web stub for the purchases service — expo-iap is native-only, so the
 // web build (expo export -p web) never bundles it. Everything here is a no-op
 // that reports "not configured / not Pro", which keeps the web bundle building
 // and the paywall harmlessly inert on web.

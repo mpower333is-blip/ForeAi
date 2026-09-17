@@ -132,10 +132,9 @@ export default {
       "./plugins/withoutPushEntitlement",
       // Local notifications for the lightning safety alarm (no push server).
       "expo-notifications",
-      // react-native-iap ships separate Play + Amazon Android flavors; pin the
-      // Google Play one, else the release build fails with a Gradle variant
-      // ambiguity ("cannot choose between amazonRelease / playRelease").
-      ["react-native-iap", { paymentProvider: "Play Store" }],
+      // expo-iap — native subscriptions (StoreKit + Google Play Billing 8) via
+      // the OpenIAP spec. Its config plugin wires the Android/iOS billing setup.
+      "expo-iap",
       // Apple Watch (watchOS) companion target — only wired in when
       // EXPO_PUBLIC_WATCH=1, so normal phone builds are untouched. The SwiftUI
       // sources live in targets/watch/ (see targets/watch/README.md).

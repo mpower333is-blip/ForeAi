@@ -1,4 +1,4 @@
-// Native in-app subscriptions via react-native-iap — Apple App Store + Google
+// Native in-app subscriptions via expo-iap — Apple App Store + Google
 // Play only, no third-party billing service. Apple/Google are the sole
 // middlemen, so nothing is taken beyond the stores' standard commission (enrol
 // in Apple's Small Business Program → 15%; Google is 15% on subscriptions).
