@@ -24,12 +24,28 @@ jobs:
   deploy:
     name: Deploy to live channel
     runs-on: ubuntu-latest
-    # Skip cleanly on forks / before the secret is configured, rather than fail.
-    if: ${{ github.repository_owner != '' }}
     steps:
       - uses: actions/checkout@v4
 
+      # The deploy action hard-fails if the service-account secret is empty, which
+      # spams a failure email on every push before the secret is configured. Gate
+      # the deploy on the secret being present so the run passes (deploy skipped)
+      # until Firebase Hosting is actually set up. Secrets can't be read directly
+      # in an `if:`, so probe it via an env var first.
+      - name: Check for Firebase credentials
+        id: creds
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::FIREBASE_SERVICE_ACCOUNT secret not set — skipping Firebase Hosting deploy. Add it in Settings → Secrets and variables → Actions to enable auto-deploy."
+          fi
+
       - name: Deploy
+        if: steps.creds.outputs.present == 'true'
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
