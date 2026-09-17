@@ -1,7 +1,7 @@
-// Web stub for the purchases service — react-native-purchases is native-only, so
-// the web build (expo export -p web) never bundles it. Everything here is a
-// no-op that reports "not configured / not Pro", which keeps the web bundle
-// building and the paywall harmlessly inert on web.
+// Web stub for the purchases service — react-native-iap is native-only, so the
+// web build (expo export -p web) never bundles it. Everything here is a no-op
+// that reports "not configured / not Pro", which keeps the web bundle building
+// and the paywall harmlessly inert on web.
 export type SubPeriod = "monthly" | "annual" | "other";
 
 export type SubPackage = {
@@ -9,6 +9,7 @@ export type SubPackage = {
   period: SubPeriod;
   title: string;
   priceString: string;
+  trial?: string;
   raw: unknown;
 };
 

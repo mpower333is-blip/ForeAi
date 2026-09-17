@@ -21,10 +21,11 @@ const KEY = "foreai.plan.v1";
 // Subscribing (ForeAi Pro, monthly or annual) unlocks everything.
 //
 // Two modes:
-//  • RevenueCat configured (a key is set)  → real subscriptions. `isPro` tracks
-//    the live entitlement, so it flips off automatically when a sub lapses.
-//  • Not configured (pre-launch / dev)      → a local "demo unlock" so the whole
-//    flow can be exercised without charging. Persisted to this device only.
+//  • Store billing live (EXPO_PUBLIC_IAP_LIVE=1) → real subscriptions via
+//    react-native-iap. `isPro` is derived from the store's active purchases, so
+//    it reflects a lapsed sub on the next launch/refresh.
+//  • Not live (pre-launch / dev)                 → a local "demo unlock" so the
+//    whole flow can be exercised without charging. Persisted to this device only.
 
 type Plan = "demo" | "pro";
 
@@ -50,7 +51,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   // so everyone can try every feature on the day; personal use afterwards needs
   // the subscription.
   const { inLiveEvent } = useTournament();
-  // Live entitlement from RevenueCat (used when configured).
+  // Live entitlement from the store (used when billing is live).
   const [entitledPro, setEntitledPro] = useState(false);
   // Local demo unlock (used when NOT configured), persisted to this device.
   const [demoPro, setDemoPro] = useState(false);
@@ -75,8 +76,8 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     setPackages(pkgs);
   }, []);
 
-  // Wire up RevenueCat once. New store products can take a while to appear, so
-  // retry the package fetch a few times before giving up.
+  // Wire up store billing once. New store products can take a while to appear,
+  // so retry the package fetch a few times before giving up.
   useEffect(() => {
     if (!purchasesConfigured || !IAP_ENABLED) return;
     let unsub = () => {};

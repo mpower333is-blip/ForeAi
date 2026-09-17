@@ -1,158 +1,221 @@
-// RevenueCat wrapper (native: iOS + Android).
+// Native in-app subscriptions via react-native-iap (iOS StoreKit + Google Play
+// Billing). No third-party billing service — Apple/Google are the only
+// middlemen. Thin, crash-safe layer so the rest of the app deals in a tiny
+// interface (packages + purchase + restore + "am I Pro?").
 //
-// Thin, crash-safe layer over react-native-purchases so the rest of the app
-// deals in a tiny interface (packages + purchase + restore + "am I Pro?").
-// Everything fails soft: if RevenueCat isn't configured or the native module
-// isn't present, calls resolve to "not Pro / no packages" and the caller falls
-// back to the local demo unlock.
+// Client-side entitlement: "am I Pro?" is derived from the store's own list of
+// this device's active purchases (getAvailablePurchases) — no backend needed.
+// Trade-off: a determined user on a modified device could fake it. When revenue
+// justifies it, add server-side receipt validation (e.g. a Firebase Function) or
+// bring RevenueCat back — the app-facing interface below stays identical.
 //
-// The web build never sees this file — Metro resolves purchases.web.ts there,
-// so react-native-purchases (native-only) is never bundled for web.
-import { RC_API_KEY, RC_OFFERING, RC_ENTITLEMENT, PURCHASES_CONFIGURED } from "../config/purchases";
+// Everything fails soft: if billing isn't live (EXPO_PUBLIC_IAP_LIVE unset) or
+// the native module is absent, calls resolve to "not Pro / no packages" and the
+// caller falls back to the local demo unlock. The web build never sees this file
+// — Metro resolves purchases.web.ts there.
+import { Platform } from "react-native";
+import { PURCHASES_CONFIGURED, SUBSCRIPTION_SKUS } from "../config/purchases";
 
 export type SubPeriod = "monthly" | "annual" | "other";
 
 export type SubPackage = {
-  id: string; // RevenueCat package identifier
+  id: string; // the store product id (SKU)
   period: SubPeriod;
   title: string; // product title from the store
-  priceString: string; // localized, e.g. "R99.00" / "$4.99"
+  priceString: string; // localized, e.g. "R99.00"
   trial?: string; // e.g. "7-day free trial", read live from the store product
-  raw: unknown; // the RevenueCat package, passed back to purchasePackage
+  raw: unknown; // { sku, offerToken? } — passed back to purchasePackage
 };
 
 export const purchasesConfigured = PURCHASES_CONFIGURED;
 
-// Loaded lazily so a missing/older native module can never crash startup.
-let Purchases: any = null;
-let configured = false;
+let IAP: any = null;
+let started = false;
+let proNow = false;
+const proCbs = new Set<(p: boolean) => void>();
+let pending: ((ok: boolean) => void) | null = null;
 
 function load(): any {
-  if (Purchases) return Purchases;
+  if (IAP) return IAP;
   try {
     // Literal require so Metro bundles the native module on device.
-    Purchases = require("react-native-purchases").default;
+    IAP = require("react-native-iap");
   } catch {
-    Purchases = null;
+    IAP = null;
   }
-  return Purchases;
+  return IAP;
+}
+
+function notify(pro: boolean) {
+  proNow = pro;
+  proCbs.forEach((cb) => cb(pro));
 }
 
 export async function initPurchases(): Promise<void> {
-  if (!PURCHASES_CONFIGURED || configured) return;
+  if (!PURCHASES_CONFIGURED || started) return;
   const P = load();
   if (!P) return;
   try {
-    P.configure({ apiKey: RC_API_KEY });
-    configured = true;
+    await P.initConnection();
+    // A completed/renewed purchase arrives here (also on next launch for pending
+    // ones). Acknowledge it (Android auto-refunds unacknowledged buys after 3
+    // days) and mark the user Pro.
+    P.purchaseUpdatedListener(async (purchase: any) => {
+      try {
+        await P.finishTransaction({ purchase, isConsumable: false });
+      } catch {
+        /* ignore — retried next launch */
+      }
+      notify(true);
+      if (pending) {
+        pending(true);
+        pending = null;
+      }
+    });
+    P.purchaseErrorListener((_e: any) => {
+      // Cancellation or failure — resolve any in-flight purchase to the current
+      // (unchanged) state rather than throwing.
+      if (pending) {
+        pending(proNow);
+        pending = null;
+      }
+    });
+    started = true;
   } catch {
-    configured = false;
+    started = false;
   }
 }
 
-function periodOf(pkg: any): SubPeriod {
-  const t = String(pkg?.packageType || "").toUpperCase();
-  if (t === "MONTHLY") return "monthly";
-  if (t === "ANNUAL") return "annual";
+function periodOf(sku: string): SubPeriod {
+  const s = sku.toLowerCase();
+  if (s.includes("month")) return "monthly";
+  if (s.includes("annual") || s.includes("year")) return "annual";
   return "other";
 }
 
-// A store product's introductory offer is a free trial when its price is 0.
-// Format it as "7-day free trial" from the offer's period so the paywall shows
-// the REAL trial the store granted — never a promise the store can't honour.
-function trialOf(pkg: any): string | undefined {
-  const ip = pkg?.product?.introPrice;
-  if (!ip || Number(ip?.price) !== 0) return undefined;
-  const n = Number(ip?.periodNumberOfUnits) || 0;
-  const unit = String(ip?.periodUnit ?? "").toLowerCase(); // day | week | month | year
+function trialLabel(n: number, unit: string): string {
   if (!n || !unit) return "Free trial";
-  const label =
-    unit === "week" ? `${n}-week` : unit === "day" ? `${n}-day` : unit === "month" ? `${n}-month` : `${n}-year`;
-  return `${label} free trial`;
+  const u = unit.startsWith("day") ? "day" : unit.startsWith("week") ? "week" : unit.startsWith("month") ? "month" : "year";
+  return `${n}-${u} free trial`;
 }
 
-function mapPackage(pkg: any): SubPackage {
+// "P1W" / "P7D" / "P1M" → "1-week free trial" etc.
+function trialFromIso(iso?: string): string | undefined {
+  if (!iso) return "Free trial";
+  const m = /P(\d+)([DWMY])/.exec(String(iso).toUpperCase());
+  if (!m) return "Free trial";
+  const unit = ({ D: "day", W: "week", M: "month", Y: "year" } as Record<string, string>)[m[2]] ?? "day";
+  return trialLabel(Number(m[1]), unit);
+}
+
+function androidBits(sub: any): { price: string; trial?: string; offerToken?: string } {
+  const offers: any[] = sub?.subscriptionOfferDetails ?? [];
+  // Prefer an offer that grants a free trial (a phase priced at 0), else the base.
+  const withTrial = offers.find((o) =>
+    (o?.pricingPhases?.pricingPhaseList ?? []).some((p: any) => Number(p?.priceAmountMicros) === 0),
+  );
+  const offer = withTrial ?? offers[0];
+  const phases: any[] = offer?.pricingPhases?.pricingPhaseList ?? [];
+  const paid = phases.find((p) => Number(p?.priceAmountMicros) > 0);
+  const free = phases.find((p) => Number(p?.priceAmountMicros) === 0);
   return {
-    id: String(pkg?.identifier ?? ""),
-    period: periodOf(pkg),
-    title: String(pkg?.product?.title ?? ""),
-    priceString: String(pkg?.product?.priceString ?? ""),
-    trial: trialOf(pkg),
-    raw: pkg,
+    price: String(paid?.formattedPrice ?? sub?.localizedPrice ?? ""),
+    trial: free ? trialFromIso(free?.billingPeriod) : undefined,
+    offerToken: offer?.offerToken,
   };
 }
 
-// Available subscription packages (monthly / annual) from the current offering.
+function iosBits(sub: any): { price: string; trial?: string } {
+  const introFree =
+    sub?.introductoryPrice != null &&
+    (Number(sub?.introductoryPriceAsAmountIOS ?? NaN) === 0 ||
+      String(sub?.introductoryPricePaymentModeIOS ?? "").toUpperCase().includes("FREETRIAL"));
+  const n = Number(sub?.introductoryPriceNumberOfPeriodsIOS ?? 0) || 0;
+  const unit = String(sub?.introductoryPriceSubscriptionPeriodIOS ?? "").toLowerCase(); // day/week/month/year
+  return {
+    price: String(sub?.localizedPrice ?? ""),
+    trial: introFree ? trialLabel(n, unit) : undefined,
+  };
+}
+
+function mapSub(sub: any): SubPackage {
+  const sku = String(sub?.productId ?? "");
+  const bits: any = Platform.OS === "android" ? androidBits(sub) : iosBits(sub);
+  return {
+    id: sku,
+    period: periodOf(sku),
+    title: String(sub?.title ?? sub?.name ?? ""),
+    priceString: String(bits.price ?? ""),
+    trial: bits.trial,
+    raw: { sku, offerToken: bits.offerToken },
+  };
+}
+
 export async function getPackages(): Promise<SubPackage[]> {
   const P = load();
-  if (!P || !configured) return [];
+  if (!P || !PURCHASES_CONFIGURED) return [];
   try {
-    const offerings = await P.getOfferings();
-    const offering = RC_OFFERING ? offerings?.all?.[RC_OFFERING] : offerings?.current;
-    const list: any[] = offering?.availablePackages ?? [];
-    // Sort so annual sits under monthly (nice default order on the paywall).
+    await initPurchases();
+    const subs: any[] = await P.getSubscriptions({ skus: SUBSCRIPTION_SKUS });
     const order: Record<SubPeriod, number> = { monthly: 0, annual: 1, other: 2 };
-    return list.map(mapPackage).sort((a, b) => order[a.period] - order[b.period]);
+    return subs.map(mapSub).sort((a, b) => order[a.period] - order[b.period]);
   } catch {
     return [];
   }
 }
 
-function entitlementActive(info: any): boolean {
-  return !!info?.entitlements?.active?.[RC_ENTITLEMENT];
-}
-
-// Buy a package. Returns true if the user is Pro afterwards. Throws only on a
-// genuine error; a user cancellation resolves to the current (unchanged) state.
+// Buy a package. Returns true if the user is Pro afterwards. A cancellation
+// resolves to the current (unchanged) state rather than throwing.
 export async function purchasePackage(raw: unknown): Promise<boolean> {
   const P = load();
-  if (!P || !configured) return false;
+  if (!P || !PURCHASES_CONFIGURED) return false;
+  await initPurchases();
+  const info = (raw ?? {}) as { sku?: string; offerToken?: string };
+  const sku = info.sku;
+  if (!sku) return false;
+  return new Promise<boolean>((resolve) => {
+    pending = resolve;
+    const params =
+      Platform.OS === "android" && info.offerToken
+        ? { sku, subscriptionOffers: [{ sku, offerToken: info.offerToken }] }
+        : { sku };
+    Promise.resolve(P.requestSubscription(params)).catch(() => {
+      if (pending) {
+        pending(proNow);
+        pending = null;
+      }
+    });
+  });
+}
+
+// True if the store reports this device owns an active ForeAi Pro subscription.
+async function hasActiveSub(): Promise<boolean> {
+  const P = load();
+  if (!P || !PURCHASES_CONFIGURED) return false;
   try {
-    const { customerInfo } = await P.purchasePackage(raw);
-    return entitlementActive(customerInfo);
-  } catch (e: any) {
-    if (e?.userCancelled) return currentIsPro();
-    throw e;
+    await initPurchases();
+    const purchases: any[] = await P.getAvailablePurchases();
+    const active = purchases.some((p) => SUBSCRIPTION_SKUS.includes(String(p?.productId)));
+    notify(active);
+    return active;
+  } catch {
+    return false;
   }
 }
 
 export async function restorePurchases(): Promise<boolean> {
-  const P = load();
-  if (!P || !configured) return false;
-  try {
-    const info = await P.restorePurchases();
-    return entitlementActive(info);
-  } catch {
-    return false;
-  }
+  return hasActiveSub();
 }
 
 export async function currentIsPro(): Promise<boolean> {
-  const P = load();
-  if (!P || !configured) return false;
-  try {
-    return entitlementActive(await P.getCustomerInfo());
-  } catch {
-    return false;
-  }
+  return hasActiveSub();
 }
 
-// Subscribe to entitlement changes (renewals, lapses, cross-device). Returns an
-// unsubscribe function.
+// Subscribe to entitlement changes (a purchase completing / renewing). Returns
+// an unsubscribe function. (Lapses are re-checked on next launch via currentIsPro.)
 export function addProListener(cb: (pro: boolean) => void): () => void {
-  const P = load();
-  if (!P || !configured) return () => {};
-  const handler = (info: any) => cb(entitlementActive(info));
-  try {
-    P.addCustomerInfoUpdateListener(handler);
-    return () => {
-      try {
-        P.removeCustomerInfoUpdateListener(handler);
-      } catch {
-        /* ignore */
-      }
-    };
-  } catch {
-    return () => {};
-  }
+  proCbs.add(cb);
+  return () => {
+    proCbs.delete(cb);
+  };
 }

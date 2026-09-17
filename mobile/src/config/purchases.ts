@@ -1,31 +1,17 @@
-// RevenueCat configuration for real subscriptions (Apple App Store + Google Play).
+// Native in-app subscriptions via react-native-iap — Apple App Store + Google
+// Play only, no third-party billing service. Apple/Google are the sole
+// middlemen, so nothing is taken beyond the stores' standard commission (enrol
+// in Apple's Small Business Program → 15%; Google is 15% on subscriptions).
 //
-// You create the products in App Store Connect and Google Play Console, connect
-// them in RevenueCat, and paste RevenueCat's PUBLIC SDK keys here (or, better,
-// set them as build-time env vars so they're not committed):
-//   EXPO_PUBLIC_RC_IOS_KEY      = appl_XXXXXXXX   (RevenueCat → iOS app → API key)
-//   EXPO_PUBLIC_RC_ANDROID_KEY  = goog_XXXXXXXX   (RevenueCat → Android app → API key)
-//
-// Until a key is set for the running platform, the app stays in "demo unlock"
-// mode: the paywall still works end-to-end for testing but nothing is charged.
-// The moment a key is present, the Unlock buttons make real store purchases.
-import { Platform } from "react-native";
+// Create two AUTO-RENEWING subscription products with THESE exact ids in App
+// Store Connect and Google Play Console, each with a 7-day free trial:
+export const PRODUCT_MONTHLY = "foreai_pro_monthly";
+export const PRODUCT_ANNUAL = "foreai_pro_annual";
+export const SUBSCRIPTION_SKUS = [PRODUCT_MONTHLY, PRODUCT_ANNUAL];
 
-// The entitlement that means "Pro" in RevenueCat. This MUST match the
-// entitlement identifier exactly as it appears in the RevenueCat dashboard
-// (Entitlements → Identifier). Ours is `foreai_pro`, with both the monthly
-// and annual products attached to it.
-export const RC_ENTITLEMENT = "foreai_pro";
-
-// Optional: pin a specific offering by identifier. Empty = RevenueCat's current.
-export const RC_OFFERING = "";
-
-const IOS_KEY = process.env.EXPO_PUBLIC_RC_IOS_KEY ?? "";
-const ANDROID_KEY = process.env.EXPO_PUBLIC_RC_ANDROID_KEY ?? "";
-
-// The public SDK key for the platform this build is running on.
-export const RC_API_KEY: string =
-  Platform.select({ ios: IOS_KEY, android: ANDROID_KEY, default: "" }) ?? "";
-
-// True once a key exists for this platform — real purchases are live.
-export const PURCHASES_CONFIGURED = RC_API_KEY.length > 0;
+// Billing is a build-time switch. Until EXPO_PUBLIC_IAP_LIVE=1 the app stays in
+// "demo unlock" mode — the paywall works end-to-end for testing, but nothing is
+// charged and the native billing module is never touched. Set it in the store
+// build once the products exist and you're ready to test real purchases in
+// sandbox, then keep it on for production.
+export const PURCHASES_CONFIGURED = process.env.EXPO_PUBLIC_IAP_LIVE === "1";
