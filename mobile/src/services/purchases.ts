@@ -17,6 +17,7 @@ export type SubPackage = {
   period: SubPeriod;
   title: string; // product title from the store
   priceString: string; // localized, e.g. "R99.00" / "$4.99"
+  trial?: string; // e.g. "7-day free trial", read live from the store product
   raw: unknown; // the RevenueCat package, passed back to purchasePackage
 };
 
@@ -56,12 +57,27 @@ function periodOf(pkg: any): SubPeriod {
   return "other";
 }
 
+// A store product's introductory offer is a free trial when its price is 0.
+// Format it as "7-day free trial" from the offer's period so the paywall shows
+// the REAL trial the store granted — never a promise the store can't honour.
+function trialOf(pkg: any): string | undefined {
+  const ip = pkg?.product?.introPrice;
+  if (!ip || Number(ip?.price) !== 0) return undefined;
+  const n = Number(ip?.periodNumberOfUnits) || 0;
+  const unit = String(ip?.periodUnit ?? "").toLowerCase(); // day | week | month | year
+  if (!n || !unit) return "Free trial";
+  const label =
+    unit === "week" ? `${n}-week` : unit === "day" ? `${n}-day` : unit === "month" ? `${n}-month` : `${n}-year`;
+  return `${label} free trial`;
+}
+
 function mapPackage(pkg: any): SubPackage {
   return {
     id: String(pkg?.identifier ?? ""),
     period: periodOf(pkg),
     title: String(pkg?.product?.title ?? ""),
     priceString: String(pkg?.product?.priceString ?? ""),
+    trial: trialOf(pkg),
     raw: pkg,
   };
 }

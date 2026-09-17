@@ -8,6 +8,8 @@ import type { SubPackage } from "../services/purchases";
 import {
   PACKAGE_NAME,
   PACKAGE_PRICE,
+  PACKAGE_PRICE_ANNUAL,
+  PACKAGE_TRIAL,
   FREE_FEATURES,
   PRO_FEATURES,
   IAP_ENABLED,
@@ -26,6 +28,9 @@ function periodLabel(p: SubPackage["period"]): string {
 export default function UpgradeScreen({ navigation }: any) {
   const { isPro, configured, packages, refreshPackages, purchasePackage, restore } = usePlan();
   const [busy, setBusy] = useState(false);
+  // Prefer the REAL trial the store granted (read live from the package); fall
+  // back to the marketing copy only before the store plans have loaded.
+  const trialLabel = packages.find((p) => p.trial)?.trial || PACKAGE_TRIAL;
 
   // Re-check the store for plans whenever the paywall opens (new subs can lag).
   useEffect(() => {
@@ -80,7 +85,7 @@ export default function UpgradeScreen({ navigation }: any) {
         <Text style={styles.subtitle}>
           {isPro
             ? "You're subscribed to the full package. Enjoy every feature — thanks for supporting ForeAi!"
-            : "Try the demo free. Subscribe to unlock the full game-improvement toolkit."}
+            : `Start with a ${trialLabel.toLowerCase()}. Unlock the full game-improvement toolkit — cancel anytime.`}
         </Text>
       </View>
 
@@ -88,7 +93,7 @@ export default function UpgradeScreen({ navigation }: any) {
         <Card accent>
           {hasPlans ? (
             <>
-              <Text style={styles.priceHint}>Choose a plan — cancel anytime.</Text>
+              <Text style={styles.priceHint}>Start your {trialLabel} — cancel anytime.</Text>
               {packages.map((pkg) => (
                 <View key={pkg.id} style={styles.planRow}>
                   <Button
@@ -101,6 +106,9 @@ export default function UpgradeScreen({ navigation }: any) {
                   {pkg.period === "annual" && <Chip label="BEST VALUE" tone="gold" />}
                 </View>
               ))}
+              <Text style={styles.trialNote}>
+                {trialLabel} included — you won't be charged until it ends.
+              </Text>
               <Button variant="ghost" label={busy ? "Please wait…" : "Restore purchase"} onPress={() => run(restore)} />
               <LegalNote />
             </>
@@ -128,7 +136,10 @@ export default function UpgradeScreen({ navigation }: any) {
                 <Text style={styles.price}>{PACKAGE_PRICE}</Text>
                 <Chip label="DEMO" tone="gold" />
               </View>
-              <Text style={styles.priceHint}>Test unlock — no charge (store billing isn't set up yet).</Text>
+              <Text style={styles.priceHint}>
+                Test unlock — no charge (store billing isn't live yet). Live plans:{" "}
+                {PACKAGE_PRICE} or {PACKAGE_PRICE_ANNUAL}, {PACKAGE_TRIAL.toLowerCase()}.
+              </Text>
               <Button
                 label={busy ? "Please wait…" : `Unlock ${PACKAGE_NAME}`}
                 icon="🔓"
@@ -213,6 +224,7 @@ const styles = StyleSheet.create({
   price: { color: colors.gold, fontSize: 44, fontWeight: "800" },
   priceHint: { color: colors.textMuted, fontSize: 14, marginTop: 4, marginBottom: 8 },
   planRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
+  trialNote: { color: colors.accent, fontSize: 12, fontWeight: "700", marginTop: 2, marginBottom: 8 },
 
   legalWrap: { marginTop: 10 },
   legal: { color: colors.textFaint, fontSize: 11, lineHeight: 16 },

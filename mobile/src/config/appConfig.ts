@@ -31,10 +31,14 @@ export const WEAR_APK_URL = "https://foreai.co.za/foreai-watch.apk";
 
 // The full package (unlocks everything beyond the free demo).
 export const PACKAGE_NAME = "ForeAi Pro";
-// Demo-only fallback price (shown when store billing isn't configured). The real
-// paywall uses live store prices from RevenueCat — set those in Play Console:
-// Monthly R99 · Annual R799.
+// Fallback price copy (shown when store billing isn't live yet). The real paywall
+// uses live store prices — set the products to Monthly R99 · Annual R799, each
+// with a 7-day free trial (App Store Connect / Play Console → RevenueCat reads
+// them). PACKAGE_TRIAL is only marketing copy; the actual trial is whatever the
+// store product carries, read live in services/purchases.ts.
 export const PACKAGE_PRICE = "R99/mo";
+export const PACKAGE_PRICE_ANNUAL = "R799/yr";
+export const PACKAGE_TRIAL = "7-day free trial";
 
 // What each tier includes (shown on the paywall).
 export const FREE_FEATURES = [
