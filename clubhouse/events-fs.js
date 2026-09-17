@@ -332,10 +332,14 @@
       var order = gsnap.size;
       var teams = Array.isArray(b.teams) && b.teams.length ? b.teams : [{ players: [] }];
       var playersAdded = 0;
+      var groupIds = [];
       var chain = Promise.resolve();
       teams.forEach(function (team) {
         chain = chain.then(function () {
+          // One group per four-ball — even an empty four-ball gets its group so
+          // it shows on the roster as a reserved team (billed at the team fee).
           return sub(id, "groups").add({ order: order++, createdAt: Date.now() }).then(function (gref) {
+            groupIds.push(gref.id);
             var players = Array.isArray(team.players) ? team.players : [];
             var pc = Promise.resolve();
             players.forEach(function (p) {
@@ -354,7 +358,9 @@
         });
       });
       return chain.then(function () {
-        return saveRegistration(id, Object.assign({ type: "team" }, regColumns(b), { payload: b }));
+        // Record the groups this registration created so an office edit can later
+        // sync name changes back to the exact roster four-balls.
+        return saveRegistration(id, Object.assign({ type: "team", groupIds: groupIds }, regColumns(b), { payload: b }));
       }).then(function () { return { ok: true, teamsAdded: teams.length, playersAdded: playersAdded }; });
     });
   }
@@ -416,6 +422,127 @@
     }).then(function (s) { return Object.assign({ id: rid }, s.data()); });
   }
 
+  // ---- team-roster sync (office edit → app players) -------------------------
+  function orderedGroupPlayers(docs) {
+    return docs.slice().sort(function (a, b) {
+      return ((a.data().createdAt || 0) - (b.data().createdAt || 0)) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    });
+  }
+
+  // Reconcile one roster four-ball (group) against the edited player list.
+  // Exact name matches keep their doc — and with it any live scores or bound
+  // phone; remaining names re-use remaining slots in order (a rename in place);
+  // extra names are added; dropped slots are deleted only when nothing is bound
+  // and no scores exist, so an edit can never wipe a round or a live app user.
+  function reconcileGroupPlayers(id, gid, edited) {
+    edited = (edited || [])
+      .map(function (p) { return { name: String((p && p.name) || "").trim(), handicap: Number(p && p.handicap) || 0 }; })
+      .filter(function (p) { return p.name; });
+    return sub(id, "players").where("groupId", "==", gid).get().then(function (snap) {
+      var existing = orderedGroupPlayers(snap.docs);
+      var usedE = {}, usedX = {}, ops = [];
+      // 1) exact name match → keep doc, sync handicap only
+      existing.forEach(function (d, xi) {
+        var dn = String(d.data().name || "").trim().toLowerCase();
+        for (var k = 0; k < edited.length; k++) {
+          if (usedE[k]) continue;
+          if (edited[k].name.toLowerCase() === dn) {
+            usedE[k] = true; usedX[xi] = true;
+            if ((d.data().handicap || 0) !== edited[k].handicap) ops.push(d.ref.update({ handicap: edited[k].handicap }));
+            break;
+          }
+        }
+      });
+      var freeX = existing.filter(function (_, xi) { return !usedX[xi]; });
+      var fi = 0;
+      // 2) remaining names re-use free slots (rename), else 3) add
+      for (var k = 0; k < edited.length; k++) {
+        if (usedE[k]) continue;
+        if (fi < freeX.length) {
+          ops.push(freeX[fi++].ref.update({ name: edited[k].name, handicap: edited[k].handicap }));
+        } else {
+          ops.push(sub(id, "players").add({ name: edited[k].name, handicap: edited[k].handicap, deviceId: null, groupId: gid, createdAt: Date.now() }));
+        }
+      }
+      // 4) leftover slots were removed — delete only when safe
+      var delChain = Promise.resolve();
+      freeX.slice(fi).forEach(function (d) {
+        if (d.data().deviceId) return; // a phone is bound — leave it alone
+        delChain = delChain.then(function () {
+          return sub(id, "scores").where("playerId", "==", d.id).get().then(function (ss) {
+            if (!ss.empty) return; // holds scores — keep the round
+            return sub(id, "positions").doc(d.id).delete().catch(function () {}).then(function () { return d.ref.delete(); });
+          });
+        });
+      });
+      return Promise.all(ops).then(function () { return delChain; });
+    });
+  }
+
+  // Which roster groups belong to this team registration. Uses the stored link
+  // when present; for legacy rows (created before the link existed) it matches
+  // by shared player name, then by nearest creation time, against groups not
+  // already claimed by another registration. Returns one entry per edited team
+  // (null where nothing could be matched — the caller then creates a group).
+  function resolveGroupIds(id, reg) {
+    var teams = Array.isArray(reg.payload && reg.payload.teams) && reg.payload.teams.length ? reg.payload.teams : [{ players: [] }];
+    if (Array.isArray(reg.groupIds) && reg.groupIds.length) {
+      return Promise.resolve(teams.map(function (_, i) { return reg.groupIds[i] != null ? reg.groupIds[i] : null; }));
+    }
+    return Promise.all([sub(id, "registrations").get(), sub(id, "groups").get(), sub(id, "players").get()]).then(function (r) {
+      var claimed = {};
+      r[0].forEach(function (d) { if (d.id === reg.id) return; var g = d.data().groupIds; if (Array.isArray(g)) g.forEach(function (x) { claimed[x] = true; }); });
+      var groups = r[1].docs.filter(function (g) { return !claimed[g.id]; })
+        .sort(function (a, b) { return ((a.data().createdAt || 0) - (b.data().createdAt || 0)) || (a.id < b.id ? -1 : 1); });
+      var namesByGroup = {};
+      r[2].forEach(function (p) { var gid = p.data().groupId; if (gid) (namesByGroup[gid] = namesByGroup[gid] || []).push(String(p.data().name || "").trim().toLowerCase()); });
+      var regAt = reg.createdAt || 0, taken = {};
+      return teams.map(function (t) {
+        var names = (t.players || []).map(function (p) { return String((p && p.name) || "").trim().toLowerCase(); }).filter(Boolean);
+        var pick = null;
+        if (names.length) {
+          for (var i = 0; i < groups.length && !pick; i++) {
+            if (taken[groups[i].id]) continue;
+            var gn = namesByGroup[groups[i].id] || [];
+            if (gn.some(function (n) { return names.indexOf(n) >= 0; })) pick = groups[i];
+          }
+        }
+        if (!pick) {
+          var bestD = Infinity;
+          for (var j = 0; j < groups.length; j++) {
+            if (taken[groups[j].id]) continue;
+            var d = Math.abs(regAt - (groups[j].data().createdAt || 0));
+            if (d < bestD) { bestD = d; pick = groups[j]; }
+          }
+        }
+        if (pick) { taken[pick.id] = true; return pick.id; }
+        return null;
+      });
+    });
+  }
+
+  // Push an edited team registration's four-balls to the roster: one group per
+  // four-ball (empty four-balls kept as empty groups), players reconciled per
+  // group. Returns the group ids used, so the caller stores the link.
+  function syncTeamRoster(id, reg, payload) {
+    var teams = Array.isArray(payload.teams) && payload.teams.length ? payload.teams : [{ players: [] }];
+    return resolveGroupIds(id, reg).then(function (resolved) {
+      return sub(id, "groups").get().then(function (gsnap) {
+        var order = gsnap.size, live = {}, finalIds = new Array(teams.length);
+        gsnap.forEach(function (g) { live[g.id] = true; });
+        var chain = Promise.resolve();
+        teams.forEach(function (t, ti) {
+          chain = chain.then(function () {
+            var gid = resolved[ti];
+            if (gid && live[gid]) { finalIds[ti] = gid; return; }
+            return sub(id, "groups").add({ order: order++, createdAt: Date.now() }).then(function (gref) { finalIds[ti] = gref.id; live[gref.id] = true; });
+          }).then(function () { return reconcileGroupPlayers(id, finalIds[ti], t.players || []); });
+        });
+        return chain.then(function () { return finalIds; });
+      });
+    });
+  }
+
   // Edit a submission from the office. A body of only { status } keeps the old
   // fast path; any other field (company, contact, payload, …) is a full edit.
   function updateRegistration(id, rid, patch) {
@@ -459,7 +586,17 @@
         }
         sponsorUpdate = sub(id, "sponsors").doc(cur.sponsorId).update(sUpd).catch(function () {});
       }
-      return sub(id, "registrations").doc(rid).update(upd).then(function () { return sponsorUpdate; });
+      // Team edits flow through to the live app roster. Non-fatal: if the sync
+      // fails the office edit still lands, so the card is never blocked by it.
+      var rosterStep = Promise.resolve();
+      if (cur.type === "team") {
+        rosterStep = syncTeamRoster(id, Object.assign({ id: rid }, cur), payload)
+          .then(function (ids) { if (Array.isArray(ids)) upd.groupIds = ids; })
+          .catch(function (e) { if (typeof console !== "undefined") console.error("[events-fs] roster sync failed:", e); });
+      }
+      return rosterStep.then(function () {
+        return sub(id, "registrations").doc(rid).update(upd);
+      }).then(function () { return sponsorUpdate; });
     }).then(function () {
       return sub(id, "registrations").doc(rid).get();
     }).then(function (s) { return Object.assign({ id: rid }, s.data()); });
