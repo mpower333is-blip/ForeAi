@@ -21,11 +21,15 @@ window.FOREAI_DEFAULTS = {
   // Render). Pages use this instead of api + "/weather". Override with ?wx=...
   weatherUrl: "https://europe-west1-foreai-f9cfa.cloudfunctions.net/weather",
 
-  // Render → Firebase cutover flag for EVENTS. While false, every page talks to
-  // the Render backend exactly as today (the live ECS / Kempton / Kruinsig
-  // events are untouched). Flip to true — TOGETHER with a matching app build
-  // (EXPO_PUBLIC_USE_FIRESTORE=1) and the deployed Firestore rules — to move
-  // events onto Firestore. Test first on a single page with ?fs=1 (or ?fs=0 to
-  // force off). See docs/render-firebase-cutover.md.
-  useFirestore: false,
+  // Render → Firebase cutover switch. TRUE = the whole site runs on Firestore —
+  // events, club data AND organiser login all use Firebase, and nothing touches
+  // Render (so Render can be deleted). Set false to fall back to the Render
+  // backend. Per-page override: ?fs=1 / ?fs=0.
+  //
+  // GO-LIVE = uploading this file with useFirestore:true. Only do it once every
+  // phone is on a Firestore app build (EXPO_PUBLIC_USE_FIRESTORE=1) and the
+  // Firestore rules are published — ideally between events, since a phone still
+  // on an old (Render) build would then write to a different store. See
+  // docs/render-firebase-cutover.md.
+  useFirestore: true,
 };
