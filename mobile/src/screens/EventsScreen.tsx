@@ -50,7 +50,20 @@ function hhmm(min: number): string {
 // PNG in assets and add it here to brand another event.
 const EVENT_LOGOS: Record<string, any> = {
   ecs: require("../../assets/ecs-logo.png"),
+  kruinsig: require("../../assets/kruinsig-crest.png"),
 };
+
+// Pick a bundled logo for an event: its logoKey, else its own uploaded logo,
+// else a match on the event name (so ECS / Kruinsig events are branded even
+// when created on the web without a logoKey).
+function eventLogoFor(event: { logoKey?: string; logo?: string | null; name: string }): any {
+  if (event.logoKey && EVENT_LOGOS[event.logoKey]) return EVENT_LOGOS[event.logoKey];
+  if (event.logo) return { uri: event.logo };
+  const n = event.name || "";
+  if (/\bkruin(s?ig|ies)\b/i.test(n)) return EVENT_LOGOS.kruinsig;
+  if (/\becs\b/i.test(n)) return EVENT_LOGOS.ecs;
+  return null;
+}
 
 // Bundled beneficiary photo per event (used when the backend has no causePhoto).
 const CAUSE_PHOTOS: Record<string, any> = {
@@ -362,9 +375,7 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
         const course = getCourse(e.courseId);
         // Event logo for the list: a bundled logo (logoKey), else the event's own
         // uploaded logo (data URL, set on the web/office), else the ECS fallback.
-        const evLogo =
-          EVENT_LOGOS[e.logoKey ?? ""] ??
-          (e.logo ? { uri: e.logo } : /\becs\b/i.test(e.name) ? EVENT_LOGOS.ecs : null);
+        const evLogo = eventLogoFor(e);
         return (
           <TouchableOpacity
             key={e.id}
@@ -482,7 +493,7 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
       {(() => {
         // Local events carry a logoKey; shared events (from the backend) don't,
         // so fall back to matching the event name.
-        const logo = EVENT_LOGOS[event.logoKey ?? ""] ?? (/\becs\b/i.test(event.name) ? EVENT_LOGOS.ecs : null);
+        const logo = eventLogoFor(event);
         return logo ? (
           <View style={styles.eventLogoWrap}>
             <Image source={logo} style={styles.eventLogo} resizeMode="contain" />

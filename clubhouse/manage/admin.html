@@ -103,8 +103,13 @@
     db.collection('adminUsers').doc(user.uid).get().then(function(s){
       var role = isSuper ? 'owner' : ((s.exists && s.data().role) || 'organiser');
       if (role !== 'owner') { alert('This page is for the ForeAi owner.'); location.href='index.html'; return; }
-      document.body.classList.remove('gate');
-      load();
+      // Make sure the owner has their own organiser record, so they show up in
+      // the Organisers list and the per-event Owner dropdown even if they never
+      // went through the (self-provisioning) sign-in page.
+      var ensure = s.exists ? Promise.resolve() : db.collection('adminUsers').doc(user.uid).set({
+        email: mail, name: user.displayName || null, role: 'owner', clubKey: null, createdAt: Date.now(), updatedAt: Date.now(),
+      }).catch(function(){});
+      ensure.then(function(){ document.body.classList.remove('gate'); load(); });
     }).catch(function(){
       if (!isSuper) { alert('Could not verify access.'); location.href='index.html'; return; }
       document.body.classList.remove('gate'); load();
