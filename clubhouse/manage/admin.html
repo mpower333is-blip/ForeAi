@@ -52,6 +52,10 @@
 
   <section>
     <h2>📅 Events</h2>
+    <div class="addbar">
+      <button class="btn ghost" onclick="claimAllUnassigned()">Assign all unassigned events to me</button>
+      <span class="msg">Set an <b>Owner</b> per event so each organiser only manages their own.</span>
+    </div>
     <div class="card" id="events"><div class="empty">Loading…</div></div>
   </section>
 
@@ -142,13 +146,17 @@
     ].map(function(x){ return '<div class="tile"><div class="k">'+x[0]+'</div><div class="v '+x[2]+'">'+x[1]+'</div></div>'; }).join('');
 
     // Events — every event, no join code needed. Open manages/views it directly.
-    $('events').innerHTML = EVENTS.length ? '<table><tr><th>Event</th><th>Code</th><th>Players</th><th>Created</th><th></th></tr>'+
+    $('events').innerHTML = EVENTS.length ? '<table><tr><th>Event</th><th>Code</th><th>Players</th><th>Owner</th><th>Created</th><th></th></tr>'+
       EVENTS.map(function(e){
         var code = esc(e.code||'');
+        var ownerOpts = '<option value="">— unassigned —</option>'+ORGS.map(function(o){
+          return '<option value="'+esc(o.id)+'"'+(e.ownerUid===o.id?' selected':'')+'>'+esc(o.email||o.name||o.id)+'</option>';
+        }).join('');
         return '<tr>'
           +'<td><b>'+esc(e.name||'—')+'</b>'+(e.cause?'<div class="muted">'+esc(e.cause)+'</div>':'')+'</td>'
           +'<td class="mono">'+code+'</td>'
           +'<td>'+(e.players||0)+'</td>'
+          +'<td><select class="e-owner" data-id="'+esc(e.id)+'" onchange="setEventOwner(this)">'+ownerOpts+'</select></td>'
           +'<td>'+when(e.createdAt)+'</td>'
           +'<td><a class="lnk" href="office.html?fs=1&code='+encodeURIComponent(e.code||'')+'">Office</a> · '
           +'<a class="lnk" href="board.html?fs=1&code='+encodeURIComponent(e.code||'')+'">Board</a></td>'
@@ -187,6 +195,27 @@
     db.collection('adminUsers').doc(id).set({ clubKey: clubKey, role: role, updatedAt: Date.now() }, { merge: true })
       .then(function(){ btn.textContent = 'Saved'; setTimeout(function(){ btn.textContent='Save'; }, 1200); load(); })
       .catch(function(e){ btn.textContent='Save'; alert('Could not save: '+(e.message||e)); });
+  };
+
+  window.setEventOwner = function(sel){
+    var id = sel.dataset.id, uid = sel.value || null;
+    sel.disabled = true;
+    db.collection('events').doc(id).set({ ownerUid: uid, updatedAt: Date.now() }, { merge: true })
+      .then(function(){ sel.disabled = false; var e = EVENTS.filter(function(x){return x.id===id;})[0]; if(e) e.ownerUid = uid; })
+      .catch(function(err){ sel.disabled = false; alert('Could not save owner: '+(err.message||err)); });
+  };
+
+  // Bulk: give every still-unassigned event to the signed-in owner, so nothing is
+  // left open for another organiser to manage.
+  window.claimAllUnassigned = function(){
+    var me = auth.currentUser && auth.currentUser.uid;
+    if (!me) return;
+    var open = EVENTS.filter(function(e){ return !e.ownerUid; });
+    if (!open.length) { alert('No unassigned events — every event already has an owner.'); return; }
+    if (!confirm('Assign ' + open.length + ' unassigned event(s) to you? (You can still change any of them per-event.)')) return;
+    Promise.all(open.map(function(e){
+      return db.collection('events').doc(e.id).set({ ownerUid: me, updatedAt: Date.now() }, { merge: true });
+    })).then(function(){ load(); }).catch(function(err){ alert('Failed: '+(err.message||err)); });
   };
 
   window.createClub = function(){
