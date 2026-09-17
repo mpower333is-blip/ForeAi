@@ -29,6 +29,8 @@
   .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--gold)}
   .lnk{color:var(--sky);text-decoration:none;font-weight:700}
   .lnk.del{color:var(--red);font-size:12px}
+  .chip{display:inline-flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 9px;font-size:12px;margin:0 4px 4px 0}
+  .chip a{color:var(--red);font-weight:800;text-decoration:none;font-size:14px;line-height:1}
   .addbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
   a.back{position:fixed;top:14px;left:14px;z-index:50;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(8,18,38,.72);color:var(--gold);font-weight:800;font-size:14px;text-decoration:none;border:1px solid var(--line)}
   .msg{font-size:13px;color:var(--faint);margin-left:8px}
@@ -156,7 +158,7 @@
     ].map(function(x){ return '<div class="tile"><div class="k">'+x[0]+'</div><div class="v '+x[2]+'">'+x[1]+'</div></div>'; }).join('');
 
     // Events — every event, no join code needed. Open manages/views it directly.
-    $('events').innerHTML = EVENTS.length ? '<table><tr><th>Event</th><th>Code</th><th>Players</th><th>Created by</th><th>Owner</th><th>Created</th><th></th></tr>'+
+    $('events').innerHTML = EVENTS.length ? '<table><tr><th>Event</th><th>Code</th><th>Players</th><th>Created by</th><th>Owner</th><th>Admins (can load docs)</th><th>Created</th><th></th></tr>'+
       EVENTS.map(function(e){
         var code = esc(e.code||'');
         var ownerOpts = '<option value="">— unassigned —</option>'+ORGS.map(function(o){
@@ -165,12 +167,21 @@
         // Creator: the email stored on the event, else the current owner's email.
         var ownerOrg = ORGS.filter(function(x){ return x.id===e.ownerUid; })[0];
         var creator = e.creatorEmail || (ownerOrg && (ownerOrg.email||ownerOrg.name)) || '—';
+        // Linked co-admins (can open the office and load this event's documents).
+        var adminList = Array.isArray(e.admins) ? e.admins : [];
+        var chips = adminList.map(function(uid){
+          var o = ORGS.filter(function(x){ return x.id===uid; })[0];
+          return '<span class="chip">'+esc(o ? (o.email||o.name||uid) : uid)+'<a href="javascript:void(0)" title="remove" onclick="removeAdmin(\''+esc(e.id)+'\',\''+esc(uid)+'\')">×</a></span>';
+        }).join('');
+        var addable = ORGS.filter(function(o){ return adminList.indexOf(o.id)<0 && o.id!==e.ownerUid; });
+        var addOpts = '<option value="">+ link organiser…</option>'+addable.map(function(o){ return '<option value="'+esc(o.id)+'">'+esc(o.email||o.name||o.id)+'</option>'; }).join('');
         return '<tr>'
           +'<td><b>'+esc(e.name||'—')+'</b>'+(e.cause?'<div class="muted">'+esc(e.cause)+'</div>':'')+'</td>'
           +'<td class="mono">'+code+'</td>'
           +'<td>'+(e.players||0)+'</td>'
           +'<td class="muted">'+esc(creator)+'</td>'
           +'<td><select class="e-owner" data-id="'+esc(e.id)+'" onchange="setEventOwner(this)">'+ownerOpts+'</select></td>'
+          +'<td>'+chips+'<select class="e-addadmin" data-id="'+esc(e.id)+'" onchange="addAdmin(this)">'+addOpts+'</select></td>'
           +'<td>'+when(e.createdAt)+'</td>'
           +'<td><a class="lnk" href="office.html?fs=1&code='+encodeURIComponent(e.code||'')+'">Office</a> · '
           +'<a class="lnk" href="board.html?fs=1&code='+encodeURIComponent(e.code||'')+'">Board</a><br>'
@@ -256,6 +267,26 @@
     Promise.all(open.map(function(e){
       return db.collection('events').doc(e.id).set({ ownerUid: me, updatedAt: Date.now() }, { merge: true });
     })).then(function(){ load(); }).catch(function(err){ alert('Failed: '+(err.message||err)); });
+  };
+
+  // Co-admins: link organisers to an event so they can open the office and load
+  // its documents. Written to events/{id}.admins; the rules grant them isEventAdmin.
+  function writeAdmins(id, uids){
+    return db.collection('events').doc(id).set({ admins: uids, updatedAt: Date.now() }, { merge: true })
+      .then(function(){ var e = EVENTS.filter(function(x){ return x.id===id; })[0]; if (e) e.admins = uids; render(); });
+  }
+  window.addAdmin = function(sel){
+    var id = sel.dataset.id, uid = sel.value; if (!uid) return;
+    var e = EVENTS.filter(function(x){ return x.id===id; })[0]; if (!e) return;
+    var list = Array.isArray(e.admins) ? e.admins.slice() : [];
+    if (list.indexOf(uid) < 0) list.push(uid);
+    sel.disabled = true;
+    writeAdmins(id, list).catch(function(err){ sel.disabled = false; alert('Could not link: '+(err.message||err)); });
+  };
+  window.removeAdmin = function(id, uid){
+    var e = EVENTS.filter(function(x){ return x.id===id; })[0]; if (!e) return;
+    var list = (Array.isArray(e.admins) ? e.admins : []).filter(function(x){ return x!==uid; });
+    writeAdmins(id, list).catch(function(err){ alert('Could not remove: '+(err.message||err)); });
   };
 
   window.createClub = function(){

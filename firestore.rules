@@ -45,13 +45,18 @@ service cloud.firestore {
     // Owner = a hardcoded super-admin, or an organiser whose record says owner.
     function isOwner() { return isSuperAdmin() || (isOrganiser() && adminData().role == 'owner'); }
     function isClubAdmin(k) { return isOwner() || (isOrganiser() && myClubKey() == k); }
-    function eventOwner(eid) {
-      return get(/databases/$(database)/documents/events/$(eid)).data.ownerUid;
+    function eventData(eid) {
+      return get(/databases/$(database)/documents/events/$(eid)).data;
     }
-    // Event admin = an owner, the event's own creator, or any organiser for a
-    // legacy (ownerless) event.
+    // Event admin = an owner, the event's own creator, a linked co-admin
+    // (events/{id}.admins), or any organiser for a legacy (ownerless) event.
     function isEventAdmin(eid) {
-      return isSignedIn() && (isOwner() || eventOwner(eid) == request.auth.uid || (eventOwner(eid) == null && isOrganiser()));
+      return isSignedIn() && (
+        isOwner()
+        || eventData(eid).ownerUid == request.auth.uid
+        || (request.auth.uid in eventData(eid).get('admins', []))
+        || (eventData(eid).ownerUid == null && isOrganiser())
+      );
     }
 
     // ---- golfer app data (per user) --------------------------------------
