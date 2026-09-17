@@ -6,24 +6,28 @@
 //     failing :app:checkReleaseAarMetadata).
 //  2. Kotlin stdlib 2.2.x → 2.0.21 and kotlinx-coroutines 1.11.0 → 1.9.0 (SDK 53
 //     compiles with Kotlin 2.0.21; the 2.0 compiler can't read 2.2 library
-//     metadata, so :expo:compileReleaseKotlin fails with an internal error).
+//     metadata, so compileReleaseKotlin fails with an internal error).
 //
-// Contained to a Gradle resolutionStrategy; no toolchain bump.
-const { withAppBuildGradle } = require("@expo/config-plugins");
+// Applied at the ROOT via allprojects{} so it reaches EVERY module (:app, :expo,
+// …) — a :app-only force misses :expo:compileReleaseKotlin. Contained to a Gradle
+// resolutionStrategy; no toolchain bump.
+const { withProjectBuildGradle } = require("@expo/config-plugins");
 
 const MARKER = "// forceDeps (expo-iap toolchain compat)";
 const BLOCK = `
 ${MARKER}
-configurations.all {
-    resolutionStrategy {
-        force "androidx.core:core:1.16.0"
-        force "androidx.core:core-ktx:1.16.0"
-        force "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0"
-        force "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.9.0"
-        force "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0"
-        eachDependency { details ->
-            if (details.requested.group == "org.jetbrains.kotlin" && details.requested.name.startsWith("kotlin-stdlib")) {
-                details.useVersion "2.0.21"
+allprojects {
+    configurations.all {
+        resolutionStrategy {
+            force "androidx.core:core:1.16.0"
+            force "androidx.core:core-ktx:1.16.0"
+            force "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0"
+            force "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.9.0"
+            force "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0"
+            eachDependency { details ->
+                if (details.requested.group == "org.jetbrains.kotlin" && details.requested.name.startsWith("kotlin-stdlib")) {
+                    details.useVersion "2.0.21"
+                }
             }
         }
     }
@@ -31,7 +35,7 @@ configurations.all {
 `;
 
 module.exports = function withCoreVersionFix(config) {
-  return withAppBuildGradle(config, (cfg) => {
+  return withProjectBuildGradle(config, (cfg) => {
     if (!cfg.modResults.contents.includes(MARKER)) {
       cfg.modResults.contents += BLOCK;
     }
