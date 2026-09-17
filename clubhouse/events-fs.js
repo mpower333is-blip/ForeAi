@@ -168,7 +168,9 @@
       return ref.set({
         id: id, name: b.name, date: new Date().toISOString(), courseId: b.courseId, format: b.format || "stroke",
         firstTeeMin: b.firstTeeMin == null ? 480 : b.firstTeeMin, intervalMin: b.intervalMin == null ? 10 : b.intervalMin,
-        shotgun: !!b.shotgun, code: code, ownerUid: uid || null, playerFee: num(b.playerFee),
+        shotgun: !!b.shotgun, code: code, ownerUid: uid || null,
+        creatorEmail: (auth && auth.currentUser && auth.currentUser.email) || null,
+        playerFee: num(b.playerFee),
         createdAt: now, updatedAt: now,
       }).then(function () {
         return db.collection("eventCodes").doc(code).set({ eventId: id });
