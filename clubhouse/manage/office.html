@@ -103,7 +103,7 @@
     </div>
     <div class="spacer"></div>
     <div class="bar" id="topbar" style="display:none">
-      <button class="btn ghost sm" onclick="refresh()">↻ Refresh</button>
+      <button class="btn ghost sm" id="refreshBtn" onclick="refresh()">↻ Refresh</button>
       <button class="btn ghost sm" onclick="exportCsv()">⬇ CSV</button>
       <button class="btn ghost sm" onclick="window.print()">🖨 Print</button>
       <button class="btn ghost sm" onclick="disconnect()">Disconnect</button>
@@ -215,7 +215,7 @@
   // Build marker — bump on every change so a stale (cached) upload is obvious.
   // Check the browser console for this line; if it's older than the build you
   // uploaded, the server/CDN is still serving a cached office.html.
-  var OFFICE_BUILD = "2026-09-17d (findRight import fix)";
+  var OFFICE_BUILD = "2026-09-17e (refresh feedback + import fix)";
   console.log("[office] build " + OFFICE_BUILD);
   // Safe storage (localStorage can throw in sandboxed/private contexts).
   function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
@@ -351,10 +351,20 @@
       render();
     }catch(e){
       var m=document.getElementById('connectMsg'); if(m) m.textContent=e.message||'Could not connect.';
-      if(!fromConnect){ document.getElementById('connect').style.display='block'; document.getElementById('dash').style.display='none'; }
+      // Only fall back to the connect gate on the FIRST load. Once a dashboard is
+      // up, a transient refresh error must not tear it down — keep the data and
+      // surface the error instead (rethrow so refresh() can show it on the button).
+      if(!fromConnect && !EVENT){ document.getElementById('connect').style.display='block'; document.getElementById('dash').style.display='none'; }
+      else if(EVENT){ throw e; }
     }
   }
-  function refresh(){ load(false); }
+  async function refresh(){
+    var btn=document.getElementById('refreshBtn'); var prev=btn?btn.textContent:'';
+    if(btn){ btn.disabled=true; btn.textContent='Refreshing…'; }
+    try{ await load(false); if(btn){ btn.textContent='Refreshed ✓'; } }
+    catch(e){ if(btn){ btn.textContent='Refresh failed'; } }
+    finally{ if(btn){ setTimeout(function(){ btn.disabled=false; btn.textContent=prev||'↻ Refresh'; }, 1200); } }
+  }
 
   // Tally phone platforms across every registered player (for the app test).
   function phoneTally(){
