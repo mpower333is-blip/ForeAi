@@ -27,6 +27,15 @@
   .spacer{flex:1}
   .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   input,select{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:9px 11px;font-size:14px;font-family:inherit}
+  .elab{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);margin:6px 0}
+  .elab input,.elab select{width:100%}
+  .egrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
+  @media(max-width:520px){ .egrid{grid-template-columns:1fr} }
+  .ehint{font-size:12px;color:var(--muted);margin:12px 0 4px;font-weight:700}
+  .eteam{border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin:6px 0}
+  .eteam .ehead{font-size:12px;color:var(--gold);font-weight:800;margin-bottom:6px}
+  .eplayer{display:flex;gap:8px;margin:5px 0}
+  .eplayer input{flex:1}
   .btn{border:none;cursor:pointer;background:linear-gradient(135deg,#fce38a,#f3c33b,#d9a62a);color:#20160a;font-weight:800;padding:10px 14px;border-radius:10px;font-size:14px}
   .btn.ghost{background:transparent;border:1.5px solid var(--border);color:var(--lime)}
   .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
@@ -213,11 +222,25 @@
   var CFG={ api:(q.get('api')||lsGet('ecs_api')||D.api||'').replace(/\/$/,''),
             code:(q.get('code')||lsGet('ecs_code')||D.code||'').toUpperCase(),
             pin:'' };
-  var EVENT=null, REGS=[], FILTER='all';
+  var EVENT=null, REGS=[], FILTER='all', EDITING=null;
   var TEAM_FEE=4000, HOLE_FEE=2000;
 
   function money(n){ return 'R ' + (n||0).toLocaleString('en-ZA'); }
-  function parseAmount(s){ if(s==null) return 0; var m=String(s).replace(/[^0-9.]/g,''); return parseFloat(m)||0; }
+  // Parse a money string, handling SA format (comma = decimal, e.g. R4000,00 =
+  // 4000) as well as US (dot = decimal) and thousands separators.
+  function parseAmount(s){
+    if(s==null) return 0;
+    var t=String(s).replace(/[^0-9.,]/g,''); // keep digits + separators
+    if(!t) return 0;
+    var lastComma=t.lastIndexOf(','), lastDot=t.lastIndexOf('.'), dec=-1;
+    if(lastComma>=0 && lastDot>=0) dec=Math.max(lastComma,lastDot);      // both: the last one is the decimal point
+    else if(lastComma>=0) dec=(t.length-lastComma-1)<=2 ? lastComma : -1; // lone comma: decimal only if ≤2 digits follow
+    else if(lastDot>=0)   dec=(t.length-lastDot-1)<=2 ? lastDot : -1;
+    var intPart = dec>=0 ? t.slice(0,dec) : t;
+    var frac    = dec>=0 ? t.slice(dec+1) : '';
+    intPart=intPart.replace(/[.,]/g,''); frac=frac.replace(/[.,]/g,'');
+    return parseFloat(intPart + (frac? '.'+frac : '')) || 0;
+  }
   function teamCount(r){ var p=r.payload||{}; return p.teamCount || (Array.isArray(p.teams)?p.teams.length:1) || 1; }
   // Actual players in a registration (falls back to 4 per team if none listed).
   function playerCount(r){ var p=r.payload||{}; var teams=Array.isArray(p.teams)?p.teams:[]; var n=teams.reduce(function(s,t){return s+((t.players||[]).length);},0); return n||teamCount(r)*4; }
@@ -475,6 +498,7 @@
   function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
 
   function cardHTML(r){
+    if(EDITING===r.id) return editCardHTML(r);
     var p=r.payload||{};
     var typeLabel=r.type==='team'?'TEAM':r.type==='hole'?'HOLE SPONSOR':'PRIZE SPONSOR';
     var detail='';
@@ -504,8 +528,115 @@
         +'<div class="amt"><div class="big">'+ (amt?money(amt):'in-kind') +'</div><div class="ref">Ref: '+esc(((EVENT&&EVENT.name)||'Golf day')+' - '+r.company)+'</div></div></div>'
       + contact + detail
       +'<div class="status"><span class="lbl">Status</span>'+sb('new','New')+sb('paid','Paid')+sb('confirmed','Confirmed')
+        +'<button class="sbtn" style="margin-left:auto" onclick="editReg(\''+r.id+'\')">✎ Edit</button>'
         +'<button class="del" onclick="delReg(\''+r.id+'\')">Delete</button></div>'
       +'</div>';
+  }
+
+  // ---- edit a submission ------------------------------------------------
+  function fld(id,label,val,ph){
+    return '<label class="elab">'+esc(label)+'<input id="'+id+'" value="'+esc(val||'')+'"'+(ph?(' placeholder="'+esc(ph)+'"'):'')+'></label>';
+  }
+  function editCardHTML(r){
+    var p=r.payload||{};
+    var typeLabel=r.type==='team'?'TEAM':r.type==='hole'?'HOLE SPONSOR':'PRIZE SPONSOR';
+    var head='<div class="rowtop"><div><span class="company">Editing</span>'
+      +'<span class="badge b-'+r.type+'">'+typeLabel+'</span></div></div>';
+    var company='<label class="elab">Company<input id="e_company" value="'+esc(r.company||'')+'"></label>';
+    var contact='<div class="egrid">'
+      + fld('e_contactPerson','Contact person',r.contactPerson)
+      + fld('e_cell','Cell',r.cell)
+      + fld('e_email','Email',r.email)
+      + fld('e_regNumber','Company reg no.',r.regNumber)
+      + fld('e_vatNumber','VAT no.',r.vatNumber)
+      + fld('e_address','Address',r.address)
+      + fld('e_city','City',r.city)
+      + fld('e_postalCode','Postal code',r.postalCode)
+      + '</div>';
+    var extra='';
+    if(r.type==='team'){
+      // Render existing teams, each padded to a four-ball so missing names can be filled.
+      var teams=Array.isArray(p.teams)&&p.teams.length?p.teams:[{players:[]}];
+      extra='<div class="ehint">Four-ball player names &amp; handicaps</div>';
+      teams.forEach(function(t,ti){
+        var players=(t.players||[]).slice();
+        while(players.length<4) players.push({name:'',handicap:''});
+        extra+='<div class="eteam"><div class="ehead">Team '+(ti+1)+'</div>';
+        players.forEach(function(pl,pi){
+          extra+='<div class="eplayer">'
+            +'<input id="e_t'+ti+'_p'+pi+'_name" value="'+esc(pl.name||'')+'" placeholder="Player '+(pi+1)+' name">'
+            +'<input id="e_t'+ti+'_p'+pi+'_hcp" value="'+esc(pl.handicap!=null?pl.handicap:'')+'" placeholder="H/cap" style="max-width:80px">'
+            +'</div>';
+        });
+        extra+='</div>';
+      });
+      extra+='<input type="hidden" id="e_nteams" value="'+teams.length+'">';
+    } else if(r.type==='hole'){
+      extra=fld('e_holePreference','Hole preference',p.holePreference,'any');
+    } else if(r.type==='prize'){
+      var isCash=p.prizeType==='cash';
+      extra='<label class="elab">Prize type<select id="e_prizeType" onchange="togglePrizeEdit()">'
+        +'<option value="cash"'+(isCash?' selected':'')+'>Cash prize</option>'
+        +'<option value="item"'+(!isCash?' selected':'')+'>Item prize(s)</option></select></label>'
+        +'<div id="e_cashWrap"'+(isCash?'':' style="display:none"')+'>'+fld('e_cashAmount','Cash amount',p.cashAmount,'e.g. R4000')+'</div>'
+        +'<div id="e_itemWrap"'+(isCash?' style="display:none"':'')+'>'
+          + fld('e_prize0','Prize 1',(p.prizes||[])[0])
+          + fld('e_prize1','Prize 2',(p.prizes||[])[1])
+          + fld('e_prize2','Prize 3',(p.prizes||[])[2])
+        +'</div>';
+    }
+    return '<div class="card">'+head+company+contact+extra
+      +'<div class="status" style="margin-top:12px">'
+      +'<button class="btn sm" onclick="saveReg(\''+r.id+'\')">Save changes</button>'
+      +'<button class="sbtn" onclick="cancelEdit()">Cancel</button></div>'
+      +'</div>';
+  }
+  function togglePrizeEdit(){
+    var t=document.getElementById('e_prizeType'); if(!t) return;
+    var cash=t.value==='cash';
+    var cw=document.getElementById('e_cashWrap'), iw=document.getElementById('e_itemWrap');
+    if(cw) cw.style.display=cash?'':'none';
+    if(iw) iw.style.display=cash?'none':'';
+  }
+  function editReg(id){ EDITING=id; render(); }
+  function cancelEdit(){ EDITING=null; render(); }
+  function ev(id){ var el=document.getElementById(id); return el?el.value.trim():''; }
+  async function saveReg(id){
+    var r=REGS.find(x=>x.id===id); if(!r) return;
+    var body={
+      company:ev('e_company'), contactPerson:ev('e_contactPerson'), cell:ev('e_cell'), email:ev('e_email'),
+      regNumber:ev('e_regNumber'), vatNumber:ev('e_vatNumber'),
+      address:ev('e_address'), city:ev('e_city'), postalCode:ev('e_postalCode')
+    };
+    if(!body.company){ alert('Company name is required.'); return; }
+    var payload=Object.assign({}, r.payload||{});
+    if(r.type==='team'){
+      var nt=parseInt(ev('e_nteams'),10)||1, teams=[];
+      for(var ti=0;ti<nt;ti++){
+        var players=[];
+        for(var pi=0;pi<4;pi++){
+          var nm=ev('e_t'+ti+'_p'+pi+'_name'); if(!nm) continue;
+          var hc=ev('e_t'+ti+'_p'+pi+'_hcp');
+          players.push({name:nm, handicap:hc!==''?(parseFloat(hc)||0):0});
+        }
+        teams.push({players:players});
+      }
+      payload.teams=teams;
+    } else if(r.type==='hole'){
+      payload.holePreference=ev('e_holePreference');
+    } else if(r.type==='prize'){
+      payload.prizeType=ev('e_prizeType')||'cash';
+      if(payload.prizeType==='cash'){ payload.cashAmount=ev('e_cashAmount'); payload.prizes=[]; }
+      else { payload.prizes=[ev('e_prize0'),ev('e_prize1'),ev('e_prize2')].filter(Boolean); payload.cashAmount=''; }
+    }
+    body.payload=payload;
+    try{
+      var res=await authFetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations/'+id,
+        {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(res.ok){ EDITING=null; await load(false); }
+      else if(res.status===403){ alert('Enter your organiser PIN first (above) to make changes.'); }
+      else { alert('Could not save those changes.'); }
+    }catch(e){ alert('Could not save those changes.'); }
   }
 
   // ---- admin PIN --------------------------------------------------------

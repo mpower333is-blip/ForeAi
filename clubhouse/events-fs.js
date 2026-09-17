@@ -416,6 +416,55 @@
     }).then(function (s) { return Object.assign({ id: rid }, s.data()); });
   }
 
+  // Edit a submission from the office. A body of only { status } keeps the old
+  // fast path; any other field (company, contact, payload, …) is a full edit.
+  function updateRegistration(id, rid, patch) {
+    patch = patch || {};
+    var keys = Object.keys(patch);
+    if (keys.length === 1 && keys[0] === "status") return setRegistrationStatus(id, rid, patch.status);
+    var COLS = ["company", "regNumber", "vatNumber", "address", "city", "postalCode", "contactPerson", "cell", "email"];
+    return ensureSignedIn().then(function () {
+      return sub(id, "registrations").doc(rid).get();
+    }).then(function (snap) {
+      if (!snap.exists) return Promise.reject({ status: 404, body: { error: "No such registration" } });
+      var cur = snap.data() || {};
+      var upd = {};
+      COLS.forEach(function (k) { if (patch[k] !== undefined) upd[k] = patch[k] === "" ? null : patch[k]; });
+      if (patch.status !== undefined) {
+        if (["new", "paid", "confirmed"].indexOf(patch.status) < 0) return Promise.reject({ status: 400, body: { error: "status must be new, paid or confirmed" } });
+        upd.status = patch.status;
+      }
+      // Merge the payload so the office card + CSV export stay in step, and mirror
+      // the edited columns into it (that's where the import/export reads them).
+      var payload = Object.assign({}, cur.payload || {});
+      if (patch.payload && typeof patch.payload === "object") payload = Object.assign(payload, patch.payload);
+      COLS.forEach(function (k) { if (patch[k] !== undefined) payload[k] = patch[k]; });
+      upd.payload = payload;
+      // Keep the linked board sponsor (hole / prize) in step with the edit.
+      var sponsorUpdate = Promise.resolve();
+      if (cur.sponsorId) {
+        var sUpd = {};
+        if (patch.company !== undefined) sUpd.name = patch.company;
+        var msgParts = [payload.contactPerson, payload.cell, payload.email].filter(Boolean).join(" · ");
+        if (cur.type === "prize") {
+          var prizeBits = payload.prizeType === "cash"
+            ? ("Cash: " + (payload.cashAmount || "")).trim()
+            : ((Array.isArray(payload.prizes) ? payload.prizes.filter(Boolean).join(", ") : "") || "Item prize");
+          sUpd.message = [prizeBits, msgParts].filter(Boolean).join(" — ") || null;
+        } else {
+          sUpd.message = msgParts || null;
+          if (cur.type === "hole" && payload.holePreference !== undefined) {
+            sUpd.hole = payload.holePreference != null && payload.holePreference !== "" ? Number(payload.holePreference) : null;
+          }
+        }
+        sponsorUpdate = sub(id, "sponsors").doc(cur.sponsorId).update(sUpd).catch(function () {});
+      }
+      return sub(id, "registrations").doc(rid).update(upd).then(function () { return sponsorUpdate; });
+    }).then(function () {
+      return sub(id, "registrations").doc(rid).get();
+    }).then(function (s) { return Object.assign({ id: rid }, s.data()); });
+  }
+
   function deleteRegistration(id, rid) {
     return ensureSignedIn().then(function () {
       return sub(id, "registrations").doc(rid).get();
@@ -525,7 +574,7 @@
 
     if (seg === "registrations") {
       if (method === "GET" && parts.length === 2) return listRegistrations(id);
-      if (method === "PATCH" && parts.length === 3) return setRegistrationStatus(id, sub2, body.status);
+      if (method === "PATCH" && parts.length === 3) return updateRegistration(id, sub2, body || {});
       if (method === "DELETE" && parts.length === 3) return deleteRegistration(id, sub2);
     }
 
