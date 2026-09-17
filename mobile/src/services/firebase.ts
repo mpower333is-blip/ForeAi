@@ -8,14 +8,18 @@
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { initializeFirestore, type Firestore } from "firebase/firestore";
-import {
-  initializeAuth,
-  getReactNativePersistence,
-  signInAnonymously,
-  type Auth,
-} from "firebase/auth";
+import * as firebaseAuth from "firebase/auth";
+import { initializeAuth, signInAnonymously, type Auth, type Persistence } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FIREBASE_CONFIG } from "../config/firebaseConfig";
+
+// getReactNativePersistence exists at runtime in firebase 10.x (the app uses it
+// for auth persistence on device) but isn't in the package's published TS types
+// on all 10.x releases, which breaks `tsc --noEmit` with TS2305. Pull it off the
+// module with a cast — no runtime change, just a type the SDK forgot to export.
+const getReactNativePersistence = (firebaseAuth as unknown as {
+  getReactNativePersistence: (storage: unknown) => Persistence;
+}).getReactNativePersistence;
 
 export const USE_FIRESTORE = process.env.EXPO_PUBLIC_USE_FIRESTORE === "1";
 
