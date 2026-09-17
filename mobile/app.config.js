@@ -149,6 +149,10 @@ export default {
           android: {
             compileSdkVersion: 36,
             targetSdkVersion: 36,
+            // expo-iap's billing lib (openiap-google) is compiled with Kotlin
+            // 2.2; SDK 53 defaults to 2.0.21, whose compiler can't read 2.2
+            // metadata. Bump the project Kotlin to match so it compiles.
+            kotlinVersion: "2.2.20",
             // Turn on R8 for release builds. This shrinks + obfuscates the app
             // and, crucially, produces the mapping.txt deobfuscation file which
             // AGP bundles into the AAB automatically — Play then reads it, so

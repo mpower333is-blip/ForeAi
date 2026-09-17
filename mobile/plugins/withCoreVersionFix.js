@@ -1,19 +1,17 @@
-// Align a few transitive Android dependencies that expo-iap's OpenIAP billing
-// library drags in AHEAD of Expo SDK 53's toolchain, so the app builds on the
-// AGP/Kotlin that SDK 53 ships:
+// Pin androidx.core to a version compatible with the Android Gradle Plugin that
+// Expo SDK 53 ships (8.8.2). A transitive dependency (via expo-iap's OpenIAP
+// billing lib) pulls androidx.core 1.18.0, whose AAR metadata demands AGP 8.9.1+,
+// failing :app:checkReleaseAarMetadata. 1.16.0 is the newest core that builds on
+// AGP 8.8.2 and is API-compatible with everything the app uses.
 //
-//  1. androidx.core 1.18.0 → 1.16.0  (1.18 demands AGP 8.9.1; SDK 53 ships 8.8.2,
-//     failing :app:checkReleaseAarMetadata).
-//  2. Kotlin stdlib 2.2.x → 2.0.21 and kotlinx-coroutines 1.11.0 → 1.9.0 (SDK 53
-//     compiles with Kotlin 2.0.21; the 2.0 compiler can't read 2.2 library
-//     metadata, so compileReleaseKotlin fails with an internal error).
+// (The Kotlin stdlib/coroutines version mismatch is handled separately by
+// bumping the project Kotlin to 2.2.20 in app.config.js expo-build-properties —
+// so we no longer force those down here.)
 //
-// Applied at the ROOT via allprojects{} so it reaches EVERY module (:app, :expo,
-// …) — a :app-only force misses :expo:compileReleaseKotlin. Contained to a Gradle
-// resolutionStrategy; no toolchain bump.
+// Applied at the ROOT via allprojects{} so it reaches every module (:app, :expo…).
 const { withProjectBuildGradle } = require("@expo/config-plugins");
 
-const MARKER = "// forceDeps (expo-iap toolchain compat)";
+const MARKER = "// forceDeps (expo-iap AGP compat)";
 const BLOCK = `
 ${MARKER}
 allprojects {
@@ -21,14 +19,6 @@ allprojects {
         resolutionStrategy {
             force "androidx.core:core:1.16.0"
             force "androidx.core:core-ktx:1.16.0"
-            force "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0"
-            force "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.9.0"
-            force "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0"
-            eachDependency { details ->
-                if (details.requested.group == "org.jetbrains.kotlin" && details.requested.name.startsWith("kotlin-stdlib")) {
-                    details.useVersion "2.0.21"
-                }
-            }
         }
     }
 }
