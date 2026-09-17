@@ -4,14 +4,14 @@
 
 import { Platform } from "react-native";
 
-// In-app purchases / subscriptions. Currently OFF on iOS: the iOS build ships
+// In-app purchases / subscriptions. OFF on iOS by default: the iOS build ships
 // fully unlocked with NO paywall, so there's nothing for App Review to reject
 // under Guideline 3.1.2 (and no half-configured purchase to trip 2.1). Android
-// keeps the subscription. Flip this back on for iOS (set to `true`) once the IAP
-// products are created and approved in App Store Connect and you build with
-// EXPO_PUBLIC_IAP_LIVE=1. When false, everything is unlocked and every
-// purchase/upgrade CTA is hidden.
-export const IAP_ENABLED = Platform.OS !== "ios";
+// keeps the subscription. To SANDBOX-TEST iOS purchases (or to go live once the
+// products are approved), build with EXPO_PUBLIC_IOS_IAP=1 — that turns the iOS
+// paywall on without hardcoding it, so normal iOS builds stay App-Review-safe.
+// When false, everything is unlocked and every purchase/upgrade CTA is hidden.
+export const IAP_ENABLED = Platform.OS !== "ios" || process.env.EXPO_PUBLIC_IOS_IAP === "1";
 
 // TODO: replace with the real listings once published.
 export const APP_STORE_URL = "https://apps.apple.com/app/foreai/id0000000000";
