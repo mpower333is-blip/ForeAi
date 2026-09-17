@@ -1,8 +1,14 @@
 # Apple Watch (watchOS) companion — plan
 
-Status: **planned, not built.** This mirrors the existing Wear OS app (`wear/`,
-Kotlin) on Apple Watch. Build it after launch, once the phone apps + Wear OS are
-stable.
+Status: **v1 built (not yet build-verified).** The SwiftUI app lives in
+`mobile/targets/watch/` (rangefinder + hole nav + score entry, standalone on
+Firestore via the REST API). It's wired into the Expo build with
+`@bacons/apple-targets`, gated behind `EXPO_PUBLIC_WATCH=1` so phone builds are
+unaffected. Remaining: run the first Codemagic `foreai-ios` build with the watch
+enabled and shake out target/bundle-id/signing friction (Phase 0 below). This
+mirrors the Wear OS app (`wear/`, Kotlin) — but note the sections below still
+describe the ORIGINAL plan (e.g. Render networking), which the built app replaced
+with **Firestore REST** (reads public, writes via an anonymous ID token).
 
 ---
 

@@ -183,6 +183,12 @@ workflows:
       vars:
         BUNDLE_ID: "com.foreai.mobile"
         EXPO_PUBLIC_USE_FIRESTORE: "1"   # Render retired — the app runs on Firestore
+        # ── Apple Watch companion (see targets/watch/) ──
+        # Uncomment BOTH to build the watchOS app into this IPA (rides the same
+        # TestFlight/App Store submission). Verify the generated watch bundle id
+        # matches WATCH_BUNDLE_ID on the first build.
+        # EXPO_PUBLIC_WATCH: "1"
+        # WATCH_BUNDLE_ID: "com.foreai.mobile.watch"
     scripts:
       - name: Install JS dependencies
         script: |
@@ -254,21 +260,28 @@ workflows:
           echo "Private key: $(wc -c < "$CERT_KEY") bytes"
           openssl pkey -in "$CERT_KEY" -noout 2>/dev/null || { echo "ERROR: IOS_DIST_KEY did not decode to a valid private key."; exit 1; }
           fetch_signing() {
-            app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            app-store-connect fetch-signing-files "$1" \
               --platform IOS \
               --type IOS_APP_STORE \
               --certificate-key=@file:"$CERT_KEY" \
               --api-server-error-retries 10 \
               --create
           }
-          if ! fetch_signing; then
+          if ! fetch_signing "$BUNDLE_ID"; then
             echo "== Cert missing and cap reached — clearing orphaned distribution certs once =="
             app-store-connect certificates list --type DISTRIBUTION IOS_DISTRIBUTION --json > /tmp/certs.json 2>/dev/null || true
             for CID in $(jq -r '(if type=="object" and has("data") then .data else . end)[]?.id // empty' /tmp/certs.json 2>/dev/null); do
               echo "Deleting orphaned distribution cert $CID"
               app-store-connect certificates delete "$CID" --ignore-not-found || true
             done
-            fetch_signing
+            fetch_signing "$BUNDLE_ID"
+          fi
+          # Apple Watch companion: when building the watch-inclusive IPA
+          # (WATCH_BUNDLE_ID set — e.g. com.foreai.mobile.watch), also fetch its
+          # App Store profile so the extra target signs with the same cert. Unset
+          # by default, so normal phone builds are completely unchanged.
+          if [ -n "$WATCH_BUNDLE_ID" ]; then
+            fetch_signing "$WATCH_BUNDLE_ID" || echo "WARN: could not fetch signing for watch bundle $WATCH_BUNDLE_ID"
           fi
           keychain add-certificates
           cd mobile/ios
@@ -415,21 +428,28 @@ workflows:
           echo "Private key: $(wc -c < "$CERT_KEY") bytes"
           openssl pkey -in "$CERT_KEY" -noout 2>/dev/null || { echo "ERROR: IOS_DIST_KEY did not decode to a valid private key."; exit 1; }
           fetch_signing() {
-            app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            app-store-connect fetch-signing-files "$1" \
               --platform IOS \
               --type IOS_APP_STORE \
               --certificate-key=@file:"$CERT_KEY" \
               --api-server-error-retries 10 \
               --create
           }
-          if ! fetch_signing; then
+          if ! fetch_signing "$BUNDLE_ID"; then
             echo "== Cert missing and cap reached — clearing orphaned distribution certs once =="
             app-store-connect certificates list --type DISTRIBUTION IOS_DISTRIBUTION --json > /tmp/certs.json 2>/dev/null || true
             for CID in $(jq -r '(if type=="object" and has("data") then .data else . end)[]?.id // empty' /tmp/certs.json 2>/dev/null); do
               echo "Deleting orphaned distribution cert $CID"
               app-store-connect certificates delete "$CID" --ignore-not-found || true
             done
-            fetch_signing
+            fetch_signing "$BUNDLE_ID"
+          fi
+          # Apple Watch companion: when building the watch-inclusive IPA
+          # (WATCH_BUNDLE_ID set — e.g. com.foreai.mobile.watch), also fetch its
+          # App Store profile so the extra target signs with the same cert. Unset
+          # by default, so normal phone builds are completely unchanged.
+          if [ -n "$WATCH_BUNDLE_ID" ]; then
+            fetch_signing "$WATCH_BUNDLE_ID" || echo "WARN: could not fetch signing for watch bundle $WATCH_BUNDLE_ID"
           fi
           keychain add-certificates
           cd mobile/ios

@@ -132,6 +132,10 @@ export default {
       "./plugins/withoutPushEntitlement",
       // Local notifications for the lightning safety alarm (no push server).
       "expo-notifications",
+      // Apple Watch (watchOS) companion target — only wired in when
+      // EXPO_PUBLIC_WATCH=1, so normal phone builds are untouched. The SwiftUI
+      // sources live in targets/watch/ (see targets/watch/README.md).
+      ...(process.env.EXPO_PUBLIC_WATCH === "1" ? ["@bacons/apple-targets"] : []),
       [
         // Google Play requires apps to target Android 16 (API 36) from Aug 2026.
         "expo-build-properties",
