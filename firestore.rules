@@ -168,6 +168,13 @@ service cloud.firestore {
         allow read: if isSignedIn();
         allow write: if isSignedIn();                            // members book/cancel; admin blocks slots
       }
+      // Open-game invitations — a member invites others; the recipient accepts
+      // (instant-join) or declines from their in-app inbox.
+      match /invites/{inviteId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn();
+        allow delete: if isClubAdmin(clubKey);
+      }
       match /competitions/{compId} {
         allow read: if isSignedIn();
         allow create, update, delete: if isClubAdmin(clubKey);   // admin runs the calendar

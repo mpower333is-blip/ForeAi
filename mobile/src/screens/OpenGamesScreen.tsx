@@ -4,7 +4,7 @@ import { Screen, ScreenHeader, Card, Button, Chip } from "../components/ui";
 import { colors, spacing } from "../theme";
 import { CLUB_CONFIG } from "../config/appVariant";
 import { useMember } from "../state/MemberContext";
-import { membershipApi, Booking } from "../services/membershipApi";
+import { membershipApi, Booking, GameInvite, SuggestedPlayer } from "../services/membershipApi";
 
 // Open games — Playtomic-style social matchmaking. Members post a tee time with
 // open spots; anyone can join instantly until the 4-ball is full. Handicaps are
@@ -36,17 +36,28 @@ function avgHandicap(g: Booking): number | null {
 export default function OpenGamesScreen({ navigation }: any) {
   const { member } = useMember();
   const [games, setGames] = React.useState<Booking[]>([]);
+  const [invites, setInvites] = React.useState<GameInvite[]>([]);
+  const [suggest, setSuggest] = React.useState<SuggestedPlayer[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [nearMe, setNearMe] = React.useState(false);
+  // Which hosted game's invite panel is open, and who's already invited to it.
+  const [inviteFor, setInviteFor] = React.useState<string | null>(null);
+  const [invitedIds, setInvitedIds] = React.useState<string[]>([]);
 
   const myHcp = member?.handicapIndex ?? null;
 
   const load = React.useCallback(() => {
     setLoading(true);
     membershipApi.openGames().then((rows) => setGames(rows ?? [])).catch(() => setGames([])).finally(() => setLoading(false));
-  }, []);
+    if (member) {
+      membershipApi.myInvites(member.id).then((rows) => setInvites(rows ?? [])).catch(() => {});
+    }
+  }, [member]);
   React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => {
+    if (member) membershipApi.suggestPartners(member.id).then((rows) => setSuggest(rows ?? [])).catch(() => {});
+  }, [member]);
 
   const shown = React.useMemo(() => {
     if (!nearMe || myHcp == null) return games;
@@ -87,6 +98,43 @@ export default function OpenGamesScreen({ navigation }: any) {
     }
   };
 
+  // Respond to an invitation in my inbox: accept (instant-join) or decline.
+  const respond = async (inv: GameInvite, accept: boolean) => {
+    if (!member) return;
+    setBusyId(inv.id);
+    try {
+      await membershipApi.respondInvite(inv.id, member.id, accept);
+      load();
+    } catch (e: any) {
+      // eslint-disable-next-line no-alert
+      alert(e?.message ?? "Couldn't respond to the invite.");
+      load();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Open the invite panel for one of my hosted games (loads who's already invited).
+  const openInvite = (g: Booking) => {
+    if (inviteFor === g.id) { setInviteFor(null); return; }
+    setInviteFor(g.id);
+    setInvitedIds([]);
+    membershipApi.gameInvites(g.id)
+      .then((rows) => setInvitedIds((rows ?? []).filter((r) => r.status === "pending").map((r) => r.toMemberId)))
+      .catch(() => {});
+  };
+  const invite = async (g: Booking, sp: SuggestedPlayer) => {
+    if (!member) return;
+    setInvitedIds((prev) => [...prev, sp.id]); // optimistic
+    try {
+      await membershipApi.invitePlayers(g.id, member.id, [sp.id]);
+    } catch (e: any) {
+      setInvitedIds((prev) => prev.filter((id) => id !== sp.id));
+      // eslint-disable-next-line no-alert
+      alert(e?.message ?? "Couldn't send the invite.");
+    }
+  };
+
   if (!member) {
     return (
       <Screen>
@@ -116,6 +164,30 @@ export default function OpenGamesScreen({ navigation }: any) {
         </View>
         <Button icon="➕" variant="ghost" label="Post an open game" onPress={() => navigation.navigate("TeeTimes")} />
       </Card>
+
+      {invites.length > 0 && (
+        <Card accent>
+          <Text style={styles.introTitle}>Invitations for you</Text>
+          {invites.map((inv) => (
+            <View key={inv.id} style={styles.inviteRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inviteFrom}>{inv.fromName} invited you</Text>
+                <Text style={styles.inviteWhen}>{when(inv.teeAt)} · {inv.openSpots === 1 ? "1 spot" : `${inv.openSpots} spots`} left</Text>
+              </View>
+              {busyId === inv.id ? (
+                <ActivityIndicator color={colors.accent} />
+              ) : (
+                <View style={styles.inviteBtns}>
+                  <TouchableOpacity onPress={() => respond(inv, false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={styles.decline}>Decline</Text>
+                  </TouchableOpacity>
+                  <Button icon="✅" label="Join" onPress={() => respond(inv, true)} style={styles.joinBtn} />
+                </View>
+              )}
+            </View>
+          ))}
+        </Card>
+      )}
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: spacing.xl }}
@@ -151,7 +223,38 @@ export default function OpenGamesScreen({ navigation }: any) {
                 {busyId === g.id ? (
                   <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.sm }} />
                 ) : host ? (
-                  <Text style={styles.hint}>Manage or cancel this game under My tee times.</Text>
+                  <>
+                    {spots > 0 && (
+                      <Button icon="✉️" variant="ghost" label={inviteFor === g.id ? "Hide invites" : "Invite players"} onPress={() => openInvite(g)} />
+                    )}
+                    {inviteFor === g.id && (() => {
+                      const inGame = new Set((g.members ?? []).map((m) => m.memberId));
+                      const list = suggest.filter((sp) => !inGame.has(sp.id)).slice(0, 10);
+                      if (list.length === 0) return <Text style={styles.hint}>No members to suggest right now.</Text>;
+                      return (
+                        <View style={styles.invitePanel}>
+                          <Text style={styles.invitePanelTitle}>Invite — near your handicap</Text>
+                          {list.map((sp) => {
+                            const done = invitedIds.includes(sp.id);
+                            return (
+                              <View key={sp.id} style={styles.suggestRow}>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.suggestName}>{sp.name}</Text>
+                                  <Text style={styles.suggestHcp}>{sp.handicapIndex == null ? "no hcp" : `hcp ${sp.handicapIndex}`}</Text>
+                                </View>
+                                {done ? <Chip label="Invited" tone="muted" /> : (
+                                  <TouchableOpacity onPress={() => invite(g, sp)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                    <Text style={styles.inviteLink}>Invite</Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+                            );
+                          })}
+                        </View>
+                      );
+                    })()}
+                    <Text style={styles.hint}>Manage or cancel this game under My tee times.</Text>
+                  </>
                 ) : mine ? (
                   <Button variant="ghost" label="Leave game" onPress={() => leave(g)} />
                 ) : (
@@ -179,4 +282,18 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.xs, marginBottom: spacing.sm },
   hint: { color: colors.textFaint, fontSize: 12, marginTop: spacing.xs },
   empty: { color: colors.textMuted, fontSize: 14, lineHeight: 20, paddingVertical: spacing.sm },
+
+  inviteRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: colors.borderSoft },
+  inviteFrom: { color: colors.text, fontWeight: "700", fontSize: 14 },
+  inviteWhen: { color: colors.textFaint, fontSize: 12, marginTop: 2 },
+  inviteBtns: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  decline: { color: colors.negative, fontSize: 12, fontWeight: "700" },
+  joinBtn: { paddingVertical: 8, paddingHorizontal: 16 },
+
+  invitePanel: { marginTop: spacing.xs, marginBottom: spacing.xs },
+  invitePanelTitle: { color: colors.textMuted, fontSize: 12, fontWeight: "700", marginBottom: spacing.xs },
+  suggestRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xs },
+  suggestName: { color: colors.text, fontSize: 14, fontWeight: "600" },
+  suggestHcp: { color: colors.textFaint, fontSize: 12 },
+  inviteLink: { color: colors.accent, fontSize: 13, fontWeight: "700" },
 });

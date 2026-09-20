@@ -89,6 +89,16 @@ export type PlayerCard = {
   memberNumber: string | null;
 };
 
+// An invitation to join an open game, as it appears in the recipient's inbox.
+export type GameInvite = {
+  id: string;
+  gameId: string;
+  teeAt: string;
+  fromName: string;
+  openSpots: number;
+  players: string[];
+};
+
 // A matchmaking suggestion — an active member ranked by handicap closeness.
 // `delta` is |their handicap − yours| (null when either handicap is unknown).
 export type SuggestedPlayer = {
@@ -166,4 +176,22 @@ export const membershipApi = {
   // Matchmaking — members near your handicap, best matches first.
   suggestPartners: (memberId: string) =>
     j<SuggestedPlayer[]>(`/members/${CK()}/suggest?memberId=${encodeURIComponent(memberId)}`),
+
+  // Open-game invites: send, read my inbox, and see who's already invited to a game.
+  invitePlayers: (gameId: string, fromMemberId: string, toMemberIds: string[]) =>
+    j<{ ok: boolean; invited: number }>(`/invites/${CK()}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameId, fromMemberId, toMemberIds }),
+    }),
+  myInvites: (memberId: string) =>
+    j<GameInvite[]>(`/invites/${CK()}?memberId=${encodeURIComponent(memberId)}`),
+  gameInvites: (gameId: string) =>
+    j<{ id: string; toMemberId: string; status: string }[]>(`/invites/${CK()}?gameId=${encodeURIComponent(gameId)}`),
+  respondInvite: (id: string, memberId: string, accept: boolean) =>
+    j<{ ok: boolean; status: string }>(`/invites/${CK()}/${id}/respond`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberId, accept }),
+    }),
 };

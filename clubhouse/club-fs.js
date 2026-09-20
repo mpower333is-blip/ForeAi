@@ -541,6 +541,78 @@
     });
   }
 
+  // ---- game invites (invite/notify a member to an open game) -----------------
+  // An invite is a Firestore doc addressed to a member. They see it in their
+  // in-app invites inbox and Accept (instant-join) or Decline. (A push Cloud
+  // Function on this collection could later also ping their phone.)
+  function createInvites(ck, b) {
+    var gameId = b && b.gameId ? String(b.gameId) : "";
+    var fromMemberId = b && b.fromMemberId ? String(b.fromMemberId) : "";
+    var toIds = Array.isArray(b && b.toMemberIds) ? b.toMemberIds.map(String) : (b && b.toMemberId ? [String(b.toMemberId)] : []);
+    if (!gameId || !fromMemberId || toIds.length === 0) return Promise.reject({ status: 400, body: { error: "gameId, fromMemberId and toMemberIds required" } });
+    var gref = clubCol(ck, "bookings").doc(gameId);
+    return gref.get().then(function (gs) {
+      if (!gs.exists) return Promise.reject({ status: 404, body: { error: "Game not found" } });
+      var g = gs.data();
+      if (g.status !== "booked" || !g.open) return Promise.reject({ status: 409, body: { error: "That game isn't open" } });
+      var inGame = (Array.isArray(g.members) ? g.members : []).map(function (m) { return String(m.memberId); });
+      return clubCol(ck, "members").doc(fromMemberId).get().then(function (ms) {
+        var fromName = ms.exists ? (((ms.data().firstName || "") + " " + (ms.data().lastName || "")).trim()) : "A member";
+        return clubCol(ck, "invites").where("gameId", "==", gameId).get().then(function (inv) {
+          var pending = {};
+          inv.forEach(function (d) { var r = d.data(); if (r.status === "pending") pending[String(r.toMemberId)] = true; });
+          var targets = toIds.filter(function (id) { return id !== fromMemberId && inGame.indexOf(id) < 0 && !pending[id]; });
+          if (targets.length === 0) return { ok: true, invited: 0 };
+          var chain = ensureSignedIn();
+          targets.forEach(function (id) {
+            chain = chain.then(function () {
+              return clubCol(ck, "invites").add({ gameId: gameId, teeAt: g.teeAt || null, teeMs: g.teeMs || null, courseId: g.courseId || "", fromMemberId: fromMemberId, fromName: fromName, toMemberId: id, status: "pending", createdAt: Date.now() });
+            });
+          });
+          return chain.then(function () { return { ok: true, invited: targets.length }; });
+        });
+      });
+    });
+  }
+  function listMyInvites(ck, memberId) {
+    if (!memberId) return Promise.reject({ status: 400, body: { error: "memberId required" } });
+    var now = Date.now();
+    return clubCol(ck, "invites").where("toMemberId", "==", String(memberId)).get().then(function (snap) {
+      var pending = snap.docs.map(function (d) { return { id: d.id, data: d.data() }; }).filter(function (x) { return x.data.status === "pending"; });
+      return Promise.all(pending.map(function (x) {
+        return clubCol(ck, "bookings").doc(x.data.gameId).get().then(function (gs) {
+          if (!gs.exists) return null;
+          var g = bookingOut(gs.id, ck, gs.data());
+          if (g.status !== "booked" || !g.open || Date.parse(g.teeAt) < now) return null;
+          return { id: x.id, gameId: x.data.gameId, teeAt: g.teeAt, fromName: x.data.fromName || "A member", openSpots: g.openSpots, players: (g.members || []).map(function (m) { return m.name; }) };
+        });
+      })).then(function (rows) {
+        return rows.filter(function (r) { return !!r; }).sort(function (a, b) { return Date.parse(a.teeAt) - Date.parse(b.teeAt); });
+      });
+    });
+  }
+  function listGameInvites(ck, gameId) {
+    return clubCol(ck, "invites").where("gameId", "==", String(gameId)).get().then(function (snap) {
+      return snap.docs.map(function (d) { var r = d.data(); return { id: d.id, toMemberId: String(r.toMemberId), status: r.status || "pending" }; });
+    });
+  }
+  function respondInvite(ck, id, b) {
+    var memberId = b && b.memberId ? String(b.memberId) : "";
+    var accept = !!(b && b.accept);
+    var ref = clubCol(ck, "invites").doc(id);
+    return ref.get().then(function (s) {
+      if (!s.exists) return Promise.reject({ status: 404, body: { error: "Invite not found" } });
+      var inv = s.data();
+      if (memberId && String(inv.toMemberId) !== memberId) return Promise.reject({ status: 403, body: { error: "Not your invite" } });
+      if (!accept) {
+        return ensureSignedIn().then(function () { return ref.update({ status: "declined" }); }).then(function () { return { ok: true, status: "declined" }; });
+      }
+      return joinOpenGame(ck, inv.gameId, { memberId: inv.toMemberId }).then(function () {
+        return ref.update({ status: "accepted" }).then(function () { return { ok: true, status: "accepted" }; });
+      });
+    });
+  }
+
   // ---- competitions ----------------------------------------------------------
   function compSummary(id, c, count) {
     return {
@@ -985,6 +1057,12 @@
       if (method === "POST" && rest.length === 1) return upsertPlayer(ck, body);
     }
 
+    if (root === "invites") {
+      if (method === "POST" && rest.length === 1) return createInvites(ck, body);
+      if (method === "GET" && rest.length === 1) return query.get("gameId") ? listGameInvites(ck, query.get("gameId")) : listMyInvites(ck, query.get("memberId"));
+      if (method === "POST" && c === "respond") return respondInvite(ck, id, body);
+    }
+
     if (root === "bookings") {
       if (method === "POST" && rest.length === 1) return createBooking(ck, body);
       if (method === "GET" && a === "slots") return daySlots(ck, query.get("date"));
@@ -1056,7 +1134,7 @@
 
   // ---- fetch shim ------------------------------------------------------------
   var _fetch = window.fetch ? window.fetch.bind(window) : null;
-  var ROOTS = /\/(club|members|players|bookings|competitions|news|payments)(\/[^?#]*)?(\?[^#]*)?$/;
+  var ROOTS = /\/(club|members|players|bookings|invites|competitions|news|payments)(\/[^?#]*)?(\?[^#]*)?$/;
   function jsonResponse(status, obj) {
     var body = JSON.stringify(obj == null ? null : obj);
     if (typeof Response === "function") return new Response(body, { status: status, headers: { "Content-Type": "application/json" } });
