@@ -1,142 +1,217 @@
-// RevenueCat wrapper (native: iOS + Android).
+// Direct store billing (native: iOS StoreKit + Android Google Play Billing).
 //
-// Thin, crash-safe layer over react-native-purchases so the rest of the app
-// deals in a tiny interface (packages + purchase + restore + "am I Pro?").
-// Everything fails soft: if RevenueCat isn't configured or the native module
-// isn't present, calls resolve to "not Pro / no packages" and the caller falls
-// back to the local demo unlock.
+// Thin, crash-safe layer over react-native-iap so the rest of the app deals in a
+// tiny interface (packages + purchase + restore + "am I Pro?"). This replaces the
+// old RevenueCat wrapper — same interface, no third-party service. Everything
+// fails soft: if billing isn't enabled or the native module isn't present, calls
+// resolve to "not Pro / no packages" and the caller falls back to the local demo
+// unlock.
 //
-// The web build never sees this file — Metro resolves purchases.web.ts there,
-// so react-native-purchases (native-only) is never bundled for web.
-import { RC_API_KEY, RC_OFFERING, RC_ENTITLEMENT, PURCHASES_CONFIGURED } from "../config/purchases";
+// The web build never sees this file — Metro resolves purchases.web.ts there, so
+// react-native-iap (native-only) is never bundled for web.
+//
+// Entitlement is read directly from the store's active purchases (no server-side
+// receipt validation), which is the same client-side trust model the app used
+// before. The store's 7-day free trial shows up here as an active subscription.
+import {
+  PURCHASES_CONFIGURED,
+  SUBSCRIPTION_SKUS,
+  SKU_MONTHLY,
+  SKU_ANNUAL,
+} from "../config/purchases";
 
 export type SubPeriod = "monthly" | "annual" | "other";
 
 export type SubPackage = {
-  id: string; // RevenueCat package identifier
+  id: string; // product id (SKU)
   period: SubPeriod;
   title: string; // product title from the store
   priceString: string; // localized, e.g. "R99.00" / "$4.99"
-  raw: unknown; // the RevenueCat package, passed back to purchasePackage
+  raw: unknown; // the store subscription object, passed back to purchasePackage
 };
 
 export const purchasesConfigured = PURCHASES_CONFIGURED;
 
 // Loaded lazily so a missing/older native module can never crash startup.
-let Purchases: any = null;
-let configured = false;
+let IAP: any = null;
+let connected = false;
+// Listeners registered with the native module, torn down on end.
+let purchaseUpdateSub: any = null;
+let purchaseErrorSub: any = null;
+// App-side "am I Pro?" subscribers, notified when the entitlement changes.
+const proListeners = new Set<(pro: boolean) => void>();
 
 function load(): any {
-  if (Purchases) return Purchases;
+  if (IAP) return IAP;
   try {
     // Literal require so Metro bundles the native module on device.
-    Purchases = require("react-native-purchases").default;
+    IAP = require("react-native-iap");
   } catch {
-    Purchases = null;
+    IAP = null;
   }
-  return Purchases;
+  return IAP;
+}
+
+function notifyPro(pro: boolean) {
+  proListeners.forEach((cb) => {
+    try {
+      cb(pro);
+    } catch {
+      /* ignore */
+    }
+  });
 }
 
 export async function initPurchases(): Promise<void> {
-  if (!PURCHASES_CONFIGURED || configured) return;
+  if (!PURCHASES_CONFIGURED || connected) return;
   const P = load();
   if (!P) return;
   try {
-    P.configure({ apiKey: RC_API_KEY });
-    configured = true;
+    await P.initConnection();
+    connected = true;
   } catch {
-    configured = false;
+    connected = false;
+    return;
+  }
+  // A purchase can complete asynchronously (Play "pending", trial start,
+  // renewal, cross-device). Finish the transaction and refresh the entitlement.
+  try {
+    purchaseUpdateSub = P.purchaseUpdatedListener(async (purchase: any) => {
+      try {
+        await P.finishTransaction({ purchase, isConsumable: false });
+      } catch {
+        /* ignore — will be retried on next launch */
+      }
+      notifyPro(await currentIsPro());
+    });
+    purchaseErrorSub = P.purchaseErrorListener((_e: any) => {
+      // User cancellation and store errors surface via the purchase() promise;
+      // nothing to do here beyond not crashing.
+    });
+  } catch {
+    /* listeners are best-effort */
   }
 }
 
-function periodOf(pkg: any): SubPeriod {
-  const t = String(pkg?.packageType || "").toUpperCase();
-  if (t === "MONTHLY") return "monthly";
-  if (t === "ANNUAL") return "annual";
+// Tear down the store connection + listeners (e.g. on sign-out). Optional.
+export async function endPurchases(): Promise<void> {
+  const P = load();
+  try {
+    purchaseUpdateSub?.remove?.();
+    purchaseErrorSub?.remove?.();
+  } catch {
+    /* ignore */
+  }
+  purchaseUpdateSub = null;
+  purchaseErrorSub = null;
+  if (P && connected) {
+    try {
+      await P.endConnection();
+    } catch {
+      /* ignore */
+    }
+  }
+  connected = false;
+}
+
+function periodOf(productId: string): SubPeriod {
+  if (productId === SKU_MONTHLY) return "monthly";
+  if (productId === SKU_ANNUAL) return "annual";
   return "other";
 }
 
-function mapPackage(pkg: any): SubPackage {
+// The recurring (not the free-trial) price, localized, from either store shape.
+function priceOf(sub: any): string {
+  // iOS (StoreKit): localizedPrice, e.g. "R99.00".
+  if (sub?.localizedPrice) return String(sub.localizedPrice);
+  // Android (Play Billing): the last pricing phase of the first offer is the
+  // recurring charge (earlier phases are the free trial / intro price).
+  const offers = sub?.subscriptionOfferDetails ?? [];
+  const phases = offers[0]?.pricingPhases?.pricingPhaseList ?? [];
+  const recurring = phases[phases.length - 1];
+  if (recurring?.formattedPrice) return String(recurring.formattedPrice);
+  return "";
+}
+
+function mapSub(sub: any): SubPackage {
+  const id = String(sub?.productId ?? "");
   return {
-    id: String(pkg?.identifier ?? ""),
-    period: periodOf(pkg),
-    title: String(pkg?.product?.title ?? ""),
-    priceString: String(pkg?.product?.priceString ?? ""),
-    raw: pkg,
+    id,
+    period: periodOf(id),
+    title: String(sub?.title ?? sub?.name ?? ""),
+    priceString: priceOf(sub),
+    raw: sub,
   };
 }
 
-// Available subscription packages (monthly / annual) from the current offering.
+// Available subscription packages (monthly / annual) from the store.
 export async function getPackages(): Promise<SubPackage[]> {
   const P = load();
-  if (!P || !configured) return [];
+  if (!P || !connected) return [];
   try {
-    const offerings = await P.getOfferings();
-    const offering = RC_OFFERING ? offerings?.all?.[RC_OFFERING] : offerings?.current;
-    const list: any[] = offering?.availablePackages ?? [];
-    // Sort so annual sits under monthly (nice default order on the paywall).
+    const subs: any[] = await P.getSubscriptions({ skus: SUBSCRIPTION_SKUS });
     const order: Record<SubPeriod, number> = { monthly: 0, annual: 1, other: 2 };
-    return list.map(mapPackage).sort((a, b) => order[a.period] - order[b.period]);
+    return subs
+      .map(mapSub)
+      .sort((a, b) => order[a.period] - order[b.period]);
   } catch {
     return [];
   }
 }
 
-function entitlementActive(info: any): boolean {
-  return !!info?.entitlements?.active?.[RC_ENTITLEMENT];
-}
-
-// Buy a package. Returns true if the user is Pro afterwards. Throws only on a
-// genuine error; a user cancellation resolves to the current (unchanged) state.
+// Buy a subscription. Returns true if the user is Pro afterwards. Throws only on
+// a genuine error; a user cancellation resolves to the current (unchanged) state.
 export async function purchasePackage(raw: unknown): Promise<boolean> {
   const P = load();
-  if (!P || !configured) return false;
+  if (!P || !connected) return false;
+  const sub: any = raw;
+  const sku = String(sub?.productId ?? "");
+  if (!sku) throw new Error("Plans are still loading from the store — please try again in a moment.");
   try {
-    const { customerInfo } = await P.purchasePackage(raw);
-    return entitlementActive(customerInfo);
+    // Android requires the offer token; iOS ignores it.
+    const offerToken = sub?.subscriptionOfferDetails?.[0]?.offerToken;
+    await P.requestSubscription({
+      sku,
+      ...(offerToken
+        ? { subscriptionOffers: [{ sku, offerToken }] }
+        : {}),
+    });
+    // The purchaseUpdatedListener finishes the transaction; confirm entitlement.
+    return await currentIsPro();
   } catch (e: any) {
-    if (e?.userCancelled) return currentIsPro();
+    // react-native-iap raises E_USER_CANCELLED when the buyer backs out.
+    if (e?.code === "E_USER_CANCELLED") return currentIsPro();
     throw e;
   }
 }
 
-export async function restorePurchases(): Promise<boolean> {
+// Any active (non-expired) purchase for one of our subscription SKUs.
+async function hasActiveSub(): Promise<boolean> {
   const P = load();
-  if (!P || !configured) return false;
+  if (!P || !connected) return false;
   try {
-    const info = await P.restorePurchases();
-    return entitlementActive(info);
+    const purchases: any[] = await P.getAvailablePurchases();
+    return purchases.some((p) => SUBSCRIPTION_SKUS.includes(String(p?.productId ?? "")));
   } catch {
     return false;
   }
 }
 
+export async function restorePurchases(): Promise<boolean> {
+  const restored = await hasActiveSub();
+  if (restored) notifyPro(true);
+  return restored;
+}
+
 export async function currentIsPro(): Promise<boolean> {
-  const P = load();
-  if (!P || !configured) return false;
-  try {
-    return entitlementActive(await P.getCustomerInfo());
-  } catch {
-    return false;
-  }
+  return hasActiveSub();
 }
 
 // Subscribe to entitlement changes (renewals, lapses, cross-device). Returns an
 // unsubscribe function.
 export function addProListener(cb: (pro: boolean) => void): () => void {
-  const P = load();
-  if (!P || !configured) return () => {};
-  const handler = (info: any) => cb(entitlementActive(info));
-  try {
-    P.addCustomerInfoUpdateListener(handler);
-    return () => {
-      try {
-        P.removeCustomerInfoUpdateListener(handler);
-      } catch {
-        /* ignore */
-      }
-    };
-  } catch {
-    return () => {};
-  }
+  proListeners.add(cb);
+  return () => {
+    proListeners.delete(cb);
+  };
 }

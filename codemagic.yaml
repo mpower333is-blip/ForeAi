@@ -5,7 +5,7 @@
 # android/ and ios/ folders in CI from mobile/app.config.js.
 #
 # ── WORKFLOWS ──  (Codemagic → Start new build → pick one)
-#   foreai-android-play      ForeAi phone → app-release.aab   (Play Store + RevenueCat)
+#   foreai-android-play      ForeAi phone → app-release.aab   (Play Store + Billing)
 #   foreai-watch-android     ForeAi watch → app-release.aab   (Wear OS form factor, Play)
 #   foreai-ios               ForeAi phone → TestFlight / .ipa (needs Apple setup*)
 #   foreai-surveyor-android  ForeAi Survey → app-release.apk  (standalone survey app, sideload)
@@ -41,17 +41,17 @@
 
 workflows:
   # ───────────────── ANDROID — Play Store (signed AAB) ────────────
-  # Produces a Play-signed .aab for Google Play (Play Billing / RevenueCat need
-  # the app distributed through Play). Needs a `google_play` env group with:
+  # Produces a Play-signed .aab for Google Play (Play Billing needs the app
+  # distributed through Play). Needs a `google_play` env group with:
   #   CM_KEYSTORE            base64 of your upload keystore  (see setup guide)
   #   CM_KEYSTORE_PASSWORD   keystore password
   #   CM_KEY_ALIAS           key alias
   #   CM_KEY_PASSWORD        key password
-  #   EXPO_PUBLIC_RC_ANDROID_KEY   RevenueCat Android SDK key (goog_…)
+  #   EXPO_PUBLIC_BILLING    set to "1" to enable live purchases (else demo mode)
   # Upload the .aab to Play Console (Internal testing). Full walkthrough:
-  #   store/android/play-revenuecat-setup.md
+  #   store/android/play-billing-setup.md
   foreai-android-play:
-    name: ForeAi — Android AAB (Play + RevenueCat)
+    name: ForeAi — Android AAB (Play + Billing)
     instance_type: linux_x2
     max_build_duration: 60
     environment:
@@ -231,7 +231,7 @@ workflows:
       xcode: latest
       cocoapods: default
       groups:
-        - ios_signing   # Codemagic group holding IOS_DIST_KEY (+ optional EXPO_PUBLIC_RC_IOS_KEY)
+        - ios_signing   # Codemagic group holding IOS_DIST_KEY (+ optional EXPO_PUBLIC_BILLING)
       vars:
         BUNDLE_ID: "com.foreai.mobile"
     scripts:

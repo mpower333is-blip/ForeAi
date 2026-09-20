@@ -8,9 +8,9 @@ import { Platform } from "react-native";
 // fully unlocked with NO paywall, so there's nothing for App Review to reject
 // under Guideline 3.1.2 (and no half-configured purchase to trip 2.1). Android
 // keeps the subscription. Flip this back on for iOS once the IAP products are
-// created and approved in App Store Connect and the RevenueCat iOS key is in
-// the build. When false, everything is unlocked and every purchase/upgrade CTA
-// is hidden.
+// created and approved in App Store Connect and EXPO_PUBLIC_BILLING=1 is in the
+// build. When false, everything is unlocked and every purchase/upgrade CTA is
+// hidden.
 export const IAP_ENABLED = Platform.OS !== "ios";
 
 // TODO: replace with the real listings once published.
@@ -32,8 +32,9 @@ export const WEAR_APK_URL = "https://foreai.co.za/foreai-watch.apk";
 // The full package (unlocks everything beyond the free demo).
 export const PACKAGE_NAME = "ForeAi Pro";
 // Demo-only fallback price (shown when store billing isn't configured). The real
-// paywall uses live store prices from RevenueCat — set those in Play Console:
-// Monthly R99 · Annual R799.
+// paywall uses live store prices from Google Play / App Store — set those on the
+// subscription products (foreai_pro_monthly / foreai_pro_annual): e.g.
+// Monthly R99 · Annual R799, each with a 7-day free trial.
 export const PACKAGE_PRICE = "R99/mo";
 
 // What each tier includes (shown on the paywall).
