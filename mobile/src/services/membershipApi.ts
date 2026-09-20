@@ -53,6 +53,13 @@ export type DaySheet = {
   slots: Slot[];
 };
 
+// A player in an open game, with the handicap that drives level matching.
+export type GameMember = {
+  memberId: string;
+  name: string;
+  handicapIndex: number | null;
+};
+
 export type Booking = {
   id: string;
   clubKey: string;
@@ -63,6 +70,12 @@ export type Booking = {
   players: string[] | null;
   note: string | null;
   status: string;
+  // Open-game fields (Playtomic-style). `open` is false for a normal booking.
+  open?: boolean;
+  maxPlayers?: number;
+  hostMemberId?: string | null;
+  members?: GameMember[];
+  openSpots?: number;
 };
 
 // A saved playing partner in the club's shared directory. `memberId` is set once
@@ -101,7 +114,7 @@ export const membershipApi = {
   // Tee sheet.
   slots: (date: string) => j<DaySheet>(`/bookings/${CK()}/slots?date=${encodeURIComponent(date)}`),
   myBookings: (memberId: string) => j<Booking[]>(`/bookings/${CK()}/mine?memberId=${encodeURIComponent(memberId)}`),
-  book: (body: { memberId: string; date: string; minute: number; partySize?: number; players?: string[]; note?: string }) =>
+  book: (body: { memberId: string; date: string; minute: number; partySize?: number; players?: string[]; note?: string; open?: boolean; maxPlayers?: number }) =>
     j<Booking>(`/bookings/${CK()}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -109,6 +122,21 @@ export const membershipApi = {
     }),
   cancel: (id: string, memberId: string) =>
     j<Booking>(`/bookings/${CK()}/${id}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberId }),
+    }),
+
+  // Open games (Playtomic-style): the board of joinable games, plus join/leave.
+  openGames: () => j<Booking[]>(`/bookings/${CK()}/open`),
+  joinGame: (id: string, memberId: string) =>
+    j<Booking>(`/bookings/${CK()}/${id}/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberId }),
+    }),
+  leaveGame: (id: string, memberId: string) =>
+    j<Booking>(`/bookings/${CK()}/${id}/leave`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ memberId }),

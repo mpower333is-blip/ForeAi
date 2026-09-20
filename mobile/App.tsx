@@ -35,6 +35,7 @@ import ClubHomeScreen from "./src/screens/ClubHomeScreen";
 import ProShopScreen from "./src/screens/ProShopScreen";
 import MembershipScreen from "./src/screens/MembershipScreen";
 import TeeTimesScreen from "./src/screens/TeeTimesScreen";
+import OpenGamesScreen from "./src/screens/OpenGamesScreen";
 import CompetitionsScreen from "./src/screens/CompetitionsScreen";
 import NewsScreen from "./src/screens/NewsScreen";
 import PaymentsScreen from "./src/screens/PaymentsScreen";
@@ -164,6 +165,7 @@ function Root() {
         {/* Club "complete package": digital membership card + tee-time booking. */}
         <Stack.Screen name="Membership" component={MembershipScreen} />
         <Stack.Screen name="TeeTimes" component={TeeTimesScreen} />
+        <Stack.Screen name="OpenGames" component={OpenGamesScreen} />
         <Stack.Screen name="Competitions" component={CompetitionsScreen} />
         <Stack.Screen name="News" component={NewsScreen} />
         <Stack.Screen name="Payments" component={PaymentsScreen} />

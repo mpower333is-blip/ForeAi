@@ -332,10 +332,16 @@
 
   // ---- bookings --------------------------------------------------------------
   function bookingOut(id, ck, b) {
+    var members = Array.isArray(b.members) ? b.members : [];
+    var max = b.maxPlayers || b.partySize || 1;
     return {
       id: id, clubKey: ck, teeAt: b.teeAt || new Date(b.teeMs || Date.now()).toISOString(), courseId: b.courseId || "",
       memberId: b.memberId || null, partySize: b.partySize || 1, players: Array.isArray(b.players) ? b.players : null,
       note: b.note || null, status: b.status || "booked",
+      // Open game (Playtomic-style): host reserves the 4-ball and members join the
+      // open spots. `members` carries each joined player + handicap for matching.
+      open: !!b.open, maxPlayers: max, hostMemberId: b.hostMemberId || b.memberId || null,
+      members: members, openSpots: b.open ? Math.max(0, max - members.length) : 0,
     };
   }
   function daySlots(ck, date) {
@@ -418,7 +424,12 @@
       var memberId = b && b.memberId ? String(b.memberId) : "";
       var date = b && b.date ? String(b.date).slice(0, 10) : "";
       var minute = Number(b && b.minute);
-      var partySize = Math.max(1, Math.min(s.slotCapacity, Number(b && b.partySize) || 1));
+      // An open game reserves the whole 4-ball (maxPlayers seats), then members
+      // join the open spots; a normal booking just reserves its party size.
+      var isOpen = !!(b && b.open);
+      var partySize = isOpen
+        ? Math.max(2, Math.min(s.slotCapacity, Number(b && b.maxPlayers) || s.slotCapacity))
+        : Math.max(1, Math.min(s.slotCapacity, Number(b && b.partySize) || 1));
       if (!memberId || !date || !Number.isFinite(minute)) return Promise.reject({ status: 400, body: { error: "memberId, date and minute required" } });
       return clubCol(ck, "members").doc(memberId).get().then(function (msnap) {
         if (!msnap.exists) return Promise.reject({ status: 404, body: { error: "Member not found" } });
@@ -439,11 +450,69 @@
           if (existing.some(function (e) { return e.memberId === memberId; })) return Promise.reject({ status: 409, body: { error: "You already have this slot" } });
           var seats = existing.reduce(function (n, e) { return n + (e.partySize || 1); }, 0);
           if (seats + partySize > s.slotCapacity) return Promise.reject({ status: 409, body: { error: "Only " + (s.slotCapacity - seats) + " seat(s) left in that slot" } });
-          var players = Array.isArray(b.players) ? b.players.map(String).slice(0, partySize) : [((member.firstName || "") + " " + (member.lastName || "")).trim()];
-          var rec = { teeMs: ms, teeAt: new Date(ms).toISOString(), courseId: s.courseId || "", memberId: memberId, partySize: partySize, players: players, note: b.note ? String(b.note) : null, status: "booked", createdAt: Date.now() };
+          var hostName = ((member.firstName || "") + " " + (member.lastName || "")).trim();
+          var rec;
+          if (isOpen) {
+            var hostEntry = { memberId: memberId, name: hostName, handicapIndex: member.handicapIndex == null ? null : member.handicapIndex };
+            rec = { teeMs: ms, teeAt: new Date(ms).toISOString(), courseId: s.courseId || "", memberId: memberId, partySize: partySize, players: [hostName], note: b.note ? String(b.note) : null, status: "booked", open: true, maxPlayers: partySize, hostMemberId: memberId, members: [hostEntry], createdAt: Date.now() };
+          } else {
+            var players = Array.isArray(b.players) ? b.players.map(String).slice(0, partySize) : [hostName];
+            rec = { teeMs: ms, teeAt: new Date(ms).toISOString(), courseId: s.courseId || "", memberId: memberId, partySize: partySize, players: players, note: b.note ? String(b.note) : null, status: "booked", createdAt: Date.now() };
+          }
           return ensureSignedIn().then(function () { return clubCol(ck, "bookings").add(rec); }).then(function (ref) { return bookingOut(ref.id, ck, rec); });
         });
       });
+    });
+  }
+
+  // ---- open games (Playtomic-style social matchmaking) -----------------------
+  // An open game is a booking the host posted with open spots. Members join
+  // instantly until the 4-ball is full; handicaps travel with each player so the
+  // board can be filtered/matched by level.
+  function listOpenGames(ck) {
+    var now = Date.now();
+    return clubCol(ck, "bookings").where("open", "==", true).get().then(function (snap) {
+      return snap.docs.map(function (d) { return bookingOut(d.id, ck, d.data()); })
+        .filter(function (g) { return g.status === "booked" && Date.parse(g.teeAt) >= now && g.openSpots > 0; })
+        .sort(function (a, b) { return Date.parse(a.teeAt) - Date.parse(b.teeAt); });
+    });
+  }
+  function joinOpenGame(ck, id, b) {
+    var memberId = b && b.memberId ? String(b.memberId) : "";
+    if (!memberId) return Promise.reject({ status: 400, body: { error: "memberId required" } });
+    var ref = clubCol(ck, "bookings").doc(id);
+    return ref.get().then(function (s) {
+      if (!s.exists) return Promise.reject({ status: 404, body: { error: "Game not found" } });
+      var bk = s.data();
+      if (bk.status !== "booked" || !bk.open) return Promise.reject({ status: 409, body: { error: "That game isn't open" } });
+      var members = Array.isArray(bk.members) ? bk.members.slice() : [];
+      var max = bk.maxPlayers || bk.partySize || 4;
+      if (members.some(function (m) { return String(m.memberId) === memberId; })) return Promise.reject({ status: 409, body: { error: "You're already in this game" } });
+      if (members.length >= max) return Promise.reject({ status: 409, body: { error: "This game is full" } });
+      return clubCol(ck, "members").doc(memberId).get().then(function (msnap) {
+        if (!msnap.exists) return Promise.reject({ status: 404, body: { error: "Member not found" } });
+        var member = msnap.data();
+        if (member.status !== "active") return Promise.reject({ status: 403, body: { error: "Membership is not active" } });
+        var name = ((member.firstName || "") + " " + (member.lastName || "")).trim();
+        members.push({ memberId: memberId, name: name, handicapIndex: member.handicapIndex == null ? null : member.handicapIndex });
+        var players = members.map(function (m) { return m.name; });
+        return ensureSignedIn().then(function () { return ref.update({ members: members, players: players }); })
+          .then(function () { return bookingOut(id, ck, Object.assign({}, bk, { members: members, players: players })); });
+      });
+    });
+  }
+  function leaveOpenGame(ck, id, b) {
+    var memberId = b && b.memberId ? String(b.memberId) : "";
+    if (!memberId) return Promise.reject({ status: 400, body: { error: "memberId required" } });
+    var ref = clubCol(ck, "bookings").doc(id);
+    return ref.get().then(function (s) {
+      if (!s.exists) return Promise.reject({ status: 404, body: { error: "Game not found" } });
+      var bk = s.data();
+      if (String(bk.hostMemberId || bk.memberId) === memberId) return Promise.reject({ status: 400, body: { error: "You're the host — cancel the game instead" } });
+      var members = (Array.isArray(bk.members) ? bk.members : []).filter(function (m) { return String(m.memberId) !== memberId; });
+      var players = members.map(function (m) { return m.name; });
+      return ensureSignedIn().then(function () { return ref.update({ members: members, players: players }); })
+        .then(function () { return bookingOut(id, ck, Object.assign({}, bk, { members: members, players: players })); });
     });
   }
 
@@ -894,8 +963,11 @@
       if (method === "POST" && rest.length === 1) return createBooking(ck, body);
       if (method === "GET" && a === "slots") return daySlots(ck, query.get("date"));
       if (method === "GET" && a === "day") return dayBookings(ck, query.get("date"));
+      if (method === "GET" && a === "open") return listOpenGames(ck);
       if (method === "POST" && a === "block") return blockSlot(ck, body);
       if (method === "POST" && c === "cancel") return cancelBooking(ck, id, body);
+      if (method === "POST" && c === "join") return joinOpenGame(ck, id, body);
+      if (method === "POST" && c === "leave") return leaveOpenGame(ck, id, body);
       if (method === "GET" && a === "mine") {
         var memberId = query.get("memberId");
         return clubCol(ck, "bookings").where("memberId", "==", memberId).get().then(function (snap) {

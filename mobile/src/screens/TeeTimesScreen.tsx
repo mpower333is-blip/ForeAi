@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Switch } from "react-native";
 import { Screen, ScreenHeader, Card, Button, TextField, Stepper, Chip } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { CLUB_CONFIG } from "../config/appVariant";
@@ -35,6 +35,7 @@ export default function TeeTimesScreen({ navigation }: any) {
   const [party, setParty] = React.useState(1);
   const [partners, setPartners] = React.useState<Partner[]>([]);
   const [directory, setDirectory] = React.useState<PlayerCard[]>([]);
+  const [openGame, setOpenGame] = React.useState(false);
   const [booking, setBooking] = React.useState(false);
 
   const windowDays = club?.bookingWindowDays ?? 14;
@@ -72,6 +73,7 @@ export default function TeeTimesScreen({ navigation }: any) {
     setSel(s);
     setParty(1);
     setPartners([]);
+    setOpenGame(false);
   };
 
   // Update one partner slot (keeps the array length stable).
@@ -88,17 +90,23 @@ export default function TeeTimesScreen({ navigation }: any) {
     if (!member || !sel) return;
     setBooking(true);
     try {
-      const chosen = partners.slice(0, party - 1)
-        .map((p) => ({ name: (p?.name ?? "").trim(), phone: (p?.phone ?? "").trim(), playerId: p?.playerId }))
-        .filter((p) => p.name);
-      // Save any newly typed partners (not picked from the directory) so the whole
-      // club can reuse them next time. Best-effort — never block the booking.
-      await Promise.all(
-        chosen.filter((p) => !p.playerId).map((p) => membershipApi.savePlayer({ name: p.name, phone: p.phone || undefined }).catch(() => null)),
-      );
-      const players = [`${member.firstName} ${member.lastName}`, ...chosen.map((p) => p.name)];
-      await membershipApi.book({ memberId: member.id, date, minute: sel.minute, partySize: party, players });
-      Alert.alert("Booked", `You're on the tee at ${sel.time} on ${date}.`);
+      if (openGame) {
+        // Post an open game: reserve the 4-ball and let members join the spots.
+        await membershipApi.book({ memberId: member.id, date, minute: sel.minute, open: true, maxPlayers: party });
+        Alert.alert("Open game posted", `Your ${sel.time} game on ${date} is on the Open Games board — members can now join.`);
+      } else {
+        const chosen = partners.slice(0, party - 1)
+          .map((p) => ({ name: (p?.name ?? "").trim(), phone: (p?.phone ?? "").trim(), playerId: p?.playerId }))
+          .filter((p) => p.name);
+        // Save any newly typed partners (not picked from the directory) so the whole
+        // club can reuse them next time. Best-effort — never block the booking.
+        await Promise.all(
+          chosen.filter((p) => !p.playerId).map((p) => membershipApi.savePlayer({ name: p.name, phone: p.phone || undefined }).catch(() => null)),
+        );
+        const players = [`${member.firstName} ${member.lastName}`, ...chosen.map((p) => p.name)];
+        await membershipApi.book({ memberId: member.id, date, minute: sel.minute, partySize: party, players });
+        Alert.alert("Booked", `You're on the tee at ${sel.time} on ${date}.`);
+      }
       setSel(null);
       loadSheet(date);
       loadMine();
@@ -180,7 +188,18 @@ export default function TeeTimesScreen({ navigation }: any) {
         <Card accent>
           <Text style={styles.h}>Book {sel.time}</Text>
           <Text style={styles.sub}>{sel.available} of {sel.capacity} seat{sel.capacity > 1 ? "s" : ""} open in this slot.</Text>
-          <Stepper label="Players in your group" value={party} onChange={(v) => setParty(v)} step={1} min={1} max={sel.available} />
+          <View style={styles.openRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.openLabel}>Open game</Text>
+              <Text style={styles.openSub}>Let other members join the open spots.</Text>
+            </View>
+            <Switch value={openGame} onValueChange={setOpenGame} trackColor={{ true: colors.accent }} />
+          </View>
+          <Stepper label={openGame ? "Spots in the 4-ball" : "Players in your group"} value={party} onChange={(v) => setParty(v)} step={1} min={openGame ? 2 : 1} max={sel.available} />
+          {openGame ? (
+            <Text style={styles.pickerHint}>Members will fill the remaining {Math.max(0, party - 1)} spot{party - 1 === 1 ? "" : "s"} from the Open Games board.</Text>
+          ) : (
+            <>
           {party > 1 && <Text style={styles.pickerHint}>Build your 4-ball — pick a saved partner or add a new name.</Text>}
           {Array.from({ length: Math.max(0, party - 1) }).map((_, i) => {
             const p: Partner = partners[i] ?? { name: "", phone: "" };
@@ -217,9 +236,11 @@ export default function TeeTimesScreen({ navigation }: any) {
               </View>
             );
           })}
+            </>
+          )}
           {booking ? <ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.sm }} /> : (
             <>
-              <Button icon="✅" label={`Confirm ${sel.time} tee time`} onPress={confirm} />
+              <Button icon="✅" label={openGame ? `Post open game at ${sel.time}` : `Confirm ${sel.time} tee time`} onPress={confirm} />
               <Button variant="ghost" label="Choose another time" onPress={() => setSel(null)} />
             </>
           )}
@@ -276,6 +297,9 @@ const styles = StyleSheet.create({
   dayNum: { color: colors.text, fontSize: 18, fontWeight: "800", marginTop: 2 },
   dayLabelActive: { color: colors.accent },
 
+  openRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm },
+  openLabel: { color: colors.text, fontSize: 15, fontWeight: "700" },
+  openSub: { color: colors.textFaint, fontSize: 12, marginTop: 2 },
   pickerHint: { color: colors.textFaint, fontSize: 12, marginBottom: spacing.sm },
   partner: { marginBottom: spacing.sm, borderTopWidth: 1, borderTopColor: colors.borderSoft, paddingTop: spacing.sm },
   partnerHead: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.xs },
