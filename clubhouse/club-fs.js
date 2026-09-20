@@ -134,6 +134,10 @@
       clubKey: ck, name: s.name, courseId: s.courseId, firstTeeMin: s.firstTeeMin, lastTeeMin: s.lastTeeMin,
       intervalMin: s.intervalMin, slotCapacity: s.slotCapacity, bookingWindowDays: s.bookingWindowDays,
       openDays: s.openDays, hasAdminPin: !!s.hasAdminPin,
+      currency: s.currency || "ZAR",
+      bankingDetails: s.bankingDetails || null,
+      chargeGreenFeeOnBooking: !!s.chargeGreenFeeOnBooking,
+      paymentsMode: s.paymentsMode || "manual",
     };
   }
 
@@ -543,6 +547,152 @@
   }
 
   // ---- dispatcher ------------------------------------------------------------
+  // ---- payments (dues, green fees, competition entries, levies) --------------
+  // Firestore: clubs/{ck}/fees/{id}, clubs/{ck}/invoices/{id}. Amounts are
+  // integer cents in the club currency (settings.currency, default ZAR).
+  var FEE_TYPES = ["dues", "green_fee", "comp_entry", "levy"];
+  function genInvoiceNumber() {
+    var now = new Date();
+    var ym = String(now.getFullYear()).slice(2) + ("0" + (now.getMonth() + 1)).slice(-2);
+    return "INV-" + ym + "-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+  }
+  function feeData(b) {
+    var d = {};
+    if (b.type != null && FEE_TYPES.indexOf(String(b.type)) >= 0) d.type = String(b.type);
+    if (b.name != null) d.name = String(b.name);
+    d.category = b.category ? String(b.category) : null;
+    d.period = b.period ? String(b.period) : null;
+    if (b.amountCents != null && Number.isFinite(Number(b.amountCents))) d.amountCents = Math.max(0, Math.round(Number(b.amountCents)));
+    d.active = ("active" in b) ? !!b.active : true;
+    return d;
+  }
+  function invoiceOut(id, d) {
+    return {
+      id: id, number: d.number, memberId: d.memberId || null, payerName: d.payerName,
+      payerEmail: d.payerEmail || null, type: d.type, description: d.description,
+      amountCents: d.amountCents, status: d.status, dueAt: d.dueAt || null,
+      paidAt: d.paidAt || null, feeId: d.feeId || null, createdAt: d.createdAt || null,
+    };
+  }
+  function paymentsConfig(ck) {
+    return getSettings(ck).then(function (s) {
+      return { mode: s.paymentsMode || "manual", currency: s.currency || "ZAR", banking: s.bankingDetails || null };
+    });
+  }
+  function listFees(ck) {
+    return clubCol(ck, "fees").get().then(function (snap) {
+      return snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+        .sort(function (a, b) { return String(a.type).localeCompare(String(b.type)) || String(a.name || "").localeCompare(String(b.name || "")); });
+    });
+  }
+  function createFee(ck, b) {
+    var d = feeData(b);
+    if (!d.type || !d.name || d.amountCents == null) return Promise.reject({ status: 400, body: { error: "type, name and amountCents required" } });
+    return ensureSignedIn().then(function () { return clubCol(ck, "fees").add(Object.assign({ createdAt: Date.now() }, d)); })
+      .then(function (ref) { return Object.assign({ id: ref.id }, d); });
+  }
+  function updateFee(ck, id, b) {
+    return ensureSignedIn().then(function () { return clubCol(ck, "fees").doc(id).update(feeData(b)); })
+      .then(function () { return clubCol(ck, "fees").doc(id).get(); })
+      .then(function (s) { if (!s.exists) return Promise.reject({ status: 404, body: { error: "Fee not found" } }); return Object.assign({ id: id }, s.data()); });
+  }
+  function deleteFee(ck, id) {
+    return ensureSignedIn().then(function () { return clubCol(ck, "fees").doc(id).delete(); }).then(function () { return { ok: true }; });
+  }
+  function listInvoices(ck, query) {
+    var status = query.get("status") || "", type = query.get("type") || "", q = (query.get("q") || "").trim().toLowerCase();
+    return clubCol(ck, "invoices").get().then(function (snap) {
+      var all = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      var totals = {};
+      all.forEach(function (r) { totals[r.status] = (totals[r.status] || 0) + (r.amountCents || 0); });
+      var rows = all;
+      if (status) rows = rows.filter(function (r) { return r.status === status; });
+      if (type) rows = rows.filter(function (r) { return r.type === type; });
+      if (q) rows = rows.filter(function (r) { return String(r.payerName || "").toLowerCase().indexOf(q) >= 0 || String(r.number || "").toLowerCase().indexOf(q) >= 0; });
+      rows.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+      return {
+        invoices: rows.map(function (r) { return invoiceOut(r.id, r); }),
+        totals: Object.keys(totals).map(function (k) { return { status: k, _sum: { amountCents: totals[k] } }; }),
+      };
+    });
+  }
+  function createInvoice(ck, b) {
+    var amountCents = Math.round(Number(b.amountCents));
+    if (!Number.isFinite(amountCents) || amountCents <= 0) return Promise.reject({ status: 400, body: { error: "amountCents required" } });
+    var doc = {
+      number: genInvoiceNumber(),
+      memberId: b.memberId ? String(b.memberId) : null,
+      payerName: b.payerName ? String(b.payerName) : "",
+      payerEmail: b.payerEmail ? String(b.payerEmail) : null,
+      type: FEE_TYPES.indexOf(String(b.type)) >= 0 ? String(b.type) : "levy",
+      description: b.description ? String(b.description) : "Charge",
+      amountCents: amountCents, status: "unpaid",
+      dueAt: b.dueAt || null, feeId: b.feeId ? String(b.feeId) : null, createdAt: Date.now(),
+    };
+    var pre = Promise.resolve();
+    if (doc.memberId && !doc.payerName) {
+      pre = clubCol(ck, "members").doc(doc.memberId).get().then(function (s) {
+        if (s.exists) { var m = s.data(); doc.payerName = ((m.firstName || "") + " " + (m.lastName || "")).trim(); doc.payerEmail = doc.payerEmail || m.email || null; }
+      });
+    }
+    return pre.then(function () {
+      if (!doc.payerName) return Promise.reject({ status: 400, body: { error: "payerName or memberId required" } });
+      return ensureSignedIn().then(function () { return clubCol(ck, "invoices").add(doc); });
+    }).then(function (ref) { return invoiceOut(ref.id, doc); });
+  }
+  function markInvoicePaid(ck, id, b) {
+    var ref = clubCol(ck, "invoices").doc(id);
+    return ref.get().then(function (s) {
+      if (!s.exists) return Promise.reject({ status: 404, body: { error: "Invoice not found" } });
+      if (s.data().status === "paid") return invoiceOut(id, s.data());
+      var upd = { status: "paid", paidAt: Date.now(), paymentMethod: b.method ? String(b.method) : "EFT", paymentRef: b.ref ? String(b.ref) : null };
+      return ensureSignedIn().then(function () { return ref.update(upd); }).then(function () { return invoiceOut(id, Object.assign({}, s.data(), upd)); });
+    });
+  }
+  function cancelInvoice(ck, id) {
+    var ref = clubCol(ck, "invoices").doc(id);
+    return ensureSignedIn().then(function () { return ref.update({ status: "cancelled" }); })
+      .then(function () { return ref.get(); })
+      .then(function (s) { if (!s.exists) return Promise.reject({ status: 404, body: { error: "Invoice not found" } }); return invoiceOut(id, s.data()); });
+  }
+  function issueDues(ck, b) {
+    var feeId = b.feeId ? String(b.feeId) : "";
+    if (!feeId) return Promise.reject({ status: 400, body: { error: "A dues fee is required" } });
+    return clubCol(ck, "fees").doc(feeId).get().then(function (fs) {
+      if (!fs.exists || fs.data().type !== "dues") return Promise.reject({ status: 400, body: { error: "A dues fee is required" } });
+      var fee = fs.data();
+      return Promise.all([clubCol(ck, "members").get(), clubCol(ck, "invoices").where("feeId", "==", feeId).get()]).then(function (res) {
+        var members = res[0].docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+          .filter(function (m) { return (m.status || "active") === "active" && (!fee.category || m.category === fee.category); });
+        var already = {};
+        res[1].docs.forEach(function (d) { var r = d.data(); if (r.memberId && r.status !== "cancelled") already[r.memberId] = true; });
+        var dueAt = b.dueAt || null, created = 0, skipped = 0;
+        var chain = ensureSignedIn();
+        members.forEach(function (m) {
+          chain = chain.then(function () {
+            if (already[m.id]) { skipped++; return; }
+            created++;
+            return clubCol(ck, "invoices").add({
+              number: genInvoiceNumber(), memberId: m.id, payerName: ((m.firstName || "") + " " + (m.lastName || "")).trim(),
+              payerEmail: m.email || null, type: "dues", description: fee.name, amountCents: fee.amountCents,
+              status: "unpaid", dueAt: dueAt, feeId: feeId, createdAt: Date.now(),
+            });
+          });
+        });
+        return chain.then(function () { return { ok: true, created: created, skipped: skipped, candidates: members.length }; });
+      });
+    });
+  }
+  function myInvoices(ck, memberId) {
+    if (!memberId) return Promise.reject({ status: 400, body: { error: "memberId required" } });
+    return clubCol(ck, "invoices").where("memberId", "==", String(memberId)).get().then(function (snap) {
+      var rows = snap.docs.map(function (d) { return invoiceOut(d.id, d.data()); });
+      var outstanding = rows.filter(function (r) { return r.status === "unpaid"; }).reduce(function (n, r) { return n + r.amountCents; }, 0);
+      rows.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+      return { invoices: rows, outstandingCents: outstanding };
+    });
+  }
+
   function dispatch(method, root, rest, query, body) {
     // root = club|members|bookings|competitions|news ; rest = path parts after it
     var ck = rest[0];
@@ -560,6 +710,9 @@
             intervalMin: Math.max(1, num(body.intervalMin, s.intervalMin)), slotCapacity: Math.max(1, num(body.slotCapacity, s.slotCapacity)),
             bookingWindowDays: Math.max(0, num(body.bookingWindowDays, s.bookingWindowDays)),
             openDays: body.openDays != null ? String(body.openDays) : s.openDays,
+            currency: body.currency != null ? String(body.currency) : (s.currency || "ZAR"),
+            bankingDetails: "bankingDetails" in body ? (body.bankingDetails ? String(body.bankingDetails) : null) : (s.bankingDetails || null),
+            chargeGreenFeeOnBooking: "chargeGreenFeeOnBooking" in body ? !!body.chargeGreenFeeOnBooking : !!s.chargeGreenFeeOnBooking,
           };
           return ensureSignedIn().then(function () { return clubRef(ck).set(upd, { merge: true }); })
             .then(function () { return publicSettings(ck, Object.assign({}, s, upd)); });
@@ -634,12 +787,30 @@
       if (method === "DELETE" && rest.length === 2) return deleteNotice(ck, id);
     }
 
+    if (root === "payments") {
+      if (method === "GET" && a === "config") return paymentsConfig(ck);
+      if (method === "GET" && a === "mine") return myInvoices(ck, query.get("memberId"));
+      if (method === "POST" && a === "issue-dues") return issueDues(ck, body);
+      if (a === "fees") {
+        if (method === "GET" && rest.length === 2) return listFees(ck);
+        if (method === "POST" && rest.length === 2) return createFee(ck, body);
+        if (method === "PUT" && rest.length === 3) return updateFee(ck, c, body);
+        if (method === "DELETE" && rest.length === 3) return deleteFee(ck, c);
+      }
+      if (a === "invoices") {
+        if (method === "GET" && rest.length === 2) return listInvoices(ck, query);
+        if (method === "POST" && rest.length === 2) return createInvoice(ck, body);
+        if (method === "POST" && rest[3] === "mark-paid") return markInvoicePaid(ck, c, body);
+        if (method === "POST" && rest[3] === "cancel") return cancelInvoice(ck, c);
+      }
+    }
+
     return Promise.reject({ status: 404, body: { error: "unknown route: " + method + " /" + root + "/" + rest.join("/") } });
   }
 
   // ---- fetch shim ------------------------------------------------------------
   var _fetch = window.fetch ? window.fetch.bind(window) : null;
-  var ROOTS = /\/(club|members|bookings|competitions|news)(\/[^?#]*)?(\?[^#]*)?$/;
+  var ROOTS = /\/(club|members|bookings|competitions|news|payments)(\/[^?#]*)?(\?[^#]*)?$/;
   function jsonResponse(status, obj) {
     var body = JSON.stringify(obj == null ? null : obj);
     if (typeof Response === "function") return new Response(body, { status: status, headers: { "Content-Type": "application/json" } });
