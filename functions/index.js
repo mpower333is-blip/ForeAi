@@ -10,7 +10,9 @@
 // registers each member's Expo push token at clubs/{clubKey}/pushTokens/{memberId}.
 //
 // Deploy:  firebase deploy --only functions   (needs the Blaze plan)
-// See docs/push-invites-setup.md for the one-time Expo/EAS setup.
+// or push to kempton to deploy via GitHub Actions (.github/workflows/
+// firebase-functions-deploy.yml). See docs/push-invites-setup.md for the
+// one-time Expo/EAS setup.
 
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { setGlobalOptions } = require("firebase-functions/v2");
