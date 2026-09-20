@@ -253,10 +253,81 @@
       var okName = lastName && m.lastName && lastName === String(m.lastName).toLowerCase();
       if (!okEmail && !okName) return Promise.reject({ status: 403, body: { error: "Details don't match our records" } });
       var deviceId = b.deviceId ? String(b.deviceId) : null;
-      var finish = function () { return memberOut(doc.id, ck, Object.assign({}, m, deviceId ? { deviceId: deviceId } : {})); };
-      if (!deviceId) return finish();
-      return ensureSignedIn().then(function () { return doc.ref.update({ deviceId: deviceId }); }).then(finish);
+      var out = memberOut(doc.id, ck, Object.assign({}, m, deviceId ? { deviceId: deviceId } : {}));
+      // Sign in, bind the device (if given), and link any shared-directory entries
+      // that share this member's phone so they can "select themselves". Linking is
+      // best-effort — never fail the claim over it.
+      return ensureSignedIn()
+        .then(function () { return deviceId ? doc.ref.update({ deviceId: deviceId }) : null; })
+        .then(function () { return linkPlayerToMember(ck, m, doc.id); })
+        .then(function () { return out; });
     });
+  }
+
+  // ---- players (shared club buddy directory) --------------------------------
+  // A club-wide directory of playing partners. When you build a 4-ball you can
+  // pick someone already in here or add a new name + phone; new people are saved
+  // so every member can reuse them next time. Deduped by phone number. When a
+  // person later links their membership (claim) with the SAME phone, their
+  // directory entry is tied to that member — so they "select themselves" as the
+  // real member rather than a typed-in guest.
+  function normPhone(s) { return String(s == null ? "" : s).replace(/[^0-9]/g, ""); }
+  function playerOut(id, ck, p) {
+    return {
+      id: id, clubKey: ck, name: p.name || "", phone: p.phone || "",
+      memberId: p.memberId || null, memberNumber: p.memberNumber || null,
+    };
+  }
+  function findPlayerByPhone(ck, phone) {
+    var digits = normPhone(phone);
+    if (!digits) return Promise.resolve(null);
+    return clubCol(ck, "players").where("phoneKey", "==", digits).get()
+      .then(function (s) { return s.empty ? null : s.docs[0]; });
+  }
+  function listPlayers(ck, q) {
+    return clubCol(ck, "players").get().then(function (snap) {
+      var rows = snap.docs.map(function (d) { return playerOut(d.id, ck, d.data()); });
+      if (q) {
+        var needle = String(q).toLowerCase();
+        var digits = normPhone(q);
+        rows = rows.filter(function (p) {
+          return (p.name && p.name.toLowerCase().indexOf(needle) >= 0) ||
+                 (digits && normPhone(p.phone).indexOf(digits) >= 0);
+        });
+      }
+      rows.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+      return rows;
+    });
+  }
+  function upsertPlayer(ck, b) {
+    var name = b && b.name ? String(b.name).trim() : "";
+    var phone = b && b.phone ? String(b.phone).trim() : "";
+    if (!name) return Promise.reject({ status: 400, body: { error: "name required" } });
+    var digits = normPhone(phone);
+    return ensureSignedIn().then(function () {
+      // No phone → can't dedupe, so just add the name.
+      if (!digits) {
+        var rec0 = { name: name, phone: phone, phoneKey: "", memberId: null, memberNumber: null, createdAt: Date.now() };
+        return clubCol(ck, "players").add(rec0).then(function (ref) { return playerOut(ref.id, ck, rec0); });
+      }
+      return findPlayerByPhone(ck, digits).then(function (doc) {
+        if (doc) {
+          return doc.ref.update({ name: name, phone: phone })
+            .then(function () { return playerOut(doc.id, ck, Object.assign({}, doc.data(), { name: name, phone: phone })); });
+        }
+        var rec = { name: name, phone: phone, phoneKey: digits, memberId: null, memberNumber: null, createdAt: Date.now() };
+        return clubCol(ck, "players").add(rec).then(function (ref) { return playerOut(ref.id, ck, rec); });
+      });
+    });
+  }
+  // Link a directory entry with this member's phone to the member (best-effort).
+  function linkPlayerToMember(ck, member, memberId) {
+    var digits = normPhone(member && member.cell);
+    if (!digits) return Promise.resolve();
+    return findPlayerByPhone(ck, digits).then(function (doc) {
+      if (!doc) return null;
+      return doc.ref.update({ memberId: memberId, memberNumber: member.memberNumber || null });
+    }).catch(function () { return null; });
   }
 
   // ---- bookings --------------------------------------------------------------
@@ -814,6 +885,11 @@
       }
     }
 
+    if (root === "players") {
+      if (method === "GET" && rest.length === 1) return listPlayers(ck, query.get("q") || "");
+      if (method === "POST" && rest.length === 1) return upsertPlayer(ck, body);
+    }
+
     if (root === "bookings") {
       if (method === "POST" && rest.length === 1) return createBooking(ck, body);
       if (method === "GET" && a === "slots") return daySlots(ck, query.get("date"));
@@ -882,7 +958,7 @@
 
   // ---- fetch shim ------------------------------------------------------------
   var _fetch = window.fetch ? window.fetch.bind(window) : null;
-  var ROOTS = /\/(club|members|bookings|competitions|news|payments)(\/[^?#]*)?(\?[^#]*)?$/;
+  var ROOTS = /\/(club|members|players|bookings|competitions|news|payments)(\/[^?#]*)?(\?[^#]*)?$/;
   function jsonResponse(status, obj) {
     var body = JSON.stringify(obj == null ? null : obj);
     if (typeof Response === "function") return new Response(body, { status: status, headers: { "Content-Type": "application/json" } });

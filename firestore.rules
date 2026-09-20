@@ -155,6 +155,15 @@ service cloud.firestore {
         allow update: if isClubAdmin(clubKey)
           || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deviceId']));
       }
+      // Shared playing-partner directory (buddies). Any member can search it and
+      // add a partner (name + phone) when building a 4-ball; it is deduped by
+      // phone and linked to a member when they claim with the same number. Admin
+      // may prune it.
+      match /players/{playerId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn();
+        allow delete: if isClubAdmin(clubKey);
+      }
       match /bookings/{bookingId} {
         allow read: if isSignedIn();
         allow write: if isSignedIn();                            // members book/cancel; admin blocks slots

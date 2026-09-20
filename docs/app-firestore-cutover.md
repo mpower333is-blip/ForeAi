@@ -10,7 +10,8 @@ invoices the office raises in the portal.
 
 - `mobile/src/services/clubFs.js` — the app's Firestore data layer, **ported
   verbatim from `clubhouse/club-fs.js`** (same collections + logic:
-  `clubs/{clubKey}/members|bookings|competitions|notices|fees|invoices`). Uses the
+  `clubs/{clubKey}/members|players|bookings|competitions|notices|fees|invoices`).
+  (`players` is the shared playing-partner directory — buddies.) Uses the
   firebase **compat** SDK with long-polling for React Native. Keep in sync with
   `club-fs.js`.
 - `mobile/src/services/clubBackend.ts` — `clubRequest()`: routes club calls to

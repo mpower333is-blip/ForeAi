@@ -65,6 +65,17 @@ export type Booking = {
   status: string;
 };
 
+// A saved playing partner in the club's shared directory. `memberId` is set once
+// that person links their own membership (so they're a real member, not a guest).
+export type PlayerCard = {
+  id: string;
+  clubKey: string;
+  name: string;
+  phone: string;
+  memberId: string | null;
+  memberNumber: string | null;
+};
+
 // Firestore in club mode (same store as the web portal), Render otherwise.
 const j = clubRequest;
 
@@ -101,5 +112,16 @@ export const membershipApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ memberId }),
+    }),
+
+  // Shared playing-partner directory (buddies) — search it, and save a new
+  // partner so it's there for everyone next time.
+  players: (q?: string) =>
+    j<PlayerCard[]>(`/players/${CK()}${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+  savePlayer: (body: { name: string; phone?: string }) =>
+    j<PlayerCard>(`/players/${CK()}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     }),
 };
