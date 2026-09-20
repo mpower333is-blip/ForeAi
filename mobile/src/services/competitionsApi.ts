@@ -1,7 +1,7 @@
 // Backend client for club competitions. Fails loud with tidy Error messages so
 // the screen can surface them; scoped to the app's club flavour (CLUB).
 
-import { API_BASE } from "./api";
+import { clubRequest } from "./clubBackend";
 import { CLUB } from "../config/appVariant";
 
 export type CompFormat = "stableford" | "stroke" | "betterball";
@@ -52,12 +52,8 @@ export type CompetitionDetail = CompetitionSummary & {
   myEntry: CompEntry | null;
 };
 
-async function j<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, init);
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((body as any)?.error || `Request failed (${res.status})`);
-  return body as T;
-}
+// Firestore in club mode (same store as the web portal), Render otherwise.
+const j = clubRequest;
 const CK = () => CLUB || "kempton";
 const jsonBody = (b: unknown): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) });
 

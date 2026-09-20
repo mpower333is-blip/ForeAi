@@ -4,7 +4,7 @@
 // a clear message rather than crashing. Scoped to the app's club flavour via
 // CLUB (e.g. "kempton"); a non-club build has no clubKey and these are unused.
 
-import { API_BASE } from "./api";
+import { clubRequest } from "./clubBackend";
 import { CLUB } from "../config/appVariant";
 
 export type MemberCard = {
@@ -65,12 +65,8 @@ export type Booking = {
   status: string;
 };
 
-async function j<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, init);
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((body as any)?.error || `Request failed (${res.status})`);
-  return body as T;
-}
+// Firestore in club mode (same store as the web portal), Render otherwise.
+const j = clubRequest;
 
 const CK = () => CLUB || "kempton";
 

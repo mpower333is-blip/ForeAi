@@ -16,6 +16,14 @@
 export const CLUB = process.env.EXPO_PUBLIC_CLUB || "";
 export const IS_CLUB_APP = CLUB !== "";
 
+// Club data store. The club portal (foreai.co.za) runs on Firestore; this makes
+// the app read/write the SAME Firestore (members, tee times, competitions, news,
+// payments) instead of the Render backend. OFF by default — enable per build with
+// EXPO_PUBLIC_USE_FIRESTORE="1", but ONLY once the Firestore security rules permit
+// the member app's operations (see docs/app-firestore-cutover.md). Until then the
+// app keeps using the Render backend, so nothing breaks.
+export const USE_FIRESTORE = process.env.EXPO_PUBLIC_USE_FIRESTORE === "1";
+
 // Per-club config. Add a club by adding an entry keyed by its EXPO_PUBLIC_CLUB
 // value; everything else (course data, GPS, watch) is already shared.
 export type ClubConfig = {

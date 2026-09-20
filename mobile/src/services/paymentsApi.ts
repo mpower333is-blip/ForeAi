@@ -2,7 +2,7 @@
 // competition entries, levies) and starting a payment (PayFast hosted checkout
 // or EFT banking details). Scoped to the app's club flavour via CLUB.
 
-import { API_BASE } from "./api";
+import { clubRequest } from "./clubBackend";
 import { CLUB } from "../config/appVariant";
 
 export type Invoice = {
@@ -26,12 +26,8 @@ export type CheckoutResult =
   | { mode: "payfast"; url: string }
   | { mode: "manual"; banking: string | null; reference: string; amountCents: number; currency: string };
 
-async function j<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, init);
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((body as any)?.error || `Request failed (${res.status})`);
-  return body as T;
-}
+// Firestore in club mode (same store as the web portal), Render otherwise.
+const j = clubRequest;
 
 const CK = () => CLUB || "kempton";
 

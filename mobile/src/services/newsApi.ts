@@ -1,6 +1,6 @@
 // Backend client for club news / noticeboard. Scoped to the app's club flavour.
 
-import { API_BASE } from "./api";
+import { clubRequest } from "./clubBackend";
 import { CLUB } from "../config/appVariant";
 
 export type Notice = {
@@ -16,12 +16,8 @@ export type Notice = {
   publishAt: string;
 };
 
-async function j<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`);
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((body as any)?.error || `Request failed (${res.status})`);
-  return body as T;
-}
+// Firestore in club mode (same store as the web portal), Render otherwise.
+const j = clubRequest;
 const CK = () => CLUB || "kempton";
 
 export const newsApi = {
