@@ -1,4 +1,7 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "public": "clubhouse",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "**/README*.md"],

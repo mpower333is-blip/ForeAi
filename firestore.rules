@@ -1,0 +1,193 @@
+rules_version = '2';
+
+// ForeAi Firestore security rules — the cutover model (clients read/write
+// Firestore directly). Deploy with:  firebase deploy --only firestore:rules
+// (run from this repo root; project is set in .firebaserc → foreai-f9cfa).
+//
+// Safe to deploy before the flip: it keeps the event read-model PUBLICLY READABLE
+// (the live board/TV need no login) and the backend still mirrors via the Admin
+// SDK (which bypasses rules). It only ADDS write permissions that nothing uses
+// until an app/web build runs with the Firestore flag on. See
+// docs/render-firebase-cutover.md.
+//
+// Model: Firebase Auth replaces admin PINs. Organisers have an adminUsers/{uid}
+// doc (clubKey set server-side only). Players and the public register form use
+// Anonymous Auth. Event admin = the event's ownerUid (or any organiser for a
+// legacy event migrated without one).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- helpers ---------------------------------------------------------
+    function isSignedIn() { return request.auth != null; }
+
+    // Platform owners (main admins) — full access to every club + event. Listed
+    // HERE, not in an env var or the console, so provisioning needs ZERO Firebase
+    // setup: these accounts are owners the moment they sign in. Emails are not
+    // secrets. Add/remove an owner by editing this list and re-publishing.
+    function owners() {
+      return ['marcell.laubscher@outlook.com', 'mpower333is@gmail.com'];
+    }
+    // Lower-cased so the owners() match is case-insensitive (Firebase may store
+    // the address with different capitalisation than the user typed).
+    function myEmail() {
+      return (isSignedIn() && request.auth.token.email != null) ? request.auth.token.email.lower() : '';
+    }
+    function isSuperAdmin() { return myEmail() in owners(); }
+
+    function isOrganiser() {
+      return isSignedIn() && exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid));
+    }
+    function adminData() {
+      return get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data;
+    }
+    function myClubKey() { return isOrganiser() ? adminData().clubKey : null; }
+    // Owner = ONLY a hardcoded platform owner (owners() email list). A user's own
+    // adminUsers.role never grants owner, so a stray 'owner' role can't escalate.
+    function isOwner() { return isSuperAdmin(); }
+    function isClubAdmin(k) { return isOwner() || (isOrganiser() && myClubKey() == k); }
+    function eventData(eid) {
+      return get(/databases/$(database)/documents/events/$(eid)).data;
+    }
+    // Event admin = an owner, the event's own creator, a linked co-admin
+    // (events/{id}.admins), or any organiser for a legacy (ownerless) event.
+    function isEventAdmin(eid) {
+      return isSignedIn() && (
+        isOwner()
+        || eventData(eid).ownerUid == request.auth.uid
+        || (request.auth.uid in eventData(eid).get('admins', []))
+        || (eventData(eid).ownerUid == null && isOrganiser())
+      );
+    }
+
+    // ---- golfer app data (per user) --------------------------------------
+    match /users/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+      match /{sub=**} {
+        allow read, write: if isSignedIn() && request.auth.uid == uid;
+      }
+    }
+
+    // ---- organiser accounts (self-service — no Cloud Function / console) --
+    //  • on sign-in you may CREATE your own record, but only as a plain
+    //    'organiser' with no club — you cannot grant yourself a club or owner;
+    //  • you may UPDATE your own record's profile fields, but never change your
+    //    own role or clubKey (no self-escalation);
+    //  • an owner may read and write ANYONE's record (assign a club, promote).
+    // So Marcell (an owner email above) becomes the main admin automatically, and
+    // Jurian self-provisions as an organiser who can only manage his OWN events.
+    match /adminUsers/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isOwner());
+      allow create: if isOwner()
+        || (request.auth.uid == uid
+            && request.resource.data.role == 'organiser'
+            && request.resource.data.clubKey == null);
+      allow update: if isOwner()
+        || (request.auth.uid == uid
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.clubKey == resource.data.clubKey);
+      allow delete: if isOwner();
+    }
+
+    // ---- events (golf days) ----------------------------------------------
+    match /events/{eventId} {
+      allow read: if true;                                          // board/TV/app join by code
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isEventAdmin(eventId);
+
+      match /players/{playerId} {
+        allow read: if true;
+        allow create, update, delete: if isSignedIn();              // self-register, claim, group edit
+      }
+      match /positions/{playerId} {
+        allow read: if true;
+        allow write: if isSignedIn();                               // GPS heartbeat
+      }
+      match /scores/{scoreId} {
+        allow read: if true;
+        allow create, update, delete: if isSignedIn();              // any device in the group posts
+      }
+      match /groups/{groupId} {
+        allow read: if true;
+        allow create, update, delete: if isSignedIn();
+      }
+      match /contests/{contestId} {
+        allow read: if true;
+        // The REST backend never gated side-games, and the organiser's own device
+        // (app) or browser adds them — keep parity: any signed-in client.
+        allow create, update, delete: if isSignedIn();
+        match /results/{resultId} {
+          allow read: if true;
+          allow create, update, delete: if isSignedIn();
+        }
+      }
+      match /sponsors/{sponsorId} {
+        allow read: if true;
+        allow create: if isSignedIn();                              // registration form (anon auth)
+        allow update, delete: if isEventAdmin(eventId);
+      }
+      match /registrations/{regId} {
+        allow read: if isEventAdmin(eventId);                       // office only
+        allow create: if isSignedIn();                             // public register form (anon auth)
+        allow update, delete: if isEventAdmin(eventId);
+      }
+      match /shotMarks/{markId} {
+        allow read, create: if isSignedIn();                       // append-only, watch → phone
+      }
+    }
+
+    match /eventCodes/{code} {
+      allow read: if true;                                          // join-by-code lookup
+      allow create: if isSignedIn();
+      allow update: if false;                                       // codes are immutable
+      allow delete: if isOwner();                                   // owner cleans up a deleted event's code
+    }
+
+    // ---- club data (scoped by clubKey via the path) ----------------------
+    match /clubs/{clubKey} {
+      allow read: if true;                                          // tee-sheet shape, club name
+      allow write: if isClubAdmin(clubKey);
+
+      match /members/{memberId} {
+        allow read: if isSignedIn();
+        allow create, delete: if isClubAdmin(clubKey);           // admin manages the roster
+        // Admin edits the roster; a member's app may only bind its own device (claim).
+        allow update: if isClubAdmin(clubKey)
+          || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deviceId']));
+      }
+      match /bookings/{bookingId} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();                            // members book/cancel; admin blocks slots
+      }
+      match /competitions/{compId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isClubAdmin(clubKey);   // admin runs the calendar
+        match /entries/{entryId} {
+          allow read: if isSignedIn();
+          allow write: if isSignedIn();                          // members enter / withdraw / submit a card
+        }
+      }
+      match /notices/{noticeId} {
+        allow read: if true;                                        // members read club news
+        allow write: if isClubAdmin(clubKey);
+      }
+      // Payments — the price list and member invoices (dues, green fees,
+      // competition entries, levies). The office (club admin) raises/marks/cancels;
+      // members read the price list and their own invoices in the app.
+      match /fees/{feeId} {
+        allow read: if isSignedIn();                             // app + portal read the price list
+        allow write: if isClubAdmin(clubKey);                    // only admin edits fees
+      }
+      match /invoices/{invoiceId} {
+        allow read: if isSignedIn();                             // member reads own (app filters); admin reads all
+        allow write: if isClubAdmin(clubKey);                    // admin raises / marks paid / cancels
+      }
+    }
+
+    // ---- push devices (read only by the lightningWatch Admin SDK) ---------
+    match /pushDevices/{deviceId} {
+      allow read: if false;
+      allow create, update, delete: if isSignedIn();               // a device registers itself
+    }
+  }
+}

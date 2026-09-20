@@ -216,6 +216,26 @@ var auth = firebase.auth ? firebase.auth() : null;
     return chain.then(function () { return { ok: true, updated: updated, total: entries.length }; });
   }
 
+  // Member app: verify identity (number + email OR surname) and bind this device.
+  // The Firestore rules only permit a member to change the deviceId field.
+  function claimMember(ck, b) {
+    var number = b && b.memberNumber ? String(b.memberNumber).trim() : "";
+    if (!number) return Promise.reject({ status: 400, body: { error: "memberNumber required" } });
+    return findMemberByNumber(ck, number).then(function (doc) {
+      if (!doc) return Promise.reject({ status: 404, body: { error: "No member with that number" } });
+      var m = doc.data();
+      var email = b.email ? String(b.email).trim().toLowerCase() : "";
+      var lastName = b.lastName ? String(b.lastName).trim().toLowerCase() : "";
+      var okEmail = email && m.email && email === String(m.email).toLowerCase();
+      var okName = lastName && m.lastName && lastName === String(m.lastName).toLowerCase();
+      if (!okEmail && !okName) return Promise.reject({ status: 403, body: { error: "Details don't match our records" } });
+      var deviceId = b.deviceId ? String(b.deviceId) : null;
+      var finish = function () { return memberOut(doc.id, ck, Object.assign({}, m, deviceId ? { deviceId: deviceId } : {})); };
+      if (!deviceId) return finish();
+      return ensureSignedIn().then(function () { return doc.ref.update({ deviceId: deviceId }); }).then(finish);
+    });
+  }
+
   // ---- bookings --------------------------------------------------------------
   function bookingOut(id, ck, b) {
     return {
@@ -294,6 +314,42 @@ var auth = firebase.auth ? firebase.auth() : null;
       // Admin (organiser) is authorised via the Firestore rules; allow the write.
       return ensureSignedIn().then(function () { return ref.update({ status: "cancelled" }); })
         .then(function () { return bookingOut(id, ck, Object.assign({}, bk, { status: "cancelled" })); });
+    });
+  }
+
+  // Member app: book a tee time. Mirrors backend/routes/bookings.ts (validate the
+  // slot, open day, booking window, capacity, no double-booking).
+  function createBooking(ck, b) {
+    return getSettings(ck).then(function (s) {
+      var memberId = b && b.memberId ? String(b.memberId) : "";
+      var date = b && b.date ? String(b.date).slice(0, 10) : "";
+      var minute = Number(b && b.minute);
+      var partySize = Math.max(1, Math.min(s.slotCapacity, Number(b && b.partySize) || 1));
+      if (!memberId || !date || !Number.isFinite(minute)) return Promise.reject({ status: 400, body: { error: "memberId, date and minute required" } });
+      return clubCol(ck, "members").doc(memberId).get().then(function (msnap) {
+        if (!msnap.exists) return Promise.reject({ status: 404, body: { error: "Member not found" } });
+        var member = msnap.data();
+        if (member.status !== "active") return Promise.reject({ status: 403, body: { error: "Membership is not active" } });
+        var aligned = minute >= s.firstTeeMin && minute <= s.lastTeeMin && (minute - s.firstTeeMin) % s.intervalMin === 0;
+        if (!aligned) return Promise.reject({ status: 400, body: { error: "Not a valid tee time" } });
+        var openDays = String(s.openDays).split(",").map(function (x) { return Number(x.trim()); });
+        if (openDays.indexOf(weekday(date)) < 0) return Promise.reject({ status: 400, body: { error: "The course is closed that day" } });
+        var daysAhead = Math.round((slotMs(date, 0) - slotMs(todayStrSAST(), 0)) / 86400000);
+        if (daysAhead < 0) return Promise.reject({ status: 400, body: { error: "That day has passed" } });
+        if (daysAhead > s.bookingWindowDays) return Promise.reject({ status: 400, body: { error: "Bookings open " + s.bookingWindowDays + " days ahead" } });
+        var ms = slotMs(date, minute);
+        return clubCol(ck, "bookings").where("teeMs", "==", ms).get().then(function (snap) {
+          var existing = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+            .filter(function (e) { return e.status === "booked" || e.status === "blocked"; });
+          if (existing.some(function (e) { return e.status === "blocked"; })) return Promise.reject({ status: 409, body: { error: "That slot is blocked" } });
+          if (existing.some(function (e) { return e.memberId === memberId; })) return Promise.reject({ status: 409, body: { error: "You already have this slot" } });
+          var seats = existing.reduce(function (n, e) { return n + (e.partySize || 1); }, 0);
+          if (seats + partySize > s.slotCapacity) return Promise.reject({ status: 409, body: { error: "Only " + (s.slotCapacity - seats) + " seat(s) left in that slot" } });
+          var players = Array.isArray(b.players) ? b.players.map(String).slice(0, partySize) : [((member.firstName || "") + " " + (member.lastName || "")).trim()];
+          var rec = { teeMs: ms, teeAt: new Date(ms).toISOString(), courseId: s.courseId || "", memberId: memberId, partySize: partySize, players: players, note: b.note ? String(b.note) : null, status: "booked", createdAt: Date.now() };
+          return ensureSignedIn().then(function () { return clubCol(ck, "bookings").add(rec); }).then(function (ref) { return bookingOut(ref.id, ck, rec); });
+        });
+      });
     });
   }
 
@@ -556,6 +612,19 @@ var auth = firebase.auth ? firebase.auth() : null;
       return { mode: s.paymentsMode || "manual", currency: s.currency || "ZAR", banking: s.bankingDetails || null };
     });
   }
+  function paymentsCheckout(ck, b) {
+    var invoiceId = b && b.invoiceId ? String(b.invoiceId) : "";
+    if (!invoiceId) return Promise.reject({ status: 400, body: { error: "invoiceId required" } });
+    return Promise.all([getSettings(ck), clubCol(ck, "invoices").doc(invoiceId).get()]).then(function (r) {
+      var s = r[0], inv = r[1];
+      if (!inv.exists) return Promise.reject({ status: 404, body: { error: "Invoice not found" } });
+      var d = inv.data();
+      if (d.status === "paid") return Promise.reject({ status: 409, body: { error: "Already paid" } });
+      if (d.status === "cancelled") return Promise.reject({ status: 409, body: { error: "Invoice cancelled" } });
+      // No server-side PayFast in Firestore mode — members pay by EFT with the reference.
+      return { mode: "manual", banking: s.bankingDetails || null, reference: d.number, amountCents: d.amountCents, currency: s.currency || "ZAR" };
+    });
+  }
   function listFees(ck) {
     return clubCol(ck, "fees").get().then(function (snap) {
       return snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
@@ -706,6 +775,7 @@ var auth = firebase.auth ? firebase.auth() : null;
     if (root === "members") {
       if (method === "GET" && a === "all") return listMembers(ck, query.get("q") || "");
       if (method === "POST" && rest.length === 1) return createMember(ck, body);
+      if (method === "POST" && a === "claim") return claimMember(ck, body);
       if (method === "POST" && a === "import") return importMembers(ck, body.members);
       if (method === "POST" && a === "sync-hna") return syncHna(ck, body);
       if (method === "PUT" && rest.length === 2) return updateMember(ck, id, body);
@@ -722,6 +792,7 @@ var auth = firebase.auth ? firebase.auth() : null;
     }
 
     if (root === "bookings") {
+      if (method === "POST" && rest.length === 1) return createBooking(ck, body);
       if (method === "GET" && a === "slots") return daySlots(ck, query.get("date"));
       if (method === "GET" && a === "day") return dayBookings(ck, query.get("date"));
       if (method === "POST" && a === "block") return blockSlot(ck, body);
@@ -766,6 +837,7 @@ var auth = firebase.auth ? firebase.auth() : null;
 
     if (root === "payments") {
       if (method === "GET" && a === "config") return paymentsConfig(ck);
+      if (method === "POST" && a === "checkout") return paymentsCheckout(ck, body);
       if (method === "GET" && a === "mine") return myInvoices(ck, query.get("memberId"));
       if (method === "POST" && a === "issue-dues") return issueDues(ck, body);
       if (a === "fees") {
@@ -787,9 +859,6 @@ var auth = firebase.auth ? firebase.auth() : null;
 
 
 // ---- app entry point (replaces the browser fetch shim) --------------------
-// Parse a REST-style path (e.g. "/members/kempton/all?q=foo") and run it against
-// Firestore via dispatch(). Returns a fetch-like { ok, status, json() } so the
-// existing API clients need almost no change.
 var ROOTS = /\/(club|members|bookings|competitions|news|payments)(\/[^?#]*)?(\?[^#]*)?$/;
 function makeQuery(qs) {
   var params = {};
