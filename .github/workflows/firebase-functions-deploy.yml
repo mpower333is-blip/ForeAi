@@ -1,0 +1,50 @@
+# Deploys the Cloud Functions (functions/) to Firebase — no local terminal needed.
+#
+# Runs automatically when anything under functions/ (or firebase.json) changes on
+# the kempton branch, and can be triggered by hand from the GitHub website/app
+# (Actions tab → this workflow → "Run workflow"), which is the phone-friendly way.
+#
+# PREREQUISITES (one-time, done from a phone browser):
+#   1. Enable the Blaze (pay-as-you-go) plan on project foreai-f9cfa — Cloud
+#      Functions cannot deploy on the free Spark plan.
+#   2. Grant the deploy service account (the one behind the
+#      FIREBASE_SERVICE_ACCOUNT_FOREAI_F9CFA secret) these IAM roles in the Google
+#      Cloud console (IAM & Admin → find the github-action-… service account →
+#      Edit → add roles):
+#        • Cloud Functions Admin
+#        • Cloud Run Admin
+#        • Artifact Registry Administrator
+#        • Eventarc Admin
+#        • Service Account User
+#      (These are needed because v2 functions build + run on Cloud Run via
+#      Eventarc. The hosting deploy doesn't need them, which is why they may be
+#      missing today.)
+name: Deploy Cloud Functions
+on:
+  push:
+    branches:
+      - kempton
+    paths:
+      - "functions/**"
+      - "firebase.json"
+      - ".github/workflows/firebase-functions-deploy.yml"
+  workflow_dispatch: {} # manual "Run workflow" button (works from the GitHub app)
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install function dependencies
+        working-directory: functions
+        run: npm ci
+      - name: Write the service account key
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_FOREAI_F9CFA }}
+        run: printf '%s' "$SA" > "${RUNNER_TEMP}/sa.json"
+      - name: Deploy functions
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx firebase-tools@latest deploy --only functions --project foreai-f9cfa --non-interactive
