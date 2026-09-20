@@ -497,6 +497,12 @@ workflows:
         # (see render.yaml → foreai-kempton-backend), so the club runs on its
         # own instance rather than the shared ForeAi backend.
         EXPO_PUBLIC_API_URL: "https://foreai-kempton-backend.onrender.com"
+        # Club data (members, tee times, competitions, news, payments) reads/writes
+        # the SAME Firestore as the portal (foreai.co.za) instead of the Render
+        # backend above — app + office share one store. Safe only after the
+        # Firestore rules are deployed (firebase deploy --only firestore:rules).
+        # See docs/app-firestore-cutover.md.
+        EXPO_PUBLIC_USE_FIRESTORE: "1"
     cache:
       cache_paths:
         - $HOME/.npm
@@ -566,6 +572,12 @@ workflows:
       vars:
         EXPO_PUBLIC_CLUB: "kempton"
         EXPO_PUBLIC_API_URL: "https://foreai-kempton-backend.onrender.com"
+        # Club data (members, tee times, competitions, news, payments) reads/writes
+        # the SAME Firestore as the portal (foreai.co.za) instead of the Render
+        # backend above — app + office share one store. Safe only after the
+        # Firestore rules are deployed (firebase deploy --only firestore:rules).
+        # See docs/app-firestore-cutover.md.
+        EXPO_PUBLIC_USE_FIRESTORE: "1"
     cache:
       cache_paths:
         - $HOME/.npm
@@ -646,6 +658,12 @@ workflows:
         # own backend. Present for prebuild AND the Xcode build.
         EXPO_PUBLIC_CLUB: "kempton"
         EXPO_PUBLIC_API_URL: "https://foreai-kempton-backend.onrender.com"
+        # Club data (members, tee times, competitions, news, payments) reads/writes
+        # the SAME Firestore as the portal (foreai.co.za) instead of the Render
+        # backend above — app + office share one store. Safe only after the
+        # Firestore rules are deployed (firebase deploy --only firestore:rules).
+        # See docs/app-firestore-cutover.md.
+        EXPO_PUBLIC_USE_FIRESTORE: "1"
     scripts:
       - name: Install JS dependencies
         script: |
