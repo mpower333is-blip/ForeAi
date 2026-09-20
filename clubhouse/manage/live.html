@@ -6,7 +6,7 @@
 <title>ForeAi · Live course map</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <style>
-  :root{ --bg:#06170F; --panel:#0f2418; --ink:#eafff2; --muted:#9fc4b0; --line:#1d3a2a; --accent:#39d98a; --sky:#6BD5FF; --stale:#7d8f84; }
+  :root{ --bg:#081226; --panel:#0f2143; --ink:#f2f6ff; --muted:#b7c6e6; --line:#26407a; --accent:#f3c33b; --sky:#6BD5FF; --stale:#7f92b6; }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Arial,sans-serif}
   .wrap{display:flex;flex-direction:column;height:100%}
@@ -15,8 +15,8 @@
   header .brand b{color:var(--accent)}
   header .sub{color:var(--muted);font-size:12px}
   header .spacer{flex:1}
-  input,button{font:inherit;border-radius:9px;border:1px solid var(--line);background:#0b1f16;color:var(--ink);padding:8px 10px}
-  button{cursor:pointer;font-weight:700;background:var(--accent);color:#062012;border:none}
+  input,button{font:inherit;border-radius:9px;border:1px solid var(--line);background:#0a1730;color:var(--ink);padding:8px 10px}
+  button{cursor:pointer;font-weight:700;background:var(--accent);color:#20160a;border:none}
   .status{font-size:12px;color:var(--muted)}
   .main{flex:1;display:flex;min-height:0}
   #map{flex:1;min-height:0}
@@ -28,7 +28,7 @@
   .p .mt{font-size:12px;color:var(--muted)}
   .p.stale .nm{color:var(--stale)}
   .empty{color:var(--muted);font-size:13px;padding:10px 2px;line-height:1.5}
-  .leaflet-tooltip.foreai{background:#0b1f16;border:1px solid var(--accent);color:#eafff2;font-weight:700}
+  .leaflet-tooltip.foreai{background:#0a1730;border:1px solid var(--accent);color:#f2f6ff;font-weight:700}
   @media(max-width:640px){ .side{position:absolute;right:0;top:56px;bottom:0;z-index:1000;box-shadow:-8px 0 24px rgba(0,0,0,.4)} }
 </style>
 </head>
@@ -42,7 +42,7 @@
     <div class="spacer"></div>
     <input id="code" placeholder="EVENT CODE" style="text-transform:uppercase;width:130px" />
     <button id="go">Show</button>
-    <button id="toggleSide" title="Toggle list" style="background:#0b1f16;color:var(--ink);border:1px solid var(--line)">☰</button>
+    <button id="toggleSide" title="Toggle list" style="background:#0a1730;color:var(--ink);border:1px solid var(--line)">☰</button>
     <div class="status" id="status"></div>
   </header>
   <div class="main">
@@ -52,6 +52,11 @@
 </div>
 
 <script src="../config.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="../events-fs.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 (function(){
@@ -61,6 +66,16 @@
   var CODE = (P.get('code') || localStorage.getItem('foreai.code') || '').toUpperCase();
   var FRESH_MS = 20*60*1000;   // a player seen within 20 min is "on the course"
   var POLL_MS = 15000;
+
+  // Firestore realtime (read-model mirror). Falls back to backend polling if
+  // Firestore isn't configured, the event isn't mirrored yet, or an error occurs.
+  var fs = null;
+  try{
+    if(window.FIREBASE_CONFIG && window.firebase){
+      if(!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+      fs = firebase.firestore();
+    }
+  }catch(e){ fs = null; }
 
   var map = L.map('map', { zoomControl:true }).setView([D.wxLat||-26.1016, D.wxLng||28.236], 16);
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -79,9 +94,10 @@
   function colourFor(id){ var h=0; for(var i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return 'hsl('+(h%360)+',70%,55%)'; }
   function ago(ms){ var s=Math.round((Date.now()-ms)/1000); if(s<60) return s+'s ago'; var m=Math.round(s/60); if(m<60) return m+'m ago'; return Math.round(m/60)+'h ago'; }
 
-  function render(ev){
-    nameEl.textContent = ev.name ? (ev.name + (ev.courseName? ' · '+ev.courseName : '')) : 'Event '+CODE;
-    var players = (ev.players||[]).filter(function(p){ return typeof p.lat==='number' && typeof p.lng==='number' && p.lastSeen; });
+  // Draw a normalised list of positions: [{id,name,lat,lng,lastSeen}, …].
+  function renderPositions(name, arr, source){
+    nameEl.textContent = name || ('Event '+CODE);
+    var players = (arr||[]).filter(function(p){ return typeof p.lat==='number' && typeof p.lng==='number' && p.lastSeen; });
     var live = players.filter(function(p){ return (Date.now()-p.lastSeen) < FRESH_MS; });
 
     var seen = {};
@@ -92,7 +108,7 @@
       var col=colourFor(p.id);
       if(markers[p.id]){ markers[p.id].setLatLng(ll); }
       else {
-        markers[p.id]=L.circleMarker(ll,{radius:9,color:'#062012',weight:2,fillColor:col,fillOpacity:0.95}).addTo(map);
+        markers[p.id]=L.circleMarker(ll,{radius:9,color:'#20160a',weight:2,fillColor:col,fillOpacity:0.95}).addTo(map);
         markers[p.id].bindTooltip('',{permanent:true,direction:'top',className:'foreai',offset:[0,-6]});
       }
       markers[p.id].setStyle({fillColor:col});
@@ -116,9 +132,16 @@
           +'</div>';
       }).join('');
     }
-    statusEl.textContent = 'Updated '+new Date().toLocaleTimeString();
+    statusEl.textContent = (source==='live'?'● Live · ':'Updated ')+new Date().toLocaleTimeString();
   }
 
+  // Normalise a backend event payload into the position array renderPositions wants.
+  function render(ev){
+    var name = ev.name ? (ev.name + (ev.courseName? ' · '+ev.courseName : '')) : null;
+    renderPositions(name, ev.players||[], 'poll');
+  }
+
+  // ---- Backend polling (fallback) --------------------------------------
   var timer=null;
   async function poll(){
     if(!API || !CODE){ statusEl.textContent=''; return; }
@@ -128,13 +151,72 @@
       render(await r.json());
     }catch(e){ statusEl.textContent='Offline — retrying…'; }
   }
-  function start(){
+  function startPolling(){
     if(timer) clearInterval(timer);
+    poll(); timer=setInterval(poll, POLL_MS);
+  }
+
+  // ---- Firestore realtime ----------------------------------------------
+  var unsubPos=null, unsubEv=null;
+  function stopFirestore(){ if(unsubPos){unsubPos();unsubPos=null;} if(unsubEv){unsubEv();unsubEv=null;} }
+  var evName=null, positions={};
+  function paintFromFirestore(){
+    var arr = Object.keys(positions).map(function(k){ return positions[k]; });
+    renderPositions(evName, arr, 'live');
+  }
+  // Returns true if a realtime subscription was established for this code.
+  async function startFirestore(){
+    if(!CODE) return false;
+    // Firestore cutover path: assemble the event live from native subcollections
+    // (positions carry only lat/lng/lastSeen now — names come from players).
+    if(window.EventsFS && EventsFS.enabled){
+      try{
+        var id = await EventsFS.idForCode(CODE);
+        if(!id) return false;
+        unsubEv = EventsFS.subscribeEvent(id, function(ev){
+          evName = ev.name || null;
+          positions = {};
+          (ev.players||[]).forEach(function(p){
+            if(typeof p.lat==='number' && typeof p.lng==='number')
+              positions[p.id] = { id:p.id, name:p.name, lat:p.lat, lng:p.lng, lastSeen:p.lastSeen };
+          });
+          paintFromFirestore();
+        });
+        return true;
+      }catch(e){ return false; }
+    }
+    if(!fs) return false;
+    try{
+      var codeSnap = await fs.collection('eventCodes').doc(CODE).get();
+      if(!codeSnap.exists) return false;               // not mirrored yet → fall back
+      var eventId = codeSnap.data().eventId;
+      if(!eventId) return false;
+      evName=null; positions={};
+      unsubEv = fs.collection('events').doc(eventId).onSnapshot(function(doc){
+        var d = doc.data()||{};
+        evName = d.name ? (d.name + (d.courseName? ' · '+d.courseName : '')) : null;
+        paintFromFirestore();
+      }, function(){ /* ignore, positions still stream */ });
+      unsubPos = fs.collection('events').doc(eventId).collection('positions').onSnapshot(function(snap){
+        positions={};
+        snap.forEach(function(doc){ var d=doc.data(); positions[doc.id]={ id:d.id||doc.id, name:d.name, lat:d.lat, lng:d.lng, lastSeen:d.lastSeen }; });
+        paintFromFirestore();
+      }, function(){ /* transient — keep last paint */ });
+      return true;
+    }catch(e){ return false; }
+  }
+
+  // ---- Orchestration ---------------------------------------------------
+  async function start(){
+    if(timer){ clearInterval(timer); timer=null; }
+    stopFirestore();
     if(!CODE){ statusEl.textContent='Enter an event code.'; return; }
     localStorage.setItem('foreai.code', CODE);
     fittedOnce=false;
     Object.keys(markers).forEach(function(id){ map.removeLayer(markers[id]); delete markers[id]; });
-    poll(); timer=setInterval(poll, POLL_MS);
+    statusEl.textContent='Connecting…';
+    var live = await startFirestore();
+    if(!live) startPolling();          // no Firestore mirror → poll the backend
   }
 
   document.getElementById('go').onclick=function(){ CODE=codeEl.value.trim().toUpperCase(); start(); };

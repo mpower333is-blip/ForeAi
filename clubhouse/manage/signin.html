@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ForeAi — Sign in</title>
+<style>
+  :root{ --bg:#081226; --panel:#0F2143; --line:#26407A; --text:#F2F6FF; --faint:#7F92B6; --accent:#F3C33B; --err:#FF8A8A; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .card{ width:100%; max-width:400px; background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:26px 22px; }
+  h1{ font-size:24px; margin:0 0 4px; }
+  .sub{ color:var(--faint); margin:0 0 20px; font-size:14px; }
+  label{ display:block; font-size:13px; color:var(--faint); margin:12px 0 5px; }
+  input{ width:100%; font:inherit; padding:11px 12px; border-radius:10px; border:1px solid var(--line); background:#0A1830; color:var(--text); }
+  button{ width:100%; margin-top:18px; font:inherit; font-weight:800; padding:12px; border:none; border-radius:10px; background:var(--accent); color:#1A1400; cursor:pointer; }
+  button:disabled{ opacity:.6; }
+  button.google{ margin-top:10px; background:#fff; color:#222; }
+  .toggle{ text-align:center; margin-top:16px; color:var(--faint); font-size:14px; }
+  .toggle a{ color:var(--accent); font-weight:700; cursor:pointer; text-decoration:none; }
+  .forgot{ text-align:right; margin-top:8px; font-size:13px; }
+  .forgot a{ color:var(--faint); cursor:pointer; text-decoration:none; }
+  .msg{ margin-top:14px; font-size:14px; min-height:18px; }
+  .msg.err{ color:var(--err); }
+  .msg.ok{ color:var(--accent); }
+  .hide{ display:none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1 id="title">Organiser sign in</h1>
+  <p class="sub" id="subtitle">Sign in to manage events, members and competitions.</p>
+
+  <div id="nameWrap" class="hide">
+    <label>Your name</label>
+    <input id="name" autocomplete="name" placeholder="Full name" />
+  </div>
+  <label>Email</label>
+  <input id="email" type="email" autocomplete="email" placeholder="you@club.co.za" />
+  <label>Password</label>
+  <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+  <div class="forgot" id="forgot"><a id="forgotLink">Forgot password?</a></div>
+
+  <button id="go">Sign in</button>
+  <button id="google" class="google">Continue with Google</button>
+  <div class="msg" id="msg"></div>
+
+  <div class="toggle" id="toggle">New organiser? <a id="toggleLink">Create an account</a></div>
+</div>
+
+<script src="../firebase-config.js"></script>
+<script src="../config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+  var P = new URLSearchParams(location.search);
+  var D = window.FOREAI_DEFAULTS || {};
+  var API = (P.get('api') || localStorage.getItem('foreai.api') || D.api || '').replace(/\/$/,'');
+  var TOKEN_KEY = 'foreai.auth.token', USER_KEY = 'foreai.auth.user';
+  var next = P.get('next') || 'index.html';
+  var signout = P.get('signout') === '1';
+  var mode = 'login';
+
+  var el = function(id){ return document.getElementById(id); };
+  var msg = el('msg'), btn = el('go');
+
+  firebase.initializeApp(window.FIREBASE_CONFIG);
+  var auth = firebase.auth();
+
+  // Arrived here to sign out: clear our session AND the Firebase session, so the
+  // auto-exchange below can't silently sign the organiser straight back in.
+  if (signout) {
+    try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); } catch (e) {}
+    auth.signOut().catch(function(){});
+  }
+
+  function show(text, ok){ msg.textContent = text; msg.className = 'msg ' + (ok ? 'ok' : 'err'); }
+
+  // Self-service provisioning — no Cloud Function, no env, no console. On sign-in
+  // we write this organiser's own adminUsers/{uid} record straight to Firestore.
+  // The security rules keep it safe: a normal account can only ever create itself
+  // as a plain 'organiser' with no club (so it manages just its OWN events), and
+  // can't change its own role/clubKey. The owner emails hardcoded in the rules
+  // (Marcell = main admin) get full access automatically; an owner assigns any
+  // club or promotes anyone. Existing records keep their role/clubKey untouched.
+  var OWNER_EMAILS = ['marcell.laubscher@outlook.com', 'mpower333is@gmail.com'];
+  async function selfProvision(user){
+    try {
+      var db = firebase.firestore();
+      var uid = user.uid;
+      var mail = (user.email || '').trim().toLowerCase();
+      var name = user.displayName || null;
+      var ref = db.collection('adminUsers').doc(uid);
+      var snap = await ref.get();
+      if (snap.exists) {
+        // Only refresh profile fields — never touch role/clubKey an owner may have set.
+        await ref.set({ email: mail, name: name, updatedAt: Date.now() }, { merge: true });
+      } else {
+        var isOwner = OWNER_EMAILS.indexOf(mail) >= 0;
+        await ref.set({
+          email: mail, name: name,
+          role: isOwner ? 'owner' : 'organiser', clubKey: null,
+          createdAt: Date.now(), updatedAt: Date.now(),
+        });
+      }
+    } catch (e) { /* rules/offline — ignore, don't block sign-in */ }
+  }
+
+  function fsOn(){
+    if (P.get('fs') === '1') return true;
+    if (P.get('fs') === '0') return false;
+    return !!(window.FOREAI_DEFAULTS && window.FOREAI_DEFAULTS.useFirestore);
+  }
+
+  // Verify the signed-in Firebase user with our backend, get a session token,
+  // then continue into the portal.
+  async function finish(user){
+    await selfProvision(user);
+    // Firestore cutover: the Firebase session IS the login — no Render exchange,
+    // so Render can be retired. The destination page's auth-guard gates on the
+    // same Firebase session.
+    if (fsOn()) {
+      show('Signed in — taking you in…', true);
+      location.href = next;
+      return;
+    }
+    try {
+      var idToken = await user.getIdToken();
+      var r = await fetch(API + '/auth/firebase', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ idToken: idToken }) });
+      var data = await r.json().catch(function(){ return {}; });
+      if (!r.ok) { show(data.error || 'Signed in, but the server rejected it.'); return; }
+      localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user || { email: user.email }));
+      show('Signed in — taking you in…', true);
+      location.href = next;
+    } catch (e) { show('Signed in, but could not reach the server.'); }
+  }
+
+  function friendly(err){
+    var c = (err && err.code) || '';
+    if (c.indexOf('wrong-password')>=0 || c.indexOf('invalid-credential')>=0 || c.indexOf('user-not-found')>=0) return 'Incorrect email or password.';
+    if (c.indexOf('email-already-in-use')>=0) return 'An account with that email already exists — try signing in.';
+    if (c.indexOf('weak-password')>=0) return 'Password must be at least 6 characters.';
+    if (c.indexOf('invalid-email')>=0) return 'Enter a valid email address.';
+    if (c.indexOf('too-many-requests')>=0) return 'Too many attempts — please wait a moment.';
+    return (err && err.message) || 'Something went wrong.';
+  }
+
+  function setMode(m){
+    mode = m; var reg = m === 'register';
+    el('title').textContent = reg ? 'Create organiser account' : 'Organiser sign in';
+    el('subtitle').textContent = reg ? 'Set up a login to run events, members and competitions.' : 'Sign in to manage events, members and competitions.';
+    el('nameWrap').classList.toggle('hide', !reg);
+    el('forgot').classList.toggle('hide', reg);
+    el('password').setAttribute('autocomplete', reg ? 'new-password' : 'current-password');
+    btn.textContent = reg ? 'Create account' : 'Sign in';
+    el('toggle').innerHTML = reg ? 'Already have an account? <a id="toggleLink">Sign in</a>' : 'New organiser? <a id="toggleLink">Create an account</a>';
+    el('toggleLink').onclick = function(){ setMode(reg ? 'login' : 'register'); msg.textContent=''; };
+  }
+
+  async function submit(){
+    var email = el('email').value.trim(), password = el('password').value;
+    if (!email || !password) { show('Enter your email and password.'); return; }
+    btn.disabled = true; show('');
+    try {
+      var cred;
+      if (mode === 'register') {
+        cred = await auth.createUserWithEmailAndPassword(email, password);
+        var nm = el('name').value.trim();
+        if (nm) { try { await cred.user.updateProfile({ displayName: nm }); } catch(e){} }
+      } else {
+        cred = await auth.signInWithEmailAndPassword(email, password);
+      }
+      await finish(cred.user);
+    } catch (e) { show(friendly(e)); btn.disabled = false; }
+  }
+
+  async function google(){
+    show('');
+    try {
+      var provider = new firebase.auth.GoogleAuthProvider();
+      var cred = await auth.signInWithPopup(provider);
+      await finish(cred.user);
+    } catch (e) { show(friendly(e)); }
+  }
+
+  async function forgot(){
+    var email = el('email').value.trim();
+    if (!email) { show('Enter your email above first, then tap "Forgot password?".'); return; }
+    try { await auth.sendPasswordResetEmail(email); show('Password reset email sent to ' + email + '.', true); }
+    catch (e) { show(friendly(e)); }
+  }
+
+  btn.onclick = submit;
+  el('google').onclick = google;
+  el('forgotLink').onclick = forgot;
+  el('password').addEventListener('keydown', function(e){ if (e.key === 'Enter') submit(); });
+
+  // Already signed in with Firebase? Exchange + continue — unless we came here to
+  // sign out, in which case we wait for the user to sign in again explicitly.
+  auth.onAuthStateChanged(function(user){ if (!signout && user && !localStorage.getItem(TOKEN_KEY)) finish(user); });
+
+  setMode('login');
+  if (signout) show('You have been signed out.', true);
+})();
+</script>
+</body>
+</html>

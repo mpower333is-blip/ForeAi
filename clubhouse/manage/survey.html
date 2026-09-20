@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>ForeAi — Course Survey</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="../config.js"></script>
+<script src="auth-guard.js"></script>
 <style>
-  :root{ --bg:#0a1f14; --panel:#0e2a1c; --line:#1c4a33; --text:#eafff2; --faint:#9fc4b0; --accent:#39d98a; --tee:#ffffff; --gold:#e9c46a; }
+  :root{ --bg:#081226; --panel:#0f2143; --line:#26407a; --text:#f2f6ff; --faint:#b7c6e6; --accent:#f3c33b; --tee:#ffffff; --gold:#e9c46a; }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body{ margin:0; height:100%; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
   #map{ position:fixed; inset:0; }
@@ -17,11 +19,11 @@
   #tools.hidden{ display:none; }
   #toolsToggle{ padding:6px 10px; }
   input,button,select{ font-size:16px; font-family:inherit; }
-  input[type=text],#courseSel{ flex:1; min-width:120px; background:#07160e; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:9px 11px; }
+  input[type=text],#courseSel{ flex:1; min-width:120px; background:#0a1730; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:9px 11px; }
   #courseSel{ font-weight:700; }
-  button{ background:#123c28; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:9px 12px; font-weight:600; }
+  button{ background:#123a5c; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:9px 12px; font-weight:600; }
   button:active{ transform:scale(.97); }
-  button.pri{ background:var(--accent); color:#04150c; border-color:var(--accent); }
+  button.pri{ background:var(--accent); color:#050b18; border-color:var(--accent); }
   button.on{ outline:2px solid var(--accent); }
   .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .grow{ flex:1; }
@@ -33,7 +35,7 @@
   .no{ color:#e7795a; }
   .hint{ color:var(--faint); font-size:12px; }
   #msg{ color:var(--gold); font-size:12px; min-height:14px; }
-  .count{ background:#07160e; border:1px solid var(--line); border-radius:8px; padding:3px 8px; font-size:12px; color:var(--faint); }
+  .count{ background:#0a1730; border:1px solid var(--line); border-radius:8px; padding:3px 8px; font-size:12px; color:var(--faint); }
   /* Phones: shrink the controls so the map keeps most of the screen. */
   @media (max-width:600px){
     .bar{ left:6px; right:6px; padding:6px 8px; border-radius:12px; }
@@ -118,7 +120,7 @@
   // Red and Blue). Each marker draws in its tee colour. TEE_ORDER runs
   // longest→shortest so the app treats the longest available tee as the "back"
   // tee for hole length (Blue/Black are championship, Red is forward).
-  var TEE_COLORS = { White:'#f4f4f4', Blue:'#5aa0ff', Red:'#e8563e', Yellow:'#f2c94c', Green:'#39d98a', Black:'#20242b', Gold:'#e9c46a' };
+  var TEE_COLORS = { White:'#f4f4f4', Blue:'#5aa0ff', Red:'#e8563e', Yellow:'#f2c94c', Green:'#f3c33b', Black:'#20242b', Gold:'#e9c46a' };
   var TEE_ORDER = ['Black','Blue','White','Gold','Yellow','Green','Red'];
   var teeName = 'White';
   var waterMode = 'river'; // 'river' = brush a flow line · 'pond' = tap a loop to fill
@@ -136,14 +138,14 @@
     { maxZoom:21, maxNativeZoom:19, opacity:0.7 }).addTo(map);
 
   var layer = L.layerGroup().addTo(map);
-  var COLORS = { tee:'#ffffff', green:'#39d98a', greenFront:'#e9c46a', greenBack:'#e76f51',
-                 tree:'#2f9e4f', water:'#3a86c8', bunker:'#e6d29a' };
+  var COLORS = { tee:'#ffffff', green:'#f3c33b', greenFront:'#e9c46a', greenBack:'#e76f51',
+                 tree:'#d9a62a', water:'#3a86c8', bunker:'#e6d29a' };
   function isHazard(t){ return t==='tree'||t==='water'||t==='bunker'; }
 
   // A round dot icon for draggable markers (so points can be nudged from home).
   function dotIcon(color, px){
     return L.divIcon({ className:'dragdot',
-      html:'<div style="width:'+px+'px;height:'+px+'px;border-radius:50%;background:'+color+';border:2px solid #04150c;box-shadow:0 0 0 1.5px rgba(255,255,255,.55)"></div>',
+      html:'<div style="width:'+px+'px;height:'+px+'px;border-radius:50%;background:'+color+';border:2px solid #050b18;box-shadow:0 0 0 1.5px rgba(255,255,255,.55)"></div>',
       iconSize:[px,px], iconAnchor:[px/2,px/2] });
   }
   // Draggable point on the current hole. onMove(lat,lng) writes it back to state.
@@ -245,7 +247,7 @@
         if(isCur){
           dragDot(p.lat, p.lng, col, 16, function(la,ln){ h.tees[name]={lat:la,lng:ln}; h.tee=backTee(h); }, tip);
         } else {
-          L.circleMarker([p.lat,p.lng], { radius:5, color:'#04150c', weight:1.5, fillColor:col, fillOpacity:0.55 }).addTo(layer).bindTooltip(tip,{permanent:false});
+          L.circleMarker([p.lat,p.lng], { radius:5, color:'#050b18', weight:1.5, fillColor:col, fillOpacity:0.55 }).addTo(layer).bindTooltip(tip,{permanent:false});
         }
       });
       ['green','greenFront','greenBack'].forEach(function(t){
@@ -254,7 +256,7 @@
         if(isCur){
           dragDot(h[t].lat, h[t].lng, COLORS[t], 18, function(la,ln){ h[t]={lat:la,lng:ln}; }, tip);
         } else {
-          L.circleMarker([h[t].lat,h[t].lng], { radius:5, color:'#04150c', weight:1.5, fillColor:COLORS[t], fillOpacity:0.55 }).addTo(layer).bindTooltip(tip,{permanent:false});
+          L.circleMarker([h[t].lat,h[t].lng], { radius:5, color:'#050b18', weight:1.5, fillColor:COLORS[t], fillOpacity:0.55 }).addTo(layer).bindTooltip(tip,{permanent:false});
         }
       });
       // Playing route: tee → fairway waypoints → green (bends through the fairway).
@@ -263,12 +265,12 @@
         var fw = h.fairway || [];
         var route = [[h.tee.lat,h.tee.lng]].concat(fw.map(function(p){return [p.lat,p.lng];})).concat([[h.green.lat,h.green.lng]]);
         L.polyline(route,
-          { color:isCur?'#39d98a':'#2b6b4a', weight:isCur?3:2, dashArray: fw.length?null:'6,5', opacity:isCur?0.95:0.5 }).addTo(layer);
+          { color:isCur?'#f3c33b':'#2f5a9e', weight:isCur?3:2, dashArray: fw.length?null:'6,5', opacity:isCur?0.95:0.5 }).addTo(layer);
         fw.forEach(function(p, idx){
           if(isCur){
-            dragDot(p.lat, p.lng, '#39d98a', 14, function(la,ln){ h.fairway[idx]={lat:la,lng:ln}; }, n+' fairway '+(idx+1));
+            dragDot(p.lat, p.lng, '#f3c33b', 14, function(la,ln){ h.fairway[idx]={lat:la,lng:ln}; }, n+' fairway '+(idx+1));
           } else {
-            L.circleMarker([p.lat,p.lng], { radius:3, color:'#04150c', weight:1, fillColor:'#39d98a', fillOpacity:0.5 }).addTo(layer);
+            L.circleMarker([p.lat,p.lng], { radius:3, color:'#050b18', weight:1, fillColor:'#f3c33b', fillOpacity:0.5 }).addTo(layer);
           }
         });
       }
@@ -283,13 +285,13 @@
             L.polyline(pts, { color:'#bfe4f5', weight:isCur?9:6, opacity:isCur?0.55:0.3, lineCap:'round', lineJoin:'round' }).addTo(layer);
             L.polyline(pts, { color:'#3a86c8', weight:isCur?6:4, opacity:isCur?0.95:0.6, lineCap:'round', lineJoin:'round' }).addTo(layer).bindTooltip(n+' river',{permanent:false});
           } else if(pts.length===1){
-            L.circleMarker(pts[0], { radius:isCur?6:4, color:'#04150c', weight:1, fillColor:'#3a86c8', fillOpacity:0.85 }).addTo(layer);
+            L.circleMarker(pts[0], { radius:isCur?6:4, color:'#050b18', weight:1, fillColor:'#3a86c8', fillOpacity:0.85 }).addTo(layer);
           }
           return; // no per-point dots for a river (too many to drag)
         }
         // pond water (no width) falls through to the filled-polygon branch below
         if(pts.length>=3){
-          L.polygon(pts, { color:'#04150c', weight:isCur?1.5:1, fillColor:col,
+          L.polygon(pts, { color:'#050b18', weight:isCur?1.5:1, fillColor:col,
             fillOpacity:isCur?(open?0.55:0.4):0.25, dashArray:open?'4,3':null })
             .addTo(layer).bindTooltip(n+' '+hz.type+' area',{permanent:false});
         } else if(pts.length===2){
@@ -300,7 +302,7 @@
           if(isCur){
             dragDot(pt[0], pt[1], col, 13, function(la,ln){ hz.points[j]={lat:la,lng:ln}; }, n+' '+hz.type);
           } else {
-            L.circleMarker(pt, { radius:3, color:'#04150c', weight:1, fillColor:col, fillOpacity:0.4 }).addTo(layer);
+            L.circleMarker(pt, { radius:3, color:'#050b18', weight:1, fillColor:col, fillOpacity:0.4 }).addTo(layer);
           }
         });
       });

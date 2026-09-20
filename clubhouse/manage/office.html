@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ECS Golf Day — Office Admin</title>
+<title>ForeAi — Office &amp; Registrations</title>
 <!--
   Office admin console for the ECS Golf Day. Reads submissions from the ForeAi
   backend (the same event the public register.html form writes to) and manages
@@ -14,11 +14,11 @@
   is the player/sponsor end — both talk to the same event.
 -->
 <style>
-  :root{ --bg:#06170F; --panel:#10261C; --panel2:#16362A; --border:#204636;
-    --lime:#8DFF6B; --text:#F4FBF6; --muted:#C2D2C6; --faint:#87A092; --gold:#FFD36A; --red:#FF6B6B; --sky:#6BD5FF; }
+  :root{ --bg:#081226; --panel:#0f2143; --panel2:#132a54; --border:#26407a;
+    --lime:#f3c33b; --text:#f2f6ff; --muted:#b7c6e6; --faint:#7f92b6; --gold:#FFD36A; --red:#FF6B6B; --sky:#6BD5FF; }
   *{box-sizing:border-box}
   body{margin:0;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
-    background:linear-gradient(160deg,#0C3222,#06170F 60%);min-height:100vh;padding:18px}
+    background:linear-gradient(160deg,#0a1730,#081226 60%);min-height:100vh;padding:18px}
   .wrap{max-width:1080px;margin:0 auto}
   header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
   .logo img{height:44px;width:auto;background:#fff;padding:5px 10px;border-radius:9px}
@@ -27,7 +27,16 @@
   .spacer{flex:1}
   .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   input,select{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:9px 11px;font-size:14px;font-family:inherit}
-  .btn{border:none;cursor:pointer;background:linear-gradient(135deg,#B6FF8E,#8DFF6B,#46C85A);color:#052012;font-weight:800;padding:10px 14px;border-radius:10px;font-size:14px}
+  .elab{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);margin:6px 0}
+  .elab input,.elab select{width:100%}
+  .egrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
+  @media(max-width:520px){ .egrid{grid-template-columns:1fr} }
+  .ehint{font-size:12px;color:var(--muted);margin:12px 0 4px;font-weight:700}
+  .eteam{border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin:6px 0}
+  .eteam .ehead{font-size:12px;color:var(--gold);font-weight:800;margin-bottom:6px}
+  .eplayer{display:flex;gap:8px;margin:5px 0}
+  .eplayer input{flex:1}
+  .btn{border:none;cursor:pointer;background:linear-gradient(135deg,#fce38a,#f3c33b,#d9a62a);color:#20160a;font-weight:800;padding:10px 14px;border-radius:10px;font-size:14px}
   .btn.ghost{background:transparent;border:1.5px solid var(--border);color:var(--lime)}
   .btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
   .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
@@ -36,12 +45,12 @@
   .tile .v{font-size:26px;font-weight:800;margin-top:4px}
   .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
   .tab{padding:9px 14px;border-radius:999px;background:var(--panel);border:1px solid var(--border);color:var(--muted);font-weight:700;cursor:pointer;font-size:13px}
-  .tab.on{background:var(--lime);border-color:var(--lime);color:#052012}
+  .tab.on{background:var(--lime);border-color:var(--lime);color:#20160a}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
   .rowtop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
   .company{font-size:18px;font-weight:800}
   .badge{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;margin-left:8px}
-  .b-team{background:rgba(141,255,107,0.14);color:var(--lime)}
+  .b-team{background:rgba(243,195,59,0.14);color:var(--lime)}
   .b-hole{background:rgba(107,213,255,0.14);color:var(--sky)}
   .b-prize{background:rgba(255,211,106,0.14);color:var(--gold)}
   .meta{color:var(--muted);font-size:13px;line-height:1.7;margin-top:6px}
@@ -55,8 +64,8 @@
   .status .lbl{color:var(--faint);font-size:12px;margin-right:2px}
   .sbtn{padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--muted);cursor:pointer;font-weight:700;font-size:12px}
   .sbtn.on-new{background:#3a3a1a;color:var(--gold);border-color:var(--gold)}
-  .sbtn.on-paid{background:#14361f;color:var(--lime);border-color:var(--lime)}
-  .sbtn.on-confirmed{background:#123a2a;color:var(--lime);border-color:var(--accentDeep,#2FA24B)}
+  .sbtn.on-paid{background:#123a5c;color:var(--lime);border-color:var(--lime)}
+  .sbtn.on-confirmed{background:#123a5c;color:var(--lime);border-color:var(--accentDeep,#d9a62a)}
   .del{margin-left:auto;color:var(--red);background:transparent;border:none;cursor:pointer;font-size:12px}
   .empty{color:var(--faint);text-align:center;padding:40px}
   .connect{max-width:460px;margin:60px auto;text-align:center}
@@ -66,23 +75,35 @@
   @media print{ .bar,.tabs,.status,.del,.btn{display:none!important} body{background:#fff;color:#000} .card,.tile{border-color:#ccc} }
 </style>
   <script src="../config.js"></script>
+  <script src="auth-guard.js"></script>
+  <!-- Firestore events cutover (inert unless FOREAI_DEFAULTS.useFirestore or ?fs=1).
+       Must load AFTER auth-guard so its fetch shim wraps auth-guard's — it routes
+       /tournaments/** to Firestore and passes /auth/** through to the token layer. -->
+  <script src="../firebase-config.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="../events-fs.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <a href="index.html" class="foreai-back" onclick="if(window.history.length>1){window.history.back();return false;}">‹ Back</a>
-<style>.foreai-back{position:fixed;top:14px;left:14px;z-index:99999;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(6,23,15,0.72);color:#8DFF6B;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;text-decoration:none;border:1px solid rgba(141,255,107,0.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,0.3)}.foreai-back:hover{background:rgba(141,255,107,0.16)}</style>
+<style>.foreai-back{position:fixed;top:14px;left:14px;z-index:99999;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(6,23,15,0.72);color:#f3c33b;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;text-decoration:none;border:1px solid rgba(243,195,59,0.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,0.3)}.foreai-back:hover{background:rgba(243,195,59,0.16)}</style>
 <div class="wrap">
   <header>
-    <span class="logo">
-      <img src="../ecs-logo.png" alt="ECS Engine Control Systems" />
+    <span class="logo" id="brandLogo">
+      <svg width="42" height="42" viewBox="0 0 400 400" aria-hidden="true">
+        <ellipse cx="200" cy="308" rx="152" ry="46" fill="#123a5c"/><ellipse cx="200" cy="299" rx="152" ry="43" fill="#1f6aa0"/>
+        <rect x="225" y="94" width="6" height="206" rx="3" fill="#EAF2EC"/><path d="M231,100 Q322,93 362,121 Q316,134 231,151 Z" fill="#F3C33B"/><circle cx="150" cy="268" r="35" fill="#F8FBF6"/>
+      </svg>
     </span>
     <div>
-      <h1>Golf Day — Office Admin</h1>
+      <h1>Office &amp; Registrations</h1>
       <div class="evt" id="evtName">Not connected</div>
     </div>
     <div class="spacer"></div>
     <div class="bar" id="topbar" style="display:none">
-      <button class="btn ghost sm" onclick="refresh()">↻ Refresh</button>
+      <button class="btn ghost sm" id="refreshBtn" onclick="refresh()">↻ Refresh</button>
       <button class="btn ghost sm" onclick="exportCsv()">⬇ CSV</button>
       <button class="btn ghost sm" onclick="window.print()">🖨 Print</button>
       <button class="btn ghost sm" onclick="disconnect()">Disconnect</button>
@@ -93,12 +114,37 @@
   <div class="connect" id="connect">
     <div class="card">
       <h1 style="margin-bottom:4px">Connect to your event</h1>
-      <div class="hint" style="margin-bottom:12px">Enter the event join code and your ForeAi backend address.</div>
+      <!-- Firestore mode: pick from the events you manage — no code to type. -->
+      <div id="myEventsWrap" style="display:none;margin:6px 0 14px;text-align:left">
+        <div class="hint" style="margin-bottom:6px;color:var(--gold)"><b>Your events</b></div>
+        <select id="myEvents" onchange="pickEvent(this.value)" style="width:100%"></select>
+        <div class="hint" style="margin-top:6px">Pick an event to open its office — no code needed.</div>
+        <div class="hint" id="orCode" style="margin:12px 0 4px">…or join another event by code:</div>
+      </div>
+      <div class="hint" id="connectHint" style="margin-bottom:12px">Enter the event join code and your ForeAi backend address.</div>
       <input id="inCode" placeholder="Join code (e.g. EC5GLF)" maxlength="10" />
       <input id="inApi" placeholder="Backend URL (https://your-backend)" />
       <button class="btn" style="width:100%;margin-top:10px" onclick="connect()">Connect</button>
       <div class="msg" id="connectMsg" style="color:var(--red);margin-top:10px"></div>
-      <div class="hint">The office end reads submissions from register.html. Details are saved on this computer for next time.</div>
+      <div class="hint">The office reads registrations for this event. Details are saved on this computer for next time.</div>
+
+      <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px;text-align:left">
+        <div class="hint" style="margin-bottom:6px;color:var(--gold)"><b>No event yet? Create one</b></div>
+        <input id="newName" placeholder="Event name (e.g. Kruinsig League — Round 1)" />
+        <select id="newCourse" style="width:100%;margin:6px 0">
+          <option value="avion-park">Avion Park Golf Club</option>
+          <option value="kempton-park">Kempton Park Golf Club</option>
+          <option value="custom">Other / not listed</option>
+        </select>
+        <select id="newFormat" style="width:100%;margin:6px 0">
+          <option value="stableford">Stableford (points)</option>
+          <option value="stroke">Stroke play</option>
+          <option value="scramble">4-ball scramble</option>
+        </select>
+        <input id="newPlayerFee" type="number" min="0" placeholder="Fee per player (R) — e.g. 60" />
+        <button class="btn" style="width:100%;margin-top:6px" onclick="newEvent()">Create event</button>
+        <div class="msg" id="createMsg" style="margin-top:8px"></div>
+      </div>
     </div>
   </div>
 
@@ -107,11 +153,12 @@
     <div id="adminBar"></div>
     <div class="card" style="display:flex;flex-direction:column;gap:8px">
       <div class="row" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span class="company">📥 Import emailed Excel forms</span>
-        <button class="btn" onclick="document.getElementById('xlsxFiles').click()">Choose .xlsx files…</button>
-        <input id="xlsxFiles" type="file" accept=".xlsx" multiple style="display:none" onchange="importFiles(this.files)" />
+        <span class="company">📥 Import Excel / CSV</span>
+        <button class="btn" onclick="document.getElementById('xlsxFiles').click()">Choose files…</button>
+        <input id="xlsxFiles" type="file" accept=".xlsx,.xls,.csv" multiple style="display:none" onchange="importFiles(this.files)" />
+        <a class="btn ghost" href="../ForeAi-team-list-template.xlsx" download style="text-decoration:none;display:inline-flex;align-items:center">⬇ Blank team template</a>
       </div>
-      <div class="hint">Select the team / hole / prize forms people emailed. It reads them here (nothing uploaded), shows a preview, then adds them to the event — duplicates are skipped.</div>
+      <div class="hint">Two ways to load entries — mix &amp; match: <b>(1)</b> the individual team / hole / prize <b>forms</b> people emailed, or <b>(2)</b> one <b>team-list spreadsheet</b> — a sheet with a <i>Company/Team</i> column and either <i>Player 1…4</i> columns (one team per row) or a <i>Player Name</i> column (one player per row, grouped by company). Handicap columns are picked up if present. It reads everything here (nothing uploaded), shows a preview, then adds them — duplicates are skipped.</div>
       <div id="importPreview"></div>
     </div>
     <details class="card" id="setupBox">
@@ -126,9 +173,10 @@
         </div>
         <div>
           <label class="hint">Banking details (appears on the registration forms)</label>
-          <textarea id="setBank" rows="5" placeholder="Payment to: ...\nBank: ...\nAccount: ...\nBranch: ...\nReference: ..." style="width:100%;margin-top:4px;background:#07160e;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px"></textarea>
+          <textarea id="setBank" rows="5" placeholder="Payment to: ...\nBank: ...\nAccount: ...\nBranch: ...\nReference: ..." style="width:100%;margin-top:4px;background:#0a1730;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px"></textarea>
         </div>
         <div class="row" style="display:flex;gap:14px;flex-wrap:wrap">
+          <label class="hint">Fee per player (R) <input id="setPlayerFee" type="number" style="width:100px;margin-left:6px" /></label>
           <label class="hint">Team fee (R) <input id="setTeamFee" type="number" style="width:100px;margin-left:6px" /></label>
           <label class="hint">Hole fee (R) <input id="setHoleFee" type="number" style="width:100px;margin-left:6px" /></label>
         </div>
@@ -138,9 +186,7 @@
           <div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
             <input type="file" id="setCausePhoto" accept="image/*" onchange="pickCausePhoto(this.files)" />
             <img id="causePrev" alt="" style="height:70px;background:#fff;border-radius:8px;padding:3px;display:none" />
-            <button class="sbtn" type="button" onclick="useBundledLyla()">Use Lyla's photo</button>
           </div>
-          <div class="hint" style="margin-top:4px">“Use Lyla's photo” attaches the bundled ECS beneficiary photo — no need to find the file.</div>
         </div>
         <div>
           <label class="hint">Player reminders (pushed to everyone's phone as a notification before the day)</label>
@@ -166,6 +212,11 @@
 </div>
 
 <script>
+  // Build marker — bump on every change so a stale (cached) upload is obvious.
+  // Check the browser console for this line; if it's older than the build you
+  // uploaded, the server/CDN is still serving a cached office.html.
+  var OFFICE_BUILD = "2026-09-17e (refresh feedback + import fix)";
+  console.log("[office] build " + OFFICE_BUILD);
   // Safe storage (localStorage can throw in sandboxed/private contexts).
   function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
   function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
@@ -176,15 +227,33 @@
   var CFG={ api:(q.get('api')||lsGet('ecs_api')||D.api||'').replace(/\/$/,''),
             code:(q.get('code')||lsGet('ecs_code')||D.code||'').toUpperCase(),
             pin:'' };
-  var EVENT=null, REGS=[], FILTER='all';
+  var EVENT=null, REGS=[], FILTER='all', EDITING=null;
   var TEAM_FEE=4000, HOLE_FEE=2000;
 
   function money(n){ return 'R ' + (n||0).toLocaleString('en-ZA'); }
-  function parseAmount(s){ if(s==null) return 0; var m=String(s).replace(/[^0-9.]/g,''); return parseFloat(m)||0; }
+  // Parse a money string, handling SA format (comma = decimal, e.g. R4000,00 =
+  // 4000) as well as US (dot = decimal) and thousands separators.
+  function parseAmount(s){
+    if(s==null) return 0;
+    var t=String(s).replace(/[^0-9.,]/g,''); // keep digits + separators
+    if(!t) return 0;
+    var lastComma=t.lastIndexOf(','), lastDot=t.lastIndexOf('.'), dec=-1;
+    if(lastComma>=0 && lastDot>=0) dec=Math.max(lastComma,lastDot);      // both: the last one is the decimal point
+    else if(lastComma>=0) dec=(t.length-lastComma-1)<=2 ? lastComma : -1; // lone comma: decimal only if ≤2 digits follow
+    else if(lastDot>=0)   dec=(t.length-lastDot-1)<=2 ? lastDot : -1;
+    var intPart = dec>=0 ? t.slice(0,dec) : t;
+    var frac    = dec>=0 ? t.slice(dec+1) : '';
+    intPart=intPart.replace(/[.,]/g,''); frac=frac.replace(/[.,]/g,'');
+    return parseFloat(intPart + (frac? '.'+frac : '')) || 0;
+  }
   function teamCount(r){ var p=r.payload||{}; return p.teamCount || (Array.isArray(p.teams)?p.teams.length:1) || 1; }
+  // Actual players in a registration (falls back to 4 per team if none listed).
+  function playerCount(r){ var p=r.payload||{}; var teams=Array.isArray(p.teams)?p.teams:[]; var n=teams.reduce(function(s,t){return s+((t.players||[]).length);},0); return n||teamCount(r)*4; }
   function amountFor(r){
-    var tf=(EVENT&&EVENT.teamFee)||TEAM_FEE, hf=(EVENT&&EVENT.holeFee)||HOLE_FEE;
-    if(r.type==='team') return teamCount(r)*tf;
+    var pf=(EVENT&&EVENT.playerFee), tf=(EVENT&&EVENT.teamFee)||TEAM_FEE, hf=(EVENT&&EVENT.holeFee)||HOLE_FEE;
+    // Per-player pricing (e.g. school leagues R60/child) when a player fee is set;
+    // otherwise the classic per-team fee.
+    if(r.type==='team') return pf ? playerCount(r)*pf : teamCount(r)*tf;
     if(r.type==='hole') return hf;
     if(r.type==='prize') return (r.payload&&r.payload.prizeType==='cash')?parseAmount(r.payload.cashAmount):0;
     return 0;
@@ -197,6 +266,74 @@
     await load(true);
   }
   function disconnect(){ lsDel('ecs_api'); lsDel('ecs_code'); location.href=location.pathname; }
+
+  // ---- Firestore mode: pick an event from a dropdown (no code to type) -------
+  function fsOn(){ return !!(window.EventsFS && window.EventsFS.enabled); }
+  function escH(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  function pickEvent(code){
+    if(!code) return;
+    CFG.code=String(code).toUpperCase();
+    CFG.api=CFG.api||(document.getElementById('inApi').value||'')||(window.FOREAI_DEFAULTS&&FOREAI_DEFAULTS.api)||'';
+    lsSet('ecs_code',CFG.code); lsSet('ecs_api',CFG.api);
+    load(true);
+  }
+
+  // Fill "Your events" with the events this organiser may manage (owner sees all;
+  // others see events they own or are linked to as a co-admin).
+  async function loadMyEvents(){
+    if(!fsOn()||!window.firebase) return;
+    var wrap=document.getElementById('myEventsWrap'), sel=document.getElementById('myEvents');
+    if(!wrap||!sel) return;
+    var api=document.getElementById('inApi'); if(api) api.style.display='none';       // backend URL is irrelevant on Firestore
+    var hint=document.getElementById('connectHint'); if(hint) hint.style.display='none';
+    try{
+      var db=firebase.firestore(), user=firebase.auth().currentUser;
+      var uid=user?user.uid:null, mail=user?String(user.email||'').toLowerCase():'';
+      var OWNERS=['marcell.laubscher@outlook.com','mpower333is@gmail.com'];
+      var isOwner=OWNERS.indexOf(mail)>=0; // owner = hardcoded emails only
+      var snap=await db.collection('events').get();
+      var events=snap.docs.map(function(dc){ return Object.assign({id:dc.id},dc.data()); })
+        .filter(function(e){
+          if(isOwner) return true;
+          if(!uid) return false;
+          return e.ownerUid===uid || (Array.isArray(e.admins)&&e.admins.indexOf(uid)>=0);
+        })
+        .sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+      if(!events.length){ wrap.style.display='none'; return; }
+      sel.innerHTML='<option value="">— select your event —</option>'+events.map(function(e){
+        return '<option value="'+escH(e.code||'')+'">'+escH(e.name||e.code||'event')+'</option>';
+      }).join('');
+      wrap.style.display='';
+    }catch(e){ /* fall back to manual code entry */ }
+  }
+  if(window.firebase){ try{ firebase.auth().onAuthStateChanged(function(u){ if(u) loadMyEvents(); }); }catch(e){} }
+
+  // Create a new event from the web (organiser signed in → the event is owned by
+  // them). Returns a join code they can use in the app, share, and import teams to.
+  async function newEvent(){
+    var name=(document.getElementById('newName').value||'').trim();
+    var courseId=(document.getElementById('newCourse').value||'').trim()||'custom';
+    var format=document.getElementById('newFormat').value;
+    var playerFee=(document.getElementById('newPlayerFee').value||'').trim();
+    var m=document.getElementById('createMsg'); m.style.color='var(--faint)';
+    if(!name){ m.style.color='var(--red)'; m.textContent='Enter an event name.'; return; }
+    CFG.api=(document.getElementById('inApi').value||CFG.api||'').replace(/\/$/,'');
+    m.textContent='Creating…';
+    try{
+      // auth-guard.js attaches the organiser token, so the backend sets this
+      // account as the event owner.
+      var r=await fetch(CFG.api+'/tournaments',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name:name,courseId:courseId,format:format,playerFee:playerFee||null})});
+      if(!r.ok){ var e=await r.json().catch(function(){return{};}); throw new Error(e.error||('HTTP '+r.status)); }
+      var ev=await r.json();
+      CFG.code=(ev.code||'').toUpperCase();
+      lsSet('ecs_api',CFG.api); lsSet('ecs_code',CFG.code);
+      m.style.color='var(--lime)'; m.textContent='Created! Join code: '+CFG.code;
+      await load(true);
+      alert('Event created.\n\nJoin code: '+CFG.code+'\n\nUse this code in the ForeAi app, on the clubhouse board, and share the registration link. You can import your team list below.');
+    }catch(e){ m.style.color='var(--red)'; m.textContent=e.message||'Could not create the event.'; }
+  }
 
   async function load(fromConnect){
     try{
@@ -214,10 +351,20 @@
       render();
     }catch(e){
       var m=document.getElementById('connectMsg'); if(m) m.textContent=e.message||'Could not connect.';
-      if(!fromConnect){ document.getElementById('connect').style.display='block'; document.getElementById('dash').style.display='none'; }
+      // Only fall back to the connect gate on the FIRST load. Once a dashboard is
+      // up, a transient refresh error must not tear it down — keep the data and
+      // surface the error instead (rethrow so refresh() can show it on the button).
+      if(!fromConnect && !EVENT){ document.getElementById('connect').style.display='block'; document.getElementById('dash').style.display='none'; }
+      else if(EVENT){ throw e; }
     }
   }
-  function refresh(){ load(false); }
+  async function refresh(){
+    var btn=document.getElementById('refreshBtn'); var prev=btn?btn.textContent:'';
+    if(btn){ btn.disabled=true; btn.textContent='Refreshing…'; }
+    try{ await load(false); if(btn){ btn.textContent='Refreshed ✓'; } }
+    catch(e){ if(btn){ btn.textContent='Refresh failed'; } }
+    finally{ if(btn){ setTimeout(function(){ btn.disabled=false; btn.textContent=prev||'↻ Refresh'; }, 1200); } }
+  }
 
   // Tally phone platforms across every registered player (for the app test).
   function phoneTally(){
@@ -233,12 +380,16 @@
   function phoneIcon(v){ return v==='apple'?'🍎':v==='android'?'🤖':''; }
 
   function render(){
+    // Show the connected event's own logo in the header (falls back to the
+    // ForeAi mark). Keeps the office generic — no hard-coded company branding.
+    var bl=document.getElementById('brandLogo');
+    if(bl && EVENT && EVENT.logo){ bl.innerHTML='<img src="'+EVENT.logo+'" alt="'+esc(EVENT.name||'Event')+'" />'; }
     renderAdminBar();
     populateSetup();
     renderGames();
     // tiles
     var teams=REGS.filter(r=>r.type==='team'), holes=REGS.filter(r=>r.type==='hole'), prizes=REGS.filter(r=>r.type==='prize');
-    var players=teams.reduce((s,r)=>s+teamCount(r)*4,0);
+    var players=teams.reduce((s,r)=>s+playerCount(r),0);
     var expected=REGS.reduce((s,r)=>s+amountFor(r),0);
     var received=REGS.filter(r=>r.status==='paid'||r.status==='confirmed').reduce((s,r)=>s+amountFor(r),0);
     var ph=phoneTally();
@@ -362,6 +513,7 @@
   function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
 
   function cardHTML(r){
+    if(EDITING===r.id) return editCardHTML(r);
     var p=r.payload||{};
     var typeLabel=r.type==='team'?'TEAM':r.type==='hole'?'HOLE SPONSOR':'PRIZE SPONSOR';
     var detail='';
@@ -388,11 +540,118 @@
     return '<div class="card">'
       +'<div class="rowtop"><div><span class="company">'+esc(r.company)+'</span>'
         +'<span class="badge b-'+r.type+'">'+typeLabel+'</span></div>'
-        +'<div class="amt"><div class="big">'+ (amt?money(amt):'in-kind') +'</div><div class="ref">Ref: ECS Golf Day - '+esc(r.company)+'</div></div></div>'
+        +'<div class="amt"><div class="big">'+ (amt?money(amt):'in-kind') +'</div><div class="ref">Ref: '+esc(((EVENT&&EVENT.name)||'Golf day')+' - '+r.company)+'</div></div></div>'
       + contact + detail
       +'<div class="status"><span class="lbl">Status</span>'+sb('new','New')+sb('paid','Paid')+sb('confirmed','Confirmed')
+        +'<button class="sbtn" style="margin-left:auto" onclick="editReg(\''+r.id+'\')">✎ Edit</button>'
         +'<button class="del" onclick="delReg(\''+r.id+'\')">Delete</button></div>'
       +'</div>';
+  }
+
+  // ---- edit a submission ------------------------------------------------
+  function fld(id,label,val,ph){
+    return '<label class="elab">'+esc(label)+'<input id="'+id+'" value="'+esc(val||'')+'"'+(ph?(' placeholder="'+esc(ph)+'"'):'')+'></label>';
+  }
+  function editCardHTML(r){
+    var p=r.payload||{};
+    var typeLabel=r.type==='team'?'TEAM':r.type==='hole'?'HOLE SPONSOR':'PRIZE SPONSOR';
+    var head='<div class="rowtop"><div><span class="company">Editing</span>'
+      +'<span class="badge b-'+r.type+'">'+typeLabel+'</span></div></div>';
+    var company='<label class="elab">Company<input id="e_company" value="'+esc(r.company||'')+'"></label>';
+    var contact='<div class="egrid">'
+      + fld('e_contactPerson','Contact person',r.contactPerson)
+      + fld('e_cell','Cell',r.cell)
+      + fld('e_email','Email',r.email)
+      + fld('e_regNumber','Company reg no.',r.regNumber)
+      + fld('e_vatNumber','VAT no.',r.vatNumber)
+      + fld('e_address','Address',r.address)
+      + fld('e_city','City',r.city)
+      + fld('e_postalCode','Postal code',r.postalCode)
+      + '</div>';
+    var extra='';
+    if(r.type==='team'){
+      // Render existing teams, each padded to a four-ball so missing names can be filled.
+      var teams=Array.isArray(p.teams)&&p.teams.length?p.teams:[{players:[]}];
+      extra='<div class="ehint">Four-ball player names &amp; handicaps</div>';
+      teams.forEach(function(t,ti){
+        var players=(t.players||[]).slice();
+        while(players.length<4) players.push({name:'',handicap:''});
+        extra+='<div class="eteam"><div class="ehead">Team '+(ti+1)+'</div>';
+        players.forEach(function(pl,pi){
+          extra+='<div class="eplayer">'
+            +'<input id="e_t'+ti+'_p'+pi+'_name" value="'+esc(pl.name||'')+'" placeholder="Player '+(pi+1)+' name">'
+            +'<input id="e_t'+ti+'_p'+pi+'_hcp" value="'+esc(pl.handicap!=null?pl.handicap:'')+'" placeholder="H/cap" style="max-width:80px">'
+            +'</div>';
+        });
+        extra+='</div>';
+      });
+      extra+='<input type="hidden" id="e_nteams" value="'+teams.length+'">';
+    } else if(r.type==='hole'){
+      extra=fld('e_holePreference','Hole preference',p.holePreference,'any');
+    } else if(r.type==='prize'){
+      var isCash=p.prizeType==='cash';
+      extra='<label class="elab">Prize type<select id="e_prizeType" onchange="togglePrizeEdit()">'
+        +'<option value="cash"'+(isCash?' selected':'')+'>Cash prize</option>'
+        +'<option value="item"'+(!isCash?' selected':'')+'>Item prize(s)</option></select></label>'
+        +'<div id="e_cashWrap"'+(isCash?'':' style="display:none"')+'>'+fld('e_cashAmount','Cash amount',p.cashAmount,'e.g. R4000')+'</div>'
+        +'<div id="e_itemWrap"'+(isCash?' style="display:none"':'')+'>'
+          + fld('e_prize0','Prize 1',(p.prizes||[])[0])
+          + fld('e_prize1','Prize 2',(p.prizes||[])[1])
+          + fld('e_prize2','Prize 3',(p.prizes||[])[2])
+        +'</div>';
+    }
+    return '<div class="card">'+head+company+contact+extra
+      +'<div class="status" style="margin-top:12px">'
+      +'<button class="btn sm" onclick="saveReg(\''+r.id+'\')">Save changes</button>'
+      +'<button class="sbtn" onclick="cancelEdit()">Cancel</button></div>'
+      +'</div>';
+  }
+  function togglePrizeEdit(){
+    var t=document.getElementById('e_prizeType'); if(!t) return;
+    var cash=t.value==='cash';
+    var cw=document.getElementById('e_cashWrap'), iw=document.getElementById('e_itemWrap');
+    if(cw) cw.style.display=cash?'':'none';
+    if(iw) iw.style.display=cash?'none':'';
+  }
+  function editReg(id){ EDITING=id; render(); }
+  function cancelEdit(){ EDITING=null; render(); }
+  function ev(id){ var el=document.getElementById(id); return el?el.value.trim():''; }
+  async function saveReg(id){
+    var r=REGS.find(x=>x.id===id); if(!r) return;
+    var body={
+      company:ev('e_company'), contactPerson:ev('e_contactPerson'), cell:ev('e_cell'), email:ev('e_email'),
+      regNumber:ev('e_regNumber'), vatNumber:ev('e_vatNumber'),
+      address:ev('e_address'), city:ev('e_city'), postalCode:ev('e_postalCode')
+    };
+    if(!body.company){ alert('Company name is required.'); return; }
+    var payload=Object.assign({}, r.payload||{});
+    if(r.type==='team'){
+      var nt=parseInt(ev('e_nteams'),10)||1, teams=[];
+      for(var ti=0;ti<nt;ti++){
+        var players=[];
+        for(var pi=0;pi<4;pi++){
+          var nm=ev('e_t'+ti+'_p'+pi+'_name'); if(!nm) continue;
+          var hc=ev('e_t'+ti+'_p'+pi+'_hcp');
+          players.push({name:nm, handicap:hc!==''?(parseFloat(hc)||0):0});
+        }
+        teams.push({players:players});
+      }
+      payload.teams=teams;
+    } else if(r.type==='hole'){
+      payload.holePreference=ev('e_holePreference');
+    } else if(r.type==='prize'){
+      payload.prizeType=ev('e_prizeType')||'cash';
+      if(payload.prizeType==='cash'){ payload.cashAmount=ev('e_cashAmount'); payload.prizes=[]; }
+      else { payload.prizes=[ev('e_prize0'),ev('e_prize1'),ev('e_prize2')].filter(Boolean); payload.cashAmount=''; }
+    }
+    body.payload=payload;
+    try{
+      var res=await authFetch(CFG.api+'/tournaments/'+EVENT.id+'/registrations/'+id,
+        {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(res.ok){ EDITING=null; await load(false); }
+      else if(res.status===403){ alert('Enter your organiser PIN first (above) to make changes.'); }
+      else { alert('Could not save those changes.'); }
+    }catch(e){ alert('Could not save those changes.'); }
   }
 
   // ---- admin PIN --------------------------------------------------------
@@ -494,6 +753,7 @@
     document.getElementById('setBank').value = EVENT.banking||'';
     document.getElementById('setTeamFee').value = EVENT.teamFee!=null?EVENT.teamFee:'';
     document.getElementById('setHoleFee').value = EVENT.holeFee!=null?EVENT.holeFee:'';
+    document.getElementById('setPlayerFee').value = EVENT.playerFee!=null?EVENT.playerFee:'';
     document.getElementById('setCause').value = EVENT.cause||'';
     REMINDERS = (EVENT.reminders||[]).map(function(r){ return { offsetMin:+r.offsetMin||1440, body:r.body||'' }; });
     renderReminders();
@@ -504,6 +764,7 @@
     var body={ banking: document.getElementById('setBank').value,
       teamFee: parseInt(document.getElementById('setTeamFee').value,10) || null,
       holeFee: parseInt(document.getElementById('setHoleFee').value,10) || null,
+      playerFee: parseInt(document.getElementById('setPlayerFee').value,10) || null,
       reminders: REMINDERS.filter(function(r){ return r.body && r.body.trim(); }).map(function(r){ return { offsetMin:+r.offsetMin||0, title:'⛳ '+((EVENT&&EVENT.name)||'Golf day'), body:r.body.trim() }; }),
       cause: document.getElementById('setCause').value || null };
     if(NEW_LOGO) body.logo=NEW_LOGO;
@@ -536,6 +797,22 @@
       } }
     return '';
   }
+  // Like findVal but NEVER falls through to the cell below — used for the
+  // stacked "Player 1..4" rows, where the name is always in the column to the
+  // right. (The below-fallback would otherwise read the next "Player N" label
+  // as a name, pulling a one-name four-ball through as three players.)
+  function findRight(aoa, re){
+    for(var r=0;r<aoa.length;r++){ var row=aoa[r]||[];
+      for(var c=0;c<row.length;c++){ var cell=row[c]==null?'':String(row[c]).trim();
+        if(cell && re.test(cell)){
+          var after=cell.replace(/^[^:]*:/,'').trim();
+          if(after && !re.test(after)) return after;
+          var right=valRight(row,c); if(right && !re.test(right)) return right;
+          return '';
+        }
+      } }
+    return '';
+  }
   function detectType(aoa){
     var big=aoa.map(function(r){return (r||[]).map(function(x){return x==null?'':String(x);}).join(' ');}).join(' \n ').toUpperCase();
     if(/FOUR-BALL TEAM|TEAM REGISTRATION|TR-01/.test(big)) return 'team';
@@ -555,18 +832,94 @@
       cell:findVal(aoa,/^cell\b/i)||null,
       email:findVal(aoa,/^e-?mail\b/i)||null };
     if(type==='team'){
-      var players=[]; for(var n=1;n<=4;n++){ var nm=findVal(aoa,new RegExp('player\\s*'+n,'i')); if(nm) players.push({name:nm}); }
+      var players=[]; for(var n=1;n<=4;n++){ var nm=findRight(aoa,new RegExp('player\\s*'+n+'\\b','i')); if(nm) players.push({name:nm}); }
       b.teamCount=parseInt(findVal(aoa,/number of four-ball teams/i),10)||1;
       b.teams=[{players:players}];
     } else if(type==='hole'){
       b.holePreference=findVal(aoa,/hole number preference/i)||'';
     } else if(type==='prize'){
       var cash=findVal(aoa,/cash prize amount/i);
-      var prizes=[]; for(var n=1;n<=3;n++){ var pz=findVal(aoa,new RegExp('prize\\s*'+n+'\\s*:','i')); if(pz) prizes.push(pz); }
+      // Right-only lookup (like players) so a blank "Prize 2:" doesn't read the
+      // "Prize 3:" label below it as a prize.
+      var prizes=[]; for(var n=1;n<=3;n++){ var pz=findRight(aoa,new RegExp('prize\\s*'+n+'\\s*:','i')); if(pz) prizes.push(pz); }
       b.prizeType=cash?'cash':'item'; b.cashAmount=cash||''; b.prizes=prizes;
     }
     return {type:type, body:b};
   }
+  // ---- bulk team-list spreadsheet parsing -------------------------------
+  // A single sheet listing many teams, in either layout:
+  //   WIDE — one team per row: [Company | Player 1 | Hcp | Player 2 | Hcp | …]
+  //   TALL — one player per row, grouped by a Company/Team column.
+  function cellStr(v){ return v==null?'':String(v).trim(); }
+  function toHcp(v){ var n=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:n; }
+  function colType(h){
+    h=(h||'').toLowerCase();
+    if(/hand ?i?cap|\bhcp\b|h\/?cap|h'?cap/.test(h)) return 'handicap';
+    if(/\bplayer\b|\bgolfer\b/.test(h)) return 'player';
+    if(/\bcompany\b|\bteam\b|four ?ball|\bentry\b|organi[sz]ation|\bclub\b|\bgroup\b/.test(h)) return 'company';
+    if(/\bname\b/.test(h)) return 'player';
+    return 'other';
+  }
+  function classifyHeader(row){
+    var players=[], hcaps=[], companyCol=-1;
+    for(var i=0;i<row.length;i++){
+      var t=colType(cellStr(row[i]));
+      if(t==='player') players.push(i);
+      else if(t==='handicap') hcaps.push(i);
+      else if(t==='company' && companyCol<0) companyCol=i;
+    }
+    if(!players.length) return null;
+    // Guard against a stray "name" cell being mistaken for a header row.
+    if(players.length<2 && companyCol<0) return null;
+    return { companyCol:companyCol, players:players, hcaps:hcaps };
+  }
+  // Nearest handicap column to a player column, before the next player column.
+  function hcapFor(playerCol, cols){
+    var next=Infinity; cols.players.forEach(function(pc){ if(pc>playerCol && pc<next) next=pc; });
+    var best=-1; cols.hcaps.forEach(function(hc){ if(hc>playerCol && hc<next && (best<0||hc<best)) best=hc; });
+    return best;
+  }
+  function parseBulkSheet(aoa){
+    var headerRow=-1, cols=null;
+    for(var r=0;r<Math.min(aoa.length,20);r++){
+      var c=classifyHeader(aoa[r]||[]);
+      if(c){ headerRow=r; cols=c; break; }
+    }
+    if(headerRow<0) return null;
+    var entries=[];
+    if(cols.players.length>=2){
+      // WIDE: one team per row.
+      for(var r=headerRow+1;r<aoa.length;r++){
+        var row=aoa[r]||[];
+        var company=cols.companyCol>=0?cellStr(row[cols.companyCol]):'';
+        var players=[];
+        cols.players.forEach(function(pc){
+          var nm=cellStr(row[pc]); if(!nm) return;
+          var hc=hcapFor(pc,cols); players.push({ name:nm, handicap:hc>=0?toHcp(row[hc]):0 });
+        });
+        if(!players.length) continue;
+        entries.push({ type:'team', body:{ company:company||('Team '+(entries.length+1)), teams:[{players:players}], teamCount:1 } });
+      }
+    } else {
+      // TALL: one player per row, grouped by company.
+      var nameCol=cols.players[0], hcpCol=cols.hcaps.length?cols.hcaps[0]:-1;
+      var order=[], byCompany={};
+      for(var r=headerRow+1;r<aoa.length;r++){
+        var row=aoa[r]||[];
+        var nm=cellStr(row[nameCol]); if(!nm) continue;
+        var company=(cols.companyCol>=0?cellStr(row[cols.companyCol]):'')||'Unassigned';
+        if(!byCompany[company]){ byCompany[company]=[]; order.push(company); }
+        byCompany[company].push({ name:nm, handicap:hcpCol>=0?toHcp(row[hcpCol]):0 });
+      }
+      order.forEach(function(company){
+        var pls=byCompany[company], teams=[];
+        for(var i=0;i<pls.length;i+=4) teams.push({ players:pls.slice(i,i+4) });
+        entries.push({ type:'team', body:{ company:company, teams:teams, teamCount:teams.length } });
+      });
+    }
+    return entries.length?entries:null;
+  }
+
   async function importFiles(files){
     IMPORT=[]; var pv=document.getElementById('importPreview'); pv.innerHTML='<div class="hint">Reading…</div>';
     for(var i=0;i<files.length;i++){
@@ -575,7 +928,13 @@
         var wb=XLSX.read(buf,{type:'array'});
         var ws=wb.Sheets[wb.SheetNames[0]];
         var aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
-        var p=parseForm(aoa); p.file=files[i].name; IMPORT.push(p);
+        var p=parseForm(aoa);
+        if(p.type){ p.file=files[i].name; IMPORT.push(p); }        // single emailed form
+        else {
+          var bulk=parseBulkSheet(aoa);                            // team-list spreadsheet
+          if(bulk){ bulk.forEach(function(e){ e.file=files[i].name; IMPORT.push(e); }); }
+          else IMPORT.push({ type:null, body:{}, file:files[i].name });
+        }
       }catch(e){ IMPORT.push({type:null,body:{},file:files[i].name,err:String(e)}); }
     }
     document.getElementById('xlsxFiles').value='';
@@ -589,7 +948,7 @@
       var b=p.body, det='';
       if(!p.type) det='<span style="color:var(--red)">unrecognised form</span>';
       else if(!b.company) det='<span style="color:var(--red)">no company name found</span>';
-      else if(p.type==='team') det=(b.teams[0].players.length)+' players'+(b.teamCount>1?(' · '+b.teamCount+' teams'):'');
+      else if(p.type==='team'){ var np=(b.teams||[]).reduce(function(s,t){return s+((t.players||[]).length);},0); var nt=(b.teams||[]).length; det=np+' player'+(np===1?'':'s')+(nt>1?(' · '+nt+' teams'):''); }
       else if(p.type==='hole') det='hole pref: '+(b.holePreference||'any');
       else det=(b.prizeType==='cash'?('cash '+(b.cashAmount||'')):('items: '+((b.prizes||[]).join(', ')||'—')));
       var dup=p.type&&b.company&&isDup(p);
@@ -642,19 +1001,23 @@
       if(r.type==='team' && Array.isArray(p.teams)){
         p.teams.forEach(function(t){ (t.players||[]).forEach(function(x){ if(x.phone==='apple')apple++; else if(x.phone==='android')android++; }); });
       }
-      var vals=[r.type,r.company,r.contactPerson,r.cell,r.email,r.regNumber,r.vatNumber,r.address,r.city,r.postalCode,details,apple,android,amountFor(r),'ECS Golf Day - '+r.company,r.status,r.createdAt];
+      var vals=[r.type,r.company,r.contactPerson,r.cell,r.email,r.regNumber,r.vatNumber,r.address,r.city,r.postalCode,details,apple,android,amountFor(r),((EVENT&&EVENT.name)||'Golf day')+' - '+r.company,r.status,r.createdAt];
       lines.push(vals.map(function(v){ v=(v==null?'':String(v)); return '"'+v.replace(/"/g,'""')+'"'; }).join(','));
     });
     var blob=new Blob([lines.join('\n')],{type:'text/csv'});
-    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ECS-GolfDay-registrations.csv'; a.click();
+    var fn=((EVENT&&EVENT.name)||'ForeAi').replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'');
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(fn||'ForeAi')+'-registrations.csv'; a.click();
   }
 
   document.querySelectorAll('.tab').forEach(function(t){
     t.addEventListener('click',function(){ document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')}); t.classList.add('on'); FILTER=t.dataset.f; render(); });
   });
 
-  // auto-connect if we already have details
-  if(CFG.api && CFG.code){ document.getElementById('inCode').value=CFG.code; document.getElementById('inApi').value=CFG.api; load(false); }
+  // Prefill the backend (defaults to the live ForeAi backend) and any code, so an
+  // organiser only needs their event code — or you can share a link with ?code=.
+  document.getElementById('inApi').value = CFG.api;
+  document.getElementById('inCode').value = CFG.code;
+  if(CFG.api && CFG.code){ load(false); }
 </script>
 </body>
 </html>

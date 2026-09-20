@@ -20,13 +20,31 @@
   .soon .tag{ float:right; font-size:11px; color:var(--faint); border:1px solid var(--line); border-radius:999px; padding:2px 8px; }
   .note{ background:#0C1B38; border:1px dashed var(--line); border-radius:12px; padding:12px 14px; color:var(--faint); font-size:13px; margin-top:18px; }
   .note b{ color:var(--text); }
+  .userbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; font-size:13px; color:var(--faint); }
+  .userbar a{ color:var(--accent); font-weight:700; text-decoration:none; cursor:pointer; }
+  .hide{ display:none; }
+  body.gate .wrap > *:not(#userbar){ visibility:hidden; }
+  .club-only{ display:none; }
+  .owner-only{ display:none; }
+  a.card.owner{ border-color:var(--accent); background:linear-gradient(160deg,#14306a,#0f2143); }
+  .club-head{ margin:22px 0 10px; font-size:12px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); display:flex; align-items:center; gap:8px; }
+  .club-head::before{ content:""; flex:none; width:8px; height:8px; border-radius:50%; background:var(--accent); }
 </style>
 </head>
-<body>
+<body class="gate">
 <div class="wrap">
   <span class="lock">🔒 PRIVATE — ADMIN ONLY</span>
   <h1>ForeAi Management</h1>
-  <p class="sub">Organiser tools for the ECS Golf Day. This area should be password-protected in cPanel (see the note below).</p>
+  <p class="sub">Organiser tools for events, members and competitions.</p>
+  <div class="userbar hide" id="userbar"><span id="who"></span><a id="signout">Sign out</a></div>
+
+  <!-- Platform owner only (role = owner) -->
+  <div class="owner-only" data-role="owner" id="ownerTools">
+    <a class="card owner" href="admin.html">
+      <h2>🛡️ Owner Console</h2>
+      <p>Every event, organiser and club on ForeAi in one place — open any event without a code, assign clubs and promote organisers.</p>
+    </a>
+  </div>
 
   <a class="card" href="survey.html">
     <h2>🛰️ Course Survey</h2>
@@ -35,7 +53,7 @@
 
   <a class="card" href="office.html">
     <h2>🗂️ Office &amp; Registrations</h2>
-    <p>Teams, hole &amp; prize sponsors, payment status, and the Excel import. (Move it into this folder — see note.)</p>
+    <p>Teams, hole &amp; prize sponsors, payment status, CSV export — and the Excel import: drop in the emailed forms or a team list and it loads them straight into the event.</p>
   </a>
 
   <a class="card" href="live.html">
@@ -43,42 +61,140 @@
     <p>See where every player is on the course during the golf day. Enter the event code — positions update live from the app.</p>
   </a>
 
-  <a class="card" href="members.html">
-    <h2>👥 Members</h2>
-    <p>Manage the club roster the app reads: add/edit/import members, set category &amp; status, and sync handicap indexes from HNA.</p>
-  </a>
+  <!-- Club-only tools: shown only to the club's own account (clubKey match). -->
+  <div class="club-only" data-club="kempton" id="clubTools">
+    <div class="club-head" id="clubHead">Kempton Park Golf Club</div>
 
-  <a class="card" href="teesheet.html">
-    <h2>⛳ Tee Sheet</h2>
-    <p>Configure the tee sheet and view each day's bookings — see who's on, block slots for events, and cancel bookings.</p>
-  </a>
+    <a class="card" href="members.html">
+      <h2>👥 Members</h2>
+      <p>Manage the club roster the app reads: add/edit/import members, set category &amp; status, and sync handicap indexes from HNA.</p>
+    </a>
 
-  <a class="card" href="competitions.html">
-    <h2>🏆 Competitions</h2>
-    <p>Run club medals &amp; Stableford days: create competitions, manage the field, capture cards, and publish the net/gross leaderboard.</p>
-  </a>
+    <a class="card" href="teesheet.html">
+      <h2>⛳ Tee Sheet</h2>
+      <p>Configure the tee sheet and view each day's bookings — see who's on, block slots for events, and cancel bookings.</p>
+    </a>
 
-  <a class="card" href="news.html">
-    <h2>📰 Club News</h2>
-    <p>Post announcements, results and notices that members read in the app — pin important ones and add a photo.</p>
-  </a>
+    <a class="card" href="competitions.html">
+      <h2>🏆 Competitions</h2>
+      <p>Run club medals &amp; Stableford days: create competitions, manage the field, capture cards, and publish the net/gross leaderboard.</p>
+    </a>
 
-  <a class="card" href="payments.html">
-    <h2>💳 Payments</h2>
-    <p>The price list, member invoices (dues, green fees, competition entries, levies), the annual dues run, and EFT / card settings.</p>
-  </a>
-
-  <div class="card soon">
-    <span class="tag">planned</span>
-    <h2>📊 Excel import</h2>
-    <p>Bulk-load the emailed team/sponsor spreadsheet straight into the event. Being added to the Office page.</p>
+    <a class="card" href="news.html">
+      <h2>📰 Club News</h2>
+      <p>Post announcements, results and notices that members read in the app — pin important ones and add a photo.</p>
+    </a>
   </div>
 
-  <div class="note">
-    <b>Make this area private (do this once in cPanel):</b><br>
-    cPanel → <b>Directory Privacy</b> → open the <b>manage</b> folder → tick <b>“Password protect this directory”</b> → create a username + password → Save.
-    After that, <b>foreai.co.za/manage/</b> asks for that login, so only you can reach these tools. The public pages (register, board, get) stay open as normal.
-  </div>
 </div>
+
+<script src="../config.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+  var P = new URLSearchParams(location.search);
+  var D = window.FOREAI_DEFAULTS || {};
+  var API = (P.get('api') || localStorage.getItem('foreai.api') || D.api || '').replace(/\/$/,'');
+  var TOKEN_KEY = 'foreai.auth.token', USER_KEY = 'foreai.auth.user';
+  var token = localStorage.getItem(TOKEN_KEY);
+
+  function toSignin(){ var fs = fsOn() ? 'fs=1&' : ''; location.href = 'signin.html?' + fs + 'next=' + encodeURIComponent('index.html' + location.search); }
+  // Sign-out must also end the Firebase session (via ?signout=1), otherwise the
+  // sign-in page re-exchanges it and signs the organiser straight back in.
+  function signOut(){ localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); location.href = 'signin.html?signout=1'; }
+
+  function fsOn(){
+    if (P.get('fs') === '1') return true;
+    if (P.get('fs') === '0') return false;
+    return !!D.useFirestore;
+  }
+  // Firestore mode gates on the Firebase session (below), so no Render token
+  // is required. Legacy mode still needs the token.
+  if (!fsOn() && !token) { toSignin(); return; }
+
+  // Show a signed-in organiser their portal, and reveal club-only tool groups
+  // only when their account's clubKey matches that group's data-club.
+  function present(u){
+    document.body.classList.remove('gate');
+    var bar = document.getElementById('userbar');
+    document.getElementById('who').textContent = 'Signed in as ' + (u.name || u.email || 'organiser');
+    bar.classList.remove('hide');
+    var owner = u.role === 'owner';
+    // Owner (main admin) sees every club's tools; a club organiser sees only
+    // their own club; a plain organiser (e.g. Jurian) sees neither — just the
+    // general event tools, which manage only the events they own.
+    document.querySelectorAll('.club-only[data-club]').forEach(function(el){
+      if (owner || (u.clubKey && el.dataset.club === u.clubKey)) el.style.display = 'block';
+    });
+    document.querySelectorAll('.owner-only[data-role]').forEach(function(el){
+      if (owner) el.style.display = 'block';
+    });
+  }
+
+  // Effective role/clubKey come from Firestore (the hands-off source of truth):
+  // the hardcoded owner emails are owners; everyone else uses their adminUsers
+  // record (self-provisioned on sign-in). No Render env / console needed.
+  var OWNER_EMAILS = ['marcell.laubscher@outlook.com', 'mpower333is@gmail.com'];
+  function firestoreGate(){
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+    } catch (e) { return Promise.resolve(null); }
+    var auth = firebase.auth();
+    return new Promise(function(resolve){
+      var done = false;
+      var t = setTimeout(function(){ if (!done){ done = true; resolve(null); } }, 4000);
+      auth.onAuthStateChanged(function(user){
+        if (done) return; done = true; clearTimeout(t);
+        if (!user) { resolve(null); return; }
+        var mail = (user.email || '').trim().toLowerCase();
+        firebase.firestore().collection('adminUsers').doc(user.uid).get().then(function(s){
+          var d = s.exists ? s.data() : {};
+          // Owner is ONLY a hardcoded owner email — never the user's own role field.
+          var role = OWNER_EMAILS.indexOf(mail) >= 0 ? 'owner' : 'organiser';
+          resolve({ name: user.displayName || d.name || null, email: mail, role: role, clubKey: d.clubKey || null });
+        }).catch(function(){
+          var role = OWNER_EMAILS.indexOf(mail) >= 0 ? 'owner' : 'organiser';
+          resolve({ name: user.displayName || null, email: mail, role: role, clubKey: null });
+        });
+      });
+    });
+  }
+
+  if (fsOn()) {
+    // Firestore cutover: the Firebase session is the only source of truth. No
+    // Render token, no /auth/me — so Render can be retired.
+    firestoreGate().then(function(fs){
+      if (!fs) { toSignin(); return; }
+      present({ name: fs.name, email: fs.email, role: fs.role, clubKey: fs.clubKey });
+    });
+  } else {
+    // Legacy: Render validates the session + supplies the name; Firestore drives
+    // role/clubKey. Only sign out if BOTH reject.
+    Promise.all([
+      fetch(API + '/auth/me', { headers: { Authorization: 'Bearer ' + token } })
+        .then(function(r){ if (r.status === 401) return { unauth: true }; return r.ok ? r.json() : null; })
+        .catch(function(){ return null; }),
+      firestoreGate()
+    ]).then(function(res){
+      var me = res[0], fs = res[1];
+      if (me && me.unauth && !fs) { signOut(); return; }
+      var ru = (me && me.user) || {};
+      if (me && me.user) { try { localStorage.setItem(USER_KEY, JSON.stringify(me.user)); } catch(e){} }
+      else { try { ru = JSON.parse(localStorage.getItem(USER_KEY) || '{}'); } catch(e){ ru = {}; } }
+      present({
+        name: (fs && fs.name) || ru.name || ru.email || null,
+        email: (fs && fs.email) || ru.email || null,
+        role: (fs && fs.role) || ru.role || 'organiser',
+        clubKey: (fs && fs.clubKey != null) ? fs.clubKey : (ru.clubKey || null),
+      });
+    });
+  }
+
+  document.getElementById('signout').onclick = signOut;
+})();
+</script>
 </body>
 </html>

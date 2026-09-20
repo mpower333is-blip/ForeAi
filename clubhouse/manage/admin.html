@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ForeAi — Owner Console</title>
+<style>
+  :root{ --bg:#081226; --panel:#0F2143; --panel2:#132a54; --line:#26407A; --text:#F2F6FF; --muted:#B7C6E6; --faint:#7F92B6; --gold:#F3C33B; --sky:#6BD5FF; --green:#46C85A; --red:#FF6B6B; --amber:#FFCF5C; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:64px 16px 60px}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 4px}
+  .sub{color:var(--faint);margin:0 0 20px;font-size:14px}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:14px 0 22px}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .tile .k{color:var(--faint);font-size:12px;text-transform:uppercase;letter-spacing:1px}
+  .tile .v{font-size:26px;font-weight:800;margin-top:4px}
+  .tile .v.gold{color:var(--gold)} .tile .v.green{color:var(--green)}
+  section{margin-bottom:26px}
+  h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);margin:0 0 10px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:middle}
+  th{color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.06em;background:var(--panel2)}
+  tr:last-child td{border-bottom:none}
+  .muted{color:var(--faint)} .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+  select,input{font:inherit;background:#0A1830;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 8px;font-size:13px}
+  .btn{border:none;cursor:pointer;background:linear-gradient(135deg,#FCE38A,#F3C33B,#D9A62A);color:#20160a;font-weight:800;padding:8px 12px;border-radius:9px;font-size:13px;text-decoration:none;display:inline-block}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--gold)}
+  .lnk{color:var(--sky);text-decoration:none;font-weight:700}
+  .lnk.del{color:var(--red);font-size:12px}
+  .chip{display:inline-flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 9px;font-size:12px;margin:0 4px 4px 0}
+  .chip a{color:var(--red);font-weight:800;text-decoration:none;font-size:14px;line-height:1}
+  .addbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  a.back{position:fixed;top:14px;left:14px;z-index:50;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(8,18,38,.72);color:var(--gold);font-weight:800;font-size:14px;text-decoration:none;border:1px solid var(--line)}
+  .msg{font-size:13px;color:var(--faint);margin-left:8px}
+  .empty{padding:16px;color:var(--faint)}
+  .banner{background:rgba(255,207,92,.12);border:1px solid rgba(255,207,92,.4);color:var(--amber);border-radius:12px;padding:10px 14px;margin:0 0 16px;font-size:13px}
+  body.gate .wrap{visibility:hidden}
+</style>
+  <script src="../config.js"></script>
+  <script src="../firebase-config.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="gate">
+<a class="back" href="index.html">‹ Hub</a>
+<div class="wrap">
+  <h1>🛡️ Owner Console</h1>
+  <p class="sub">Every event, organiser and club on ForeAi — live from Firestore.</p>
+
+  <div id="banner"></div>
+  <div class="tiles" id="tiles"></div>
+
+  <section>
+    <h2>📅 Events</h2>
+    <div class="addbar">
+      <button class="btn ghost" onclick="claimAllUnassigned()">Assign all unassigned events to me</button>
+      <span class="msg">Set an <b>Owner</b> per event so each organiser only manages their own.</span>
+    </div>
+    <div class="card" id="events"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section>
+    <h2>👤 Organisers</h2>
+    <p class="sub" style="margin:-4px 0 10px">Organisers sign themselves up on the login page. Assign a club or promote them here — the change takes effect the next time they open the portal.</p>
+    <div class="card" id="organisers"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section>
+    <h2>🏌️ Clubs</h2>
+    <div class="addbar">
+      <input id="newClubKey" placeholder="clubkey (e.g. kempton)" style="width:170px" />
+      <input id="newClubName" placeholder="Club name" style="width:220px" />
+      <button class="btn" onclick="createClub()">+ Add club</button>
+      <span class="msg" id="clubMsg"></span>
+    </div>
+    <div class="card" id="clubs"><div class="empty">Loading…</div></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var D = window.FOREAI_DEFAULTS || {};
+  var $ = function(id){ return document.getElementById(id); };
+  var esc = function(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); };
+  var when = function(d){ if(!d) return '—'; var t = typeof d==='number'?d:Date.parse(d); return isFinite(t)?new Date(t).toLocaleDateString('en-ZA'):'—'; };
+
+  // Owner emails — the hardcoded main admins (same list as the rules). These get
+  // in with zero setup; other owners are those whose adminUsers record says owner.
+  var OWNER_EMAILS = ['marcell.laubscher@outlook.com', 'mpower333is@gmail.com'];
+
+  if (!window.firebase || !window.FIREBASE_CONFIG) { alert('Firebase not loaded.'); location.href='index.html'; return; }
+  if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+  var auth = firebase.auth(), db = firebase.firestore();
+
+  var CLUBS = [], ORGS = [], EVENTS = [];
+
+  // Gate: must be signed in AND an owner (hardcoded email, or adminUsers.role owner).
+  auth.onAuthStateChanged(function(user){
+    if (!user) { location.href = 'signin.html?next=' + encodeURIComponent('admin.html'); return; }
+    var mail = (user.email||'').trim().toLowerCase();
+    var isSuper = OWNER_EMAILS.indexOf(mail) >= 0;
+    db.collection('adminUsers').doc(user.uid).get().then(function(s){
+      var role = isSuper ? 'owner' : 'organiser'; // owner = hardcoded emails only
+      if (role !== 'owner') { alert('This page is for the ForeAi owner.'); location.href='index.html'; return; }
+      // Make sure the owner has their own organiser record, so they show up in
+      // the Organisers list and the per-event Owner dropdown even if they never
+      // went through the (self-provisioning) sign-in page.
+      var ensure = s.exists ? Promise.resolve() : db.collection('adminUsers').doc(user.uid).set({
+        email: mail, name: user.displayName || null, role: 'owner', clubKey: null, createdAt: Date.now(), updatedAt: Date.now(),
+      }).catch(function(){});
+      ensure.then(function(){ document.body.classList.remove('gate'); load(); });
+    }).catch(function(){
+      if (!isSuper) { alert('Could not verify access.'); location.href='index.html'; return; }
+      document.body.classList.remove('gate'); load();
+    });
+  });
+
+  function load(){
+    // Load each section independently so one denied/failed read never blanks the
+    // whole page.
+    Promise.allSettled([
+      db.collection('events').get(),
+      db.collection('adminUsers').get(),
+      db.collection('clubs').get(),
+    ]).then(function(res){
+      ORGS = res[1].status === 'fulfilled' ? res[1].value.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); }) : [];
+      CLUBS = res[2].status === 'fulfilled' ? res[2].value.docs.map(function(d){ return Object.assign({ clubKey:d.id }, d.data()); }) : [];
+      if (res[1].status !== 'fulfilled') $('organisers').innerHTML = '<div class="empty">Could not load organisers ('+esc((res[1].reason&&res[1].reason.message)||res[1].reason)+').</div>';
+      if (res[2].status !== 'fulfilled') $('clubs').innerHTML = '<div class="empty">Could not load clubs.</div>';
+      if (res[0].status !== 'fulfilled') { $('events').innerHTML = '<div class="empty">Could not load events ('+esc((res[0].reason&&res[0].reason.message)||res[0].reason)+').</div>'; EVENTS = []; render(); return; }
+      // Count players per event (parallel; tolerate a per-event failure).
+      Promise.all(res[0].value.docs.map(function(d){
+        // Spread the doc first, THEN our computed fields, so a stale embedded
+        // `players` array (left by the old mirror) can't clobber the real count.
+        return d.ref.collection('players').get()
+          .then(function(ps){ return Object.assign({}, d.data(), { id:d.id, players: ps.size }); })
+          .catch(function(){ return Object.assign({}, d.data(), { id:d.id, players: 0 }); });
+      })).then(function(events){
+        EVENTS = events.sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); });
+        render();
+      });
+    });
+  }
+
+  function render(){
+    if (!EVENTS.length) {
+      $('banner').innerHTML = '<div class="banner">No events in Firestore yet. Run the one-time data migration (migration/migrate-to-firestore.mjs) to bring your existing events and teams across from Render.</div>';
+    } else { $('banner').innerHTML = ''; }
+
+    $('tiles').innerHTML = [
+      ['Events', EVENTS.length, ''],
+      ['Organisers', ORGS.length, ''],
+      ['Clubs', CLUBS.length, ''],
+      ['Players', EVENTS.reduce(function(s,e){return s+(e.players||0);},0), 'gold'],
+    ].map(function(x){ return '<div class="tile"><div class="k">'+x[0]+'</div><div class="v '+x[2]+'">'+x[1]+'</div></div>'; }).join('');
+
+    // Events — every event, no join code needed. Open manages/views it directly.
+    $('events').innerHTML = EVENTS.length ? '<table><tr><th>Event</th><th>Code</th><th>Players</th><th>Created by</th><th>Owner</th><th>Admins (can load docs)</th><th>Created</th><th></th></tr>'+
+      EVENTS.map(function(e){
+        var code = esc(e.code||'');
+        var ownerOpts = '<option value="">— unassigned —</option>'+ORGS.map(function(o){
+          return '<option value="'+esc(o.id)+'"'+(e.ownerUid===o.id?' selected':'')+'>'+esc(o.email||o.name||o.id)+'</option>';
+        }).join('');
+        // Creator: the email stored on the event, else the current owner's email.
+        var ownerOrg = ORGS.filter(function(x){ return x.id===e.ownerUid; })[0];
+        var creator = e.creatorEmail || (ownerOrg && (ownerOrg.email||ownerOrg.name)) || '—';
+        // Linked co-admins (can open the office and load this event's documents).
+        var adminList = Array.isArray(e.admins) ? e.admins : [];
+        var chips = adminList.map(function(uid){
+          var o = ORGS.filter(function(x){ return x.id===uid; })[0];
+          return '<span class="chip">'+esc(o ? (o.email||o.name||uid) : uid)+'<a href="javascript:void(0)" title="remove" onclick="removeAdmin(\''+esc(e.id)+'\',\''+esc(uid)+'\')">×</a></span>';
+        }).join('');
+        var addable = ORGS.filter(function(o){ return adminList.indexOf(o.id)<0 && o.id!==e.ownerUid; });
+        var addOpts = '<option value="">+ link organiser…</option>'+addable.map(function(o){ return '<option value="'+esc(o.id)+'">'+esc(o.email||o.name||o.id)+'</option>'; }).join('');
+        return '<tr>'
+          +'<td><b>'+esc(e.name||'—')+'</b>'+(e.cause?'<div class="muted">'+esc(e.cause)+'</div>':'')+'</td>'
+          +'<td class="mono">'+code+'</td>'
+          +'<td>'+(e.players||0)+'</td>'
+          +'<td class="muted">'+esc(creator)+'</td>'
+          +'<td><select class="e-owner" data-id="'+esc(e.id)+'" onchange="setEventOwner(this)">'+ownerOpts+'</select></td>'
+          +'<td>'+chips+'<select class="e-addadmin" data-id="'+esc(e.id)+'" onchange="addAdmin(this)">'+addOpts+'</select></td>'
+          +'<td>'+when(e.createdAt)+'</td>'
+          +'<td><a class="lnk" href="office.html?fs=1&code='+encodeURIComponent(e.code||'')+'">Office</a> · '
+          +'<a class="lnk" href="board.html?fs=1&code='+encodeURIComponent(e.code||'')+'">Board</a><br>'
+          +'<a class="lnk del" href="javascript:void(0)" onclick="deleteEvent(\''+esc(e.id)+'\')">Delete</a></td>'
+          +'</tr>';
+      }).join('')+'</table>' : '<div class="empty">No events yet.</div>';
+
+    // Organisers — assign a club / promote. Owner writes are allowed by the rules.
+    var clubKeys = CLUBS.map(function(c){ return c.clubKey; });
+    $('organisers').innerHTML = ORGS.length ? '<table><tr><th>Organiser</th><th>Club</th><th>Role</th><th>Joined</th><th></th></tr>'+
+      ORGS.map(function(u){
+        var isSuper = OWNER_EMAILS.indexOf((u.email||'').toLowerCase()) >= 0;
+        var clubOpts = '<option value="">— none —</option>'+clubKeys.map(function(k){ return '<option value="'+esc(k)+'"'+(u.clubKey===k?' selected':'')+'>'+esc(k)+'</option>'; }).join('');
+        return '<tr data-id="'+esc(u.id)+'">'
+          +'<td><b>'+esc(u.name||'—')+'</b><div class="muted">'+esc(u.email||'')+(isSuper?' · <span style="color:var(--gold)">main admin</span>':'')+'</div></td>'
+          +'<td><select class="u-club"'+(isSuper?' disabled':'')+'>'+clubOpts+'</select></td>'
+          +'<td>'+(isSuper?'<span style="color:var(--gold)">owner</span>':'organiser')+'</td>'
+          +'<td>'+when(u.createdAt)+'</td>'
+          +'<td>'+(isSuper?'<span class="muted">—</span>':'<button class="btn" onclick="saveUser(this)">Save</button>')+'</td>'
+          +'</tr>';
+      }).join('')+'</table>' : '<div class="empty">No organisers have signed in yet.</div>';
+
+    // Clubs
+    $('clubs').innerHTML = CLUBS.length ? '<table><tr><th>Club</th><th>Key</th><th>Course</th></tr>'+
+      CLUBS.map(function(c){
+        return '<tr><td><b>'+esc(c.name||c.clubKey)+'</b></td><td class="mono">'+esc(c.clubKey)+'</td><td>'+esc(c.courseId||'—')+'</td></tr>';
+      }).join('')+'</table>' : '<div class="empty">No clubs yet. Add one above.</div>';
+  }
+
+  function opts(list,sel){ return list.map(function(v){ return '<option value="'+v+'"'+(v===sel?' selected':'')+'>'+v+'</option>'; }).join(''); }
+
+  window.saveUser = function(btn){
+    var tr = btn.closest('tr'), id = tr.dataset.id;
+    var clubKey = tr.querySelector('.u-club').value || null;
+    btn.textContent = 'Saving…';
+    // Only the club is assignable here — owner is the hardcoded email list, so a
+    // stored role can't grant owner. Also clear any stray role from earlier.
+    db.collection('adminUsers').doc(id).set({ clubKey: clubKey, role: 'organiser', updatedAt: Date.now() }, { merge: true })
+      .then(function(){ btn.textContent = 'Saved'; setTimeout(function(){ btn.textContent='Save'; }, 1200); load(); })
+      .catch(function(e){ btn.textContent='Save'; alert('Could not save: '+(e.message||e)); });
+  };
+
+  // Delete an event and all its data (Firestore has no cascade, so wipe the
+  // subcollections, then the event doc, then its join code).
+  window.deleteEvent = function(id){
+    var e = EVENTS.filter(function(x){ return x.id===id; })[0];
+    if (!e) return;
+    if (!confirm('Delete "'+(e.name||'this event')+'" (code '+(e.code||'?')+') and ALL its teams/scores? This cannot be undone.')) return;
+    var evRef = db.collection('events').doc(id);
+    var subs = ['players','positions','groups','scores','sponsors','registrations','contests'];
+    Promise.all(subs.map(function(name){
+      return evRef.collection(name).get().then(function(snap){
+        if (snap.empty) return null;
+        var batch = db.batch();
+        snap.forEach(function(d){ batch.delete(d.ref); });
+        return batch.commit();
+      }).catch(function(){ return null; });
+    })).then(function(){
+      return evRef.delete();
+    }).then(function(){
+      if (e.code) return db.collection('eventCodes').doc(String(e.code).toUpperCase()).delete().catch(function(){});
+    }).then(function(){
+      EVENTS = EVENTS.filter(function(x){ return x.id!==id; });
+      render();
+    }).catch(function(err){ alert('Delete failed: '+(err.message||err)); });
+  };
+
+  window.setEventOwner = function(sel){
+    var id = sel.dataset.id, uid = sel.value || null;
+    sel.disabled = true;
+    db.collection('events').doc(id).set({ ownerUid: uid, updatedAt: Date.now() }, { merge: true })
+      .then(function(){ sel.disabled = false; var e = EVENTS.filter(function(x){return x.id===id;})[0]; if(e) e.ownerUid = uid; })
+      .catch(function(err){ sel.disabled = false; alert('Could not save owner: '+(err.message||err)); });
+  };
+
+  // Bulk: give every still-unassigned event to the signed-in owner, so nothing is
+  // left open for another organiser to manage.
+  window.claimAllUnassigned = function(){
+    var me = auth.currentUser && auth.currentUser.uid;
+    if (!me) return;
+    var open = EVENTS.filter(function(e){ return !e.ownerUid; });
+    if (!open.length) { alert('No unassigned events — every event already has an owner.'); return; }
+    if (!confirm('Assign ' + open.length + ' unassigned event(s) to you? (You can still change any of them per-event.)')) return;
+    Promise.all(open.map(function(e){
+      return db.collection('events').doc(e.id).set({ ownerUid: me, updatedAt: Date.now() }, { merge: true });
+    })).then(function(){ load(); }).catch(function(err){ alert('Failed: '+(err.message||err)); });
+  };
+
+  // Co-admins: link organisers to an event so they can open the office and load
+  // its documents. Written to events/{id}.admins; the rules grant them isEventAdmin.
+  function writeAdmins(id, uids){
+    return db.collection('events').doc(id).set({ admins: uids, updatedAt: Date.now() }, { merge: true })
+      .then(function(){ var e = EVENTS.filter(function(x){ return x.id===id; })[0]; if (e) e.admins = uids; render(); });
+  }
+  window.addAdmin = function(sel){
+    var id = sel.dataset.id, uid = sel.value; if (!uid) return;
+    var e = EVENTS.filter(function(x){ return x.id===id; })[0]; if (!e) return;
+    var list = Array.isArray(e.admins) ? e.admins.slice() : [];
+    if (list.indexOf(uid) < 0) list.push(uid);
+    sel.disabled = true;
+    writeAdmins(id, list).catch(function(err){ sel.disabled = false; alert('Could not link: '+(err.message||err)); });
+  };
+  window.removeAdmin = function(id, uid){
+    var e = EVENTS.filter(function(x){ return x.id===id; })[0]; if (!e) return;
+    var list = (Array.isArray(e.admins) ? e.admins : []).filter(function(x){ return x!==uid; });
+    writeAdmins(id, list).catch(function(err){ alert('Could not remove: '+(err.message||err)); });
+  };
+
+  window.createClub = function(){
+    var clubKey = $('newClubKey').value.trim().toLowerCase(), name = $('newClubName').value.trim();
+    $('clubMsg').textContent = '';
+    if (!clubKey || !name) { $('clubMsg').textContent = 'Enter a clubkey and name.'; return; }
+    db.collection('clubs').doc(clubKey).set({ name: name, updatedAt: Date.now() }, { merge: true })
+      .then(function(){ $('newClubKey').value=''; $('newClubName').value=''; load(); })
+      .catch(function(e){ $('clubMsg').textContent = e.message || String(e); });
+  };
+})();
+</script>
+</body>
+</html>

@@ -58,6 +58,16 @@
   @media(max-width:560px){ .row,.row3{grid-template-columns:1fr} .hide-sm{display:none} }
 </style>
 <script src="../config.js"></script>
+<script>window.FOREAI_REQUIRE_CLUB="kempton";</script>
+<script src="auth-guard.js"></script>
+<!-- Firestore club cutover (inert unless FOREAI_DEFAULTS.useFirestore or ?fs=1).
+     After auth-guard so its fetch shim wraps the token layer: /club|/members|
+     /bookings|/competitions|/news -> Firestore, /auth -> Bearer. -->
+<script src="../firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="../club-fs.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -81,7 +91,7 @@
       <h1 style="margin-bottom:6px">Members admin</h1>
       <p class="hint">Connect to the club backend to manage the roster.</p>
       <label>Backend URL</label>
-      <input id="cApi" placeholder="https://foreai-backend.onrender.com" />
+      <input id="cApi" placeholder="" />
       <label>Admin PIN</label>
       <input id="cPin" type="password" placeholder="Club admin PIN (blank if none set yet)" />
       <div style="margin-top:12px"><button class="btn" onclick="connect()">Connect</button></div>
@@ -175,7 +185,7 @@
 const CLUB_KEY = "kempton";
 // Kempton runs on its own isolated backend + database (render.yaml →
 // foreai-kempton-backend). Default to it; a saved value or ?api= still overrides.
-const KEMPTON_API = "https://foreai-kempton-backend.onrender.com";
+const KEMPTON_API = "";
 const LS = "foreai.club.admin.v1"; // shared with the tee-sheet admin page
 let API = "", PIN = "", MEMBERS = [];
 

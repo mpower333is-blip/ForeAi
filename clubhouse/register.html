@@ -15,12 +15,12 @@
   If api/code aren't set, the form still works via "Download entry" / email.
 -->
 <style>
-  :root{ --bg:#06170F; --panel:#10261C; --panel2:#16362A; --border:#204636;
-    --lime:#8DFF6B; --text:#F4FBF6; --muted:#C2D2C6; --faint:#87A092; --gold:#FFD36A; --red:#FF6B6B; }
+  :root{ --bg:#081226; --panel:#0f2143; --panel2:#132a54; --border:#26407a;
+    --lime:#f3c33b; --text:#f2f6ff; --muted:#b7c6e6; --faint:#7f92b6; --gold:#FFD36A; --red:#FF6B6B; }
   *{box-sizing:border-box}
   body{margin:0;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
-    background:radial-gradient(120% 60% at 80% 0%, rgba(141,255,107,0.12), transparent 60%),
-      linear-gradient(160deg,#134E32,#0C3222 55%,#06170F);min-height:100vh;padding:64px 14px 60px}
+    background:radial-gradient(120% 60% at 80% 0%, rgba(243,195,59,0.12), transparent 60%),
+      linear-gradient(160deg,#152e5c,#0a1730 55%,#081226);min-height:100vh;padding:64px 14px 60px}
   .wrap{max-width:640px;margin:0 auto}
   .ecs{display:flex;justify-content:center;margin:2px 0 14px}
   .ecs img{width:220px;height:auto;background:#fff;padding:10px 16px;border-radius:14px}
@@ -30,7 +30,7 @@
   .tabs{display:flex;gap:8px;margin-bottom:16px}
   .tab{flex:1;padding:12px 8px;text-align:center;border-radius:12px;background:var(--panel);
     border:1px solid var(--border);color:var(--muted);font-weight:700;cursor:pointer;font-size:14px}
-  .tab.on{background:var(--lime);border-color:var(--lime);color:#052012}
+  .tab.on{background:var(--lime);border-color:var(--lime);color:#20160a}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px}
   label{display:block;font-size:13px;color:var(--muted);font-weight:600;margin:12px 0 6px}
   input,select{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);
@@ -52,13 +52,13 @@
   .logoUp input[type=file]{flex:1;min-width:0;font-size:13px;padding:9px}
   .logoPrev{width:60px;height:60px;object-fit:contain;border-radius:10px;background:#fff;padding:4px;display:none;flex:none}
   .btn{display:block;width:100%;text-align:center;border:none;cursor:pointer;
-    background:linear-gradient(135deg,#B6FF8E,#8DFF6B,#46C85A);color:#052012;font-weight:800;font-size:16px;
+    background:linear-gradient(135deg,#fce38a,#f3c33b,#d9a62a);color:#20160a;font-weight:800;font-size:16px;
     padding:15px;border-radius:14px;margin-top:16px}
   .btn.ghost{background:transparent;border:1.5px solid var(--border);color:var(--lime)}
   .pay{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:12px;font-size:14px;line-height:1.7}
   .pay b{color:var(--text)} .pay .k{color:var(--faint)}
   .msg{padding:12px;border-radius:10px;margin-top:12px;font-weight:600;display:none}
-  .msg.ok{display:block;background:rgba(141,255,107,0.14);color:var(--lime);border:1px solid var(--lime)}
+  .msg.ok{display:block;background:rgba(243,195,59,0.14);color:var(--lime);border:1px solid var(--lime)}
   .msg.err{display:block;background:rgba(255,107,107,0.14);color:var(--red);border:1px solid var(--red)}
   .cfg{font-size:12px;color:var(--faint);text-align:center;margin-top:18px;line-height:1.6}
   .cfg input{display:inline-block;width:auto;padding:6px 8px;font-size:12px;margin:2px}
@@ -67,10 +67,16 @@
   .req{color:var(--gold)}
 </style>
   <script src="config.js"></script>
+  <!-- Firestore events cutover (inert unless FOREAI_DEFAULTS.useFirestore or ?fs=1). -->
+  <script src="firebase-config.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="events-fs.js"></script>
 </head>
 <body>
 <a href="index.html" class="foreai-back" onclick="if(window.history.length>1){window.history.back();return false;}">‹ Back</a>
-<style>.foreai-back{position:fixed;top:14px;left:14px;z-index:99999;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(6,23,15,0.72);color:#8DFF6B;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;text-decoration:none;border:1px solid rgba(141,255,107,0.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,0.3)}.foreai-back:hover{background:rgba(141,255,107,0.16)}</style>
+<style>.foreai-back{position:fixed;top:14px;left:14px;z-index:99999;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(6,23,15,0.72);color:#f3c33b;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;text-decoration:none;border:1px solid rgba(243,195,59,0.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,0.3)}.foreai-back:hover{background:rgba(243,195,59,0.16)}</style>
 <div class="wrap">
   <div class="ecs" id="eventBrand" style="display:none"></div>
 
