@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { loadJSON, saveJSON, remove } from "../lib/storage";
 import { MemberCard } from "../services/membershipApi";
+import { IS_CLUB_APP, USE_FIRESTORE } from "../config/appVariant";
+import { registerInvitePush } from "../lib/clubPush";
 
 // Who "I" am at the club — the membership claimed on this device. Persisted so
 // the digital card and tee bookings survive restarts. Null until the member
@@ -32,6 +34,12 @@ export function MemberProvider({ children }: { children: React.ReactNode }) {
       alive = false;
     };
   }, []);
+
+  // Once a membership is linked (club app on Firestore), register this device for
+  // open-game invite push. No-ops until the Expo project is configured.
+  useEffect(() => {
+    if (member && IS_CLUB_APP && USE_FIRESTORE) registerInvitePush(member.id);
+  }, [member]);
 
   const value = useMemo<MemberState>(
     () => ({

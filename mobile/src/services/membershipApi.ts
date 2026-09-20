@@ -194,4 +194,12 @@ export const membershipApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ memberId, accept }),
     }),
+
+  // Register this device's Expo push token so the Cloud Function can push invites.
+  savePushToken: (memberId: string, token: string, platform: string) =>
+    j<{ ok: boolean }>(`/push/${CK()}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberId, token, platform }),
+    }),
 };

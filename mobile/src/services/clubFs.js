@@ -590,6 +590,18 @@ var auth = firebase.auth ? firebase.auth() : null;
     });
   }
 
+  // ---- push tokens (for invite notifications) --------------------------------
+  // The member app stores its Expo push token here so the Cloud Function can push
+  // an invite to their phone. arrayUnion keeps multiple devices without a read
+  // (the pushTokens rule blocks client reads — only the Admin SDK reads them).
+  function savePushToken(ck, b) {
+    var memberId = b && b.memberId ? String(b.memberId) : "";
+    var token = b && b.token ? String(b.token) : "";
+    if (!memberId || !token) return Promise.reject({ status: 400, body: { error: "memberId and token required" } });
+    var rec = { tokens: firebase.firestore.FieldValue.arrayUnion(token), platform: b.platform ? String(b.platform) : null, updatedAt: Date.now() };
+    return ensureSignedIn().then(function () { return clubCol(ck, "pushTokens").doc(memberId).set(rec, { merge: true }); }).then(function () { return { ok: true }; });
+  }
+
   // ---- competitions ----------------------------------------------------------
   function compSummary(id, c, count) {
     return {
@@ -1040,6 +1052,10 @@ var auth = firebase.auth ? firebase.auth() : null;
       if (method === "POST" && c === "respond") return respondInvite(ck, id, body);
     }
 
+    if (root === "push") {
+      if (method === "POST" && rest.length === 1) return savePushToken(ck, body);
+    }
+
     if (root === "bookings") {
       if (method === "POST" && rest.length === 1) return createBooking(ck, body);
       if (method === "GET" && a === "slots") return daySlots(ck, query.get("date"));
@@ -1111,7 +1127,7 @@ var auth = firebase.auth ? firebase.auth() : null;
 
 
 // ---- app entry point (replaces the browser fetch shim) --------------------
-var ROOTS = /\/(club|members|players|bookings|invites|competitions|news|payments)(\/[^?#]*)?(\?[^#]*)?$/;
+var ROOTS = /\/(club|members|players|bookings|invites|push|competitions|news|payments)(\/[^?#]*)?(\?[^#]*)?$/;
 function makeQuery(qs) {
   var params = {};
   String(qs || "").replace(/^\?/, "").split("&").forEach(function (p) {

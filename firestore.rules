@@ -175,6 +175,14 @@ service cloud.firestore {
         allow create, update: if isSignedIn();
         allow delete: if isClubAdmin(clubKey);
       }
+      // Device push tokens for invite notifications. The member app writes its
+      // own token here; only the Cloud Function (Admin SDK, which bypasses rules)
+      // reads them, so they're never exposed to other clients.
+      match /pushTokens/{memberId} {
+        allow read: if false;
+        allow create, update: if isSignedIn();
+        allow delete: if isClubAdmin(clubKey);
+      }
       match /competitions/{compId} {
         allow read: if isSignedIn();
         allow create, update, delete: if isClubAdmin(clubKey);   // admin runs the calendar
