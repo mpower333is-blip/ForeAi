@@ -180,6 +180,31 @@
       return rows;
     });
   }
+  // Matchmaking: active members ranked by handicap proximity to the requester
+  // (or an explicit `near` index). Returns card-safe fields only (no email/cell).
+  function suggestPlayers(ck, opts) {
+    var memberId = opts && opts.memberId ? String(opts.memberId) : "";
+    var nearRaw = opts && opts.near != null && opts.near !== "" ? Number(opts.near) : NaN;
+    var limit = Math.max(1, Math.min(50, Number(opts && opts.limit) || 12));
+    return listMembers(ck, "").then(function (rows) {
+      var me = memberId ? rows.filter(function (m) { return m.id === memberId; })[0] : null;
+      var near = Number.isFinite(nearRaw) ? nearRaw : (me && me.handicapIndex != null ? Number(me.handicapIndex) : null);
+      var out = rows.filter(function (m) {
+        return (m.status || "active") === "active" && m.id !== memberId;
+      }).map(function (m) {
+        var h = m.handicapIndex == null ? null : Number(m.handicapIndex);
+        var delta = (near != null && h != null) ? Math.abs(h - near) : null;
+        return { id: m.id, name: ((m.firstName || "") + " " + (m.lastName || "")).trim(), memberNumber: m.memberNumber || null, handicapIndex: h, delta: delta };
+      });
+      out.sort(function (a, b) {
+        if (a.delta == null && b.delta == null) return String(a.name).localeCompare(String(b.name));
+        if (a.delta == null) return 1;
+        if (b.delta == null) return -1;
+        return a.delta - b.delta;
+      });
+      return out.slice(0, limit);
+    });
+  }
   function createMember(ck, b) {
     var d = memberData(b);
     if (!d.memberNumber || !d.firstName || !d.lastName)
@@ -937,6 +962,7 @@
 
     if (root === "members") {
       if (method === "GET" && a === "all") return listMembers(ck, query.get("q") || "");
+      if (method === "GET" && a === "suggest") return suggestPlayers(ck, { memberId: query.get("memberId"), near: query.get("near"), limit: query.get("limit") });
       if (method === "POST" && rest.length === 1) return createMember(ck, body);
       if (method === "POST" && a === "claim") return claimMember(ck, body);
       if (method === "POST" && a === "import") return importMembers(ck, body.members);

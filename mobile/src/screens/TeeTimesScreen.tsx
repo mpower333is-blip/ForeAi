@@ -4,7 +4,7 @@ import { Screen, ScreenHeader, Card, Button, TextField, Stepper, Chip } from "..
 import { colors, spacing, radius } from "../theme";
 import { CLUB_CONFIG } from "../config/appVariant";
 import { useMember } from "../state/MemberContext";
-import { membershipApi, ClubInfo, DaySheet, Slot, Booking, PlayerCard } from "../services/membershipApi";
+import { membershipApi, ClubInfo, DaySheet, Slot, Booking, PlayerCard, SuggestedPlayer } from "../services/membershipApi";
 
 // Member tee-time booking. Pick a day, tap an open slot, choose the party and
 // build your 4-ball — pick partners from the club's shared player directory or
@@ -12,8 +12,9 @@ import { membershipApi, ClubInfo, DaySheet, Slot, Booking, PlayerCard } from "..
 // sit at the top with a cancel action. All reads/writes go through the club store.
 
 // A partner slot while building the 4-ball. `playerId` is set when picked from
-// the directory (so we don't re-save them); a typed-in partner is saved on book.
-type Partner = { name: string; phone: string; playerId?: string };
+// the directory and `fromMember` when picked from a matchmaking suggestion — in
+// both cases we don't re-save them; a freshly typed-in partner is saved on book.
+type Partner = { name: string; phone: string; playerId?: string; fromMember?: boolean };
 
 function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -35,6 +36,7 @@ export default function TeeTimesScreen({ navigation }: any) {
   const [party, setParty] = React.useState(1);
   const [partners, setPartners] = React.useState<Partner[]>([]);
   const [directory, setDirectory] = React.useState<PlayerCard[]>([]);
+  const [matchSuggest, setMatchSuggest] = React.useState<SuggestedPlayer[]>([]);
   const [openGame, setOpenGame] = React.useState(false);
   const [booking, setBooking] = React.useState(false);
 
@@ -45,6 +47,9 @@ export default function TeeTimesScreen({ navigation }: any) {
     membershipApi.players().then((rows) => setDirectory(rows ?? [])).catch(() => {});
   }, []);
   React.useEffect(() => { loadDirectory(); }, [loadDirectory]);
+  React.useEffect(() => {
+    if (member) membershipApi.suggestPartners(member.id).then((rows) => setMatchSuggest(rows ?? [])).catch(() => {});
+  }, [member]);
   const loadMine = React.useCallback(() => {
     if (member) membershipApi.myBookings(member.id).then(setMine).catch(() => {});
   }, [member]);
@@ -84,7 +89,21 @@ export default function TeeTimesScreen({ navigation }: any) {
       next[i] = { ...base, ...patch };
       return next;
     });
-  const clearPartner = (i: number) => setPartner(i, { name: "", phone: "", playerId: undefined });
+  const clearPartner = (i: number) => setPartner(i, { name: "", phone: "", playerId: undefined, fromMember: false });
+
+  // Add a matchmaking suggestion to the first empty partner slot (grow the party
+  // if there's still room in the slot).
+  const addSuggested = (sp: SuggestedPlayer) => {
+    const slots = Math.max(0, party - 1);
+    let idx = -1;
+    for (let k = 0; k < slots; k++) { if (!(partners[k]?.name ?? "").trim()) { idx = k; break; } }
+    if (idx === -1) {
+      if (sel && party < sel.available) { idx = party - 1; setParty((v) => v + 1); }
+      else return; // group is full
+    }
+    setPartner(idx, { name: sp.name, phone: "", playerId: undefined, fromMember: true });
+  };
+  const suggestionTaken = (sp: SuggestedPlayer) => partners.some((p) => p?.fromMember && p?.name === sp.name);
 
   const confirm = async () => {
     if (!member || !sel) return;
@@ -96,12 +115,13 @@ export default function TeeTimesScreen({ navigation }: any) {
         Alert.alert("Open game posted", `Your ${sel.time} game on ${date} is on the Open Games board — members can now join.`);
       } else {
         const chosen = partners.slice(0, party - 1)
-          .map((p) => ({ name: (p?.name ?? "").trim(), phone: (p?.phone ?? "").trim(), playerId: p?.playerId }))
+          .map((p) => ({ name: (p?.name ?? "").trim(), phone: (p?.phone ?? "").trim(), playerId: p?.playerId, fromMember: p?.fromMember }))
           .filter((p) => p.name);
-        // Save any newly typed partners (not picked from the directory) so the whole
-        // club can reuse them next time. Best-effort — never block the booking.
+        // Save any freshly typed partners (not picked from the directory or a
+        // member suggestion) so the whole club can reuse them next time.
+        // Best-effort — never block the booking.
         await Promise.all(
-          chosen.filter((p) => !p.playerId).map((p) => membershipApi.savePlayer({ name: p.name, phone: p.phone || undefined }).catch(() => null)),
+          chosen.filter((p) => !p.playerId && !p.fromMember).map((p) => membershipApi.savePlayer({ name: p.name, phone: p.phone || undefined }).catch(() => null)),
         );
         const players = [`${member.firstName} ${member.lastName}`, ...chosen.map((p) => p.name)];
         await membershipApi.book({ memberId: member.id, date, minute: sel.minute, partySize: party, players });
@@ -201,6 +221,19 @@ export default function TeeTimesScreen({ navigation }: any) {
           ) : (
             <>
           {party > 1 && <Text style={styles.pickerHint}>Build your 4-ball — pick a saved partner or add a new name.</Text>}
+          {party > 1 && matchSuggest.length > 0 && (
+            <View style={styles.matchWrap}>
+              <Text style={styles.matchTitle}>Suggested — near your handicap</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.matchRow}>
+                {matchSuggest.filter((sp) => !suggestionTaken(sp)).slice(0, 12).map((sp) => (
+                  <TouchableOpacity key={sp.id} style={styles.matchChip} activeOpacity={0.8} onPress={() => addSuggested(sp)}>
+                    <Text style={styles.matchName} numberOfLines={1}>{sp.name}</Text>
+                    <Text style={styles.matchHcp}>{sp.handicapIndex == null ? "no hcp" : `hcp ${sp.handicapIndex}`}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
           {Array.from({ length: Math.max(0, party - 1) }).map((_, i) => {
             const p: Partner = partners[i] ?? { name: "", phone: "" };
             const q = p.name.trim().toLowerCase();
@@ -223,7 +256,7 @@ export default function TeeTimesScreen({ navigation }: any) {
                     </TouchableOpacity>
                   ) : null}
                 </View>
-                <TextField value={p.name} onChangeText={(v) => setPartner(i, { name: v, playerId: undefined })} placeholder="Search or type a name" style={{ marginBottom: suggestions.length ? spacing.xs : spacing.sm }} />
+                <TextField value={p.name} onChangeText={(v) => setPartner(i, { name: v, playerId: undefined, fromMember: false })} placeholder="Search or type a name" style={{ marginBottom: suggestions.length ? spacing.xs : spacing.sm }} />
                 {suggestions.map((d) => (
                   <TouchableOpacity key={d.id} style={styles.suggest} activeOpacity={0.8} onPress={() => setPartner(i, { name: d.name, phone: d.phone || "", playerId: d.id })}>
                     <Text style={styles.suggestName}>{d.name}{d.memberId ? "  ·  member" : ""}</Text>
@@ -301,6 +334,12 @@ const styles = StyleSheet.create({
   openLabel: { color: colors.text, fontSize: 15, fontWeight: "700" },
   openSub: { color: colors.textFaint, fontSize: 12, marginTop: 2 },
   pickerHint: { color: colors.textFaint, fontSize: 12, marginBottom: spacing.sm },
+  matchWrap: { marginBottom: spacing.sm },
+  matchTitle: { color: colors.textMuted, fontSize: 12, fontWeight: "700", marginBottom: spacing.xs },
+  matchRow: { gap: spacing.xs, paddingRight: spacing.md },
+  matchChip: { paddingVertical: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accent, minWidth: 96 },
+  matchName: { color: colors.text, fontSize: 13, fontWeight: "700" },
+  matchHcp: { color: colors.accent, fontSize: 11, marginTop: 1 },
   partner: { marginBottom: spacing.sm, borderTopWidth: 1, borderTopColor: colors.borderSoft, paddingTop: spacing.sm },
   partnerHead: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.xs },
   partnerLabel: { color: colors.textMuted, fontSize: 13, fontWeight: "700", flex: 1 },

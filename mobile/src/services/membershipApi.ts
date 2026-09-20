@@ -89,6 +89,16 @@ export type PlayerCard = {
   memberNumber: string | null;
 };
 
+// A matchmaking suggestion — an active member ranked by handicap closeness.
+// `delta` is |their handicap − yours| (null when either handicap is unknown).
+export type SuggestedPlayer = {
+  id: string;
+  name: string;
+  memberNumber: string | null;
+  handicapIndex: number | null;
+  delta: number | null;
+};
+
 // Firestore in club mode (same store as the web portal), Render otherwise.
 const j = clubRequest;
 
@@ -152,4 +162,8 @@ export const membershipApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }),
+
+  // Matchmaking — members near your handicap, best matches first.
+  suggestPartners: (memberId: string) =>
+    j<SuggestedPlayer[]>(`/members/${CK()}/suggest?memberId=${encodeURIComponent(memberId)}`),
 };
