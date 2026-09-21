@@ -19,6 +19,7 @@ import WatchShotSync from "./src/components/WatchShotSync";
 import LivePresenceSync from "./src/components/LivePresenceSync";
 import { FeatureKey } from "./src/config/appConfig";
 import { APP_NAME, IS_CLUB_APP } from "./src/config/appVariant";
+import { initLightningAlarm } from "./src/lib/lightningAlarm";
 import { colors } from "./src/theme";
 
 import SurveyApp from "./src/survey/SurveyApp";
@@ -179,6 +180,13 @@ function Root() {
 }
 
 export default function App() {
+  // Set up the loud "lightning" notification channel + notification permission at
+  // launch (not just when a weather panel shows), so background lightning-safety
+  // pushes always arrive on the high-importance channel. Idempotent.
+  React.useEffect(() => {
+    if (!SURVEY_ONLY) initLightningAlarm();
+  }, []);
+
   if (SURVEY_ONLY) {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
