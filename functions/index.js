@@ -126,7 +126,7 @@ const CLUB_SITES = [
   { clubKey: "kempton", name: "Kempton Park Golf Club", lat: -26.1051, lng: 28.217 },
 ];
 // A real strike this close (km) means take shelter now.
-const STRIKE_NEAR_KM = 12;
+const STRIKE_NEAR_KM = 12; // real strike within this many km = take shelter now
 
 const XW_ID = process.env.XWEATHER_CLIENT_ID || "";
 const XW_SECRET = process.env.XWEATHER_CLIENT_SECRET || "";
