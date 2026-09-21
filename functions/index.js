@@ -112,21 +112,60 @@ exports.onGameInviteCreated = functions
 
 // ── Lightning safety watcher ────────────────────────────────────────────────
 // A club is evacuated when lightning is near — the biggest weather danger on a
-// course. This scheduled function checks each club course's storm forecast every
-// 15 minutes (Open-Meteo, no API key) and, when a thunderstorm is overhead or
-// approaching within the hour, pushes a loud warning to EVERY member's phone —
-// so they're warned even with the app closed. It complements the in-app
-// (foreground) lightning alarm already in the app. Free forecast source: it can
-// warn a little early and won't give exact strike distance, but for a club that
-// errs on the safe side.
+// course. This scheduled function checks each club course every 15 minutes and,
+// when lightning is near or a thunderstorm is imminent, pushes a loud warning to
+// EVERY member's phone — so they're warned even with the app closed. It
+// complements the in-app (foreground) lightning alarm already in the app.
+//
+// Source: if Xweather credentials are set (XWEATHER_CLIENT_ID/SECRET), it uses
+// Xweather's REAL detected lightning strikes for precise distance (the safest
+// signal). It always ALSO checks the free Open-Meteo forecast, which needs no
+// key and gives an earlier "approaching" heads-up and a fallback when Xweather
+// is unset or unreachable.
 const CLUB_SITES = [
   { clubKey: "kempton", name: "Kempton Park Golf Club", lat: -26.1051, lng: 28.217 },
 ];
+// A real strike this close (km) means take shelter now.
+const STRIKE_NEAR_KM = 12;
+
+const XW_ID = process.env.XWEATHER_CLIENT_ID || "";
+const XW_SECRET = process.env.XWEATHER_CLIENT_SECRET || "";
+const XW_ENABLED = !!(XW_ID && XW_SECRET);
+
+function haversineKm(aLat, aLng, bLat, bLng) {
+  const R = 6371;
+  const toR = (x) => (x * Math.PI) / 180;
+  const dLat = toR(bLat - aLat);
+  const dLng = toR(bLng - aLng);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(toR(aLat)) * Math.cos(toR(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+// Nearest REAL detected strike (km) in the last ~12 min within 15 miles, or null.
+async function xwNearestStrikeKm(site) {
+  const url =
+    `https://data.api.xweather.com/lightning/closest?p=${site.lat},${site.lng}` +
+    `&radius=15miles&limit=10&filter=all&from=-12minutes&sort=dt:-1&format=json` +
+    `&client_id=${encodeURIComponent(XW_ID)}&client_secret=${encodeURIComponent(XW_SECRET)}`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const j = await res.json();
+  if (!j || j.success !== true || !Array.isArray(j.response)) return null;
+  let nearest = Infinity;
+  for (const r of j.response) {
+    let d = null;
+    if (r.relativeTo && typeof r.relativeTo.distanceKM === "number") d = r.relativeTo.distanceKM;
+    else if (r.loc && typeof r.loc.lat === "number" && typeof r.loc.long === "number") d = haversineKm(site.lat, site.lng, r.loc.lat, r.loc.long);
+    if (d != null && d < nearest) nearest = d;
+  }
+  return nearest === Infinity ? null : nearest;
+}
+
 // WMO weather codes for thunderstorms (95 = thunderstorm, 96/99 = with hail).
 function isThunderCode(c) {
   return c === 95 || c === 96 || c === 99;
 }
-async function lightningLevelFor(site) {
+async function openMeteoLevel(site) {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${site.lat}&longitude=${site.lng}` +
     `&current=weather_code&hourly=weather_code&forecast_hours=2&timezone=auto`;
@@ -142,6 +181,21 @@ async function lightningLevelFor(site) {
     return { level: "approaching", body: "Thunderstorm approaching within the hour — be ready to leave the course and take shelter." };
   }
   return null;
+}
+async function lightningLevelFor(site) {
+  // 1) Precise real strikes (Xweather) → highest-confidence "take shelter now".
+  if (XW_ENABLED) {
+    try {
+      const km = await xwNearestStrikeKm(site);
+      if (km != null && km <= STRIKE_NEAR_KM) {
+        return { level: "overhead", body: `Lightning detected ${Math.round(km)} km away — get off the course and take shelter NOW. Never shelter under trees.` };
+      }
+    } catch (e) {
+      console.error("Xweather lightning lookup failed", e);
+    }
+  }
+  // 2) Free forecast (Open-Meteo) → early "approaching" heads-up + fallback.
+  return openMeteoLevel(site);
 }
 
 async function pushClubTokens(clubKey, title, body) {

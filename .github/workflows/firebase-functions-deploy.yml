@@ -44,6 +44,17 @@ jobs:
         env:
           SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_FOREAI_F9CFA }}
         run: printf '%s' "$SA" > "${RUNNER_TEMP}/sa.json"
+      - name: Write function runtime env (Xweather lightning — optional)
+        env:
+          XW_ID: ${{ secrets.XWEATHER_CLIENT_ID }}
+          XW_SECRET: ${{ secrets.XWEATHER_CLIENT_SECRET }}
+        run: |
+          if [ -n "$XW_ID" ] && [ -n "$XW_SECRET" ]; then
+            printf 'XWEATHER_CLIENT_ID=%s\nXWEATHER_CLIENT_SECRET=%s\n' "$XW_ID" "$XW_SECRET" > functions/.env
+            echo "Wrote functions/.env with Xweather credentials (real lightning strikes)."
+          else
+            echo "No Xweather secrets set — lightning watcher uses the free Open-Meteo forecast."
+          fi
       - name: Deploy functions
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
