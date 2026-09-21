@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "main": "node_modules/expo/AppEntry.js",
+  "expo": {
+    "autolinking": {
+      "//": "react-native-iap v12 bundles Play Billing 7, but Google now requires 8+ for new releases; billing-8 support only exists in the new-architecture v15/16. Billing is dormant (Kempton has no paywall; the full app's billing is off until EXPO_PUBLIC_BILLING=1), so exclude the native module from builds. The JS layer stays and fails soft. Re-enable with a billing-8-capable solution when paid subscriptions go live.",
+      "exclude": ["react-native-iap"]
+    }
+  },
   "scripts": {
     "start": "expo start",
     "web": "expo start --web",

@@ -129,10 +129,6 @@ export default {
       "./plugins/withoutPushEntitlement",
       // Local notifications for the lightning safety alarm (no push server).
       "expo-notifications",
-      // react-native-iap ships Play + Amazon Android flavors; pin the build to
-      // the Play Store flavor (adds `missingDimensionStrategy "store", "play"`),
-      // otherwise Gradle can't choose a variant and the release build fails.
-      ["react-native-iap", { paymentProvider: "Play Store" }],
       [
         // Google Play requires apps to target Android 16 (API 36) from Aug 2026.
         "expo-build-properties",
