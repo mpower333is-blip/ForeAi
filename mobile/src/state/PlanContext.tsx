@@ -22,7 +22,8 @@ const KEY = "foreai.plan.v1";
 //
 // Two modes:
 //  • Store billing live (EXPO_PUBLIC_IAP_LIVE=1) → real subscriptions via
-//    react-native-iap. `isPro` is derived from the store's active purchases, so
+//    expo-iap (Play Billing / StoreKit direct). `isPro` is derived from the
+//    store's active purchases, so
 //    it reflects a lapsed sub on the next launch/refresh.
 //  • Not live (pre-launch / dev)                 → a local "demo unlock" so the
 //    whole flow can be exercised without charging. Persisted to this device only.

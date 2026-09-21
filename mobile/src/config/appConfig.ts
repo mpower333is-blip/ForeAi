@@ -34,7 +34,7 @@ export const PACKAGE_NAME = "ForeAi Pro";
 // Fallback price copy (shown when store billing isn't live yet). The real paywall
 // uses live store prices — set the products to Monthly R99 · Annual R799, each
 // with a 7-day free trial (in App Store Connect / Play Console; the app reads
-// them live via react-native-iap). PACKAGE_TRIAL is only marketing copy; the
+// them live via expo-iap). PACKAGE_TRIAL is only marketing copy; the
 // actual trial is whatever the store product carries, read in services/purchases.ts.
 export const PACKAGE_PRICE = "R99/mo";
 export const PACKAGE_PRICE_ANNUAL = "R799/yr";

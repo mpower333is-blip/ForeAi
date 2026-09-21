@@ -6,8 +6,8 @@
 // Client-side entitlement: "am I Pro?" comes from the store's own report of the
 // device's active subscriptions (hasActiveSubscriptions) — no backend. Trade-off:
 // a determined user on a modified device could fake it. When revenue justifies
-// it, add server-side receipt validation or bring RevenueCat back behind the
-// same interface.
+// it, add server-side receipt validation (App Store / Play Developer API) behind
+// the same interface.
 //
 // Fails soft: if billing isn't live (EXPO_PUBLIC_IAP_LIVE unset) or the native
 // module is absent, calls resolve to "not Pro / no packages" and the caller

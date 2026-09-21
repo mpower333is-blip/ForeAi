@@ -49,8 +49,8 @@ workflows:
   # ═══════════════ 1) ForeAi — Android AAB (Play) ═══════════════
   # Play-signed .aab for com.foreai.mobile. Needs a `google_play` env group with:
   #   CM_KEYSTORE (base64 upload keystore), CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS,
-  #   CM_KEY_PASSWORD. Subscriptions use react-native-iap (native Play Billing);
-  #   set EXPO_PUBLIC_IAP_LIVE=1 to switch real billing on for the build.
+  #   CM_KEY_PASSWORD. Subscriptions use expo-iap (native Play Billing 8, direct —
+  #   no third-party service); set EXPO_PUBLIC_IAP_LIVE=1 to switch real billing on.
   foreai-android-play:
     name: ForeAi — Android AAB (Play)
     instance_type: linux_x2
@@ -62,7 +62,7 @@ workflows:
         - google_play
       vars:
         EXPO_PUBLIC_USE_FIRESTORE: "1"   # Render retired — the app runs on Firestore
-        EXPO_PUBLIC_IAP_LIVE: "1"        # real subscriptions (foreai_pro_monthly/annual) via react-native-iap
+        EXPO_PUBLIC_IAP_LIVE: "1"        # real subscriptions (foreai_pro_monthly/annual) via expo-iap
     cache:
       cache_paths:
         - $HOME/.npm

@@ -26,9 +26,9 @@ advertising = No**. Data is **not sold**.
 |---|---|---|---|---|
 | **Location — Precise location** | Yes | No | **Optional** (only when you share your position) | App functionality — GPS distances to the green and showing your team on the live course map |
 | **Personal info — Name** | Yes | No | Required | App functionality — identify you on the tee sheet, leaderboard and scoring |
-| **Financial info — Purchase history** | Yes | **Yes** (RevenueCat) | Optional (only if you subscribe) | App functionality — manage your subscription and unlock Pro features |
+| **Financial info — Purchase history** | Yes | No | Optional (only if you subscribe) | App functionality — unlock Pro features (billing is handled by Google Play; the app only reads whether your subscription is active) |
 | **App activity — Other user-generated content** (scores, handicap, contest results) | Yes | No | Required | App functionality — live scoring and the leaderboard |
-| **Device or other IDs** | Yes | **Yes** (RevenueCat) | Required | App functionality — link this phone to your player (presence / live map) and manage the subscription entitlement |
+| **Device or other IDs** | Yes | No | Required | App functionality — link this phone to your player (presence / live map) |
 
 ### Purposes to tick (all types)
 - **App functionality** ✅ (only this)
@@ -36,8 +36,10 @@ advertising = No**. Data is **not sold**.
   Fraud prevention/security ❌, Personalisation ❌, Account management ❌
 
 ### Third parties who receive data
-- **RevenueCat** — receives an app-user/device ID and purchase info to run the
-  subscription (receipt validation, entitlements, restore).
+- **None.** Subscriptions are billed directly by Google Play (and the App Store
+  on iOS) — there is no third-party billing service. The app only asks the store
+  whether your subscription is active; purchase records stay with Google/Apple,
+  which is the store acting as billing provider, not third-party "sharing".
 - Our own backend (foreai.co.za / Render) stores name, scores and shared
   position — that's first-party, not "sharing".
 - **No** advertising or analytics SDKs are included.
