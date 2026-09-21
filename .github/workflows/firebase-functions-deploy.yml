@@ -49,7 +49,7 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
         run: |
           set +e
-          npx firebase-tools@latest deploy --only functions --project foreai-f9cfa --non-interactive 2>&1 | tee deploy.log
+          npx firebase-tools@latest deploy --only functions:onGameInviteCreated --project foreai-f9cfa --non-interactive 2>&1 | tee deploy.log
           code=${PIPESTATUS[0]}
           if [ "$code" -ne 0 ]; then
             echo "----- firebase-debug.log tail -----"
