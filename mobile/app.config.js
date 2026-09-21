@@ -65,11 +65,12 @@ export default {
     },
     android: {
       package: SURVEY_ONLY ? "com.foreai.surveyor" : CLUB_PKG || "com.foreai.mobile",
-      // Firebase config for FCM push (lightning alerts when the app is closed).
-      // Only set once you've added google-services.json (see docs/push-setup.md)
-      // and pointed GOOGLE_SERVICES_JSON at it — left unset, builds work as-is
-      // and push simply stays inactive.
-      ...(process.env.GOOGLE_SERVICES_JSON
+      // Firebase config for FCM push (invites + lightning when the app is closed).
+      // Kempton has its own Firebase Android app (com.foreai.kempton); other
+      // flavours use GOOGLE_SERVICES_JSON if provided, else push stays inactive.
+      ...(CLUB === "kempton"
+        ? { googleServicesFile: "./google-services.kempton.json" }
+        : process.env.GOOGLE_SERVICES_JSON
         ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }
         : {}),
       // Play requires a higher versionCode on every upload. In CI we set

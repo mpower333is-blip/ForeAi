@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "329205582943",
+    "project_id": "foreai-f9cfa",
+    "storage_bucket": "foreai-f9cfa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:329205582943:android:fa3409fcbf4c8e61421fea",
+        "android_client_info": {
+          "package_name": "com.foreai.kempton"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgDo5cGwjgaOU0ELkYDTReqM8i83FLGQA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
