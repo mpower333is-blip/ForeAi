@@ -176,12 +176,13 @@ export default {
       // EXPO_PUBLIC_API_URL is read directly in services/api.ts; set it in a
       // .env or your EAS build profile to point the app at a deployed backend.
       //
-      // Expo project id for push notifications (lightning alerts when the app is
-      // closed). Set EAS_PROJECT_ID once you've created the Expo project (see
-      // docs/push-setup.md). Until then push registration no-ops and the
-      // foreground lightning alarm still works.
+      // Expo project id for push notifications (open-game invites + lightning
+      // alerts when the app is closed). This is the ForeAi Expo project; the app
+      // registers each device's Expo push token against it (see clubPush.ts /
+      // pushRegister.ts). Android still needs google-services.json in the build
+      // and iOS the APNs key — see docs/push-setup.md.
       eas: {
-        projectId: process.env.EAS_PROJECT_ID || undefined,
+        projectId: process.env.EAS_PROJECT_ID || "8fb0e162-7cd8-4daa-b1ac-06868a188d0c",
       },
     },
   },
