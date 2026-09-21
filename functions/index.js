@@ -109,3 +109,88 @@ exports.onGameInviteCreated = functions
     }
     return null;
   });
+
+// ── Lightning safety watcher ────────────────────────────────────────────────
+// A club is evacuated when lightning is near — the biggest weather danger on a
+// course. This scheduled function checks each club course's storm forecast every
+// 15 minutes (Open-Meteo, no API key) and, when a thunderstorm is overhead or
+// approaching within the hour, pushes a loud warning to EVERY member's phone —
+// so they're warned even with the app closed. It complements the in-app
+// (foreground) lightning alarm already in the app. Free forecast source: it can
+// warn a little early and won't give exact strike distance, but for a club that
+// errs on the safe side.
+const CLUB_SITES = [
+  { clubKey: "kempton", name: "Kempton Park Golf Club", lat: -26.1051, lng: 28.217 },
+];
+// WMO weather codes for thunderstorms (95 = thunderstorm, 96/99 = with hail).
+function isThunderCode(c) {
+  return c === 95 || c === 96 || c === 99;
+}
+async function lightningLevelFor(site) {
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${site.lat}&longitude=${site.lng}` +
+    `&current=weather_code&hourly=weather_code&forecast_hours=2&timezone=auto`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const j = await res.json();
+  const cur = j && j.current ? j.current.weather_code : undefined;
+  const next = j && j.hourly && Array.isArray(j.hourly.weather_code) ? j.hourly.weather_code.slice(0, 2) : [];
+  if (isThunderCode(cur)) {
+    return { level: "overhead", body: "Thunderstorm over the course — get off the course and take shelter NOW. Never shelter under trees." };
+  }
+  if (next.some(isThunderCode)) {
+    return { level: "approaching", body: "Thunderstorm approaching within the hour — be ready to leave the course and take shelter." };
+  }
+  return null;
+}
+
+async function pushClubTokens(clubKey, title, body) {
+  const snap = await db.collection(`clubs/${clubKey}/pushTokens`).get();
+  const tokens = [];
+  snap.forEach((d) => {
+    const arr = d.data() && d.data().tokens;
+    if (Array.isArray(arr)) arr.forEach((t) => tokens.push(t));
+  });
+  if (tokens.length === 0) return [];
+  const messages = tokens.map((t) => ({
+    to: t,
+    sound: "default",
+    title,
+    body,
+    priority: "high",
+    channelId: "lightning",
+    data: { type: "lightning", clubKey },
+  }));
+  return sendExpo(messages);
+}
+
+exports.clubLightningWatch = functions
+  .region("us-central1")
+  .runWith({ timeoutSeconds: 60, memory: "256MB" })
+  .pubsub.schedule("every 15 minutes")
+  .timeZone("Africa/Johannesburg")
+  .onRun(async () => {
+    const COOLDOWN_MS = 45 * 60 * 1000; // don't repeat the same warning within 45 min
+    for (const site of CLUB_SITES) {
+      try {
+        const risk = await lightningLevelFor(site);
+        const alarmRef = db.doc(`clubs/${site.clubKey}/alarms/lightning`);
+        const prev = (await alarmRef.get()).data() || {};
+        const now = Date.now();
+        if (!risk) {
+          // Storm cleared — record it so the next storm alerts immediately.
+          if (prev.level) await alarmRef.set({ level: null, clearedAt: now }, { merge: true });
+          continue;
+        }
+        // Skip if we already warned recently at the same level (avoid nagging);
+        // an escalation (approaching → overhead) always re-alerts.
+        const same = prev.level === risk.level;
+        if (same && prev.lastAt && now - prev.lastAt < COOLDOWN_MS) continue;
+        await pushClubTokens(site.clubKey, "⚡ Lightning warning", risk.body);
+        await alarmRef.set({ level: risk.level, body: risk.body, lastAt: now }, { merge: true });
+      } catch (e) {
+        console.error("lightning watch failed for", site.clubKey, e);
+      }
+    }
+    return null;
+  });
