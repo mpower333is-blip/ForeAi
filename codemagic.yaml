@@ -654,6 +654,12 @@ workflows:
         - ios_signing   # Codemagic group holding IOS_DIST_KEY
       vars:
         BUNDLE_ID: "com.foreai.kempton"
+        # Keep the iOS aps-environment entitlement so remote push works (invites +
+        # lightning when the app is closed). The Push capability is enabled on the
+        # com.foreai.kempton App ID and the APNs key is uploaded to the Expo
+        # project — see docs/push-setup.md. Without this flag the entitlement is
+        # stripped (local-only signing).
+        EXPO_PUBLIC_ENABLE_IOS_PUSH: "1"
         # Branded "Kempton Park Golf" (com.foreai.kempton), pointed at Kempton's
         # own backend. Present for prebuild AND the Xcode build.
         EXPO_PUBLIC_CLUB: "kempton"
