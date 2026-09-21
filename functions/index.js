@@ -21,7 +21,7 @@ const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 
 initializeApp();
 const db = getFirestore();
-setGlobalOptions({ region: "us-central1", maxInstances: 10 });
+setGlobalOptions({ region: "us-central1", maxInstances: 10 }); // deploy trigger
 
 const EXPO_ENDPOINT = "https://exp.host/--/api/v2/push/send";
 
