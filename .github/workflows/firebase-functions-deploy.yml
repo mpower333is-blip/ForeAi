@@ -47,4 +47,14 @@ jobs:
       - name: Deploy functions
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
-        run: npx firebase-tools@latest deploy --only functions --project foreai-f9cfa --non-interactive
+        run: |
+          set +e
+          npx firebase-tools@latest deploy --only functions --project foreai-f9cfa --non-interactive 2>&1 | tee deploy.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            echo "----- firebase-debug.log tail -----"
+            tail -n 80 firebase-debug.log 2>/dev/null || true
+            echo "----- key error lines (also emitted as annotations) -----"
+            grep -iE "error|denied|permission|iam|role|forbidden|http|failed|not found|location|region|eventarc|invalid" deploy.log firebase-debug.log 2>/dev/null | tail -n 10 | while IFS= read -r line; do echo "::error::${line}"; done
+          fi
+          exit "$code"
