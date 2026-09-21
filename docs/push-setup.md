@@ -1,96 +1,86 @@
-# Lightning alerts — how they work & how to switch on the extras
+# Push & lightning alerts — how they work & how to switch on the extras
 
-ForeAi has **three** layers of lightning warning. Layer 1 works today with zero
-setup. Layers 2 and 3 are optional upgrades you switch on with credentials — no
-code changes.
+ForeAi (and the Kempton club app) has **three** layers of lightning warning, plus
+open-game **invite** push. Layer 1 works with zero setup. Layers 2–3 are switched
+on with credentials — no code changes.
 
-| Layer | What it does | App open needed? | Cost | Setup |
-|-------|--------------|------------------|------|-------|
-| 1. In-app alarm (free forecast) | Loud alarm + notification while a weather screen is open | Yes | Free | None — already live |
-| 2. Real strikes (Xweather) | Actual detected strikes with distance + direction | Yes | Xweather plan | 2 env vars (below) |
-| 3. Server push | Alert fires even with the app **closed** | No | Free (Expo) | Expo + FCM/APNs (below) |
+| Layer | What it does | App open? | Cost | Setup |
+|-------|--------------|-----------|------|-------|
+| 1. In-app alarm (free forecast) | Loud alarm + notification while the app is open | Yes | Free | None — live |
+| 2. Real strikes (Xweather) | Actual detected strikes with distance | Yes/No | Xweather plan | 2 GitHub secrets (below) |
+| 3. Server push | Lightning **and** game invites fire on a **closed** phone | No | Free (Expo) | Expo + FCM/APNs (below) |
 
-Layers stack: turn on Xweather **and** server push and you get real-strike
-alerts pushed to a closed phone.
+Everything server-side runs on **Firebase Cloud Functions** (`functions/`), not the
+old Render backend:
+- `clubLightningWatch` — scheduled every 15 min; checks each club course and pushes
+  a warning to all members when lightning is near / a storm is imminent.
+- `onGameInviteCreated` — pushes an open-game invite to the invited member.
+
+Both send through **Expo Push** (→ APNs/FCM) to the tokens the app stores at
+`clubs/{clubKey}/pushTokens/{memberId}`.
 
 ---
 
-## Layer 2 — Real strikes with Xweather (the "where do the keys go" answer)
+## Layer 2 — Real strikes with Xweather
 
-Xweather (Aeris) gives real detected strikes. The keys are **secret** and live
-**only on the backend** — never in the phone app or a web page.
+Xweather gives real detected strikes with precise distance. Auth is a **Client ID +
+Client Secret** pair (not the "API Key", which is for Maps/MapsGL).
 
-**Where they go:** Render → your `foreai-backend` service → **Environment** →
-add two variables:
+**Where they go:** GitHub → repo **Settings → Secrets and variables → Actions**:
 
 ```
-XWEATHER_ID       = <your Xweather client_id>
-XWEATHER_SECRET   = <your Xweather client_secret>
+XWEATHER_CLIENT_ID       = <your Xweather client id>
+XWEATHER_CLIENT_SECRET   = <your Xweather client secret>
 ```
 
-Save → Render redeploys. That's it. The backend (`backend/src/lib/weatherCore.ts`,
-`fetchStrikes()`) auto-detects the keys: when they're present it reports real
-strikes; when they're absent it falls back to the free Open-Meteo forecast. No
-app rebuild is needed — the app and the clubhouse board both read the backend.
-
-> You do **not** paste an Xweather code snippet anywhere. The integration is
-> already written; it only needs those two env vars. If you were given "demo"
-> credentials, put the demo `client_id` / `client_secret` in those same two
-> variables — the code path is identical.
-
-To test after redeploy:
-`https://foreai-backend.onrender.com/weather?lat=-26.106&lng=28.212`
-— if `lightning.source` is `"strikes"` the key is working.
+The functions deploy workflow writes them into the function's runtime env
+(`functions/.env`, gitignored) at deploy time. `clubLightningWatch` then uses
+`/lightning/closest` for real strikes (warns for a strike within 12 km) and still
+falls back to the free Open-Meteo forecast when the keys are absent or a request
+fails. Re-run the **Deploy Cloud Functions** workflow after adding the secrets.
 
 ---
 
 ## Layer 3 — Server push (alerts when the app is closed)
 
-The backend watcher (`backend/src/lib/lightningWatcher.ts`) checks each
-registered phone's location every 3 minutes and pushes an alert via **Expo Push**
-when a storm is a danger. This requires push credentials, because iOS/Android
-only deliver to a closed app through APNs/FCM.
+iOS/Android only deliver to a **closed** app through APNs/FCM, so both invite push
+and background lightning need push credentials on the app build.
 
-### One-time setup
+### A. Expo project id (both platforms)
+1. Create a free project at **expo.dev** (name ForeAi, slug `foreai`).
+2. Copy its **Project ID** (a UUID).
+3. It's hardcoded in `mobile/app.config.js` → `extra.eas.projectId` (or set
+   `EAS_PROJECT_ID` for the build). Without it, `getExpoPushTokenAsync` no-ops and
+   the app keeps only the foreground alarm.
 
-**A. Expo project id (both platforms)**
-1. Create a free account at expo.dev and a project (slug `foreai`).
-2. Copy its **Project ID**.
-3. Set it as a build env var for the Codemagic builds: `EAS_PROJECT_ID=<id>`.
+### B. Android (FCM)
+1. Firebase console (**foreai-f9cfa**) → add an **Android** app, package
+   **`com.foreai.kempton`**.
+2. Download **`google-services.json`**; it's committed at `mobile/google-services.json`
+   and referenced via `googleServicesFile` in `app.config.js`.
+3. Firebase → **Project settings → Service accounts → Generate new private key**, then
+   **expo.dev → Credentials → Android → FCM V1 → Upload** that JSON so Expo can deliver.
 
-**B. Android (FCM)**
-1. Create a Firebase project, add an Android app with package `com.foreai.mobile`.
-2. Download `google-services.json`, commit it to `mobile/` (or provide it at
-   build time), and set `GOOGLE_SERVICES_JSON=./google-services.json`.
-3. In Firebase → Project settings → Service accounts, generate a private key and
-   upload it to your Expo project's credentials (FCM V1) so Expo can deliver.
+### C. iOS (APNs)
+1. Apple Developer → **Identifiers → `com.foreai.kempton`** → enable **Push
+   Notifications**.
+2. **Keys → +** → create an **APNs Auth Key**; download the `.p8` (note Key ID + Team ID).
+3. **expo.dev → Credentials → iOS → Push Key → Upload** the `.p8`.
+4. Set **`EXPO_PUBLIC_ENABLE_IOS_PUSH=1`** on the iOS build. This keeps the
+   `aps-environment` entitlement (stripped by default so local-only builds sign
+   cleanly — see `mobile/plugins/withoutPushEntitlement.js`). Do this **after** C1
+   so the provisioning profile includes push, or iOS signing fails.
 
-**C. iOS (APNs) — only if you want push on iPhone**
-1. Set `EXPO_PUBLIC_ENABLE_IOS_PUSH=1` for the iOS build. This keeps the
-   `aps-environment` entitlement (it's stripped by default so local-only builds
-   sign cleanly — see `mobile/plugins/withoutPushEntitlement.js`).
-2. In the Apple Developer portal, add the **Push Notifications** capability to
-   the `com.foreai.mobile` App ID and **regenerate** the App Store provisioning
-   profile.
-3. Create an APNs auth key (.p8) and upload it to your Expo project's
-   credentials.
-
-> Android and iOS are independent. You can run server push on Android now and
-> leave iOS on the in-app alarm until you're ready for steps C.
-
-### Backend
-
-No setup — it's on by default. To disable, set `LIGHTNING_WATCH=0` on Render.
-
-> **Render note:** the watcher runs while the service is awake. On the free tier
-> the service sleeps after ~15 min idle, pausing the watcher. For reliable
-> event-day coverage keep it warm (a paid instance, or a cron ping every few
-> minutes to `/health`).
+Android and iOS are independent — you can run push on Android first and add iOS later.
 
 ### How the app registers
+Once membership is linked (club app on Firestore), `mobile/src/lib/clubPush.ts`
+(`registerInvitePush`, called from `MemberContext`) gets the Expo push token and
+stores it at `clubs/{clubKey}/pushTokens/{memberId}`. The functions read those tokens.
+Until the Expo project id + credentials are set, registration silently no-ops and the
+in-app alarm + in-app invites inbox still work — nothing breaks.
 
-When lightning alerts are on and a weather panel is shown, the app sends its
-Expo push token + the watched location to `POST /push/register`. Turning
-lightning alerts off in Settings calls `POST /push/unregister`. Until the Expo
-project id + credentials are set up, registration silently no-ops and the
-foreground alarm still works — nothing breaks.
+### Deploying the functions
+Push to `kempton` (auto-deploys `functions/`), or run the **Deploy Cloud Functions**
+GitHub Action. See `docs/push-invites-setup.md` for the one-time Firebase Blaze +
+service-account IAM notes.
