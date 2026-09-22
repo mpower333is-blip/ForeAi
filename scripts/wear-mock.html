@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  /* Each .watch is a 480x480 round Wear OS screen. Screenshotted individually. */
+  :root{
+    --navy:#081226; --navy2:#122C58; --panel:#0F2143; --border:#26407A;
+    --gold:#F3C33B; --gold2:#FFD36A; --text:#F2F6FF; --muted:#AEC0E0;
+    --green:#3DDC84; --sky:#6BD5FF; --red:#FF5C5C;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#000;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+  .watch{
+    width:480px;height:480px;border-radius:50%;overflow:hidden;position:relative;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 32%, #14315f 0%, #0b1b38 55%, #050d1e 100%);
+    color:var(--text);text-align:center;
+  }
+  /* subtle outer bezel ring */
+  .watch::after{content:"";position:absolute;inset:0;border-radius:50%;
+    box-shadow:inset 0 0 0 6px rgba(243,195,59,.10), inset 0 0 40px rgba(0,0,0,.55);pointer-events:none}
+  .brand{position:absolute;top:60px;left:0;right:0;font-size:20px;font-weight:800;
+    letter-spacing:2px;color:var(--gold);text-transform:uppercase}
+  .sub{position:absolute;top:88px;left:0;right:0;font-size:15px;color:var(--muted);letter-spacing:1px}
+  .foot{position:absolute;bottom:64px;left:0;right:0;font-size:15px;color:var(--muted)}
+
+  /* ---- Screen 1: distance to pin ---- */
+  .big{font-size:150px;font-weight:800;line-height:.9;color:#fff;letter-spacing:-4px}
+  .unit{font-size:40px;font-weight:700;color:var(--gold);vertical-align:top}
+  .fb{position:absolute;bottom:96px;left:0;right:0;display:flex;justify-content:center;gap:26px}
+  .fb div{font-size:17px;color:var(--muted)}
+  .fb b{display:block;font-size:26px;color:#fff;font-weight:800}
+  .flagrow{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px}
+  .flagrow span{font-size:19px;color:var(--gold);font-weight:700}
+
+  /* ---- Screen 2: hole card ---- */
+  .holeno{font-size:120px;font-weight:800;color:#fff;line-height:.9}
+  .holelbl{font-size:20px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:2px}
+  .stats{position:absolute;bottom:92px;left:0;right:0;display:flex;justify-content:center;gap:30px}
+  .stats div{font-size:16px;color:var(--muted)}
+  .stats b{display:block;font-size:30px;color:#fff;font-weight:800}
+
+  /* ---- Screen 3: scorecard ---- */
+  .scwrap{width:300px}
+  .scrow{display:flex;justify-content:space-between;align-items:center;
+    padding:11px 4px;border-bottom:1px solid rgba(255,255,255,.08);font-size:20px}
+  .scrow .h{color:var(--muted)}
+  .scrow .v{font-weight:800;color:#fff;font-size:22px}
+  .scrow .par b{color:var(--green)}
+  .totrow{display:flex;justify-content:space-between;margin-top:12px;font-size:22px}
+  .totrow .v{color:var(--gold);font-weight:800;font-size:28px}
+
+  /* ---- Screen 4: lightning alert ---- */
+  .alert{background:radial-gradient(circle at 50% 34%, #3a1418 0%, #24080c 60%, #120306 100%)}
+  .bolt{font-size:130px;line-height:1;filter:drop-shadow(0 0 18px rgba(255,180,60,.6))}
+  .alarm-t{font-size:34px;font-weight:800;color:#FFD36A;margin-top:4px;letter-spacing:1px}
+  .alarm-s{font-size:19px;color:#FFC9C9;margin-top:10px;padding:0 70px;line-height:1.35}
+  .alarm-km{position:absolute;bottom:92px;left:0;right:0;font-size:22px;color:#fff;font-weight:800}
+
+  /* ---- Screen 5: tee time ---- */
+  .tt-time{font-size:112px;font-weight:800;color:#fff;line-height:.9;letter-spacing:-2px}
+  .tt-ampm{font-size:34px;color:var(--gold);font-weight:700}
+  .tt-players{position:absolute;bottom:100px;left:0;right:0;font-size:19px;color:var(--muted)}
+  .tt-players b{color:#fff}
+</style>
+</head>
+<body>
+
+<!-- 1 · Distance to pin -->
+<div class="watch" id="s1">
+  <div class="brand">Kempton Park</div>
+  <div class="sub">GPS · Hole 7</div>
+  <div><span class="big">142</span><span class="unit">m</span></div>
+  <div class="flagrow">⛳ <span>to the pin</span></div>
+  <div class="fb">
+    <div>Front<b>134</b></div>
+    <div>Centre<b>142</b></div>
+    <div>Back<b>151</b></div>
+  </div>
+</div>
+
+<!-- 2 · Hole info -->
+<div class="watch" id="s2">
+  <div class="brand">Kempton Park</div>
+  <div class="holelbl" style="position:absolute;top:150px;left:0;right:0">Hole</div>
+  <div class="holeno" style="margin-top:34px">7</div>
+  <div class="stats">
+    <div>Par<b>4</b></div>
+    <div>Stroke<b>5</b></div>
+    <div>Yards<b>385</b></div>
+  </div>
+</div>
+
+<!-- 3 · Scorecard -->
+<div class="watch" id="s3">
+  <div class="brand" style="top:44px">Scorecard</div>
+  <div class="scwrap" style="margin-top:26px">
+    <div class="scrow"><span class="h">Hole 5 · Par 4</span><span class="v">4</span></div>
+    <div class="scrow"><span class="h">Hole 6 · Par 3</span><span class="v">3</span></div>
+    <div class="scrow"><span class="h">Hole 7 · Par 4</span><span class="v">5</span></div>
+    <div class="totrow"><span class="h">Through 7</span><span class="v">+2</span></div>
+  </div>
+</div>
+
+<!-- 4 · Lightning alert -->
+<div class="watch alert" id="s4">
+  <div class="brand" style="color:#FFD36A">Kempton Park</div>
+  <div class="bolt">⚡</div>
+  <div class="alarm-t">LIGHTNING</div>
+  <div class="alarm-s">Strike detected nearby — seek shelter now</div>
+  <div class="alarm-km">6 km away</div>
+</div>
+
+<!-- 5 · Tee time -->
+<div class="watch" id="s5">
+  <div class="brand">Your Tee Time</div>
+  <div class="sub">Sat 27 Sep</div>
+  <div><span class="tt-time">08:40</span></div>
+  <div class="tt-players">4-ball · <b>you</b> +3 · Tee 1</div>
+</div>
+
+</body>
+</html>
