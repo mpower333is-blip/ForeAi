@@ -34,7 +34,13 @@ export default {
     name: SURVEY_ONLY ? "ForeAi Survey" : CLUB ? CLUB_APP_NAME : "ForeAi",
     slug: "foreai",
     version: "1.0.0",
-    orientation: "portrait",
+    // Unlocked (was "portrait") so the app is fully resizable and rotates on
+    // large-screen / foldable devices. Android 16 (targetSdk 36) force-resizes
+    // apps on large screens regardless of the manifest, and Android 17 removes
+    // orientation-lock support entirely — so we drop the lock now to clear Play's
+    // "remove resizability and orientation restrictions" recommendation and stay
+    // future-proof.
+    orientation: "default",
     scheme: "foreai",
     userInterfaceStyle: "dark",
     icon: ICON,
@@ -65,6 +71,13 @@ export default {
     },
     android: {
       package: SURVEY_ONLY ? "com.foreai.surveyor" : CLUB_PKG || "com.foreai.mobile",
+      // Edge-to-edge (Expo SDK 53): draw behind the system bars using the
+      // react-native-edge-to-edge library Expo applies under the hood. This is
+      // the non-deprecated path Android 15+ expects and is enforced on Android 16
+      // (targetSdk 36), so it clears Play's two edge-to-edge recommendations
+      // ("may not display for all users" + "uses deprecated APIs"). Insets are
+      // handled by react-native-safe-area-context (already a dependency).
+      edgeToEdgeEnabled: true,
       // Firebase config for FCM push (invites + lightning when the app is closed).
       // Kempton has its own Firebase Android app (com.foreai.kempton); other
       // flavours use GOOGLE_SERVICES_JSON if provided, else push stays inactive.
