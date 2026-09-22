@@ -71,7 +71,7 @@
     <div class="spacer"></div>
     <div class="bar" id="topbar" style="display:none">
       <a class="btn ghost sm" href="members.html">👥 Members</a>
-      <button class="btn ghost sm" onclick="disconnect()">Disconnect</button>
+      <button class="btn ghost sm" id="discBtn" onclick="disconnect()">Disconnect</button>
     </div>
   </header>
 
@@ -153,11 +153,28 @@ async function api(path, { method="GET", body }={}){
 }
 
 // ---- connect ----
+// Firestore cutover: when the club runs on Firestore, club-fs.js intercepts the
+// /club, /bookings and /members calls, so there's no backend URL or admin PIN —
+// auth is via Firebase (auth-guard). Detect that and load the tee sheet straight
+// away, skipping the legacy connect screen. Falls back to the backend-URL flow.
+function firestoreOn(){
+  return !!((window.FOREAI_DEFAULTS && window.FOREAI_DEFAULTS.useFirestore) ||
+            (window.ClubFS && window.ClubFS.enabled) ||
+            /[?&]fs=1/.test(location.search));
+}
 function boot(){
-  const saved = JSON.parse(localStorage.getItem(LS) || "null");
-  $("cApi").value = (saved && saved.api) || KEMPTON_API || D.api || "";
   $("date").value = new Date().toISOString().slice(0,10);
   renderDays();
+  if (firestoreOn()){
+    API = ""; PIN = "";
+    $("connect").style.display = "none"; $("main").style.display = ""; $("topbar").style.display = "";
+    var db = $("discBtn"); if (db) db.style.display = "none";   // Firebase auth gates now, no Render disconnect
+    api(`/club/${CLUB_KEY}`).then(function(c){ if (c && c.name) $("clubName").textContent = c.name; }).catch(function(){});
+    loadSettings().then(function(){ loadDay(); }).catch(function(){ loadDay(); });
+    return;
+  }
+  const saved = JSON.parse(localStorage.getItem(LS) || "null");
+  $("cApi").value = (saved && saved.api) || KEMPTON_API || D.api || "";
   if (saved && saved.api){ API = saved.api; PIN = saved.pin || ""; $("cPin").value = PIN; connect(true); }
 }
 async function connect(silent){

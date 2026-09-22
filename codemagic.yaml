@@ -195,9 +195,13 @@ workflows:
       - name: Build the signed Kempton Wear OS release AAB
         script: |
           cd wear
-          # 93000+ lane: unique against the Kempton phone bundles (3000+) in the
-          # same Play app. Each rebuild bumps BUILD_NUMBER, so it keeps rising.
-          export ANDROID_VERSION_CODE=$((93000 + ${BUILD_NUMBER:-1}))
+          # Watch versionCode = minutes since the Unix epoch. This ALWAYS rises on
+          # every rebuild (it can never regenerate an already-used code the way
+          # 93000+BUILD_NUMBER did when a build number was reused), stays a valid
+          # code (~29M now, well under the 2.1B ceiling until ~2065), and can never
+          # collide with the Kempton phone bundles (3000+BUILD_NUMBER) in the same
+          # Play app since the two number ranges never overlap.
+          export ANDROID_VERSION_CODE=$(( $(date +%s) / 60 ))
           echo "Kempton WATCH versionCode: $ANDROID_VERSION_CODE (com.foreai.kempton, Wear OS)"
           echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/wear/upload.keystore"
           curl -sSL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle.zip
@@ -207,7 +211,7 @@ workflows:
             -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
-          V=$((93000 + ${BUILD_NUMBER:-1}))
+          V=$ANDROID_VERSION_CODE
           mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/ForeAi-Kempton-Watch-$V.aab"
     artifacts:
       - wear/app/build/outputs/**/ForeAi-Kempton-Watch-*.aab
