@@ -15,6 +15,11 @@ module.exports = {
   type: "watch",
   name: "ForeAi",
   deploymentTarget: "9.0",
+  // watchOS app icon — required, or App Store upload fails with ITMS-90391
+  // ("Missing Icons … CFBundleIconFiles"). apple-targets generates the watch
+  // AppIcon asset catalog from this 1024×1024 source (path is relative to the
+  // Expo project root, mobile/). Reuses the main app icon.
+  icon: "./assets/icon.png",
   frameworks: ["CoreLocation"],
   infoPlist: {
     NSLocationWhenInUseUsageDescription:
