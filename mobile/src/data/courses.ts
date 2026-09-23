@@ -284,6 +284,16 @@ const HCP_RAW: Raw[] = HANDICAPS_CARDS.filter((c) => !RAW_IDS.has(c.id)).map((c)
 // them scrambled). CR/Slope are the 9-hole ratings (cr9/slope9) plus the
 // 18-hole figures for two-loop play.
 const SCORECARDS: Record<string, ScoreCard> = {
+  // Kempton Park — official Lindsay Saker VW card, men's (White) tee. Metres are
+  // the card's own (they round-trip to the yards in EXACT_LAYOUTS, total 6369 m);
+  // par and stroke index come from that layout. CR/Slope and the ladies tee
+  // aren't on hand yet — add them when available.
+  "kempton-park": {
+    tees: [
+      { id: "white", name: "White", who: "Men's", colour: "#E6EAF0",
+        metres: [574, 333, 381, 406, 191, 388, 364, 477, 164, 335, 145, 483, 491, 386, 381, 352, 151, 367] },
+    ],
+  },
   "avion-park": {
     menSi:    [15, 7, 9, 13, 3, 5, 17, 1, 11],
     ladiesSi: [15, 7, 9, 13, 1, 5, 11, 17, 3],

@@ -64,13 +64,15 @@ export default function MultiTeeScorecard({ course }: { course: Course }) {
     <View>
       {/* Gender + unit toggles */}
       <View style={styles.toggles}>
-        <View style={styles.seg}>
-          {genders.map((g) => (
-            <TouchableOpacity key={g} onPress={() => setWho(g)} style={[styles.segBtn, who === g && styles.segOn]}>
-              <Text style={[styles.segText, who === g && styles.segTextOn]}>{g}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {genders.length > 1 && (
+          <View style={styles.seg}>
+            {genders.map((g) => (
+              <TouchableOpacity key={g} onPress={() => setWho(g)} style={[styles.segBtn, who === g && styles.segOn]}>
+                <Text style={[styles.segText, who === g && styles.segTextOn]}>{g}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         <View style={styles.seg}>
           {(["m", "yd"] as const).map((u) => (
             <TouchableOpacity key={u} onPress={() => setUnit(u)} style={[styles.segBtn, unit === u && styles.segOn]}>
