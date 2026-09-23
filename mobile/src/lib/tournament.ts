@@ -36,6 +36,8 @@ export function groupLiveCount(event: TEvent, group: TGroup, now: number): numbe
 export type TGroup = {
   id: string;
   playerIds: string[];
+  startHole?: number; // hole this group tees off on (two-tee / shotgun); default 1
+  teeMin?: number; // explicit tee-off time in minutes from midnight (overrides the derived time)
 };
 
 export type EventFormat = "stroke" | "stableford" | "scramble";
@@ -87,6 +89,7 @@ export type TEvent = {
   firstTeeMin: number; // minutes from midnight for the first tee time (or shotgun time)
   intervalMin: number; // gap between groups (ignored for a shotgun start)
   shotgun?: boolean; // all groups tee off at once on different holes
+  teeId?: string | null; // organiser-chosen tee colour every player defaults to (red/white/blue/pro)
   players: TPlayer[];
   groups: TGroup[];
   // scores[playerId][holeNumber] = strokes
@@ -115,8 +118,11 @@ export type TEvent = {
 
 // ---- tee times -----------------------------------------------------------
 
-export function groupTeeTime(event: TEvent, groupIndex: number): string {
-  const total = event.firstTeeMin + groupIndex * event.intervalMin;
+export function groupTeeTime(event: TEvent, groupIndex: number, group?: TGroup): string {
+  // An explicit per-group tee time (set on the office draw) wins; otherwise it's
+  // the first tee plus the interval for this group's position.
+  const total =
+    group && group.teeMin != null ? group.teeMin : event.firstTeeMin + groupIndex * event.intervalMin;
   const h = Math.floor(total / 60) % 24;
   const m = total % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
@@ -252,14 +258,24 @@ export function groupHolesDone(event: TEvent, group: TGroup): number {
 }
 
 // The hole a group is currently playing — shotgun- and format-aware.
-export function currentHole(event: TEvent, group: TGroup, groupIndex: number): number | null {
+// The hole a group tees off on: an explicit start hole (two-tee/office draw)
+// wins, else the shotgun spread, else hole 1. `holeCount` lets it wrap correctly
+// on a 9-hole course (defaults to 18 for backward compatibility).
+export function groupStartHole(event: TEvent, group: TGroup, groupIndex: number, holeCount = 18): number {
+  if (group.startHole != null) return ((group.startHole - 1) % holeCount) + 1;
+  if (event.shotgun) return (groupIndex % holeCount) + 1;
+  return 1;
+}
+export function currentHole(
+  event: TEvent,
+  group: TGroup,
+  groupIndex: number,
+  holeCount = 18
+): number | null {
   const done = groupHolesDone(event, group);
-  if (done >= 18) return null;
-  if (event.shotgun) {
-    const start = shotgunStartHole(groupIndex);
-    return ((start - 1 + done) % 18) + 1;
-  }
-  return done + 1;
+  if (done >= holeCount) return null;
+  const start = groupStartHole(event, group, groupIndex, holeCount);
+  return ((start - 1 + done) % holeCount) + 1;
 }
 
 export function teamGross(event: TEvent, group: TGroup): number {

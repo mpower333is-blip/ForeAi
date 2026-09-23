@@ -66,9 +66,14 @@ async function assembleEvent(id: string): Promise<TEvent | null> {
   });
 
   const groups: TGroup[] = groupsSnap.docs
-    .map((s) => ({ id: s.id, order: (s.data() as any).order ?? 0 }))
+    .map((s) => { const x = s.data() as any; return { id: s.id, order: x.order ?? 0, startHole: x.startHole, teeMin: x.teeMin }; })
     .sort((a, b) => a.order - b.order)
-    .map((g) => ({ id: g.id, playerIds: players.filter((p) => p.groupId === g.id).map((p) => p.id) }));
+    .map((g) => {
+      const grp: TGroup = { id: g.id, playerIds: players.filter((p) => p.groupId === g.id).map((p) => p.id) };
+      if (g.startHole != null) grp.startHole = g.startHole;
+      if (g.teeMin != null) grp.teeMin = g.teeMin;
+      return grp;
+    });
 
   const scores: Record<string, Record<number, number>> = {};
   scoresSnap.forEach((s) => {
@@ -97,6 +102,7 @@ async function assembleEvent(id: string): Promise<TEvent | null> {
   return {
     id, name: d.name, date: d.date ?? new Date().toISOString(), courseId: d.courseId, format: d.format,
     firstTeeMin: d.firstTeeMin, intervalMin: d.intervalMin, shotgun: !!d.shotgun,
+    teeId: d.teeId ?? null,
     players, groups, scores, contests, contestResults,
     reminders: d.reminders ?? [], cause: d.cause ?? null, causePhoto: d.causePhoto ?? null,
     sponsors, logo: d.logo ?? null, banking: d.banking ?? null,

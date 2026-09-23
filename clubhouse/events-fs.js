@@ -107,10 +107,13 @@
       });
 
       var groups = groupsSnap.docs
-        .map(function (d) { return { id: d.id, order: (d.data() || {}).order || 0 }; })
+        .map(function (d) { var gd = d.data() || {}; return { id: d.id, order: gd.order || 0, startHole: gd.startHole, teeMin: gd.teeMin }; })
         .sort(function (a, b) { return a.order - b.order; })
         .map(function (g) {
-          return { id: g.id, playerIds: players.filter(function (p) { return p.groupId === g.id; }).map(function (p) { return p.id; }) };
+          var gg = { id: g.id, playerIds: players.filter(function (p) { return p.groupId === g.id; }).map(function (p) { return p.id; }) };
+          if (g.startHole != null) gg.startHole = g.startHole;
+          if (g.teeMin != null) gg.teeMin = g.teeMin;
+          return gg;
         });
 
       var scores = {};
@@ -322,6 +325,22 @@
     return sub(id, "registrations").add(rec);
   }
 
+  // Starting tee + tee-off time for a team's groups: explicit payload fields
+  // (from the office edit form) win, else parsed from the name ("6th tee 13:46").
+  // Only defined keys are returned (Firestore rejects undefined).
+  function teeMeta(b) {
+    var out = {};
+    var nm = (b && b.company) || "";
+    var p = (b && b.payload) || {};
+    var tm = nm.match(/(\d{1,2})[:h](\d{2})/);
+    if (tm) out.teeMin = (+tm[1]) * 60 + (+tm[2]);
+    var tn = nm.match(/(\d+)\s*(?:st|nd|rd|th)?\s*tee/i);
+    if (tn) out.startHole = parseInt(tn[1], 10);
+    if (p.startHole != null) out.startHole = Number(p.startHole);
+    if (p.teeTime && /^\d{1,2}:\d{2}$/.test(p.teeTime)) { var ps = p.teeTime.split(":"); out.teeMin = (+ps[0]) * 60 + (+ps[1]); }
+    return out;
+  }
+
   function registerTeam(code, b) {
     if (!b.company) return Promise.reject({ status: 400, body: { error: "Company name is required" } });
     var id;
@@ -331,6 +350,7 @@
       return sub(id, "groups").get();
     }).then(function (gsnap) {
       var order = gsnap.size;
+      var meta = teeMeta(b); // starting tee + tee time shared by this entry's groups
       var teams = Array.isArray(b.teams) && b.teams.length ? b.teams : [{ players: [] }];
       var playersAdded = 0;
       var groupIds = [];
@@ -339,7 +359,7 @@
         chain = chain.then(function () {
           // One group per four-ball — even an empty four-ball gets its group so
           // it shows on the roster as a reserved team (billed at the team fee).
-          return sub(id, "groups").add({ order: order++, createdAt: Date.now() }).then(function (gref) {
+          return sub(id, "groups").add(Object.assign({ order: order++, createdAt: Date.now() }, meta)).then(function (gref) {
             groupIds.push(gref.id);
             var players = Array.isArray(team.players) ? team.players : [];
             var pc = Promise.resolve();
@@ -596,7 +616,15 @@
           .catch(function (e) { if (typeof console !== "undefined") console.error("[events-fs] roster sync failed:", e); });
       }
       return rosterStep.then(function () {
-        return sub(id, "registrations").doc(rid).update(upd);
+        // Push the starting tee + tee-off time onto this team's group docs, so the
+        // app starts each group on the right hole at the right time.
+        var meta = teeMeta({ company: (upd.company != null ? upd.company : cur.company), payload: payload });
+        var gids = (upd.groupIds && upd.groupIds.length) ? upd.groupIds : (cur.groupIds || []);
+        var gStep = Promise.resolve();
+        if (cur.type === "team" && gids.length && (meta.startHole != null || meta.teeMin != null)) {
+          gStep = Promise.all(gids.map(function (gid) { return sub(id, "groups").doc(gid).update(meta).catch(function () {}); }));
+        }
+        return gStep.then(function () { return sub(id, "registrations").doc(rid).update(upd); });
       }).then(function () { return sponsorUpdate; });
     }).then(function () {
       return sub(id, "registrations").doc(rid).get();

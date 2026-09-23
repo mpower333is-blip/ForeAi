@@ -33,6 +33,7 @@ import {
   teamStandings,
   teamCaptain,
   shotgunStartHole,
+  groupStartHole,
   SponsorTier,
   sponsorTierLabel,
   holeSponsor,
@@ -876,14 +877,19 @@ function LiveTab({ event }: { event: TEvent }) {
           </Text>
         )}
         {event.groups.map((g, i) => {
-          const hole = currentHole(event, g, i);
+          const holeCount = getCourse(event.courseId).holes.length || 18;
+          const hole = currentHole(event, g, i, holeCount);
           const names = g.playerIds
             .map((id) => event.players.find((p) => p.id === id)?.name)
             .filter(Boolean)
             .join(", ");
+          const startH = groupStartHole(event, g, i, holeCount);
+          const teeT = groupTeeTime(event, i, g);
           const teeLabel = event.shotgun
-            ? `Start hole ${shotgunStartHole(i)}`
-            : `Off at ${groupTeeTime(event, i)}`;
+            ? `Start hole ${startH}`
+            : g.startHole != null
+            ? `Off at ${teeT} · hole ${startH}`
+            : `Off at ${teeT}`;
           const captain = teamCaptain(g);
           const teamThru = isScramble && captain ? Object.keys(event.scores[captain] ?? {}).length : 0;
           const live = groupLiveCount(event, g, now);
