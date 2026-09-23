@@ -29,6 +29,10 @@ export default function WatchSetupScreen({ navigation }: any) {
   const { events, myPlayerId } = useTournament();
   const live = events.find((e) => e.remote && !!myPlayerId(e.id));
   const code = live?.code;
+  // iOS must not reference Google Play, Wear OS, APK sideloading or adb (App
+  // Store Guideline 2.3.10). On iOS the companion is the Apple Watch app that
+  // ships inside this build; on Android it's the Wear OS app from Play.
+  const isIOS = Platform.OS === "ios";
 
   const openPlay = () => {
     // Prefer the Play Store app (shows the "Install on watch" control), fall
@@ -45,7 +49,11 @@ export default function WatchSetupScreen({ navigation }: any) {
     <Screen>
       <ScreenHeader
         title="Set up your watch"
-        subtitle="Put ForeAi on your Wear OS watch — pick clubs, see distances and log shots from your wrist."
+        subtitle={
+          isIOS
+            ? "Put ForeAi on your Apple Watch — pick clubs, see distances and log shots from your wrist."
+            : "Put ForeAi on your Wear OS watch — pick clubs, see distances and log shots from your wrist."
+        }
         onBack={() => navigation.goBack()}
       />
 
@@ -57,34 +65,40 @@ export default function WatchSetupScreen({ navigation }: any) {
         <Text style={styles.li}>🏆  Enter scores that sync to the leaderboard</Text>
       </Card>
 
-      <Card>
-        <Text style={styles.h}>Install on your watch</Text>
-        <Text style={styles.p}>
-          Make sure your Wear OS watch is paired to this phone, then open the Play Store listing —
-          it has an <Text style={styles.b}>Install on watch</Text> option that sends it straight to
-          your watch.
-        </Text>
-        <Button label="📲 Open on the Play Store" onPress={openPlay} />
-        <QrTile url={WEAR_PLAY_URL} caption="Scan to open the watch app listing" />
-        {Platform.OS === "ios" && (
-          <Text style={styles.note}>
-            Wear OS watches install from the Google Play Store. On an iPhone, do this step from the
-            watch's own Play Store or from an Android phone.
+      {isIOS ? (
+        <Card>
+          <Text style={styles.h}>Apple Watch — coming soon</Text>
+          <Text style={styles.p}>
+            A ForeAi companion for Apple Watch is in development. For now, all of ForeAi's
+            distances and scoring live here on your iPhone.
           </Text>
-        )}
-      </Card>
+        </Card>
+      ) : (
+        <>
+          <Card>
+            <Text style={styles.h}>Install on your watch</Text>
+            <Text style={styles.p}>
+              Make sure your Wear OS watch is paired to this phone, then open the Play Store listing —
+              it has an <Text style={styles.b}>Install on watch</Text> option that sends it straight to
+              your watch.
+            </Text>
+            <Button label="📲 Open on the Play Store" onPress={openPlay} />
+            <QrTile url={WEAR_PLAY_URL} caption="Scan to open the watch app listing" />
+          </Card>
 
-      <Card>
-        <Text style={styles.h}>Not on the Play Store yet? Sideload it</Text>
-        <Text style={styles.p}>
-          While the watch app is in testing you can install the APK directly:
-        </Text>
-        <Text style={styles.step}>1. Download the ForeAi watch APK.</Text>
-        <Text style={styles.step}>2. On the watch: Settings → Developer options → turn on ADB / Wireless debugging.</Text>
-        <Text style={styles.step}>3. From a computer: <Text style={styles.mono}>adb connect &lt;watch-ip&gt;</Text> then <Text style={styles.mono}>adb install foreai-watch.apk</Text>.</Text>
-        <Button label="⬇ Download the watch APK" variant="ghost" onPress={openApk} />
-        <QrTile url={WEAR_APK_URL} caption="Scan on a computer to download the APK" />
-      </Card>
+          <Card>
+            <Text style={styles.h}>Not on the Play Store yet? Sideload it</Text>
+            <Text style={styles.p}>
+              While the watch app is in testing you can install the APK directly:
+            </Text>
+            <Text style={styles.step}>1. Download the ForeAi watch APK.</Text>
+            <Text style={styles.step}>2. On the watch: Settings → Developer options → turn on ADB / Wireless debugging.</Text>
+            <Text style={styles.step}>3. From a computer: <Text style={styles.mono}>adb connect &lt;watch-ip&gt;</Text> then <Text style={styles.mono}>adb install foreai-watch.apk</Text>.</Text>
+            <Button label="⬇ Download the watch APK" variant="ghost" onPress={openApk} />
+            <QrTile url={WEAR_APK_URL} caption="Scan on a computer to download the APK" />
+          </Card>
+        </>
+      )}
 
       <Card>
         <Text style={styles.h}>On the watch</Text>
