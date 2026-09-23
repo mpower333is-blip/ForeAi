@@ -10,6 +10,12 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "**/README*.md"],
     "cleanUrls": false,
     "trailingSlash": false,
+    "redirects": [
+      { "source": "/admin", "destination": "/manage/admin.html", "type": 302 },
+      { "source": "/admin.html", "destination": "/manage/admin.html", "type": 302 },
+      { "source": "/manage", "destination": "/manage/index.html", "type": 302 },
+      { "source": "/portal", "destination": "/manage/index.html", "type": 302 }
+    ],
     "headers": [
       {
         "source": "/config.js",
