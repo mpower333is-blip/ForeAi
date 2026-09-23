@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Image, Alert } from "react-native";
 import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, TextField, EmptyState } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
-import { COURSES, getCourse, searchCourses, hasCourse } from "../data/courses";
+import { COURSES, getCourse, searchCourses, hasCourse, TeeId, TEES } from "../data/courses";
+import { useRound } from "../state/RoundContext";
 import { ydToM } from "../lib/units";
 import {
   searchOnline,
@@ -442,6 +443,19 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
   const [, setCourseReady] = useState(0);
   const isRemote = !!event?.remote;
   const meId = t.myPlayerId(eventId);
+  const round = useRound();
+  const nav = useNavigation<any>();
+
+  // Start MY round on this event's course, from my group's tee: the organiser's
+  // chosen tee colour and my group's starting hole, then jump to the Round tab.
+  const playMyRound = () => {
+    if (!event) return;
+    round.setCourse(event.courseId);
+    if (event.teeId && TEES.some((t2) => t2.id === event.teeId)) round.setTee(event.teeId as TeeId);
+    const myGroup = meId ? event.groups.find((g) => g.playerIds.includes(meId)) : undefined;
+    round.setCurrentHole(myGroup?.startHole ?? 1);
+    nav.navigate("Tabs", { screen: "Play" });
+  };
 
   // Poll the server so every device sees live changes.
   useEffect(() => {
@@ -505,7 +519,22 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
       <Text style={styles.detailMeta}>
         {course.name} • Par {course.par} • {formatLabel(event.format)}
         {event.shotgun ? " • Shotgun" : ""}
+        {event.teeId ? ` • ${TEES.find((t2) => t2.id === event.teeId)?.name ?? ""} tee` : ""}
       </Text>
+      {meId && (
+        <>
+          <Button label="⛳ Play my round" onPress={playMyRound} style={{ marginTop: 10 }} />
+          <Text style={styles.hint}>
+            Starts on this course
+            {event.teeId ? ` off the ${TEES.find((t2) => t2.id === event.teeId)?.name} tee` : ""}
+            {(() => {
+              const g = event.groups.find((gr) => gr.playerIds.includes(meId));
+              return g?.startHole ? `, hole ${g.startHole}` : "";
+            })()}
+            .
+          </Text>
+        </>
+      )}
 
       {event.remote && (
         <Card accent>
