@@ -79,15 +79,23 @@ class RoundViewModel(app: Application) : AndroidViewModel(app) {
     fun connect(code: String) {
         loading = true; error = null
         viewModelScope.launch {
-            val ev = Backend.eventByCode(code)
-            loading = false
-            if (ev == null) {
+            // Never let a data/Firebase failure crash the app — show the retry
+            // state instead. (Backend already fails soft, but obtaining a Firestore
+            // instance can still throw on a watch without full Play services.)
+            try {
+                val ev = Backend.eventByCode(code)
+                loading = false
+                if (ev == null) {
+                    error = "Can't reach the golf day. Check the watch's connection and try again."
+                    return@launch
+                }
+                event = ev
+                if (myPlayerId != null && ev.players.none { it.id == myPlayerId }) setPlayer(null)
+                myPlayerId?.let { viewingHole = ev.currentHole(it) }
+            } catch (_: Throwable) {
+                loading = false
                 error = "Can't reach the golf day. Check the watch's connection and try again."
-                return@launch
             }
-            event = ev
-            if (myPlayerId != null && ev.players.none { it.id == myPlayerId }) setPlayer(null)
-            myPlayerId?.let { viewingHole = ev.currentHole(it) }
         }
     }
 
@@ -103,11 +111,16 @@ class RoundViewModel(app: Application) : AndroidViewModel(app) {
     // Called from the Activity once location permission is granted.
     fun startLocation() {
         if (locationOn) return
-        location.start { latLng, acc ->
-            currentLoc = latLng
-            accuracyM = if (acc.isNaN()) null else acc
+        // Guarded: a location failure must never take the app down on launch.
+        try {
+            location.start { latLng, acc ->
+                currentLoc = latLng
+                accuracyM = if (acc.isNaN()) null else acc
+            }
+            locationOn = location.hasPermission()
+        } catch (_: Throwable) {
+            locationOn = false
         }
-        locationOn = location.hasPermission()
     }
 
     fun selectClub(name: String) {

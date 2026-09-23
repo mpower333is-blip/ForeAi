@@ -42,8 +42,10 @@ class LocationProvider(private val context: Context) {
                     onFix(LatLng(last.latitude, last.longitude), if (last.hasAccuracy()) last.accuracy else Float.NaN)
                 }
             }
-        } catch (_: SecurityException) {
-            // permission revoked between the check and the request — ignore
+        } catch (_: Throwable) {
+            // SecurityException (permission revoked mid-request), a provider that
+            // isn't really available, or any OEM location quirk — degrade to no GPS
+            // rather than crashing the app.
         }
     }
 

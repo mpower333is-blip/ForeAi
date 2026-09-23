@@ -72,10 +72,12 @@ object Backend {
     // Anonymous sign-in so writes satisfy the Firestore rules (reads are public).
     // Fire-and-forget; a failure just means writes fail soft, reads still work.
     private suspend fun ensureSignedIn() {
-        if (auth.currentUser != null) return
+        // Fully guarded: even obtaining the Auth/Firestore instance can throw on a
+        // watch without full Google Play services — never let that crash the app.
         try {
+            if (auth.currentUser != null) return
             auth.signInAnonymously().await()
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
         }
     }
 
@@ -90,7 +92,7 @@ object Backend {
             val codeSnap = db.collection("eventCodes").document(key).get().await()
             val eventId = codeSnap.getString("eventId") ?: return null
             assemble(eventId)
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
             null
         }
     }
@@ -99,7 +101,7 @@ object Backend {
         ensureSignedIn()
         return try {
             assemble(eventId)
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
             null
         }
     }
@@ -162,7 +164,7 @@ object Backend {
                 ).await()
             }
             assemble(eventId)
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
             null
         }
     }
@@ -190,7 +192,7 @@ object Backend {
             if (lng != null) data["lng"] = lng
             sub(eventId, "shotMarks").add(data).await()
             true
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
             false
         }
     }
