@@ -175,6 +175,16 @@
             <option value="kempton-park">Kempton Park Golf Club</option>
           </select>
         </div>
+        <div>
+          <label class="hint">Tee (colour) everyone plays — sets the default teeing distance in the app</label>
+          <select id="setTeeId" style="width:100%;margin-top:4px;background:#0a1730;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px">
+            <option value="">Players choose their own</option>
+            <option value="red">Red — forward (juniors &amp; ladies)</option>
+            <option value="white">White — men's</option>
+            <option value="blue">Blue — championship</option>
+            <option value="pro">Pro — back</option>
+          </select>
+        </div>
         <div class="row" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
           <label class="hint">First tee <input id="setFirstTee" type="time" style="margin-left:6px" /></label>
           <label class="hint">Gap between groups (min) <input id="setGap" type="number" min="1" style="width:90px;margin-left:6px" /></label>
@@ -232,7 +242,7 @@
   // Build marker — bump on every change so a stale (cached) upload is obvious.
   // Check the browser console for this line; if it's older than the build you
   // uploaded, the server/CDN is still serving a cached office.html.
-  var OFFICE_BUILD = "2026-09-23c (By-tee grouping + course/tee-time setup)";
+  var OFFICE_BUILD = "2026-09-23d (per-group tee/time picker + event tee colour)";
   console.log("[office] build " + OFFICE_BUILD);
   // Safe storage (localStorage can throw in sandboxed/private contexts).
   function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
@@ -400,11 +410,14 @@
   // "6th tee 14:10" — the labels the tee-sheet import writes). teeNum 0 = a team
   // whose name has no "<n> tee" prefix, bucketed under "Other".
   function teeInfo(r){
-    var nm = r.company || '';
-    var tm = nm.match(/(\d{1,2})[:h](\d{2})/);
-    var mins = tm ? (+tm[1])*60 + (+tm[2]) : 99999;
-    var tn = nm.match(/(\d+)\s*(?:st|nd|rd|th)?\s*tee/i);
-    return { teeNum: tn ? parseInt(tn[1],10) : 0, mins: mins };
+    var p = r.payload || {}, nm = r.company || '';
+    var mins;
+    if(p.teeTime && /^\d{1,2}:\d{2}$/.test(p.teeTime)){ var ps=p.teeTime.split(':'); mins=(+ps[0])*60+(+ps[1]); }
+    else { var tm = nm.match(/(\d{1,2})[:h](\d{2})/); mins = tm ? (+tm[1])*60 + (+tm[2]) : 99999; }
+    var teeNum;
+    if(p.startHole!=null){ teeNum = p.startHole; }
+    else { var tn = nm.match(/(\d+)\s*(?:st|nd|rd|th)?\s*tee/i); teeNum = tn ? parseInt(tn[1],10) : 0; }
+    return { teeNum: teeNum, mins: mins };
   }
   function ordinal(n){ var s=['th','st','nd','rd'], v=n%100; return n + (s[(v-20)%10] || s[v] || s[0]); }
   // "By tee" view — group the team cards under their starting tee, each sorted by
@@ -618,7 +631,22 @@
     if(r.type==='team'){
       // Render existing teams, each padded to a four-ball so missing names can be filled.
       var teams=Array.isArray(p.teams)&&p.teams.length?p.teams:[{players:[]}];
-      extra='<div class="ehint">Four-ball player names &amp; handicaps</div>';
+      // Starting tee + tee-off time — pick where and when this group tees off (a
+      // two-tee start lets more groups play at once). Pre-filled from the stored
+      // fields, else parsed from the group name ("6th tee 13:46"). Saving composes
+      // the group name from these, so the "By tee" view stays in step.
+      var curTee = (p.startHole!=null ? p.startHole : (function(){ var m=(r.company||'').match(/(\d+)\s*(?:st|nd|rd|th)?\s*tee/i); return m?parseInt(m[1],10):''; })());
+      var curTime = (p.teeTime || (function(){ var m=(r.company||'').match(/(\d{1,2})[:h](\d{2})/); return m?(('0'+m[1]).slice(-2)+':'+m[2]):''; })());
+      extra='<div class="egrid">'
+        + '<label class="elab">Starting tee<select id="e_startTee">'
+          + '<option value="">—</option>'
+          + '<option value="1"'+(String(curTee)==="1"?' selected':'')+'>1st tee</option>'
+          + '<option value="6"'+(String(curTee)==="6"?' selected':'')+'>6th tee</option>'
+          + '<option value="10"'+(String(curTee)==="10"?' selected':'')+'>10th tee</option>'
+        + '</select></label>'
+        + '<label class="elab">Tee-off time<input id="e_teeTime" type="time" value="'+esc(curTime)+'"></label>'
+        + '</div>'
+        + '<div class="ehint">Four-ball player names &amp; handicaps</div>';
       teams.forEach(function(t,ti){
         var players=(t.players||[]).slice();
         while(players.length<4) players.push({name:'',handicap:''});
@@ -683,6 +711,12 @@
         teams.push({players:players});
       }
       payload.teams=teams;
+      // Starting tee + time — store structured, and compose the group name from
+      // them so the card title and the "By tee" grouping match.
+      var st=ev('e_startTee'), tt=ev('e_teeTime');
+      if(st!==''){ payload.startHole=parseInt(st,10); } else { delete payload.startHole; }
+      if(tt!==''){ payload.teeTime=tt; } else { delete payload.teeTime; }
+      if(st!=='' && tt!==''){ body.company = ordinal(parseInt(st,10))+' tee '+tt; }
     } else if(r.type==='hole'){
       payload.holePreference=ev('e_holePreference');
     } else if(r.type==='prize'){
@@ -798,6 +832,7 @@
     if(!EVENT) return;
     document.getElementById('setName').value = EVENT.name||'';
     if(EVENT.courseId) document.getElementById('setCourseSel').value = EVENT.courseId;
+    document.getElementById('setTeeId').value = EVENT.teeId||'';
     var _ft = EVENT.firstTeeMin;
     document.getElementById('setFirstTee').value = (_ft!=null) ? (('0'+Math.floor(_ft/60)).slice(-2)+':'+('0'+(_ft%60)).slice(-2)) : '';
     document.getElementById('setGap').value = (EVENT.intervalMin!=null) ? EVENT.intervalMin : '';
@@ -829,6 +864,7 @@
     if(firstTeeMin!=null) body.firstTeeMin=firstTeeMin;
     if(!isNaN(gap) && gap>0) body.intervalMin=gap;
     body.shotgun=document.getElementById('setShotgun').checked;
+    body.teeId=document.getElementById('setTeeId').value||null;
     if(NEW_LOGO) body.logo=NEW_LOGO;
     if(NEW_CAUSE_PHOTO) body.causePhoto=NEW_CAUSE_PHOTO;
     var m=document.getElementById('setupMsg'); m.textContent='Saving…';

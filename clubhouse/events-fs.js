@@ -139,6 +139,7 @@
           hasAdminPin: !!evSnap.ownerUid, // ownership replaces the PIN
           name: evSnap.name, courseId: evSnap.courseId, format: evSnap.format,
           firstTeeMin: evSnap.firstTeeMin, intervalMin: evSnap.intervalMin, shotgun: !!evSnap.shotgun,
+          teeId: evSnap.teeId == null ? null : evSnap.teeId,
           cause: evSnap.cause == null ? null : evSnap.cause, causePhoto: evSnap.causePhoto == null ? null : evSnap.causePhoto,
           logo: evSnap.logo == null ? null : evSnap.logo, banking: evSnap.banking == null ? null : evSnap.banking,
           teamFee: evSnap.teamFee == null ? null : evSnap.teamFee, holeFee: evSnap.holeFee == null ? null : evSnap.holeFee,
