@@ -54,9 +54,10 @@ android {
             "EVENT_CODE",
             "\"${System.getenv("WEAR_EVENT_CODE") ?: ""}\"",
         )
-        // Public status endpoint (Cloud Function `watchStatus`) the watch polls for
-        // the club's live lightning-safety level and the next tee times. Blank ->
-        // those two on-wrist extras are simply hidden; the rangefinder still works.
+        // Public snapshot the watch polls for the club's live lightning-safety level
+        // and next tee times: a Firestore REST URL for clubs/<club>/public/watch
+        // (written by the clubLightningWatch function; read via the public Web API
+        // key). Blank -> those two on-wrist extras are hidden; rangefinder still works.
         buildConfigField(
             "String",
             "STATUS_URL",

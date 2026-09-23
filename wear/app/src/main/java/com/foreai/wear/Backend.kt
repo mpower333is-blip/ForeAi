@@ -32,7 +32,7 @@ object Config {
     const val CLUB_KEY = "kempton"
 }
 
-// On-wrist extras from the watchStatus endpoint.
+// On-wrist extras from the club's public Firestore snapshot doc.
 data class WLightning(val level: String, val body: String?) // level: "approaching" | "overhead"
 data class WTee(val teeMs: Long, val timeLabel: String, val names: List<String>, val party: Int)
 data class WStatus(val lightning: WLightning?, val teeTimes: List<WTee>)
@@ -185,37 +185,48 @@ object Backend {
         return "$when_ ${hhmm.format(Date(ms))}"
     }
 
+    // Reads the club's public on-wrist snapshot straight from Firestore over its
+    // REST API (STATUS_URL points at clubs/<club>/public/watch?key=<web api key>).
+    // The doc stores the payload as a single JSON string in a `json` field, so we
+    // just unwrap fields.json.stringValue and parse the inner JSON — no need to
+    // decode Firestore's per-field value wrappers. Any failure -> null (the watch
+    // stays a plain rangefinder). No Cloud Function, so no extra IAM.
     suspend fun status(): WStatus? = withContext(Dispatchers.IO) {
         if (!Config.HAS_STATUS) return@withContext null
         try {
-            val url = "${Config.STATUS_URL}?club=${Config.CLUB_KEY}"
-            val req = Request.Builder().url(url).get().build()
+            val req = Request.Builder().url(Config.STATUS_URL).get().build()
             client.newCall(req).execute().use { res ->
                 if (!res.isSuccessful) return@withContext null
                 val body = res.body?.string() ?: return@withContext null
-                val o = JSONObject(body)
-                val lo = o.optJSONObject("lightning")
-                val lightning = lo?.optString("level")?.takeIf { it.isNotBlank() && it != "null" }?.let {
-                    WLightning(level = it, body = lo.optString("body").ifBlank { null })
-                }
-                val tees = mutableListOf<WTee>()
-                o.optJSONArray("teeTimes")?.let { arr ->
-                    for (i in 0 until arr.length()) {
-                        val t = arr.getJSONObject(i)
-                        val ms = t.optLong("teeMs", 0L)
-                        if (ms <= 0L) continue
-                        val names = mutableListOf<String>()
-                        t.optJSONArray("names")?.let { na ->
-                            for (j in 0 until na.length()) names.add(na.optString(j))
-                        }
-                        tees.add(WTee(ms, teeLabel(ms), names, t.optInt("party", names.size.coerceAtLeast(1))))
-                    }
-                }
-                WStatus(lightning, tees)
+                val inner = JSONObject(body)
+                    .optJSONObject("fields")?.optJSONObject("json")?.optString("stringValue")
+                    ?: return@withContext null
+                parseStatusPayload(JSONObject(inner))
             }
         } catch (_: Exception) {
             null
         }
+    }
+
+    private fun parseStatusPayload(o: JSONObject): WStatus {
+        val lo = o.optJSONObject("lightning")
+        val lightning = lo?.optString("level")?.takeIf { it.isNotBlank() && it != "null" }?.let {
+            WLightning(level = it, body = lo.optString("body").ifBlank { null })
+        }
+        val tees = mutableListOf<WTee>()
+        o.optJSONArray("teeTimes")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val t = arr.getJSONObject(i)
+                val ms = t.optLong("teeMs", 0L)
+                if (ms <= 0L) continue
+                val names = mutableListOf<String>()
+                t.optJSONArray("names")?.let { na ->
+                    for (j in 0 until na.length()) names.add(na.optString(j))
+                }
+                tees.add(WTee(ms, teeLabel(ms), names, t.optInt("party", names.size.coerceAtLeast(1))))
+            }
+        }
+        return WStatus(lightning, tees)
     }
 
     private fun parseEvent(o: JSONObject): WEvent {

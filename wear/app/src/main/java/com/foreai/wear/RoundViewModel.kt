@@ -48,7 +48,7 @@ class RoundViewModel(app: Application) : AndroidViewModel(app) {
     var shotsSent by mutableStateOf(0); private set
     var lastMarkOk by mutableStateOf(true); private set
 
-    // On-wrist extras (polled from the public watchStatus endpoint).
+    // On-wrist extras (polled from the club's public Firestore snapshot doc).
     val hasStatus: Boolean = Config.HAS_STATUS
     var lightning by mutableStateOf<WLightning?>(null); private set
     var teeTimes by mutableStateOf<List<WTee>>(emptyList()); private set

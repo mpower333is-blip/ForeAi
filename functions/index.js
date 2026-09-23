@@ -218,6 +218,39 @@ async function pushClubTokens(clubKey, title, body) {
   return sendExpo(messages);
 }
 
+// Next few tee times off a club's sheet, from now. Range + order on teeMs only,
+// so no composite index is needed. Shared by the on-wrist snapshot writer below.
+async function buildTeeTimes(clubKey, now) {
+  const teeTimes = [];
+  try {
+    const ahead = now + 36 * 60 * 60 * 1000; // look 36h ahead
+    const bs = await db
+      .collection(`clubs/${clubKey}/bookings`)
+      .where("teeMs", ">=", now)
+      .where("teeMs", "<", ahead)
+      .orderBy("teeMs")
+      .limit(12)
+      .get();
+    bs.forEach((d) => {
+      const b = d.data();
+      if (b.status && b.status !== "booked") return; // skip blocked/cancelled
+      const names = Array.isArray(b.players)
+        ? b.players.map(String)
+        : Array.isArray(b.members)
+        ? b.members.map((m) => (m && (m.name || m.firstName)) || "Player")
+        : [];
+      teeTimes.push({
+        teeMs: b.teeMs || null,
+        party: b.partySize || names.length || 1,
+        names: names.slice(0, 4),
+      });
+    });
+  } catch (e) {
+    console.error("buildTeeTimes failed", clubKey, e);
+  }
+  return teeTimes.slice(0, 6);
+}
+
 exports.clubLightningWatch = functions
   .region("us-central1")
   .runWith({ timeoutSeconds: 60, memory: "256MB" })
@@ -234,87 +267,33 @@ exports.clubLightningWatch = functions
         if (!risk) {
           // Storm cleared — record it so the next storm alerts immediately.
           if (prev.level) await alarmRef.set({ level: null, clearedAt: now }, { merge: true });
-          continue;
+        } else {
+          // Push once per state; skip if we already warned recently at the same
+          // level (avoid nagging). An escalation (approaching → overhead) re-alerts.
+          const same = prev.level === risk.level;
+          if (!(same && prev.lastAt && now - prev.lastAt < COOLDOWN_MS)) {
+            await pushClubTokens(site.clubKey, "⚡ Lightning warning", risk.body);
+            await alarmRef.set({ level: risk.level, body: risk.body, lastAt: now }, { merge: true });
+          }
         }
-        // Skip if we already warned recently at the same level (avoid nagging);
-        // an escalation (approaching → overhead) always re-alerts.
-        const same = prev.level === risk.level;
-        if (same && prev.lastAt && now - prev.lastAt < COOLDOWN_MS) continue;
-        await pushClubTokens(site.clubKey, "⚡ Lightning warning", risk.body);
-        await alarmRef.set({ level: risk.level, body: risk.body, lastAt: now }, { merge: true });
+
+        // Publish the on-wrist snapshot (current lightning level + next tee times)
+        // to a PUBLIC doc that the Wear app reads directly via the Firestore REST
+        // API. This replaces the HTTP endpoint approach so no new function (and no
+        // extra IAM permission) is needed. Stored as one JSON string for trivial
+        // parsing on the watch. Firestore rules expose clubs/*/public/* read-only.
+        const payload = {
+          lightning: risk ? { level: risk.level, body: risk.body } : { level: null, body: null },
+          teeTimes: await buildTeeTimes(site.clubKey, now),
+          now,
+        };
+        await db.doc(`clubs/${site.clubKey}/public/watch`).set({
+          json: JSON.stringify(payload),
+          updatedAt: now,
+        });
       } catch (e) {
         console.error("lightning watch failed for", site.clubKey, e);
       }
     }
     return null;
-  });
-
-// Public, read-only status endpoint for the standalone Wear OS watch app.
-// The watch has no login and can't read Firestore directly, so this hands it the
-// two things worth having on the wrist: the club's live lightning-safety level
-// (kept fresh by clubLightningWatch above) and the next few tee times off the
-// sheet. 1st-gen HTTPS function (public by default) so it needs no IAM grants.
-// The watch polls it every couple of minutes; every read is best-effort and the
-// watch degrades to a plain rangefinder if it's ever unreachable.
-exports.watchStatus = functions
-  .region("us-central1")
-  .runWith({ timeoutSeconds: 30, memory: "256MB" })
-  .https.onRequest(async (req, res) => {
-    res.set("Cache-Control", "public, max-age=60");
-    res.set("Access-Control-Allow-Origin", "*");
-    try {
-      const clubKey =
-        String(req.query.club || "kempton").replace(/[^a-z0-9_-]/gi, "").toLowerCase() || "kempton";
-      const now = Date.now();
-
-      // --- Lightning: read the alarm doc the scheduled watcher maintains. ---
-      // Active only when a level is set and fresh (< 45 min), matching the watcher's
-      // cooldown, so a cleared/stale storm never keeps buzzing the watch.
-      let lightning = { level: null, body: null };
-      try {
-        const snap = await db.doc(`clubs/${clubKey}/alarms/lightning`).get();
-        const a = snap.exists ? snap.data() : null;
-        if (a && a.level && a.lastAt && now - a.lastAt < 45 * 60 * 1000) {
-          lightning = { level: a.level, body: a.body || null };
-        }
-      } catch (e) {
-        console.error("watchStatus lightning", e);
-      }
-
-      // --- Tee times: the next few bookings from now (range+order on teeMs only,
-      // so no composite index is needed). ---
-      const teeTimes = [];
-      try {
-        const ahead = now + 36 * 60 * 60 * 1000; // look 36h ahead
-        const bs = await db
-          .collection(`clubs/${clubKey}/bookings`)
-          .where("teeMs", ">=", now)
-          .where("teeMs", "<", ahead)
-          .orderBy("teeMs")
-          .limit(12)
-          .get();
-        bs.forEach((d) => {
-          const b = d.data();
-          if (b.status && b.status !== "booked") return; // skip blocked/cancelled
-          const names = Array.isArray(b.players)
-            ? b.players.map(String)
-            : Array.isArray(b.members)
-            ? b.members.map((m) => (m && (m.name || m.firstName)) || "Player")
-            : [];
-          teeTimes.push({
-            teeMs: b.teeMs || null,
-            teeAt: b.teeAt || (b.teeMs ? new Date(b.teeMs).toISOString() : null),
-            party: b.partySize || names.length || 1,
-            names: names.slice(0, 4),
-          });
-        });
-      } catch (e) {
-        console.error("watchStatus tee", e);
-      }
-
-      res.status(200).json({ club: clubKey, now, lightning, teeTimes: teeTimes.slice(0, 6) });
-    } catch (e) {
-      console.error("watchStatus failed", e);
-      res.status(200).json({ lightning: { level: null }, teeTimes: [] });
-    }
   });

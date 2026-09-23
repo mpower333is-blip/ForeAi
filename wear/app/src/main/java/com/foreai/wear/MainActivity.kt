@@ -91,8 +91,8 @@ fun RoundApp(vm: RoundViewModel = viewModel()) {
     }
 }
 
-// Full-screen lightning safety alarm. Shown over everything when the club's
-// watchStatus reports a live strike/storm; "I'm safe" dismisses this one alert.
+// Full-screen lightning safety alarm. Shown over everything when the club's public
+// snapshot reports a live strike/storm; "I'm safe" dismisses this alert.
 @Composable
 private fun LightningAlarm(l: WLightning, onDismiss: () -> Unit) {
     val overhead = l.level == "overhead"
@@ -132,7 +132,7 @@ private fun LightningAlarm(l: WLightning, onDismiss: () -> Unit) {
     }
 }
 
-// Next tee times off the club sheet (from watchStatus). Read-only glanceable list.
+// Next tee times off the club sheet (from the club snapshot). Read-only list.
 @Composable
 private fun TeeTimesScreen(tees: List<WTee>, onBack: () -> Unit) {
     ScalingLazyColumn(horizontalAlignment = Alignment.CenterHorizontally) {

@@ -194,9 +194,13 @@ workflows:
         # server. WEAR_EVENT_CODE is intentionally unset (no live scoring backend
         # yet), which keeps the watch fully network-free for the round itself.
         WEAR_COURSE_ID: "kempton-park"
-        # On-wrist lightning safety alarm + next tee times, polled from the public
-        # watchStatus Cloud Function (reads the club's live alarm state + tee sheet).
-        WEAR_STATUS_URL: "https://us-central1-foreai-f9cfa.cloudfunctions.net/watchStatus"
+        # On-wrist lightning safety alarm + next tee times. The watch reads the
+        # club's public snapshot doc (clubs/kempton/public/watch) straight from the
+        # Firestore REST API — written every 15 min by the clubLightningWatch Cloud
+        # Function. No dedicated HTTP function, so no extra IAM. The key is the
+        # project's public Web API key (safe to embed); Firestore rules expose only
+        # clubs/*/public/* for read.
+        WEAR_STATUS_URL: "https://firestore.googleapis.com/v1/projects/foreai-f9cfa/databases/(default)/documents/clubs/kempton/public/watch?key=AIzaSyC38thYKR_HIL439l5_wF-I82OIgtTA_p0"
     cache:
       cache_paths:
         - $HOME/.gradle/caches

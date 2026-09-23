@@ -148,6 +148,15 @@ service cloud.firestore {
       allow read: if true;                                          // tee-sheet shape, club name
       allow write: if isClubAdmin(clubKey);
 
+      // Public on-wrist snapshot (lightning level + next tee times) written by the
+      // clubLightningWatch Cloud Function (Admin SDK, bypasses rules). Read-only so
+      // the standalone Wear OS app can fetch it over the Firestore REST API with no
+      // login. Nothing sensitive lives here — it mirrors the public clubhouse board.
+      match /public/{docId} {
+        allow read: if true;
+        allow write: if isClubAdmin(clubKey);
+      }
+
       match /members/{memberId} {
         allow read: if isSignedIn();
         allow create, delete: if isClubAdmin(clubKey);           // admin manages the roster
