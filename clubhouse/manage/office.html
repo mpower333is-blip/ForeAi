@@ -218,6 +218,7 @@
     <div class="tabs" id="tabs">
       <div class="tab on" data-f="all">All</div>
       <div class="tab" data-f="team">Teams</div>
+      <div class="tab" data-f="bytee">By tee</div>
       <div class="tab" data-f="hole">Hole sponsors</div>
       <div class="tab" data-f="prize">Prize sponsors</div>
       <div class="tab" data-f="unpaid">Outstanding</div>
@@ -231,7 +232,7 @@
   // Build marker — bump on every change so a stale (cached) upload is obvious.
   // Check the browser console for this line; if it's older than the build you
   // uploaded, the server/CDN is still serving a cached office.html.
-  var OFFICE_BUILD = "2026-09-23b (edit course + tee times in setup)";
+  var OFFICE_BUILD = "2026-09-23c (By-tee grouping + course/tee-time setup)";
   console.log("[office] build " + OFFICE_BUILD);
   // Safe storage (localStorage can throw in sandboxed/private contexts).
   function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
@@ -395,6 +396,34 @@
   }
   function phoneIcon(v){ return v==='apple'?'🍎':v==='android'?'🤖':''; }
 
+  // Parse the starting tee + tee time out of a team's name (e.g. "1st tee 13:30",
+  // "6th tee 14:10" — the labels the tee-sheet import writes). teeNum 0 = a team
+  // whose name has no "<n> tee" prefix, bucketed under "Other".
+  function teeInfo(r){
+    var nm = r.company || '';
+    var tm = nm.match(/(\d{1,2})[:h](\d{2})/);
+    var mins = tm ? (+tm[1])*60 + (+tm[2]) : 99999;
+    var tn = nm.match(/(\d+)\s*(?:st|nd|rd|th)?\s*tee/i);
+    return { teeNum: tn ? parseInt(tn[1],10) : 0, mins: mins };
+  }
+  function ordinal(n){ var s=['th','st','nd','rd'], v=n%100; return n + (s[(v-20)%10] || s[v] || s[0]); }
+  // "By tee" view — group the team cards under their starting tee, each sorted by
+  // tee-off time, so the office draw reads like the printed tee sheet.
+  function renderByTee(){
+    var teams = REGS.filter(function(r){ return r.type==='team'; });
+    if(!teams.length) return '<div class="empty">No teams yet — import a team list or add teams.</div>';
+    var buckets = {};
+    teams.forEach(function(r){ var i=teeInfo(r); (buckets[i.teeNum] = buckets[i.teeNum] || []).push({ r:r, mins:i.mins }); });
+    var keys = Object.keys(buckets).map(Number).sort(function(a,b){ if(a===0) return 1; if(b===0) return -1; return a-b; });
+    return keys.map(function(k){
+      var list = buckets[k].sort(function(a,b){ return a.mins - b.mins; });
+      var title = k===0 ? '🚩 Other / no tee set' : ('🚩 '+ordinal(k)+' tee');
+      return '<div style="margin:20px 4px 8px;color:var(--gold);font-weight:800;font-size:14px;letter-spacing:.05em;text-transform:uppercase">'
+        + title + ' · ' + list.length + ' group' + (list.length===1?'':'s') + '</div>'
+        + list.map(function(x){ return cardHTML(x.r); }).join('');
+    }).join('');
+  }
+
   function render(){
     // Show the connected event's own logo in the header (falls back to the
     // ForeAi mark). Keeps the office generic — no hard-coded company branding.
@@ -433,6 +462,7 @@
       return r.type===FILTER;
     });
     var host=document.getElementById('list');
+    if(FILTER==='bytee'){ host.innerHTML = renderByTee(); renderSponsors(); return; }
     if(!rows.length){ host.innerHTML='<div class="empty">No submissions'+(FILTER!=='all'?' in this view':' yet')+'.</div>'; }
     else { host.innerHTML = rows.map(cardHTML).join(''); }
     renderSponsors();
