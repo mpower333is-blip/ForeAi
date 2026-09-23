@@ -7,6 +7,7 @@ import { useRound } from "../state/RoundContext";
 import HoleDiagram from "../components/HoleDiagram";
 import SatelliteHole from "../components/SatelliteHole";
 import ZoomableHole from "../components/ZoomableHole";
+import MultiTeeScorecard from "../components/MultiTeeScorecard";
 import { ydToM } from "../lib/units";
 import { prefetchCourse } from "../lib/satelliteCache";
 import { SAT_TILES } from "../data/satTiles";
@@ -128,20 +129,27 @@ export default function CoursePreviewScreen({ navigation, route }: any) {
         <StatTile label="Stroke Index" value={`${hole.si}`} tone="neutral" />
       </View>
 
-      <Card>
-        <View style={styles.nineRow}>
-          <Text style={styles.nineLabel}>Front nine</Text>
-          <Text style={styles.nineVal}>Par {frontNinePar(course)}</Text>
-        </View>
-        <View style={styles.nineRow}>
-          <Text style={styles.nineLabel}>Back nine</Text>
-          <Text style={styles.nineVal}>Par {backNinePar(course)}</Text>
-        </View>
-        <View style={styles.nineRow}>
-          <Text style={[styles.nineLabel, { color: colors.text }]}>Total</Text>
-          <Text style={[styles.nineVal, { color: colors.accent }]}>Par {course.par}</Text>
-        </View>
-      </Card>
+      {course.scorecard ? (
+        <Card>
+          <Text style={styles.scTitle}>Scorecard</Text>
+          <MultiTeeScorecard course={course} />
+        </Card>
+      ) : (
+        <Card>
+          <View style={styles.nineRow}>
+            <Text style={styles.nineLabel}>Front nine</Text>
+            <Text style={styles.nineVal}>Par {frontNinePar(course)}</Text>
+          </View>
+          <View style={styles.nineRow}>
+            <Text style={styles.nineLabel}>Back nine</Text>
+            <Text style={styles.nineVal}>Par {backNinePar(course)}</Text>
+          </View>
+          <View style={styles.nineRow}>
+            <Text style={[styles.nineLabel, { color: colors.text }]}>Total</Text>
+            <Text style={[styles.nineVal, { color: colors.accent }]}>Par {course.par}</Text>
+          </View>
+        </Card>
+      )}
 
       <Button label={isActiveCourse ? `Play hole ${hole.number}` : "Play this course"} onPress={playThisHole} />
     </Screen>
@@ -195,4 +203,5 @@ const styles = StyleSheet.create({
   },
   nineLabel: { color: colors.textMuted, fontSize: 15 },
   nineVal: { color: colors.textMuted, fontSize: 15, fontWeight: "700" },
+  scTitle: { fontSize: 20, fontWeight: "700", color: colors.text, marginBottom: spacing.sm },
 });

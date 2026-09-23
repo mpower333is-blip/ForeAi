@@ -29,6 +29,27 @@ export type Hole = {
   hazards?: { type: "tree" | "water" | "bunker"; points: Coord[]; width?: number }[]; // drawn hazard areas (water carries a river width)
 };
 
+// A real per-tee scorecard (official distances + course/slope rating), when we
+// have the club's card. This is distinct from the TEES scale factors below,
+// which only approximate other tees off the white yardage. `metres` length
+// matches the course's holes.
+export type TeeCard = {
+  id: string; // "white" | "red" | "yellow" | "blue" …
+  name: string; // display name
+  who: "Men's" | "Ladies";
+  colour: string; // swatch colour
+  metres: number[]; // per hole, in metres
+  cr?: number; // 18-hole course rating
+  slope?: number; // 18-hole slope rating
+  cr9?: number; // 9-hole course rating (for 9-hole courses)
+  slope9?: number; // 9-hole slope rating
+};
+export type ScoreCard = {
+  tees: TeeCard[];
+  menSi?: number[]; // official men's stroke index per hole
+  ladiesSi?: number[]; // official ladies' stroke index per hole
+};
+
 export type Course = {
   id: string;
   name: string;
@@ -38,6 +59,7 @@ export type Course = {
   holes: Hole[];
   approxLayout?: boolean;
   center?: Coord; // course GPS centre, for the satellite view
+  scorecard?: ScoreCard; // official multi-tee card (distances + CR/slope), when known
 };
 
 // Tee boxes. Our bundled hole yardages represent the standard men's (white)
@@ -255,6 +277,23 @@ const RAW_IDS = new Set(RAW_COURSES.map((r) => r.id));
 const HCP_RAW: Raw[] = HANDICAPS_CARDS.filter((c) => !RAW_IDS.has(c.id)).map((c) => ({
   id: c.id, name: c.name, town: c.town, province: c.province, par: c.par, lat: c.lat, lng: c.lng,
 }));
+// Official multi-tee scorecards (real per-tee distances + course/slope rating),
+// keyed by course id. Only the tees with reliable data are listed. Avion Park:
+// White (men's) and Red (ladies) from the club card; the Yellow/Blue men's tees
+// are omitted until their per-hole distances are verified (the source card had
+// them scrambled). CR/Slope are the 9-hole ratings (cr9/slope9) plus the
+// 18-hole figures for two-loop play.
+const SCORECARDS: Record<string, ScoreCard> = {
+  "avion-park": {
+    menSi:    [15, 7, 9, 13, 3, 5, 17, 1, 11],
+    ladiesSi: [15, 7, 9, 13, 1, 5, 11, 17, 3],
+    tees: [
+      { id: "white", name: "White", who: "Men's",  colour: "#E6EAF0", metres: [328, 198, 367, 468, 356, 408, 282, 385, 150], cr: 68.7, slope: 117, cr9: 34.4, slope9: 117 },
+      { id: "red",   name: "Red",   who: "Ladies", colour: "#E8563E", metres: [281, 165, 294, 401, 290, 311, 259, 272, 142], cr: 65.1, slope: 109, cr9: 32.6, slope9: 109 },
+    ],
+  },
+};
+
 const ALL_RAW: Raw[] = [...RAW_COURSES, ...HCP_RAW];
 
 export const COURSES: Course[] = ALL_RAW.map((r) => {
@@ -292,6 +331,7 @@ export const COURSES: Course[] = ALL_RAW.map((r) => {
     // Only a fully-captured card is exact; partial and generated are approximate.
     approxLayout: exact ? false : true,
     center,
+    scorecard: SCORECARDS[r.id],
   };
 });
 
