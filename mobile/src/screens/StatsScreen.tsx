@@ -4,9 +4,10 @@ import { Screen, ScreenHeader, Card, StatTile, SGBar, Button, EmptyState } from 
 import { colors, spacing } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { signed } from "../lib/golfEngine";
+import RoundSummaryCard from "../components/RoundSummaryCard";
 
 export default function StatsScreen({ navigation }: any) {
-  const { shots, totalStrokesGained, categorySG, resetRound, holeStats } = useRound();
+  const { shots, totalStrokesGained, categorySG, resetRound, holeStats, scoreTotals } = useRound();
   const cats = categorySG();
   const maxAbs = Math.max(0.5, ...cats.map((c) => Math.abs(c.value)));
 
@@ -49,6 +50,8 @@ export default function StatsScreen({ navigation }: any) {
     <Screen>
       <ScreenHeader title="Strokes Gained" subtitle="How your round breaks down by part of the game." onBack={() => navigation.goBack()} />
 
+      <RoundSummaryCard />
+
       {rs.count > 0 && (
         <Card>
           <Text style={styles.roundStatsTitle}>Round stats</Text>
@@ -78,7 +81,7 @@ export default function StatsScreen({ navigation }: any) {
         </Card>
       )}
 
-      {shots.length === 0 && rs.count === 0 ? (
+      {shots.length === 0 && rs.count === 0 && scoreTotals.holesPlayed === 0 ? (
         <EmptyState
           emoji="📊"
           title="No stats yet"
