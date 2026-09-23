@@ -162,8 +162,12 @@
       <div id="importPreview"></div>
     </div>
     <details class="card" id="setupBox">
-      <summary style="cursor:pointer;font-weight:700;color:var(--lime)">⚙️ Event setup — already done · tap only to edit logo, banking or fees</summary>
+      <summary style="cursor:pointer;font-weight:700;color:var(--lime)">⚙️ Event setup — already done · tap to edit name, logo, banking or fees</summary>
       <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label class="hint">Event name (shown at the top and on this event's pages)</label>
+          <input id="setName" placeholder="e.g. Kruinsig League — Round 1" style="width:100%;margin-top:4px;background:#0a1730;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px" />
+        </div>
         <div>
           <label class="hint">Event logo (shown on this event's pages &amp; forms)</label>
           <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
@@ -215,7 +219,7 @@
   // Build marker — bump on every change so a stale (cached) upload is obvious.
   // Check the browser console for this line; if it's older than the build you
   // uploaded, the server/CDN is still serving a cached office.html.
-  var OFFICE_BUILD = "2026-09-17e (refresh feedback + import fix)";
+  var OFFICE_BUILD = "2026-09-23a (edit event name in setup)";
   console.log("[office] build " + OFFICE_BUILD);
   // Safe storage (localStorage can throw in sandboxed/private contexts).
   function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
@@ -750,6 +754,7 @@
 
   function populateSetup(){
     if(!EVENT) return;
+    document.getElementById('setName').value = EVENT.name||'';
     document.getElementById('setBank').value = EVENT.banking||'';
     document.getElementById('setTeamFee').value = EVENT.teamFee!=null?EVENT.teamFee:'';
     document.getElementById('setHoleFee').value = EVENT.holeFee!=null?EVENT.holeFee:'';
@@ -761,18 +766,21 @@
     var cp=document.getElementById('causePrev'); if(EVENT.causePhoto){ cp.src=EVENT.causePhoto; cp.style.display='inline-block'; }
   }
   async function saveSetup(){
+    var newName=(document.getElementById('setName').value||'').trim();
     var body={ banking: document.getElementById('setBank').value,
       teamFee: parseInt(document.getElementById('setTeamFee').value,10) || null,
       holeFee: parseInt(document.getElementById('setHoleFee').value,10) || null,
       playerFee: parseInt(document.getElementById('setPlayerFee').value,10) || null,
       reminders: REMINDERS.filter(function(r){ return r.body && r.body.trim(); }).map(function(r){ return { offsetMin:+r.offsetMin||0, title:'⛳ '+((EVENT&&EVENT.name)||'Golf day'), body:r.body.trim() }; }),
       cause: document.getElementById('setCause').value || null };
+    if(newName) body.name=newName;
     if(NEW_LOGO) body.logo=NEW_LOGO;
     if(NEW_CAUSE_PHOTO) body.causePhoto=NEW_CAUSE_PHOTO;
     var m=document.getElementById('setupMsg'); m.textContent='Saving…';
     try{
       var r=await authFetch(CFG.api+'/tournaments/'+EVENT.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-      if(r.ok){ EVENT=await r.json(); NEW_LOGO=null; m.textContent='Saved.'; render(); }
+      if(r.ok){ EVENT=await r.json(); NEW_LOGO=null; m.textContent='Saved.';
+        document.getElementById('evtName').textContent = (EVENT.name||'Event')+' · code '+CFG.code; render(); }
       else m.textContent='Not saved (check the admin PIN).';
     }catch(e){ m.textContent='Save failed.'; }
   }

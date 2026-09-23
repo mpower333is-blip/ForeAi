@@ -15,6 +15,19 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "**/README*.md"],
     "cleanUrls": false,
     "trailingSlash": false,
+    "redirects": [
+      { "source": "/office.html", "destination": "/manage/office.html", "type": 302 },
+      { "source": "/survey.html", "destination": "/manage/survey.html", "type": 302 },
+      { "source": "/live.html", "destination": "/manage/live.html", "type": 302 },
+      { "source": "/admin.html", "destination": "/manage/admin.html", "type": 302 },
+      { "source": "/teesheet.html", "destination": "/manage/teesheet.html", "type": 302 },
+      { "source": "/members.html", "destination": "/manage/members.html", "type": 302 },
+      { "source": "/competitions.html", "destination": "/manage/competitions.html", "type": 302 },
+      { "source": "/news.html", "destination": "/manage/news.html", "type": 302 },
+      { "source": "/signin.html", "destination": "/manage/signin.html", "type": 302 },
+      { "source": "/manage", "destination": "/manage/", "type": 302 },
+      { "source": "/admin", "destination": "/manage/", "type": 302 }
+    ],
     "headers": [
       {
         "source": "/config.js",
