@@ -162,11 +162,23 @@
       <div id="importPreview"></div>
     </div>
     <details class="card" id="setupBox">
-      <summary style="cursor:pointer;font-weight:700;color:var(--lime)">⚙️ Event setup — already done · tap to edit name, logo, banking or fees</summary>
+      <summary style="cursor:pointer;font-weight:700;color:var(--lime)">⚙️ Event setup — already done · tap to edit name, course, tee times, logo, banking or fees</summary>
       <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
         <div>
           <label class="hint">Event name (shown at the top and on this event's pages)</label>
           <input id="setName" placeholder="e.g. Kruinsig League — Round 1" style="width:100%;margin-top:4px;background:#0a1730;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px" />
+        </div>
+        <div>
+          <label class="hint">Course — drives the GPS map, scorecard &amp; distances players see in the app</label>
+          <select id="setCourseSel" style="width:100%;margin-top:4px;background:#0a1730;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px">
+            <option value="avion-park">Avion Park Golf Club</option>
+            <option value="kempton-park">Kempton Park Golf Club</option>
+          </select>
+        </div>
+        <div class="row" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+          <label class="hint">First tee <input id="setFirstTee" type="time" style="margin-left:6px" /></label>
+          <label class="hint">Gap between groups (min) <input id="setGap" type="number" min="1" style="width:90px;margin-left:6px" /></label>
+          <label class="hint" style="display:flex;align-items:center"><input id="setShotgun" type="checkbox" style="width:auto;margin-right:6px" />Shotgun (all groups tee off together)</label>
         </div>
         <div>
           <label class="hint">Event logo (shown on this event's pages &amp; forms)</label>
@@ -219,7 +231,7 @@
   // Build marker — bump on every change so a stale (cached) upload is obvious.
   // Check the browser console for this line; if it's older than the build you
   // uploaded, the server/CDN is still serving a cached office.html.
-  var OFFICE_BUILD = "2026-09-23a (edit event name in setup)";
+  var OFFICE_BUILD = "2026-09-23b (edit course + tee times in setup)";
   console.log("[office] build " + OFFICE_BUILD);
   // Safe storage (localStorage can throw in sandboxed/private contexts).
   function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
@@ -755,6 +767,11 @@
   function populateSetup(){
     if(!EVENT) return;
     document.getElementById('setName').value = EVENT.name||'';
+    if(EVENT.courseId) document.getElementById('setCourseSel').value = EVENT.courseId;
+    var _ft = EVENT.firstTeeMin;
+    document.getElementById('setFirstTee').value = (_ft!=null) ? (('0'+Math.floor(_ft/60)).slice(-2)+':'+('0'+(_ft%60)).slice(-2)) : '';
+    document.getElementById('setGap').value = (EVENT.intervalMin!=null) ? EVENT.intervalMin : '';
+    document.getElementById('setShotgun').checked = !!EVENT.shotgun;
     document.getElementById('setBank').value = EVENT.banking||'';
     document.getElementById('setTeamFee').value = EVENT.teamFee!=null?EVENT.teamFee:'';
     document.getElementById('setHoleFee').value = EVENT.holeFee!=null?EVENT.holeFee:'';
@@ -767,6 +784,10 @@
   }
   async function saveSetup(){
     var newName=(document.getElementById('setName').value||'').trim();
+    var courseId=document.getElementById('setCourseSel').value||'';
+    var ftv=document.getElementById('setFirstTee').value||''; // "HH:MM"
+    var firstTeeMin = /^\d{1,2}:\d{2}$/.test(ftv) ? (function(p){return (+p[0])*60+(+p[1]);})(ftv.split(':')) : null;
+    var gap=parseInt(document.getElementById('setGap').value,10);
     var body={ banking: document.getElementById('setBank').value,
       teamFee: parseInt(document.getElementById('setTeamFee').value,10) || null,
       holeFee: parseInt(document.getElementById('setHoleFee').value,10) || null,
@@ -774,6 +795,10 @@
       reminders: REMINDERS.filter(function(r){ return r.body && r.body.trim(); }).map(function(r){ return { offsetMin:+r.offsetMin||0, title:'⛳ '+((EVENT&&EVENT.name)||'Golf day'), body:r.body.trim() }; }),
       cause: document.getElementById('setCause').value || null };
     if(newName) body.name=newName;
+    if(courseId) body.courseId=courseId;
+    if(firstTeeMin!=null) body.firstTeeMin=firstTeeMin;
+    if(!isNaN(gap) && gap>0) body.intervalMin=gap;
+    body.shotgun=document.getElementById('setShotgun').checked;
     if(NEW_LOGO) body.logo=NEW_LOGO;
     if(NEW_CAUSE_PHOTO) body.causePhoto=NEW_CAUSE_PHOTO;
     var m=document.getElementById('setupMsg'); m.textContent='Saving…';
