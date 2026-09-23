@@ -21,9 +21,10 @@ const OUT = join(__dirname, '..', 'store', 'kempton', 'wear');
 const shots = {
   s1: 'wear-01-distance.png',
   s2: 'wear-02-hole.png',
-  s3: 'wear-03-scorecard.png',
-  s4: 'wear-04-lightning.png',
-  s5: 'wear-05-teetime.png',
+  s3: 'wear-03-club.png',
+  s4: 'wear-04-score.png',
+  s5: 'wear-05-lightning.png',
+  s6: 'wear-06-teetimes.png',
 };
 
 const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';

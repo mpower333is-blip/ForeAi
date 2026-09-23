@@ -58,11 +58,29 @@
   .alarm-s{font-size:19px;color:#FFC9C9;margin-top:10px;padding:0 70px;line-height:1.35}
   .alarm-km{position:absolute;bottom:92px;left:0;right:0;font-size:22px;color:#fff;font-weight:800}
 
-  /* ---- Screen 5: tee time ---- */
-  .tt-time{font-size:112px;font-weight:800;color:#fff;line-height:.9;letter-spacing:-2px}
-  .tt-ampm{font-size:34px;color:var(--gold);font-weight:700}
-  .tt-players{position:absolute;bottom:100px;left:0;right:0;font-size:19px;color:var(--muted)}
-  .tt-players b{color:#fff}
+  /* ---- Screen 3: club selection ---- */
+  .clubwrap{width:340px;margin-top:26px}
+  .clubrow{display:flex;justify-content:space-between;align-items:center;
+    background:rgba(255,255,255,.06);border-radius:28px;padding:15px 24px;margin:10px 0;
+    font-size:22px;font-weight:700;color:#fff}
+  .clubrow.sel{background:linear-gradient(135deg,#FBD972,#F3C33B,#D6A22A);color:#10203F}
+  .clubrow .cm{font-size:16px;font-weight:600;opacity:.85}
+
+  /* ---- Screen 4: score stepper ---- */
+  .scorelbl{font-size:19px;color:var(--muted);margin-bottom:8px}
+  .stepper{display:flex;align-items:center;justify-content:center;gap:24px}
+  .stepbtn{width:74px;height:74px;border-radius:50%;
+    background:linear-gradient(135deg,#FBD972,#F3C33B,#D6A22A);color:#10203F;
+    font-size:46px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .scoreval{font-size:104px;font-weight:800;color:#fff;min-width:90px}
+
+  /* ---- Screen 6: tee times ---- */
+  .teewrap{width:352px;margin-top:20px}
+  .teerow{display:flex;justify-content:space-between;align-items:center;
+    background:rgba(255,255,255,.06);border-radius:26px;padding:12px 22px;margin:9px 0;text-align:left}
+  .teerow .tt{font-size:22px;font-weight:800;color:#fff}
+  .teerow .who{font-size:15px;color:var(--muted);margin-top:2px}
+  .teerow .n{font-size:16px;font-weight:700;color:var(--gold)}
 </style>
 </head>
 <body>
@@ -88,36 +106,50 @@
   <div class="stats">
     <div>Par<b>4</b></div>
     <div>Stroke<b>5</b></div>
-    <div>Yards<b>385</b></div>
+    <div>Metres<b>385</b></div>
   </div>
 </div>
 
-<!-- 3 · Scorecard -->
+<!-- 3 · Club selection -->
 <div class="watch" id="s3">
-  <div class="brand" style="top:44px">Scorecard</div>
-  <div class="scwrap" style="margin-top:26px">
-    <div class="scrow"><span class="h">Hole 5 · Par 4</span><span class="v">4</span></div>
-    <div class="scrow"><span class="h">Hole 6 · Par 3</span><span class="v">3</span></div>
-    <div class="scrow"><span class="h">Hole 7 · Par 4</span><span class="v">5</span></div>
-    <div class="totrow"><span class="h">Through 7</span><span class="v">+2</span></div>
+  <div class="brand" style="top:40px">Your club</div>
+  <div class="clubwrap">
+    <div class="clubrow sel"><span>7 Iron</span><span class="cm">~144 m</span></div>
+    <div class="clubrow"><span>8 Iron</span><span class="cm">~133 m</span></div>
+    <div class="clubrow"><span>6 Iron</span><span class="cm">~155 m</span></div>
   </div>
 </div>
 
-<!-- 4 · Lightning alert -->
-<div class="watch alert" id="s4">
+<!-- 4 · Score -->
+<div class="watch" id="s4">
+  <div class="brand">Kempton Park</div>
+  <div class="sub">Hole 7 · Par 4</div>
+  <div class="scorelbl">Your score</div>
+  <div class="stepper">
+    <div class="stepbtn">−</div>
+    <div class="scoreval">4</div>
+    <div class="stepbtn">+</div>
+  </div>
+  <div class="foot">Thru 6 · Total 24</div>
+</div>
+
+<!-- 5 · Lightning alarm -->
+<div class="watch alert" id="s5">
   <div class="brand" style="color:#FFD36A">Kempton Park</div>
   <div class="bolt">⚡</div>
   <div class="alarm-t">LIGHTNING</div>
-  <div class="alarm-s">Strike detected nearby — seek shelter now</div>
-  <div class="alarm-km">6 km away</div>
+  <div class="alarm-s">Lightning detected 6 km away — take shelter now</div>
+  <div class="alarm-km">Tap “I'm safe”</div>
 </div>
 
-<!-- 5 · Tee time -->
-<div class="watch" id="s5">
-  <div class="brand">Your Tee Time</div>
-  <div class="sub">Sat 27 Sep</div>
-  <div><span class="tt-time">08:40</span></div>
-  <div class="tt-players">4-ball · <b>you</b> +3 · Tee 1</div>
+<!-- 6 · Tee times -->
+<div class="watch" id="s6">
+  <div class="brand" style="top:40px">Tee times</div>
+  <div class="teewrap">
+    <div class="teerow"><div><div class="tt">Today 08:40</div><div class="who">Smith, Jones +2</div></div><div class="n">4</div></div>
+    <div class="teerow"><div><div class="tt">Today 08:48</div><div class="who">Naidoo, Botha</div></div><div class="n">2</div></div>
+    <div class="teerow"><div><div class="tt">Today 08:56</div><div class="who">Open · join</div></div><div class="n">1</div></div>
+  </div>
 </div>
 
 </body>

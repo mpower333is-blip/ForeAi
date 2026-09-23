@@ -188,6 +188,15 @@ workflows:
         WEAR_APP_ID: "com.foreai.kempton"          # same install id as the Kempton phone app
         WEAR_APP_NAME: "Kempton Park Golf"
         WEAR_API_BASE: "https://foreai-kempton-backend.onrender.com"
+        # Standalone GPS rangefinder for Kempton Park — the bundled course card
+        # (green GPS, par, length) drives distances with NO backend, so the app
+        # works offline the instant it opens and can't crash on an unreachable
+        # server. WEAR_EVENT_CODE is intentionally unset (no live scoring backend
+        # yet), which keeps the watch fully network-free for the round itself.
+        WEAR_COURSE_ID: "kempton-park"
+        # On-wrist lightning safety alarm + next tee times, polled from the public
+        # watchStatus Cloud Function (reads the club's live alarm state + tee sheet).
+        WEAR_STATUS_URL: "https://us-central1-foreai-f9cfa.cloudfunctions.net/watchStatus"
     cache:
       cache_paths:
         - $HOME/.gradle/caches

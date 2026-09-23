@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // Drives the watch experience: connect to the event, remember which player this
@@ -47,12 +48,60 @@ class RoundViewModel(app: Application) : AndroidViewModel(app) {
     var shotsSent by mutableStateOf(0); private set
     var lastMarkOk by mutableStateOf(true); private set
 
+    // On-wrist extras (polled from the public watchStatus endpoint).
+    val hasStatus: Boolean = Config.HAS_STATUS
+    var lightning by mutableStateOf<WLightning?>(null); private set
+    var teeTimes by mutableStateOf<List<WTee>>(emptyList()); private set
+    var lightningDismissed by mutableStateOf(false); private set
+    private var lastLightningLevel: String? = null
+    // Show the full-screen lightning alarm when a fresh alert is active and the
+    // wearer hasn't dismissed this one yet.
+    val showLightning: Boolean get() = lightning != null && !lightningDismissed
+
+    // True when this build is wired to a live scoring event. When false the watch
+    // is a pure standalone rangefinder and never touches the network.
+    val hasEvent: Boolean = Config.HAS_EVENT
+
     init {
-        connect(Config.PRESET_EVENT_CODE)
+        if (hasEvent) {
+            connect(Config.PRESET_EVENT_CODE)
+        } else {
+            // Standalone rangefinder: nothing to load, show the course immediately.
+            loading = false
+        }
+        if (hasStatus) startStatusPolling()
     }
 
-    // The bundled card for the event's course.
-    private fun course(): WCourse = Courses.forId(event?.courseId)
+    // Poll the public status endpoint for the club's live lightning level + next
+    // tee times. Best-effort: any failure leaves the last values and retries.
+    private fun startStatusPolling() {
+        viewModelScope.launch {
+            while (true) {
+                val s = Backend.status()
+                if (s != null) {
+                    teeTimes = s.teeTimes
+                    val lv = s.lightning
+                    if (lv != null && lv.level != lastLightningLevel) {
+                        // New alert, or an escalation (approaching -> overhead):
+                        // surface the alarm again and buzz the wrist.
+                        lightningDismissed = false
+                        if (lv.level == "overhead") buzzAlarm() else buzz()
+                    }
+                    if (lv == null) { lightningDismissed = false }
+                    lightning = lv
+                    lastLightningLevel = lv?.level
+                }
+                delay(120_000L) // every 2 minutes
+            }
+        }
+    }
+
+    fun dismissLightning() { lightningDismissed = true }
+
+    // The bundled card to show: the live event's course when connected, otherwise
+    // the build's default course (e.g. kempton-park) so distances work offline.
+    private fun course(): WCourse =
+        Courses.forId(event?.courseId ?: Config.DEFAULT_COURSE_ID.ifBlank { null })
 
     fun holeInfo(): WHole {
         val holes = course().holes
@@ -142,6 +191,13 @@ class RoundViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun buzz() {
         vibrator?.vibrate(VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
+    }
+
+    // Insistent pattern for the lightning "take shelter now" alarm.
+    private fun buzzAlarm() {
+        vibrator?.vibrate(
+            VibrationEffect.createWaveform(longArrayOf(0, 500, 250, 500, 250, 500), -1)
+        )
     }
 
     fun prevHole() { if (viewingHole > 1) viewingHole -= 1 }

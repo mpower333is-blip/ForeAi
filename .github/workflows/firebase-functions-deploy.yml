@@ -61,7 +61,7 @@ jobs:
           FIREBASE_SUPPRESS_REGION_WARNING: "true"
         run: |
           set +e
-          npx firebase-tools@latest deploy --only functions:onGameInviteCreated,functions:clubLightningWatch --project foreai-f9cfa --non-interactive --force 2>&1 | tee deploy.log
+          npx firebase-tools@latest deploy --only functions:onGameInviteCreated,functions:clubLightningWatch,functions:watchStatus --project foreai-f9cfa --non-interactive --force 2>&1 | tee deploy.log
           code=${PIPESTATUS[0]}
           if [ "$code" -ne 0 ]; then
             echo "----- firebase-debug.log tail -----"

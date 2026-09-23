@@ -36,6 +36,32 @@ android {
             "API_BASE",
             "\"${System.getenv("WEAR_API_BASE") ?: "https://foreai-backend.onrender.com"}\"",
         )
+        // Standalone rangefinder config. WEAR_COURSE_ID names the bundled course
+        // card the watch shows straight away (green GPS, par, length) with NO
+        // backend — so the app is fully usable offline the moment it opens (e.g.
+        // "kempton-park"). WEAR_EVENT_CODE is optional: set it only when a live
+        // scoring backend exists, and the watch then also layers on player pick +
+        // live score sync. Left blank (the default) the watch never touches the
+        // network and works purely as a GPS rangefinder — which is what Play's
+        // reviewer sees, so it can't crash on or hang against an unreachable server.
+        buildConfigField(
+            "String",
+            "DEFAULT_COURSE_ID",
+            "\"${System.getenv("WEAR_COURSE_ID") ?: ""}\"",
+        )
+        buildConfigField(
+            "String",
+            "EVENT_CODE",
+            "\"${System.getenv("WEAR_EVENT_CODE") ?: ""}\"",
+        )
+        // Public status endpoint (Cloud Function `watchStatus`) the watch polls for
+        // the club's live lightning-safety level and the next tee times. Blank ->
+        // those two on-wrist extras are simply hidden; the rangefinder still works.
+        buildConfigField(
+            "String",
+            "STATUS_URL",
+            "\"${System.getenv("WEAR_STATUS_URL") ?: ""}\"",
+        )
     }
 
     buildTypes {
