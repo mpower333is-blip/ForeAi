@@ -37,10 +37,9 @@ export const HANDICAPS_CARDS: HcpCard[] = [
     sis:   [3,11,9,1,13,7,5,17,15, 8,16,12,14,4,2,10,18,6],
     metres:[561,326,384,403,190,393,367,432,173, 346,156,485,488,382,379,362,156,363] },
 
-  { id:"avion-golf-club", name:"Avion Golf Club", town:"Kempton Park", province:"Gauteng", par:72, tee:"White", lat:-26.129, lng:28.223,
-    pars:  [4,3,4,5,4,5,4,4,3, 4,3,4,5,4,5,4,4,3],
-    sis:   [11,5,9,13,7,3,17,1,15, 2,12,10,16,14,4,18,6,8],
-    metres:[321,193,365,459,343,512,279,379,133, 365,175,365,459,343,512,280,351,198] },
+  // (Avion Park is the 9-hole course in courses.ts EXACT_LAYOUTS["avion-park"],
+  // with its official 9-hole card. handicaps.co.za lists it doubled to 18/par-72
+  // under a different id + coords — dropped here so the app shows one Avion.)
 
   { id:"benoni-country-club", name:"Benoni Country Club", town:"Benoni", province:"Gauteng", par:72, tee:"Yellow", lat:-26.188, lng:28.315,
     pars:  [5,4,3,4,4,4,4,3,5, 5,4,3,4,4,3,4,4,5],

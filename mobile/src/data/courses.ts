@@ -150,7 +150,7 @@ const RAW_COURSES: Raw[] = [
   { id: "serengeti-serengeti", name: "Serengeti — Whistling Thorn", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.021, lng: 28.418 },
   { id: "serengeti-masai", name: "Serengeti — Masai Mara (Signature)", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.0432, lng: 28.2925 },
   { id: "modderfontein", name: "Modderfontein Golf Club", town: "Modderfontein", province: "Gauteng", par: 72, lat: -26.093, lng: 28.164 },
-  { id: "avion-park", name: "Avion Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 35, lat: -26.0982, lng: 28.2478 },
+  { id: "avion-park", name: "Avion Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 36, lat: -26.0982, lng: 28.2478 },
   // Curated national list of well-known SA courses (names + province/city + par
   // only). No coords/contacts/exact layout — those come from the live Golf Course
   // API when opened online, or a scorecard. Flagged approximate until then.
@@ -173,14 +173,17 @@ const EXACT_LAYOUTS: Record<string, { par: number; yards: number; si?: number }[
     { par: 5, yards: 537, si: 5 },  { par: 4, yards: 422, si: 1 },  { par: 4, yards: 417, si: 3 },
     { par: 4, yards: 385, si: 9 },  { par: 3, yards: 165, si: 15 }, { par: 4, yards: 401, si: 7 },
   ],
-  // Avion Park Golf Club — a 9-hole course (par 35). Captured on-course from
-  // the middle-of-green GPS distances (metres → yards ×1.09361), which round-
-  // trip back to the exact metres the app displays: 265, 176, 333, 411, 280,
-  // 316, 278, 347, 108 m.
+  // Avion Park Golf Club — official club scorecard (9 holes, par 36). White
+  // (men's) tee, metres → yards ×1.09361, round-tripping back to the card
+  // metres: 321,193,365,459,343,512,279,379,133 (Out 2983 m). Stroke index is
+  // the official card allocation. Par: 4,3,4,5,4,5,4,4,3. (Ladies/Red tee on the
+  // card is 279,160,322,406,292,401,274,270,111 m; the app scales other tees
+  // from White. The live rangefinder uses the on-course GPS survey in
+  // courseGps.ts, so its readings can differ from these card yardages.)
   "avion-park": [
-    { par: 4, yards: 290 }, { par: 3, yards: 192 }, { par: 4, yards: 364 },
-    { par: 5, yards: 449 }, { par: 4, yards: 306 }, { par: 4, yards: 346 },
-    { par: 4, yards: 304 }, { par: 4, yards: 379 }, { par: 3, yards: 118 },
+    { par: 4, yards: 351, si: 15 }, { par: 3, yards: 211, si: 7 },  { par: 4, yards: 399, si: 9 },
+    { par: 5, yards: 502, si: 13 }, { par: 4, yards: 375, si: 3 },  { par: 5, yards: 560, si: 5 },
+    { par: 4, yards: 305, si: 17 }, { par: 4, yards: 414, si: 1 },  { par: 3, yards: 145, si: 11 },
   ],
   // Serengeti — Masai Mara (18, par 72). Full card captured on-course from the
   // middle-of-green GPS distances (metres): front 1–9 = 364, 272, 503, 363,
