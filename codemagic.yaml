@@ -185,11 +185,11 @@ workflows:
         BUNDLE_ID: "com.foreai.mobile"
         EXPO_PUBLIC_USE_FIRESTORE: "1"   # Render retired — the app runs on Firestore
         # ── Apple Watch companion (see targets/watch/) ──
-        # Uncomment BOTH to build the watchOS app into this IPA (rides the same
-        # TestFlight/App Store submission). Verify the generated watch bundle id
-        # matches WATCH_BUNDLE_ID on the first build.
-        # EXPO_PUBLIC_WATCH: "1"
-        # WATCH_BUNDLE_ID: "com.foreai.mobile.watch"
+        # Builds the watchOS app into this IPA (rides the same TestFlight/App
+        # Store submission). Verify the generated watch bundle id matches
+        # WATCH_BUNDLE_ID on the first build.
+        EXPO_PUBLIC_WATCH: "1"
+        WATCH_BUNDLE_ID: "com.foreai.mobile.watch"
     scripts:
       - name: Install JS dependencies
         script: |

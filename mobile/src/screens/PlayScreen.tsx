@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Screen, Card, Button, Segmented, MetreStepper, KmhStepper, StatTile } from "../components/ui";
 import { colors, spacing, type } from "../theme";
 import { useRound } from "../state/RoundContext";
@@ -269,15 +269,11 @@ export default function PlayScreen({ navigation }: any) {
             {` · ${auto.swingsThisHole} swings`}
           </Text>
         )}
-        {/* Watch setup is Wear OS (Android) only — hidden on iOS, which has no
-            ForeAi Apple Watch app in the build yet (App Store Guideline 2.3.10). */}
-        {Platform.OS !== "ios" && (
-          <Button
-            variant="ghost"
-            label="⌚ Set up your watch"
-            onPress={() => navigation.navigate("WatchSetup")}
-          />
-        )}
+        <Button
+          variant="ghost"
+          label="⌚ Set up your watch"
+          onPress={() => navigation.navigate("WatchSetup")}
+        />
       </Card>
 
       {/* Strokes-gained shot tracking: AI Caddie recommendation + shot log. */}

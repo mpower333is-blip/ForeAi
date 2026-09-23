@@ -67,10 +67,15 @@ export default function WatchSetupScreen({ navigation }: any) {
 
       {isIOS ? (
         <Card>
-          <Text style={styles.h}>Apple Watch — coming soon</Text>
+          <Text style={styles.h}>Install on your Apple Watch</Text>
           <Text style={styles.p}>
-            A ForeAi companion for Apple Watch is in development. For now, all of ForeAi's
-            distances and scoring live here on your iPhone.
+            ForeAi comes with an Apple Watch app. With your Apple Watch paired to this iPhone it
+            installs automatically — or open the <Text style={styles.b}>Watch</Text> app on your
+            iPhone, scroll to <Text style={styles.b}>Available Apps</Text>, and tap{" "}
+            <Text style={styles.b}>Install</Text> next to ForeAi.
+          </Text>
+          <Text style={styles.note}>
+            Then open ForeAi from your Apple Watch app grid to see distances and enter scores.
           </Text>
         </Card>
       ) : (

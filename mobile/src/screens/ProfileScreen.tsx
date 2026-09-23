@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Platform } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Switch } from "react-native";
 import { Screen, ScreenHeader, Card, Stepper, MetreStepper, TextField } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { ydToM } from "../lib/units";
@@ -75,12 +75,8 @@ export default function ProfileScreen({ navigation }: any) {
         <MoreLink emoji="📊" label="Strokes-gained stats" onPress={() => navigation.navigate("Stats")} />
         <MoreLink emoji="🧭" label="Course strategy" onPress={() => navigation.navigate("Strategy")} />
         <MoreLink emoji="🎮" label="Range games" onPress={() => navigation.navigate("Games")} />
-        <MoreLink emoji="👥" label="Player directory" onPress={() => navigation.navigate("PlayerDirectory")} last={Platform.OS === "ios" && !IAP_ENABLED} />
-        {/* Wear OS watch setup — Android only. iOS has no ForeAi Apple Watch app
-            in the build yet, so it's hidden (App Store Guideline 2.3.10). */}
-        {Platform.OS !== "ios" && (
-          <MoreLink emoji="⌚" label="Set up your watch" onPress={() => navigation.navigate("WatchSetup")} last={!IAP_ENABLED} />
-        )}
+        <MoreLink emoji="👥" label="Player directory" onPress={() => navigation.navigate("PlayerDirectory")} />
+        <MoreLink emoji="⌚" label="Set up your watch" onPress={() => navigation.navigate("WatchSetup")} last={!IAP_ENABLED} />
         {IAP_ENABLED && (
           <MoreLink emoji="⛳" label="ForeAi Pro" onPress={() => navigation.navigate("Upgrade")} last />
         )}
