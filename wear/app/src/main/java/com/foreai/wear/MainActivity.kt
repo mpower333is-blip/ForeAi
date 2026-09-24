@@ -9,7 +9,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,12 +33,15 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.ScalingLazyListScope
 import androidx.wear.compose.foundation.lazy.items
+import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.Chip
 import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.CircularProgressIndicator
 import androidx.wear.compose.material.MaterialTheme
+import androidx.wear.compose.material.PositionIndicator
 import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
@@ -68,26 +70,49 @@ fun RoundApp(vm: RoundViewModel = viewModel()) {
     var showClubs by remember { mutableStateOf(false) }
     var showTees by remember { mutableStateOf(false) }
 
-    Scaffold(timeText = { TimeText() }) {
-        val ev = vm.event
-        when {
-            // Lightning safety comes first — it takes over the whole screen and
-            // buzzes the wrist the moment a strike is detected near the course.
-            vm.showLightning -> LightningAlarm(vm.lightning!!) { vm.dismissLightning() }
-            // Only ever block on loading/error when this build actually connects to
-            // a live event. A standalone rangefinder (no event) skips straight to
-            // the round view using the bundled course, so it always works offline.
-            vm.hasEvent && vm.loading && ev == null -> Centered { LoadingView() }
-            vm.hasEvent && vm.error != null && ev == null -> Centered { ErrorView(vm.error!!) { vm.retry() } }
-            ev != null && vm.myPlayerId == null -> PlayerPicker(ev) { vm.setPlayer(it) }
-            showTees -> TeeTimesScreen(vm.teeTimes) { showTees = false }
-            showClubs -> ClubPicker(vm.selectedClub) { vm.selectClub(it); showClubs = false }
-            else -> RoundView(
-                vm, ev,
-                onPickClub = { showClubs = true },
-                onTees = if (vm.hasStatus) ({ showTees = true }) else null,
-            )
-        }
+    // Each screen provides its own Scaffold + PositionIndicator (scrollbar), so no
+    // outer Scaffold here. Wear requires a visible scroll indicator on scrollable
+    // views (see ScrollScaffold).
+    val ev = vm.event
+    when {
+        // Lightning safety comes first — it takes over the whole screen and
+        // buzzes the wrist the moment a strike is detected near the course.
+        vm.showLightning -> LightningAlarm(vm.lightning!!) { vm.dismissLightning() }
+        // Only ever block on loading/error when this build actually connects to
+        // a live event. A standalone rangefinder (no event) skips straight to
+        // the round view using the bundled course, so it always works offline.
+        vm.hasEvent && vm.loading && ev == null -> Centered { LoadingView() }
+        vm.hasEvent && vm.error != null && ev == null -> ErrorView(vm.error!!) { vm.retry() }
+        ev != null && vm.myPlayerId == null -> PlayerPicker(ev) { vm.setPlayer(it) }
+        showTees -> TeeTimesScreen(vm.teeTimes) { showTees = false }
+        showClubs -> ClubPicker(vm.selectedClub) { vm.selectClub(it); showClubs = false }
+        else -> RoundView(
+            vm, ev,
+            onPickClub = { showClubs = true },
+            onTees = if (vm.hasStatus) ({ showTees = true }) else null,
+        )
+    }
+}
+
+// A scrollable Wear screen with the required scroll indicator: a Scaffold that
+// shows a PositionIndicator (the scrollbar Wear App Quality Guidelines require)
+// bound to this screen's own ScalingLazyColumn state, plus the TimeText.
+@Composable
+private fun ScrollScaffold(
+    background: Color? = null,
+    content: ScalingLazyListScope.() -> Unit,
+) {
+    val listState = rememberScalingLazyListState()
+    Scaffold(
+        timeText = { TimeText() },
+        positionIndicator = { PositionIndicator(scalingLazyListState = listState) },
+    ) {
+        val base = Modifier.fillMaxSize()
+        ScalingLazyColumn(
+            state = listState,
+            modifier = if (background != null) base.background(background) else base,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) { content() }
     }
 }
 
@@ -96,38 +121,33 @@ fun RoundApp(vm: RoundViewModel = viewModel()) {
 @Composable
 private fun LightningAlarm(l: WLightning, onDismiss: () -> Unit) {
     val overhead = l.level == "overhead"
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF2A0A0A))) {
-        ScalingLazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            item { Text("⚡", style = MaterialTheme.typography.display1) }
-            item {
-                Text(
-                    if (overhead) "LIGHTNING" else "STORM NEAR",
-                    style = MaterialTheme.typography.title1,
-                    color = Color(0xFFFFD36A),
-                    textAlign = TextAlign.Center,
-                )
-            }
-            item { Spacer(Modifier.height(4.dp)) }
-            item {
-                Text(
-                    l.body ?: if (overhead) "Take shelter now. Never shelter under trees."
-                    else "Thunderstorm approaching — be ready to leave the course.",
-                    style = MaterialTheme.typography.body2,
-                    color = Color(0xFFFFD9D9),
-                    textAlign = TextAlign.Center,
-                )
-            }
-            item { Spacer(Modifier.height(8.dp)) }
-            item {
-                Chip(
-                    label = { Text("I'm safe") },
-                    onClick = onDismiss,
-                    colors = ChipDefaults.primaryChipColors(),
-                )
-            }
+    ScrollScaffold(background = Color(0xFF2A0A0A)) {
+        item { Text("⚡", style = MaterialTheme.typography.display1) }
+        item {
+            Text(
+                if (overhead) "LIGHTNING" else "STORM NEAR",
+                style = MaterialTheme.typography.title1,
+                color = Color(0xFFFFD36A),
+                textAlign = TextAlign.Center,
+            )
+        }
+        item { Spacer(Modifier.height(4.dp)) }
+        item {
+            Text(
+                l.body ?: if (overhead) "Take shelter now. Never shelter under trees."
+                else "Thunderstorm approaching — be ready to leave the course.",
+                style = MaterialTheme.typography.body2,
+                color = Color(0xFFFFD9D9),
+                textAlign = TextAlign.Center,
+            )
+        }
+        item { Spacer(Modifier.height(8.dp)) }
+        item {
+            Chip(
+                label = { Text("I'm safe") },
+                onClick = onDismiss,
+                colors = ChipDefaults.primaryChipColors(),
+            )
         }
     }
 }
@@ -135,7 +155,7 @@ private fun LightningAlarm(l: WLightning, onDismiss: () -> Unit) {
 // Next tee times off the club sheet (from the club snapshot). Read-only list.
 @Composable
 private fun TeeTimesScreen(tees: List<WTee>, onBack: () -> Unit) {
-    ScalingLazyColumn(horizontalAlignment = Alignment.CenterHorizontally) {
+    ScrollScaffold {
         item { Text("Tee times", style = MaterialTheme.typography.title3) }
         item { Spacer(Modifier.height(2.dp)) }
         if (tees.isEmpty()) {
@@ -171,10 +191,7 @@ private fun TeeTimesScreen(tees: List<WTee>, onBack: () -> Unit) {
 
 @Composable
 private fun Centered(content: @Composable () -> Unit) {
-    ScalingLazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) { item { content() } }
+    ScrollScaffold { item { content() } }
 }
 
 @Composable
@@ -184,7 +201,7 @@ private fun LoadingView() {
 
 @Composable
 private fun ErrorView(msg: String, onRetry: () -> Unit) {
-    ScalingLazyColumn(horizontalAlignment = Alignment.CenterHorizontally) {
+    ScrollScaffold {
         item { Text(msg, textAlign = TextAlign.Center, style = MaterialTheme.typography.body2) }
         item { Spacer(Modifier.height(6.dp)) }
         item {
@@ -199,7 +216,7 @@ private fun ErrorView(msg: String, onRetry: () -> Unit) {
 
 @Composable
 private fun PlayerPicker(ev: WEvent, onPick: (String) -> Unit) {
-    ScalingLazyColumn(horizontalAlignment = Alignment.CenterHorizontally) {
+    ScrollScaffold {
         item { Text("Who are you?", style = MaterialTheme.typography.title3) }
         item { Spacer(Modifier.height(4.dp)) }
         items(ev.players) { p ->
@@ -218,7 +235,7 @@ private fun PlayerPicker(ev: WEvent, onPick: (String) -> Unit) {
 
 @Composable
 private fun ClubPicker(selected: String?, onPick: (String) -> Unit) {
-    ScalingLazyColumn(horizontalAlignment = Alignment.CenterHorizontally) {
+    ScrollScaffold {
         item { Text("Your club", style = MaterialTheme.typography.title3) }
         items(DEFAULT_BAG) { c ->
             Chip(
@@ -244,7 +261,7 @@ private fun RoundView(vm: RoundViewModel, ev: WEvent?, onPickClub: () -> Unit, o
     val h = vm.holeInfo()
     val d = vm.distances()
 
-    ScalingLazyColumn(horizontalAlignment = Alignment.CenterHorizontally) {
+    ScrollScaffold {
         item { Text("Hole ${vm.viewingHole} · Par ${h.par}", style = MaterialTheme.typography.title2) }
 
         // Distance to the green — the headline of the watch rangefinder.

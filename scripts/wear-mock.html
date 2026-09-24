@@ -17,9 +17,8 @@
     background:radial-gradient(circle at 50% 32%, #14315f 0%, #0b1b38 55%, #050d1e 100%);
     color:var(--text);text-align:center;
   }
-  /* subtle outer bezel ring */
-  .watch::after{content:"";position:absolute;inset:0;border-radius:50%;
-    box-shadow:inset 0 0 0 6px rgba(243,195,59,.10), inset 0 0 40px rgba(0,0,0,.55);pointer-events:none}
+  /* No device bezel/frame — Play requires Wear screenshots to show ONLY the app
+     interface, so the app content fills the round screen with no added chrome. */
   .brand{position:absolute;top:60px;left:0;right:0;font-size:20px;font-weight:800;
     letter-spacing:2px;color:var(--gold);text-transform:uppercase}
   .sub{position:absolute;top:88px;left:0;right:0;font-size:15px;color:var(--muted);letter-spacing:1px}

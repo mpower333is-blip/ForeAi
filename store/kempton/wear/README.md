@@ -14,6 +14,13 @@ phone listing and reused here for convenience.
 | App icon | `wear-icon-512.png` | 512 × 512 | Same icon as the phone listing. |
 | Feature graphic | `wear-feature-1024x500.png` | 1024 × 500 | Same as the phone listing (optional on Wear tab). |
 
+> **Wear screenshots must show ONLY the app interface.** Put *only* the six
+> `wear-0*.png` app screens in the Play "Wear OS screenshots" slots. Do **not** add
+> the app icon, the feature graphic, or the club crest as a screenshot — Google
+> rejects the listing ("Wear screenshots showing only the app interface") if a
+> logo/branding image is in a screenshot slot. The screenshots below have no device
+> frame or bezel — just the app screen — which is what Play requires.
+
 ### Screenshots, in order — each mirrors a real screen in the app
 1. **wear-01-distance** — GPS distance to the pin (front / centre / back).
 2. **wear-02-hole** — hole number, par, stroke index, metres.
