@@ -31,12 +31,15 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.ScalingLazyListScope
 import androidx.wear.compose.foundation.lazy.items
+import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.Chip
 import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.CircularProgressIndicator
 import androidx.wear.compose.material.MaterialTheme
+import androidx.wear.compose.material.PositionIndicator
 import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
@@ -64,25 +67,41 @@ fun RoundApp(vm: RoundViewModel = viewModel()) {
 
     var showClubs by remember { mutableStateOf(false) }
 
-    Scaffold(timeText = { TimeText() }) {
-        val ev = vm.event
-        when {
-            vm.loading && ev == null -> Centered { LoadingView() }
-            vm.error != null && ev == null -> Centered { ErrorView(vm.error!!) { vm.retry() } }
-            ev == null -> Centered { LoadingView() }
-            vm.myPlayerId == null -> PlayerPicker(ev) { vm.setPlayer(it) }
-            showClubs -> ClubPicker(vm.selectedClub) { vm.selectClub(it); showClubs = false }
-            else -> RoundView(vm, ev, onPickClub = { showClubs = true })
-        }
+    // Each screen provides its own Scaffold + PositionIndicator (scrollbar) via
+    // ScrollScaffold — Wear App Quality Guidelines require a visible scroll
+    // indicator on scrollable views.
+    val ev = vm.event
+    when {
+        vm.loading && ev == null -> Centered { LoadingView() }
+        vm.error != null && ev == null -> ErrorView(vm.error!!) { vm.retry() }
+        ev == null -> Centered { LoadingView() }
+        vm.myPlayerId == null -> PlayerPicker(ev) { vm.setPlayer(it) }
+        showClubs -> ClubPicker(vm.selectedClub) { vm.selectClub(it); showClubs = false }
+        else -> RoundView(vm, ev, onPickClub = { showClubs = true })
+    }
+}
+
+// A scrollable Wear screen with the required scroll indicator: a Scaffold that
+// shows a PositionIndicator (the scrollbar Wear App Quality Guidelines require)
+// bound to this screen's own ScalingLazyColumn state, plus the TimeText.
+@Composable
+private fun ScrollScaffold(content: ScalingLazyListScope.() -> Unit) {
+    val listState = rememberScalingLazyListState()
+    Scaffold(
+        timeText = { TimeText() },
+        positionIndicator = { PositionIndicator(scalingLazyListState = listState) },
+    ) {
+        ScalingLazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) { content() }
     }
 }
 
 @Composable
 private fun Centered(content: @Composable () -> Unit) {
-    ScalingLazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) { item { content() } }
+    ScrollScaffold { item { content() } }
 }
 
 @Composable
@@ -92,7 +111,7 @@ private fun LoadingView() {
 
 @Composable
 private fun ErrorView(msg: String, onRetry: () -> Unit) {
-    ScalingLazyColumn(horizontalAlignment = Alignment.CenterHorizontally) {
+    ScrollScaffold {
         item { Text(msg, textAlign = TextAlign.Center, style = MaterialTheme.typography.body2) }
         item { Spacer(Modifier.height(6.dp)) }
         item {
@@ -107,7 +126,7 @@ private fun ErrorView(msg: String, onRetry: () -> Unit) {
 
 @Composable
 private fun PlayerPicker(ev: WEvent, onPick: (String) -> Unit) {
-    ScalingLazyColumn(horizontalAlignment = Alignment.CenterHorizontally) {
+    ScrollScaffold {
         item { Text("Who are you?", style = MaterialTheme.typography.title3) }
         item { Spacer(Modifier.height(4.dp)) }
         items(ev.players) { p ->
@@ -126,7 +145,7 @@ private fun PlayerPicker(ev: WEvent, onPick: (String) -> Unit) {
 
 @Composable
 private fun ClubPicker(selected: String?, onPick: (String) -> Unit) {
-    ScalingLazyColumn(horizontalAlignment = Alignment.CenterHorizontally) {
+    ScrollScaffold {
         item { Text("Your club", style = MaterialTheme.typography.title3) }
         items(DEFAULT_BAG) { c ->
             Chip(
@@ -149,7 +168,7 @@ private fun RoundView(vm: RoundViewModel, ev: WEvent, onPickClub: () -> Unit) {
     val h = vm.holeInfo()
     val d = vm.distances()
 
-    ScalingLazyColumn(horizontalAlignment = Alignment.CenterHorizontally) {
+    ScrollScaffold {
         item { Text("Hole ${vm.viewingHole} · Par ${h.par}", style = MaterialTheme.typography.title2) }
 
         // Distance to the green — the headline of the watch rangefinder.
