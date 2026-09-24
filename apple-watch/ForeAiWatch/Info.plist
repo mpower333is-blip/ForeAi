@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDisplayName</key>
+  <string>Kempton Park Golf</string>
+  <key>CFBundleName</key>
+  <string>ForeAiWatch</string>
+  <key>CFBundleIdentifier</key>
+  <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+  <key>CFBundleVersion</key>
+  <string>$(CURRENT_PROJECT_VERSION)</string>
+  <key>CFBundleShortVersionString</key>
+  <string>$(MARKETING_VERSION)</string>
+
+  <!-- Single-target watchOS app (watchOS 9+ / Xcode 14+): no separate extension. -->
+  <key>WKApplication</key>
+  <true/>
+  <!-- The paired iPhone app this watch app ships inside. MUST match the iOS app's
+       bundle id (Expo builds it as com.foreai.kempton for the Kempton flavour). -->
+  <key>WKCompanionAppBundleIdentifier</key>
+  <string>com.foreai.kempton</string>
+
+  <!-- GPS rangefinder — distances to the green from the watch's own fix. -->
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>Kempton Park Golf uses your location to show distances to the green while you play.</string>
+
+  <key>UISupportedInterfaceOrientations</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationPortraitUpsideDown</string>
+  </array>
+</dict>
+</plist>

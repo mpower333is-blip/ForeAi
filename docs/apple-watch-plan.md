@@ -1,8 +1,10 @@
 # Apple Watch (watchOS) companion — plan
 
-Status: **planned, not built.** This mirrors the existing Wear OS app (`wear/`,
-Kotlin) on Apple Watch. Build it after launch, once the phone apps + Wear OS are
-stable.
+Status: **BUILT (Kempton).** The SwiftUI watchOS app now lives in `apple-watch/`
+(standalone rangefinder + lightning alarm + tee times, mirroring the Wear OS app).
+See `apple-watch/README.md` for how to add the target to the iPhone app's Xcode
+project and submit it for review (on Apple, the watch app ships inside the iOS
+app's build as one App Store submission). The notes below are the original plan.
 
 ---
 
