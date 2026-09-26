@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  /* Apple Watch App Store screenshots are RECTANGULAR, full-bleed (just the app
+     screen, no device frame). Rendered at the current App Store Connect sizes.
+     Content mirrors the watchOS app (apple-watch/ContentView.swift): navy + gold. */
+  :root{
+    --navy:#081226; --navy2:#152C55; --border:#26407A;
+    --gold:#F3C33B; --gold2:#FFD36A; --text:#F2F6FF; --muted:#AEC0E0; --red:#FFC9C9;
+    --W:410px; --H:502px;   /* overridden per size at render time */
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,Arial,sans-serif}
+  body{background:#000}
+  .awatch{
+    width:var(--W); height:var(--H); overflow:hidden; position:relative;
+    display:flex; flex-direction:column; align-items:center;
+    background:radial-gradient(circle at 50% 26%, #14315f 0%, #0b1b38 58%, #050d1e 100%);
+    color:var(--text); text-align:center; padding:26px 20px;
+  }
+  .brand{font-size:22px;font-weight:800;color:var(--gold);letter-spacing:1px}
+  .sub{font-size:17px;color:var(--muted);margin-top:2px}
+  .big{font-size:120px;font-weight:800;line-height:.95;color:#fff;letter-spacing:-3px;margin-top:6px}
+  .unit{font-size:30px;color:var(--gold);font-weight:700;vertical-align:top}
+  .togreen{font-size:16px;color:var(--muted);margin-top:2px}
+  .fb{display:flex;justify-content:center;gap:22px;margin-top:12px}
+  .fb div{font-size:15px;color:var(--muted)}
+  .fb b{display:block;font-size:24px;color:#fff;font-weight:800}
+  .chip{width:100%;background:var(--navy2);border-radius:26px;padding:13px 20px;margin-top:12px;
+    display:flex;justify-content:space-between;align-items:center;font-size:19px;font-weight:700;color:#fff}
+  .chip.gold{background:linear-gradient(135deg,#FBD972,#F3C33B,#D6A22A);color:#10203F}
+  .chip .cm{font-size:15px;font-weight:600;opacity:.85}
+  .nav{display:flex;gap:12px;margin-top:14px}
+  .nav div{width:66px;height:52px;background:var(--navy2);border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff}
+  .title{font-size:22px;font-weight:800;color:var(--gold);margin-bottom:8px}
+  .list{width:100%;display:flex;flex-direction:column;gap:10px}
+  /* lightning */
+  .alarm{background:radial-gradient(circle at 50% 30%, #3a1418 0%, #23080c 60%, #120306 100%);justify-content:center}
+  .bolt{font-size:120px;line-height:1;filter:drop-shadow(0 0 16px rgba(255,180,60,.6))}
+  .alarm-t{font-size:34px;font-weight:800;color:var(--gold2);margin-top:2px}
+  .alarm-s{font-size:18px;color:var(--red);margin-top:10px;line-height:1.35}
+  .safe{margin-top:16px;background:linear-gradient(135deg,#FBD972,#F3C33B,#D6A22A);color:#10203F;font-weight:800;font-size:19px;border-radius:26px;padding:12px 28px}
+</style>
+</head>
+<body>
+
+<!-- 1 · Rangefinder / distance -->
+<div class="awatch" id="a1">
+  <div class="brand">Hole 7 · Par 4</div>
+  <div><span class="big">142</span><span class="unit">m</span></div>
+  <div class="togreen">to the green</div>
+  <div class="fb"><div>Front<b>134</b></div><div>Centre<b>142</b></div><div>Back<b>151</b></div></div>
+  <div class="chip gold"><span>7 Iron</span><span class="cm">change club</span></div>
+  <div class="chip"><span>⛳ Tee times</span><span class="cm">›</span></div>
+  <div class="nav"><div>‹</div><div>›</div></div>
+</div>
+
+<!-- 2 · Club picker -->
+<div class="awatch" id="a2">
+  <div class="title">Your club</div>
+  <div class="list">
+    <div class="chip gold"><span>7 Iron</span><span class="cm">~144 m</span></div>
+    <div class="chip"><span>8 Iron</span><span class="cm">~133 m</span></div>
+    <div class="chip"><span>6 Iron</span><span class="cm">~155 m</span></div>
+    <div class="chip"><span>PW</span><span class="cm">~108 m</span></div>
+  </div>
+</div>
+
+<!-- 3 · Tee times -->
+<div class="awatch" id="a3">
+  <div class="title">Tee times</div>
+  <div class="list">
+    <div class="chip" style="flex-direction:column;align-items:flex-start;gap:2px"><span>Today 08:40</span><span class="cm">Smith, Jones +2</span></div>
+    <div class="chip" style="flex-direction:column;align-items:flex-start;gap:2px"><span>Today 08:48</span><span class="cm">Naidoo, Botha</span></div>
+    <div class="chip" style="flex-direction:column;align-items:flex-start;gap:2px"><span>Today 08:56</span><span class="cm">Open · join</span></div>
+  </div>
+</div>
+
+<!-- 4 · Lightning alarm -->
+<div class="awatch alarm" id="a4">
+  <div class="bolt">⚡</div>
+  <div class="alarm-t">LIGHTNING</div>
+  <div class="alarm-s">Lightning detected 6&nbsp;km away —<br/>take shelter now</div>
+  <div class="safe">I'm safe</div>
+</div>
+
+</body>
+</html>
