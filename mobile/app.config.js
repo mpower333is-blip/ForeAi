@@ -33,7 +33,7 @@ export default {
   expo: {
     name: SURVEY_ONLY ? "ForeAi Survey" : CLUB ? CLUB_APP_NAME : "ForeAi",
     slug: "foreai",
-    version: "1.0.0",
+    version: "1.0.1",
     // Unlocked (was "portrait") so the app is fully resizable and rotates on
     // large-screen / foldable devices. Android 16 (targetSdk 36) force-resizes
     // apps on large screens regardless of the manifest, and Android 17 removes

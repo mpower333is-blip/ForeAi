@@ -28,7 +28,7 @@ android {
         // offsets the watch into the 90000+ range (see codemagic.yaml) so it
         // never collides with the phone's low numbers. versionName is shown as 1.0.
         versionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInt()
-        versionName = "1.0"
+        versionName = "1.0.1" // the release that adds the watch alongside the phone app
         // Watch display name + backend, overridable per flavour (defaults = ForeAi).
         resValue("string", "app_name", System.getenv("WEAR_APP_NAME") ?: "ForeAi Golf")
         buildConfigField(
