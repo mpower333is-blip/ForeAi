@@ -12,15 +12,21 @@ import com.google.firebase.FirebaseOptions
 class ForeAiWearApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        if (FirebaseApp.getApps(this).isEmpty()) {
-            val options = FirebaseOptions.Builder()
-                .setProjectId("foreai-f9cfa")
-                .setApplicationId("1:329205582943:web:92c6b6bbf3c3642b421fea")
-                .setApiKey("AIzaSyC38thYKR_HIL439l5_wF-I82OIgtTA_p0")
-                .setGcmSenderId("329205582943")
-                .setStorageBucket("foreai-f9cfa.firebasestorage.app")
-                .build()
-            FirebaseApp.initializeApp(this, options)
+        // Guard Firebase init: if it throws on a watch without full Google Play
+        // services, the app still launches — Backend fails soft to the Retry
+        // screen instead of crashing before any UI appears.
+        try {
+            if (FirebaseApp.getApps(this).isEmpty()) {
+                val options = FirebaseOptions.Builder()
+                    .setProjectId("foreai-f9cfa")
+                    .setApplicationId("1:329205582943:web:92c6b6bbf3c3642b421fea")
+                    .setApiKey("AIzaSyC38thYKR_HIL439l5_wF-I82OIgtTA_p0")
+                    .setGcmSenderId("329205582943")
+                    .setStorageBucket("foreai-f9cfa.firebasestorage.app")
+                    .build()
+                FirebaseApp.initializeApp(this, options)
+            }
+        } catch (_: Throwable) {
         }
     }
 }
