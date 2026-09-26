@@ -3,6 +3,14 @@
 // is published — everything in the app reads from this file.
 
 import { Platform } from "react-native";
+import { CLUB } from "./appVariant";
+
+// This flavour's install package. The watch ships INSIDE the phone app's package
+// (Wear OS same-package model), so the Play listing that offers "Install on watch"
+// is the phone app's OWN listing. Kempton -> com.foreai.kempton, else the default
+// ForeAi package. (com.foreai.wear is only the watch's code namespace — NOT a
+// published app, so linking to it gave "Item not found".)
+const APP_PACKAGE = CLUB ? `com.foreai.${CLUB}` : "com.foreai.mobile";
 
 // In-app purchases / subscriptions. Currently OFF on iOS: the iOS build ships
 // fully unlocked with NO paywall, so there's nothing for App Review to reject
@@ -16,15 +24,17 @@ export const IAP_ENABLED = Platform.OS !== "ios";
 // TODO: replace with the real listings once published.
 export const APP_STORE_URL = "https://apps.apple.com/app/foreai/id0000000000";
 export const PLAY_STORE_URL =
-  "https://play.google.com/store/apps/details?id=com.foreai.mobile";
+  `https://play.google.com/store/apps/details?id=${APP_PACKAGE}`;
 // A single shareable link that sends people to the right store + event sign-up.
 // This is the hosted landing page (clubhouse/get.html) on the ForeAi domain.
 export const LANDING_URL = "https://foreai.co.za/get.html";
 
-// The Wear OS companion app (see ../../wear). Package id from wear/app build.
-export const WEAR_PACKAGE = "com.foreai.wear";
+// The Wear OS companion ships under the SAME package as the phone app, so its
+// Play listing IS the phone app's listing (which shows "Install on watch" once the
+// Wear build is published). Use this flavour's package — never com.foreai.wear.
+export const WEAR_PACKAGE = APP_PACKAGE;
 export const WEAR_PLAY_URL =
-  "https://play.google.com/store/apps/details?id=com.foreai.wear";
+  `https://play.google.com/store/apps/details?id=${APP_PACKAGE}`;
 // Direct APK download for sideloading before the watch app is on the Play Store.
 // Host the built wear APK here (e.g. on the ForeAi domain) and update this URL.
 export const WEAR_APK_URL = "https://foreai.co.za/foreai-watch.apk";
