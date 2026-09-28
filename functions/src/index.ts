@@ -2,7 +2,7 @@ import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { setGlobalOptions } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
-import { buildReport, diagnoseProviders } from "./weatherCore";
+import { buildReport, buildOutlook, diagnoseProviders } from "./weatherCore";
 import { sendExpoPush, ExpoPushMessage } from "./expoPush";
 import { clubKeyForEmail } from "./clubAdmins";
 
@@ -58,6 +58,18 @@ export const weather = onRequest({ cors: true }, async (req, res) => {
     return;
   }
   try {
+    // Planning outlook: /weather?outlook=1&lat=&lng=[&hours=8] — the hour-by-hour
+    // forecast + play verdict the app's "Planning to play?" card reads.
+    if (req.query.outlook) {
+      const hours = Math.min(24, Math.max(1, Number(req.query.hours) || 8));
+      const outlook = await buildOutlook(lat, lng, hours);
+      if (!outlook) {
+        res.status(502).json({ error: "outlook unavailable" });
+        return;
+      }
+      res.json(outlook);
+      return;
+    }
     if (req.query.debug) {
       const [data, providers] = await Promise.all([buildReport(lat, lng), diagnoseProviders(lat, lng)]);
       res.json({ ...data, providers });

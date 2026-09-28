@@ -281,3 +281,74 @@ export async function buildReport(lat: number, lng: number): Promise<Report> {
 
   return { updatedAt: new Date().toISOString(), current, lightning };
 }
+
+// ── Planning outlook ─────────────────────────────────────────────────────────
+// The hour-by-hour "planning to play?" view + a plain play verdict, served
+// server-side so the app and the board share one implementation (and the
+// provider secret / caching stay here). Conditions come from Open-Meteo's hourly
+// forecast; lightning nowcast for RIGHT NOW still comes from real strikes via
+// buildReport. Metric (°C) for SA.
+
+export type OutlookHour = {
+  time: string; // "HH:MM" local
+  tempC: number;
+  code: number;
+  condition: string;
+  rainProb: number; // %
+  storm: boolean; // thunderstorm coded this hour
+};
+
+export type PlayVerdict = {
+  level: "none" | "watch" | "warning"; // none = good to play, warning = don't go
+  headline: string;
+  detail: string;
+};
+
+export type Outlook = { hours: OutlookHour[]; verdict: PlayVerdict };
+
+function hourLabel(iso: string): string {
+  const t = String(iso).slice(11, 16);
+  return t || "—";
+}
+
+export async function buildOutlook(lat: number, lng: number, hours = 8): Promise<Outlook | null> {
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
+    `&hourly=temperature_2m,weather_code,precipitation_probability` +
+    `&forecast_hours=${hours + 1}&temperature_unit=celsius&timezone=auto`;
+  const j = await withTimeout(url);
+  const times: string[] = j?.hourly?.time ?? [];
+  const temps: number[] = j?.hourly?.temperature_2m ?? [];
+  const codes: number[] = j?.hourly?.weather_code ?? [];
+  const probs: number[] = j?.hourly?.precipitation_probability ?? [];
+  if (!times.length) return null;
+
+  const list: OutlookHour[] = times.slice(0, hours).map((t, i) => {
+    const code = Number(codes[i]) || 0;
+    return {
+      time: hourLabel(t),
+      tempC: Math.round(Number(temps[i]) || 0),
+      code,
+      condition: describeCode(code),
+      rainProb: Math.round(Number(probs[i]) || 0),
+      storm: code >= 95,
+    };
+  });
+
+  const stormIdx = list.findIndex((h) => h.storm);
+  const maxRain = Math.max(0, ...list.map((h) => h.rainProb));
+  let verdict: PlayVerdict;
+  if (stormIdx === 0) {
+    verdict = { level: "warning", headline: "Lightning risk now", detail: "Thunderstorms overhead — hold off heading out." };
+  } else if (stormIdx > 0 && stormIdx <= 2) {
+    verdict = { level: "warning", headline: `Storms in ~${stormIdx}h`, detail: "A quick nine now, or wait it out — plan to be off the course before it hits." };
+  } else if (stormIdx > 2) {
+    verdict = { level: "watch", headline: `Storms later (~${stormIdx}h)`, detail: "Clear for now — an early round should beat the weather." };
+  } else if (maxRain >= 60) {
+    verdict = { level: "watch", headline: "Showers likely", detail: "Rain about, but no lightning expected — playable if you don't mind getting wet." };
+  } else {
+    verdict = { level: "none", headline: "Good window to play", detail: "No lightning in the next few hours." };
+  }
+
+  return { hours: list, verdict };
+}

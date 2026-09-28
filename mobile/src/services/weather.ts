@@ -155,7 +155,30 @@ function hourLabel(iso: string): string {
   return t || "—";
 }
 
-export async function fetchOutlook(c: Coord, hours = 8): Promise<WeatherOutlook | null> {
+// Prefer the weather function (server-side, cached, same place the live
+// lightning comes from); fall back to a direct Open-Meteo forecast if the
+// function is unset or unreachable so the outlook always renders.
+export async function fetchOutlook(
+  c: Coord,
+  weatherUrl: string,
+  hours = 8,
+): Promise<WeatherOutlook | null> {
+  if (weatherUrl) {
+    try {
+      const sep = weatherUrl.includes("?") ? "&" : "?";
+      const res = await fetch(`${weatherUrl}${sep}outlook=1&hours=${hours}&lat=${c.lat}&lng=${c.lng}`);
+      if (res.ok) {
+        const j: any = await res.json();
+        if (Array.isArray(j?.hours) && j?.verdict) return j as WeatherOutlook;
+      }
+    } catch {
+      /* fall through to direct forecast */
+    }
+  }
+  return fetchOutlookDirect(c, hours);
+}
+
+async function fetchOutlookDirect(c: Coord, hours = 8): Promise<WeatherOutlook | null> {
   try {
     const url =
       `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lng}` +

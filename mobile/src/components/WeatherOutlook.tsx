@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { Coord } from "../lib/geo";
 import { fetchOutlook, WeatherOutlook as Outlook } from "../services/weather";
+import { WEATHER_URL } from "../services/api";
 import { colors, spacing, radius } from "../theme";
 
 // A short hour-by-hour outlook for someone deciding whether to head out to play:
@@ -32,7 +33,7 @@ export default function WeatherOutlook({ coord }: { coord: Coord | null }) {
     let cancelled = false;
     const load = async () => {
       setState((s) => (s === "ok" ? s : "loading"));
-      const r = await fetchOutlook(coord);
+      const r = await fetchOutlook(coord, WEATHER_URL);
       if (cancelled) return;
       if (r) {
         setData(r);
