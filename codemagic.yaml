@@ -576,6 +576,15 @@ workflows:
     name: ForeAi — Firestore TEST APK
     instance_type: linux_x2
     max_build_duration: 60
+    # Push a git tag like `apk-2026-09-28` to auto-start this build (needs the
+    # Codemagic↔GitHub webhook, which is already set since we build this repo).
+    # Only this workflow watches apk-* tags, so nothing else fires.
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "apk-*"
+          include: true
     environment:
       node: 20
       java: 17
