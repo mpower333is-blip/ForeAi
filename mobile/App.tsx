@@ -1,4 +1,8 @@
 import "react-native-gesture-handler";
+// Side-effect import: defines the background lightning task at the global scope
+// so it's registered even on a headless background launch (before any screen
+// mounts). See src/lib/lightningBackground.ts.
+import "./src/lib/lightningBackground";
 import React from "react";
 import { Text, View, StatusBar, ActivityIndicator, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";

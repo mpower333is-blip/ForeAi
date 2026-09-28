@@ -132,6 +132,12 @@ export default {
       "./plugins/withoutPushEntitlement",
       // Local notifications for the lightning safety alarm (no push server).
       "expo-notifications",
+      // Background lightning watch: a periodic OS-scheduled task (BGTaskScheduler
+      // on iOS / WorkManager on Android) that re-checks storm risk and fires the
+      // same LOCAL lightning notification even when the app is closed — no push
+      // server or push entitlement needed. Its config plugin registers the iOS
+      // background task identifier and the required UIBackgroundModes.
+      "expo-background-task",
       // expo-iap — native subscriptions (StoreKit + Google Play Billing 8) via
       // the OpenIAP spec. Its config plugin wires the Android/iOS billing setup.
       // (Expo SDK 54 ships Kotlin 2.2 / AGP 8.9, so no dependency workarounds

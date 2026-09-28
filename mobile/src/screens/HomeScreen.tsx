@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Screen, Card, StatTile, Button, Hero, FlagMark, IconChip, Chip } from "../components/ui";
 import { shareApp } from "../components/Upsell";
 import WeatherPanel from "../components/WeatherPanel";
+import LightningStrip from "../components/LightningStrip";
 import { useLocation } from "../hooks/useLocation";
 import { colors, spacing, type, radius } from "../theme";
 import { useRound } from "../state/RoundContext";
@@ -100,6 +101,11 @@ export default function HomeScreen({ navigation }: any) {
         tagline={firstName ? `Welcome back, ${firstName} 👋` : "AI Golf Performance Platform"}
         right={<FlagMark size={56} />}
       />
+
+      {/* Always-visible lightning watch — the first thing seen on the main page.
+          Also arms the background watcher so the warning fires when the app is
+          closed. */}
+      <LightningStrip coord={wxCoord} />
 
       {demo && (
         <Card accent onPress={toUpgrade}>

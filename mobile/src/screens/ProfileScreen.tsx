@@ -8,6 +8,7 @@ import { useProfile } from "../state/ProfileContext";
 import { API_BASE } from "../services/api";
 import { getNotifPrefs, loadNotifPrefs, setNotifPref, NotifPrefs } from "../lib/notifPrefs";
 import { unregisterForPush } from "../lib/pushRegister";
+import { registerLightningBackground, unregisterLightningBackground } from "../lib/lightningBackground";
 import { IAP_ENABLED } from "../config/appConfig";
 
 export default function ProfileScreen({ navigation }: any) {
@@ -34,9 +35,17 @@ export default function ProfileScreen({ navigation }: any) {
     setPrefs((p) => ({ ...p, [key]: val }));
     setNotifPref(key, val);
     // Turning lightning alerts off also stops the backend pushing to this phone
-    // (re-registration happens automatically when it's turned back on and a
-    // weather panel is next shown).
-    if (key === "lightning" && !val) unregisterForPush(API_BASE);
+    // AND cancels the on-device background watch. Turning it back on re-arms the
+    // background watch immediately (the server push re-registers automatically
+    // when a weather panel is next shown).
+    if (key === "lightning") {
+      if (val) {
+        registerLightningBackground();
+      } else {
+        unregisterForPush(API_BASE);
+        unregisterLightningBackground();
+      }
+    }
   };
 
   const updateCarry = (index: number, carry: number) => {
@@ -144,7 +153,7 @@ export default function ProfileScreen({ navigation }: any) {
         <View style={styles.prefRow}>
           <View style={styles.prefText}>
             <Text style={styles.prefLabel}>⚡ Lightning alerts</Text>
-            <Text style={styles.hint}>Loud warning when lightning is within ~10 km.</Text>
+            <Text style={styles.hint}>Loud warning when lightning is within ~10 km — keeps watching even when the app is closed.</Text>
           </View>
           <Switch
             value={prefs.lightning}

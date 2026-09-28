@@ -1,54 +1,16 @@
 import React from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { Coord } from "../lib/geo";
-import { fetchLiveWeather, PanelWeather } from "../services/weather";
-import { API_BASE } from "../services/api";
-import { initLightningAlarm, maybeLightningAlarm } from "../lib/lightningAlarm";
-import { registerForPush } from "../lib/pushRegister";
+import { useLightning } from "../hooks/useLightning";
 import { colors, spacing, radius } from "../theme";
 
 // On-course weather with a LIVE lightning warning. Reads the backend (real
 // detected strikes with distance/direction when a provider key is set), falling
-// back to the forecast. Refreshes every few minutes; metric (°C, km/h) for SA.
-// `compact` trims it for the golf-day / Events screen.
+// back to the forecast. All fetch + alarm + background-watch plumbing lives in
+// useLightning so every lightning surface behaves the same. Metric (°C, km/h)
+// for SA. `compact` trims it for the golf-day / Events screen.
 export default function WeatherPanel({ coord, compact }: { coord: Coord | null; compact?: boolean }) {
-  const [wx, setWx] = React.useState<PanelWeather | null>(null);
-  const [state, setState] = React.useState<"idle" | "loading" | "ok" | "failed">("idle");
-
-  React.useEffect(() => {
-    initLightningAlarm();
-  }, []);
-
-  // Register this phone + the watched location with the backend so lightning
-  // alerts also fire when the app is CLOSED (server push). Fail-soft: no-ops
-  // until an Expo project + push credentials are set up (see docs/push-setup.md).
-  React.useEffect(() => {
-    if (coord) registerForPush({ lat: coord.lat, lng: coord.lng }, API_BASE);
-  }, [coord ? Math.round(coord.lat * 100) : 0, coord ? Math.round(coord.lng * 100) : 0]);
-
-  React.useEffect(() => {
-    if (!coord) return;
-    let cancelled = false;
-    const load = async () => {
-      setState((s) => (s === "ok" ? s : "loading"));
-      const r = await fetchLiveWeather(coord, API_BASE);
-      if (cancelled) return;
-      if (r) {
-        setWx(r);
-        setState("ok");
-        maybeLightningAlarm(r); // loud alarm if lightning is within ~10 km
-      } else {
-        setState((s) => (s === "ok" ? s : "failed"));
-      }
-    };
-    load();
-    // Strikes move fast — refresh every 2 min when there's a live provider.
-    const id = setInterval(load, 2 * 60 * 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [coord ? Math.round(coord.lat * 100) : 0, coord ? Math.round(coord.lng * 100) : 0]);
+  const { wx, state } = useLightning(coord);
 
   if (!coord) {
     return (
