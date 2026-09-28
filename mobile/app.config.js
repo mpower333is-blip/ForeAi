@@ -67,6 +67,15 @@ export default {
           "ForeAi listens for the sound of your ball strike to log shots automatically.",
         NSLocationWhenInUseUsageDescription:
           "ForeAi uses your location to show distances to the pin while you play.",
+        // "Always" authorisation powers the lightning safety watch: while you're
+        // on a round, ForeAi keeps checking storm risk at your position and warns
+        // you to take shelter even if the phone is in your pocket and the app is
+        // closed. It only runs during an active round.
+        NSLocationAlwaysAndWhenInUseUsageDescription:
+          "ForeAi watches for nearby lightning while you're on a round and warns you to take shelter — even when the app is closed. Location is only tracked during a round.",
+        // Background location delivery so the lightning watch keeps running while
+        // the app is backgrounded/closed during a round.
+        UIBackgroundModes: ["location"],
         // The app only uses standard HTTPS encryption — declare it exempt so
         // App Store Connect never asks the export-compliance question per build.
         ITSAppUsesNonExemptEncryption: false,
@@ -96,6 +105,11 @@ export default {
         "HIGH_SAMPLING_RATE_SENSORS",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
+        // Background location + a location foreground service power the lightning
+        // safety watch during a round (keeps warning when the app is closed).
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
       ],
     },
     web: {
@@ -115,6 +129,12 @@ export default {
         {
           locationWhenInUsePermission:
             "ForeAi uses your location to show distances to the pin while you play.",
+          locationAlwaysAndWhenInUsePermission:
+            "ForeAi watches for nearby lightning while you're on a round and warns you to take shelter — even when the app is closed. Location is only tracked during a round.",
+          // Enable the Android background-location permission + the location
+          // foreground service so the lightning watch runs during a round.
+          isAndroidBackgroundLocationEnabled: true,
+          isAndroidForegroundServiceEnabled: true,
         },
       ],
       [

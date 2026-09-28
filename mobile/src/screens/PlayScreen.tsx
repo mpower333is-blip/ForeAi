@@ -12,6 +12,7 @@ import { TEES } from "../data/courses";
 import { Coord, compass8 } from "../lib/geo";
 import { ydToM, mphToKmh, fToC } from "../lib/units";
 import { fetchWeather, windForShot } from "../services/weather";
+import { startRoundLightningWatch, stopRoundLightningWatch } from "../lib/lightningBackground";
 import {
   recommendClub,
   Surface,
@@ -53,6 +54,16 @@ export default function PlayScreen({ navigation }: any) {
   } = useRound();
 
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
+
+  // On-course lightning safety: while the player is on the Round screen, keep a
+  // near-real-time lightning watch running that survives the app being closed
+  // (background location → storm check → local warning). Stops on leaving.
+  useEffect(() => {
+    startRoundLightningWatch();
+    return () => {
+      stopRoundLightningWatch();
+    };
+  }, []);
 
   const [distance, setDistance] = useState(hole.yards);
   const [surface, setSurface] = useState<Surface>("tee");
