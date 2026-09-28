@@ -124,6 +124,106 @@ export async function fetchWeatherReport(c: Coord): Promise<WeatherReport | null
   }
 }
 
+// ── Planning outlook ─────────────────────────────────────────────────────────
+// Before heading out you want the NEXT few hours, not just now: is a storm
+// rolling in during your round? This returns a compact hour-by-hour outlook plus
+// a plain play verdict, all metric for SA.
+
+export type OutlookHour = {
+  time: string; // "14:00" local
+  tempC: number;
+  code: number;
+  condition: string;
+  rainProb: number; // %
+  storm: boolean; // thunderstorm coded this hour
+};
+
+export type PlayVerdict = {
+  level: LightningLevel; // none = good to play, watch = caution, warning = don't go
+  headline: string;
+  detail: string;
+};
+
+export type WeatherOutlook = {
+  hours: OutlookHour[];
+  verdict: PlayVerdict;
+};
+
+// "HH:MM" from an Open-Meteo local ISO time like "2026-09-28T14:00".
+function hourLabel(iso: string): string {
+  const t = String(iso).slice(11, 16);
+  return t || "—";
+}
+
+export async function fetchOutlook(c: Coord, hours = 8): Promise<WeatherOutlook | null> {
+  try {
+    const url =
+      `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lng}` +
+      `&hourly=temperature_2m,weather_code,precipitation_probability` +
+      `&forecast_hours=${hours + 1}&temperature_unit=celsius&timezone=auto`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const j: any = await res.json();
+    const times: string[] = j?.hourly?.time ?? [];
+    const temps: number[] = j?.hourly?.temperature_2m ?? [];
+    const codes: number[] = j?.hourly?.weather_code ?? [];
+    const probs: number[] = j?.hourly?.precipitation_probability ?? [];
+    if (!times.length) return null;
+
+    const list: OutlookHour[] = times.slice(0, hours).map((t, i) => {
+      const code = Number(codes[i]) || 0;
+      return {
+        time: hourLabel(t),
+        tempC: Math.round(Number(temps[i]) || 0),
+        code,
+        condition: describeWeatherCode(code),
+        rainProb: Math.round(Number(probs[i]) || 0),
+        storm: code >= 95,
+      };
+    });
+
+    // Earliest storm hour in the window drives the verdict.
+    const stormIdx = list.findIndex((h) => h.storm);
+    const maxRain = Math.max(0, ...list.map((h) => h.rainProb));
+    let verdict: PlayVerdict;
+    if (stormIdx === 0) {
+      verdict = {
+        level: "warning",
+        headline: "Lightning risk now",
+        detail: "Thunderstorms overhead — hold off heading out.",
+      };
+    } else if (stormIdx > 0 && stormIdx <= 2) {
+      verdict = {
+        level: "warning",
+        headline: `Storms in ~${stormIdx}h`,
+        detail: "A quick nine now, or wait it out — plan to be off the course before it hits.",
+      };
+    } else if (stormIdx > 2) {
+      verdict = {
+        level: "watch",
+        headline: `Storms later (~${stormIdx}h)`,
+        detail: "Clear for now — an early round should beat the weather.",
+      };
+    } else if (maxRain >= 60) {
+      verdict = {
+        level: "watch",
+        headline: "Showers likely",
+        detail: "Rain about, but no lightning expected — playable if you don't mind getting wet.",
+      };
+    } else {
+      verdict = {
+        level: "none",
+        headline: "Good window to play",
+        detail: "No lightning in the next few hours.",
+      };
+    }
+
+    return { hours: list, verdict };
+  } catch {
+    return null;
+  }
+}
+
 // Metric report the on-course panel renders. Prefers the backend (which adds
 // REAL detected lightning strikes with distance/direction when a provider key is
 // configured server-side), and falls back to the direct Open-Meteo forecast so

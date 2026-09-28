@@ -4,6 +4,7 @@ import { Screen, Card, StatTile, Button, Hero, FlagMark, IconChip, Chip } from "
 import { shareApp } from "../components/Upsell";
 import WeatherPanel from "../components/WeatherPanel";
 import LightningStrip from "../components/LightningStrip";
+import WeatherOutlook from "../components/WeatherOutlook";
 import { useLocation } from "../hooks/useLocation";
 import { colors, spacing, type, radius } from "../theme";
 import { useRound } from "../state/RoundContext";
@@ -106,6 +107,10 @@ export default function HomeScreen({ navigation }: any) {
           Also arms the background watcher so the warning fires when the app is
           closed. */}
       <LightningStrip coord={wxCoord} />
+
+      {/* Planning-to-play outlook: the next few hours + a "good to play / storms
+          coming" verdict, so you can decide before heading out. */}
+      <WeatherOutlook coord={wxCoord} />
 
       {demo && (
         <Card accent onPress={toUpgrade}>
