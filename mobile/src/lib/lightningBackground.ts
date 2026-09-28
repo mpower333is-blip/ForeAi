@@ -1,3 +1,4 @@
+import { Alert } from "react-native";
 import * as TaskManager from "expo-task-manager";
 import * as BackgroundTask from "expo-background-task";
 import * as Location from "expo-location";
@@ -109,11 +110,53 @@ TaskManager.defineTask(LOC_TASK, async ({ data, error }: any) => {
   await checkStormAndAlert({ lat: latest.coords.latitude, lng: latest.coords.longitude });
 });
 
-// Start the near-real-time lightning watch for an active round. Requests
-// foreground + background location; degrades gracefully (to the periodic watch)
-// if the player declines background access. Safe to call repeatedly.
+const BG_CONSENT_KEY = "foreai.bgLocConsent.v1";
+
+// Prominent disclosure REQUIRED before requesting background location, per
+// Google Play policy (and good practice on iOS): the app must, in its own UI,
+// tell the player it collects location in the background and why, BEFORE the OS
+// permission prompt — otherwise the app is rejected even with the Play
+// declaration filled in. Shown once; remembers the choice.
+export async function ensureBackgroundLocationConsent(): Promise<boolean> {
+  try {
+    const v = await AsyncStorage.getItem(BG_CONSENT_KEY);
+    if (v === "granted") return true;
+    if (v === "declined") return false;
+  } catch {}
+  return new Promise<boolean>((resolve) => {
+    Alert.alert(
+      "Lightning safety uses your location",
+      "While you're on a round, ForeAi checks your location — including in the background and when the app is closed — to watch for nearby lightning and warn you to take shelter. Location is used only during a round, stops when the round ends, and is never shared.",
+      [
+        {
+          text: "Not now",
+          style: "cancel",
+          onPress: () => {
+            AsyncStorage.setItem(BG_CONSENT_KEY, "declined").catch(() => {});
+            resolve(false);
+          },
+        },
+        {
+          text: "Allow",
+          onPress: () => {
+            AsyncStorage.setItem(BG_CONSENT_KEY, "granted").catch(() => {});
+            resolve(true);
+          },
+        },
+      ],
+      { cancelable: false },
+    );
+  });
+}
+
+// Start the near-real-time lightning watch for an active round. Shows the
+// prominent background-location disclosure first, then requests foreground +
+// background location; degrades gracefully (to the periodic watch) if the player
+// declines. Safe to call repeatedly.
 export async function startRoundLightningWatch(): Promise<void> {
   if (!getNotifPrefs().lightning) return;
+  // Google Play: the in-app disclosure must precede the OS permission request.
+  if (!(await ensureBackgroundLocationConsent())) return;
   try {
     const fg = await Location.requestForegroundPermissionsAsync();
     if (fg.status !== "granted") return;
