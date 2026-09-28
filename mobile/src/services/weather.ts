@@ -243,24 +243,30 @@ export type PanelWeather = {
   };
 };
 
-export async function fetchLiveWeather(c: Coord, apiBase: string): Promise<PanelWeather | null> {
-  // 1) Backend — real strikes when available.
-  try {
-    const res = await fetch(`${apiBase}/weather?lat=${c.lat}&lng=${c.lng}`);
-    if (res.ok) {
-      const j: any = await res.json();
-      if (j && (j.current || j.lightning)) {
-        return {
-          tempC: Math.round(j.current?.tempC ?? 0),
-          windKmh: Math.round(j.current?.windKmh ?? 0),
-          gustKmh: Math.round(j.current?.gustKmh ?? j.current?.windKmh ?? 0),
-          condition: j.current?.condition ?? "—",
-          lightning: j.lightning ?? { level: "none", message: "No storms nearby.", source: "forecast" },
-        };
+// `weatherUrl` is the FULL weather-function endpoint (see api.ts WEATHER_URL) —
+// the server-side proxy that adds REAL Xweather lightning strikes. Falls back to
+// the direct Open-Meteo forecast when it's unset or unreachable.
+export async function fetchLiveWeather(c: Coord, weatherUrl: string): Promise<PanelWeather | null> {
+  // 1) Weather function — real strikes when a provider key is configured on it.
+  if (weatherUrl) {
+    try {
+      const sep = weatherUrl.includes("?") ? "&" : "?";
+      const res = await fetch(`${weatherUrl}${sep}lat=${c.lat}&lng=${c.lng}`);
+      if (res.ok) {
+        const j: any = await res.json();
+        if (j && (j.current || j.lightning)) {
+          return {
+            tempC: Math.round(j.current?.tempC ?? 0),
+            windKmh: Math.round(j.current?.windKmh ?? 0),
+            gustKmh: Math.round(j.current?.gustKmh ?? j.current?.windKmh ?? 0),
+            condition: j.current?.condition ?? "—",
+            lightning: j.lightning ?? { level: "none", message: "No storms nearby.", source: "forecast" },
+          };
+        }
       }
+    } catch {
+      /* fall through to direct forecast */
     }
-  } catch {
-    /* fall through to direct forecast */
   }
   // 2) Direct Open-Meteo forecast fallback.
   const r = await fetchWeatherReport(c);

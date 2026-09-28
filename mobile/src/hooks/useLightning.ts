@@ -1,7 +1,7 @@
 import React from "react";
 import { Coord } from "../lib/geo";
 import { fetchLiveWeather, PanelWeather } from "../services/weather";
-import { API_BASE } from "../services/api";
+import { API_BASE, WEATHER_URL } from "../services/api";
 import { initLightningAlarm, maybeLightningAlarm } from "../lib/lightningAlarm";
 import { registerLightningBackground, saveLastCoord } from "../lib/lightningBackground";
 import { registerForPush } from "../lib/pushRegister";
@@ -40,7 +40,7 @@ export function useLightning(coord: Coord | null): { wx: PanelWeather | null; st
     let cancelled = false;
     const load = async () => {
       setState((s) => (s === "ok" ? s : "loading"));
-      const r = await fetchLiveWeather(coord, API_BASE);
+      const r = await fetchLiveWeather(coord, WEATHER_URL);
       if (cancelled) return;
       if (r) {
         setWx(r);

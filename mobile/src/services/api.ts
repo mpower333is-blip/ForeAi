@@ -11,6 +11,16 @@ import { Conditions, StrategyInput } from "../lib/golfEngine";
 // calls fail soft (no-op) unless EXPO_PUBLIC_API_URL is set for local dev.
 export const API_BASE = (process.env.EXPO_PUBLIC_API_URL as string | undefined) ?? "";
 
+// Live weather + REAL lightning strikes. This runs as a Firebase Cloud Function
+// (so the Xweather/Aeris provider secret stays server-side, never in the app),
+// the same endpoint the clubhouse board uses. Defaults to the deployed function;
+// override with EXPO_PUBLIC_WEATHER_URL for local dev / the emulator. Without a
+// provider key configured on the function it still works — it just returns
+// Open-Meteo's thunderstorm forecast instead of detected strikes.
+export const WEATHER_URL =
+  (process.env.EXPO_PUBLIC_WEATHER_URL as string | undefined) ||
+  "https://europe-west1-foreai-f9cfa.cloudfunctions.net/weather";
+
 async function post<T>(path: string, body: unknown): Promise<T | null> {
   try {
     const res = await fetch(`${API_BASE}${path}`, {

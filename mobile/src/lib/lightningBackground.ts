@@ -3,7 +3,7 @@ import * as BackgroundTask from "expo-background-task";
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fetchLiveWeather } from "../services/weather";
-import { API_BASE } from "../services/api";
+import { WEATHER_URL } from "../services/api";
 import { loadNotifPrefs, getNotifPrefs } from "./notifPrefs";
 import { isLightningNear, fireLightningNotification, ensureLightningChannel } from "./lightningAlarm";
 
@@ -62,7 +62,7 @@ TaskManager.defineTask(TASK, async () => {
     if (!coord) coord = await readLastCoord();
     if (!coord) return BackgroundTask.BackgroundTaskResult.Success;
 
-    const wx = await fetchLiveWeather(coord, API_BASE);
+    const wx = await fetchLiveWeather(coord, WEATHER_URL);
     if (wx && isLightningNear(wx)) {
       await ensureLightningChannel();
       await fireLightningNotification(wx); // shared cooldown prevents double-alerts
@@ -88,7 +88,7 @@ async function checkStormAndAlert(coord: { lat: number; lng: number }): Promise<
     if (Date.now() - last < WX_MIN_GAP_MS) return;
     await AsyncStorage.setItem(WX_CHECK_KEY, String(Date.now()));
 
-    const wx = await fetchLiveWeather(coord, API_BASE);
+    const wx = await fetchLiveWeather(coord, WEATHER_URL);
     if (wx && isLightningNear(wx)) {
       await ensureLightningChannel();
       await fireLightningNotification(wx); // shared cooldown prevents double-alerts
