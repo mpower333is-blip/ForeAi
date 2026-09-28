@@ -62,6 +62,11 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
     implementation("androidx.core:core-splashscreen:1.0.1")
 
+    // Force androidx.fragment up from a stale 1.1.0 that a transitive dependency
+    // drags in — Play's SDK Index flags fragment:1.1.0 as outdated. Declaring it
+    // explicitly makes Gradle resolve to this current version across the graph.
+    implementation("androidx.fragment:fragment:1.8.6")
+
     // Firestore + anonymous Auth — the watch reads/writes the same store as the
     // phones and website (project foreai-f9cfa). Firebase is initialised in code
     // (ForeAiWearApp) from an explicit config, so NO google-services.json / plugin
