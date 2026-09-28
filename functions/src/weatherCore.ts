@@ -245,10 +245,43 @@ export function forecastRisk(om: any): Lightning {
   return { level: "none", message: "No storms nearby.", source: "forecast" };
 }
 
+// Should we spend a metered lightning-provider call? Open-Meteo is free and
+// unlimited, so we use it as a cheap gate: only pay for real strike data when
+// the free forecast shows the atmosphere COULD produce lightning. On a clearly
+// stable day this returns false and buildReport makes ZERO provider calls —
+// which is how we stay inside Xweather's monthly access budget. The bar is set
+// deliberately LOW (any real convective hint trips it) so we never trade away
+// safety to save a call.
+export function convectivePotential(om: any): boolean {
+  if (!om) return true; // no forecast to gate on → don't suppress the safety check
+  const code = Number(om?.current?.weather_code) || 0;
+  if (code >= 51) return true; // drizzle/rain/showers/thunder coded right now
+  if ((Number(om?.current?.precipitation) || 0) > 0) return true; // rain falling now
+
+  const nowCape = Number(om?.minutely_15?.cape?.[0]) || 0;
+  const capeVals = (om?.minutely_15?.cape ?? om?.hourly?.cape ?? []) as any[];
+  const maxCape = Math.max(nowCape, ...capeVals.map((v) => Number(v) || 0));
+  const maxProb = Math.max(0, ...(om?.hourly?.precipitation_probability ?? []).map((v: any) => Number(v) || 0));
+  const codesAhead: number[] = [
+    ...((om?.minutely_15?.weather_code ?? []) as any[]),
+    ...((om?.hourly?.weather_code ?? []) as any[]),
+  ].map((v) => Number(v) || 0);
+  if (codesAhead.some((c) => c >= 51)) return true; // any precip/storm in the nowcast/hourly window
+
+  // Instability + a real chance of precip, or notable CAPE on its own.
+  if (maxCape >= 500 && maxProb >= 20) return true;
+  if (maxCape >= 1000) return true;
+  return false;
+}
+
 // Build the full report (conditions + lightning) for a point, preferring real
 // strikes when a provider key is set and falling back to the forecast signal.
+// The metered strike call is gated behind the free forecast (convectivePotential)
+// so a clear day costs no provider accesses.
 export async function buildReport(lat: number, lng: number): Promise<Report> {
-  const [om, strikes] = await Promise.all([openMeteo(lat, lng), fetchBestStrikes(lat, lng)]);
+  const om = await openMeteo(lat, lng);
+  // Only pay for real strikes when the free forecast says lightning is possible.
+  const strikes = convectivePotential(om) ? await fetchBestStrikes(lat, lng) : null;
 
   const current = om?.current
     ? {

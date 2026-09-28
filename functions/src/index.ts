@@ -17,6 +17,45 @@ const db = admin.firestore();
 
 setGlobalOptions({ region: "europe-west1", maxInstances: 10 });
 
+// ── Shared weather cache ─────────────────────────────────────────────────────
+// One report per ~1 km area, cached in Firestore so EVERY caller shares it: all
+// the phones polling from a course, the clubhouse board, and the scheduled
+// lightning watcher collapse into a single provider call per area per TTL,
+// instead of one call each. A Firestore read is effectively free next to a
+// metered Xweather access, so this is the main lever for staying in budget.
+//
+// Adaptive TTL: refresh fast (60 s) while lightning is active so a moving storm
+// stays current; a moderate 3 min when clear. The clear window is kept short so
+// a NEWLY developing storm is picked up within ~3 min (not left stale) — safe to
+// do because a clear area makes no metered call at all (convectivePotential gate
+// in buildReport), so the only thing a short clear TTL costs is extra free
+// Open-Meteo calls and cheap Firestore reads. Many phones in an area still
+// collapse into one backend refresh per TTL.
+const WX_GRID = 100; // ~0.01° ≈ 1 km
+const WX_TTL_ACTIVE_MS = 60 * 1000;
+const WX_TTL_CLEAR_MS = 3 * 60 * 1000;
+const wxAreaDoc = (lat: number, lng: number) =>
+  `${Math.round(lat * WX_GRID) / WX_GRID}_${Math.round(lng * WX_GRID) / WX_GRID}`;
+
+async function cachedReport(lat: number, lng: number): Promise<any> {
+  const ref = db.collection("weatherCache").doc(wxAreaDoc(lat, lng));
+  const now = Date.now();
+  try {
+    const snap = await ref.get();
+    if (snap.exists) {
+      const d = snap.data() as any;
+      const active = d?.data?.lightning?.level && d.data.lightning.level !== "none";
+      const ttl = active ? WX_TTL_ACTIVE_MS : WX_TTL_CLEAR_MS;
+      if (typeof d?.at === "number" && now - d.at < ttl && d.data) return d.data;
+    }
+  } catch {
+    /* cache read failed — fall through and build fresh */
+  }
+  const data = await buildReport(lat, lng);
+  ref.set({ at: now, data }).catch(() => {}); // best-effort write; don't block the response
+  return data;
+}
+
 // ── Organiser provisioning ──────────────────────────────────────────────────
 // The web calls this after a Firebase sign-in (replacing POST /auth/firebase).
 // It creates/updates the caller's adminUsers/{uid} doc and sets clubKey from the
@@ -75,7 +114,7 @@ export const weather = onRequest({ cors: true }, async (req, res) => {
       res.json({ ...data, providers });
       return;
     }
-    res.json(await buildReport(lat, lng));
+    res.json(await cachedReport(lat, lng));
   } catch (e) {
     console.error("weather error", e);
     res.status(502).json({ error: "weather unavailable" });
@@ -124,7 +163,9 @@ export const lightningWatch = onSchedule({ schedule: "every 3 minutes", region: 
 
     let report;
     try {
-      report = await buildReport(area.lat, area.lng);
+      // Share the same per-area cache the phones/board warm, so the watcher
+      // rarely spends its own provider call.
+      report = await cachedReport(area.lat, area.lng);
     } catch (e) {
       console.error("lightningWatch buildReport failed:", e);
       continue;
