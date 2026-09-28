@@ -1,0 +1,97 @@
+name: Deploy Cloud Functions to Firebase
+
+# Deploys functions/ (the weather + lightning API, organiser provisioning, push
+# watcher) to Firebase. Runs automatically when functions change on main, and can
+# be run on demand from the Actions tab (Run workflow) — including from a phone.
+#
+# One-time setup in GitHub → Settings → Secrets and variables → Actions → Secrets:
+#   • FIREBASE_SERVICE_ACCOUNT  (required) JSON key of a service account that can
+#       deploy functions. Roles needed on the foreai-f9cfa project:
+#         - Firebase Admin              (roles/firebase.admin)
+#         - Cloud Functions Admin       (roles/cloudfunctions.admin)
+#         - Cloud Build Editor          (roles/cloudbuild.builds.editor)
+#         - Artifact Registry Admin     (roles/artifactregistry.admin)
+#         - Service Account User        (roles/iam.serviceAccountUser)
+#       (The hosting-only service account does NOT have these — add the roles, or
+#        use a separate deployer service account for this secret.)
+#
+# Runtime environment for the functions is rebuilt from these OPTIONAL secrets and
+# shipped as functions/.env at deploy time (so no keys live in the repo):
+#   • XWEATHER_ID, XWEATHER_SECRET   real lightning strikes (Xweather/Aeris)
+#   • TWC_API_KEY                    real lightning strikes (weather.com), alt
+#   • CLUB_ADMIN_EMAILS              organiser→club mapping (e.g. "kempton:me@x.com")
+#   • LIGHTNING_WATCH                set to "0" to disable the scheduled watcher
+#
+# IMPORTANT: `firebase deploy` sets the function env to EXACTLY what's in
+# functions/.env — any var you currently use but DON'T provide here is unset. Add
+# every var your functions rely on as a secret, not just the Xweather ones.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/firebase-functions.yml"
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    name: Deploy functions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Secrets can't be read in an `if:`, so probe the required one via env first
+      # and skip cleanly (no failure email) until it's configured.
+      - name: Check for Firebase credentials
+        id: creds
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::FIREBASE_SERVICE_ACCOUNT secret not set — skipping functions deploy. Add it in Settings → Secrets and variables → Actions to enable it."
+          fi
+
+      - name: Write service account key
+        if: steps.creds.outputs.present == 'true'
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+
+      # Rebuild functions/.env from secrets — only the ones that are set. This is
+      # the runtime env the deploy ships; provider keys never touch the repo.
+      - name: Compose functions/.env from secrets
+        if: steps.creds.outputs.present == 'true'
+        env:
+          XWEATHER_ID: ${{ secrets.XWEATHER_ID }}
+          XWEATHER_SECRET: ${{ secrets.XWEATHER_SECRET }}
+          TWC_API_KEY: ${{ secrets.TWC_API_KEY }}
+          CLUB_ADMIN_EMAILS: ${{ secrets.CLUB_ADMIN_EMAILS }}
+          LIGHTNING_WATCH: ${{ secrets.LIGHTNING_WATCH }}
+        run: |
+          : > functions/.env
+          add() { [ -n "$2" ] && printf '%s=%s\n' "$1" "$2" >> functions/.env || true; }
+          add XWEATHER_ID "$XWEATHER_ID"
+          add XWEATHER_SECRET "$XWEATHER_SECRET"
+          add TWC_API_KEY "$TWC_API_KEY"
+          add CLUB_ADMIN_EMAILS "$CLUB_ADMIN_EMAILS"
+          add LIGHTNING_WATCH "$LIGHTNING_WATCH"
+          echo "Wrote functions/.env with $(grep -c '=' functions/.env || echo 0) var(s)."
+
+      # firebase.json's predeploy runs `npm --prefix functions install` + build,
+      # so the deploy compiles TypeScript itself. GOOGLE_APPLICATION_CREDENTIALS
+      # authenticates firebase-tools non-interactively.
+      - name: Deploy to Firebase
+        if: steps.creds.outputs.present == 'true'
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx --yes firebase-tools@latest deploy --only functions --project foreai-f9cfa --non-interactive --force
