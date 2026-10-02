@@ -344,7 +344,77 @@ function hourLabel(iso: string): string {
   return t || "—";
 }
 
+// The play verdict from a parsed hour list — earliest thunderstorm hour and
+// peak rain chance drive it. Shared by both the Xweather and Open-Meteo sources.
+function verdictFromHours(list: OutlookHour[]): PlayVerdict {
+  const stormIdx = list.findIndex((h) => h.storm);
+  const maxRain = Math.max(0, ...list.map((h) => h.rainProb));
+  if (stormIdx === 0) {
+    return { level: "warning", headline: "Lightning risk now", detail: "Thunderstorms overhead — hold off heading out." };
+  } else if (stormIdx > 0 && stormIdx <= 2) {
+    return { level: "warning", headline: `Storms in ~${stormIdx}h`, detail: "A quick nine now, or wait it out — plan to be off the course before it hits." };
+  } else if (stormIdx > 2) {
+    return { level: "watch", headline: `Storms later (~${stormIdx}h)`, detail: "Clear for now — an early round should beat the weather." };
+  } else if (maxRain >= 60) {
+    return { level: "watch", headline: "Showers likely", detail: "Rain about, but no lightning expected — playable if you don't mind getting wet." };
+  }
+  return { level: "none", headline: "Good window to play", detail: "No lightning in the next few hours." };
+}
+
+// Open-Meteo WMO code → the small code bucket OutlookHour.code carries (so the
+// app's icon map keeps working regardless of which provider supplied the hour).
+// Xweather rows are mapped onto the same buckets from their coded weather.
+function xwCodeBucket(weatherPrimaryCoded: string): number {
+  // Xweather codes are "coverage:intensity:weather"; the weather segment is what
+  // we care about. Map the common ones onto Open-Meteo-ish codes.
+  const seg = String(weatherPrimaryCoded || "").split(":")[2] || "";
+  if (seg === "T") return 95; // thunderstorms
+  if (["R", "RW", "L", "ZR", "ZL"].includes(seg)) return 61; // rain / drizzle
+  if (["S", "SW", "SI", "WM", "BS"].includes(seg)) return 71; // snow
+  if (["A"].includes(seg)) return 80; // hail/showers
+  if (["F", "BR", "H", "IF"].includes(seg)) return 45; // fog/haze
+  if (["K", "BD", "BN", "VA"].includes(seg)) return 45; // smoke/dust
+  if (seg === "") return 1; // clear-ish
+  return 2; // some clouds
+}
+
+// Real Xweather hourly forecast — only when a key is set. Returns null without a
+// key or on failure so buildOutlook falls back to the free Open-Meteo forecast.
+export async function fetchXweatherOutlook(lat: number, lng: number, hours = 8): Promise<Outlook | null> {
+  const id = process.env.XWEATHER_ID, secret = process.env.XWEATHER_SECRET;
+  if (!id || !secret) return null;
+  const url =
+    `https://data.api.xweather.com/forecasts/${lat},${lng}` +
+    `?filter=1hr&limit=${hours}` +
+    `&fields=periods.dateTimeISO,periods.tempC,periods.pop,periods.weather,periods.weatherPrimaryCoded` +
+    `&client_id=${id}&client_secret=${secret}`;
+  const j = await withTimeout(url);
+  const periods: any[] = j?.response?.[0]?.periods ?? j?.response?.periods ?? [];
+  if (!Array.isArray(periods) || periods.length === 0) return null;
+
+  const list: OutlookHour[] = periods.slice(0, hours).map((p) => {
+    const coded = String(p?.weatherPrimaryCoded || "");
+    const storm = (coded.split(":")[2] || "") === "T";
+    return {
+      time: hourLabel(String(p?.dateTimeISO || "")),
+      tempC: Math.round(Number(p?.tempC) || 0),
+      code: xwCodeBucket(coded),
+      condition: String(p?.weather || "").trim() || "—",
+      rainProb: Math.round(Number(p?.pop) || 0),
+      storm,
+    };
+  });
+  if (!list.length) return null;
+  return { hours: list, verdict: verdictFromHours(list) };
+}
+
 export async function buildOutlook(lat: number, lng: number, hours = 8): Promise<Outlook | null> {
+  // Prefer real Xweather forecast (hourly temp + coded thunderstorms); the
+  // caller caches this, so a key'd project still makes few forecast calls.
+  const xw = await fetchXweatherOutlook(lat, lng, hours);
+  if (xw) return xw;
+
+  // Fallback: free Open-Meteo hourly forecast.
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
     `&hourly=temperature_2m,weather_code,precipitation_probability` +
@@ -368,20 +438,5 @@ export async function buildOutlook(lat: number, lng: number, hours = 8): Promise
     };
   });
 
-  const stormIdx = list.findIndex((h) => h.storm);
-  const maxRain = Math.max(0, ...list.map((h) => h.rainProb));
-  let verdict: PlayVerdict;
-  if (stormIdx === 0) {
-    verdict = { level: "warning", headline: "Lightning risk now", detail: "Thunderstorms overhead — hold off heading out." };
-  } else if (stormIdx > 0 && stormIdx <= 2) {
-    verdict = { level: "warning", headline: `Storms in ~${stormIdx}h`, detail: "A quick nine now, or wait it out — plan to be off the course before it hits." };
-  } else if (stormIdx > 2) {
-    verdict = { level: "watch", headline: `Storms later (~${stormIdx}h)`, detail: "Clear for now — an early round should beat the weather." };
-  } else if (maxRain >= 60) {
-    verdict = { level: "watch", headline: "Showers likely", detail: "Rain about, but no lightning expected — playable if you don't mind getting wet." };
-  } else {
-    verdict = { level: "none", headline: "Good window to play", detail: "No lightning in the next few hours." };
-  }
-
-  return { hours: list, verdict };
+  return { hours: list, verdict: verdictFromHours(list) };
 }

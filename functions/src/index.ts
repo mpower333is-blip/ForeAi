@@ -56,6 +56,27 @@ async function cachedReport(lat: number, lng: number): Promise<any> {
   return data;
 }
 
+// The planning outlook is a forecast — it changes slowly, so cache it per area
+// for 30 min, shared across all clients. This keeps the metered Xweather
+// forecast call down to ~2/hour per area regardless of how many phones ask.
+const OUTLOOK_TTL_MS = 30 * 60 * 1000;
+async function cachedOutlook(lat: number, lng: number, hours: number): Promise<any> {
+  const ref = db.collection("outlookCache").doc(`${wxAreaDoc(lat, lng)}_${hours}`);
+  const now = Date.now();
+  try {
+    const snap = await ref.get();
+    if (snap.exists) {
+      const d = snap.data() as any;
+      if (typeof d?.at === "number" && now - d.at < OUTLOOK_TTL_MS && d.data) return d.data;
+    }
+  } catch {
+    /* fall through and build fresh */
+  }
+  const data = await buildOutlook(lat, lng, hours);
+  if (data) ref.set({ at: now, data }).catch(() => {});
+  return data;
+}
+
 // ── Organiser provisioning ──────────────────────────────────────────────────
 // The web calls this after a Firebase sign-in (replacing POST /auth/firebase).
 // It creates/updates the caller's adminUsers/{uid} doc and sets clubKey from the
@@ -101,7 +122,7 @@ export const weather = onRequest({ cors: true }, async (req, res) => {
     // forecast + play verdict the app's "Planning to play?" card reads.
     if (req.query.outlook) {
       const hours = Math.min(24, Math.max(1, Number(req.query.hours) || 8));
-      const outlook = await buildOutlook(lat, lng, hours);
+      const outlook = await cachedOutlook(lat, lng, hours);
       if (!outlook) {
         res.status(502).json({ error: "outlook unavailable" });
         return;
