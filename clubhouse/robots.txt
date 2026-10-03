@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+# Internal organiser/console pages have no public search value.
+Disallow: /manage/
+Disallow: /board.html
+Disallow: /hub.html
+
+Sitemap: https://foreai.co.za/sitemap.xml
