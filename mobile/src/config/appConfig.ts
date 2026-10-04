@@ -33,11 +33,10 @@ export const LANDING_URL = "https://foreai.co.za/get.html";
 // Play listing IS the phone app's listing (which shows "Install on watch" once the
 // Wear build is published). Use this flavour's package — never com.foreai.wear.
 export const WEAR_PACKAGE = APP_PACKAGE;
+// The Wear OS app is published on Play (same package), so its listing shows
+// "Install on watch". This is the phone app's own listing.
 export const WEAR_PLAY_URL =
   `https://play.google.com/store/apps/details?id=${APP_PACKAGE}`;
-// Direct APK download for sideloading before the watch app is on the Play Store.
-// Host the built wear APK here (e.g. on the ForeAi domain) and update this URL.
-export const WEAR_APK_URL = "https://foreai.co.za/foreai-watch.apk";
 
 // The full package (unlocks everything beyond the free demo).
 export const PACKAGE_NAME = "ForeAi Pro";

@@ -4,7 +4,7 @@ import QRCode from "react-native-qrcode-svg";
 import { Screen, ScreenHeader, Card, Button } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { useTournament } from "../state/TournamentContext";
-import { WEAR_PACKAGE, WEAR_PLAY_URL, WEAR_APK_URL } from "../config/appConfig";
+import { WEAR_PACKAGE, WEAR_PLAY_URL } from "../config/appConfig";
 
 // A scannable QR on a white tile (QR codes need light background + dark modules
 // to scan reliably, whatever the app theme).
@@ -43,8 +43,6 @@ export default function WatchSetupScreen({ navigation }: any) {
     );
   };
 
-  const openApk = () => Linking.openURL(WEAR_APK_URL).catch(() => {});
-
   return (
     <Screen>
       <ScreenHeader
@@ -79,30 +77,16 @@ export default function WatchSetupScreen({ navigation }: any) {
           </Text>
         </Card>
       ) : (
-        <>
-          <Card>
-            <Text style={styles.h}>Install on your watch</Text>
-            <Text style={styles.p}>
-              Make sure your Wear OS watch is paired to this phone, then open the Play Store listing —
-              it has an <Text style={styles.b}>Install on watch</Text> option that sends it straight to
-              your watch.
-            </Text>
-            <Button label="📲 Open on the Play Store" onPress={openPlay} />
-            <QrTile url={WEAR_PLAY_URL} caption="Scan to open the watch app listing" />
-          </Card>
-
-          <Card>
-            <Text style={styles.h}>Not on the Play Store yet? Sideload it</Text>
-            <Text style={styles.p}>
-              While the watch app is in testing you can install the APK directly:
-            </Text>
-            <Text style={styles.step}>1. Download the ForeAi watch APK.</Text>
-            <Text style={styles.step}>2. On the watch: Settings → Developer options → turn on ADB / Wireless debugging.</Text>
-            <Text style={styles.step}>3. From a computer: <Text style={styles.mono}>adb connect &lt;watch-ip&gt;</Text> then <Text style={styles.mono}>adb install foreai-watch.apk</Text>.</Text>
-            <Button label="⬇ Download the watch APK" variant="ghost" onPress={openApk} />
-            <QrTile url={WEAR_APK_URL} caption="Scan on a computer to download the APK" />
-          </Card>
-        </>
+        <Card>
+          <Text style={styles.h}>Install on your watch</Text>
+          <Text style={styles.p}>
+            ForeAi for Wear OS is on the Play Store. Make sure your watch is paired to this phone, open
+            the listing, and tap <Text style={styles.b}>Install on watch</Text> — it sends ForeAi
+            straight to your watch.
+          </Text>
+          <Button label="📲 Open on the Play Store" onPress={openPlay} />
+          <QrTile url={WEAR_PLAY_URL} caption="Scan to open the watch app listing" />
+        </Card>
       )}
 
       <Card>

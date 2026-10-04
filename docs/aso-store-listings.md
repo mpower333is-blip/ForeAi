@@ -35,7 +35,7 @@ subtitle can't be set, use this instead so those terms aren't lost:
 
 **Promotional text (≤170, editable anytime, not indexed — shown at top):**
 ```
-Your AI caddie, GPS rangefinder and swing coach — know every distance, pick the right club, keep score live, and track your stats. Free to start.
+Your AI caddie, GPS rangefinder and swing coach — know every distance, pick the right club, keep score live, and track your stats.
 ```
 
 > Set these in App Store Connect → ForeAi → (version) → English (U.S.) →
@@ -97,7 +97,7 @@ course in time — even when the app is closed.
 
 Whether you're chasing a lower handicap, need a reliable golf GPS, want an
 AI caddie for smarter club selection, or you're organising a tournament,
-ForeAi brings golf technology end to end. Free to start.
+ForeAi brings golf technology end to end.
 
 Keywords: golf GPS, rangefinder, AI caddie, golf scorecard, handicap
 tracker, swing analysis, strokes gained, golf stats, tee times, golf
