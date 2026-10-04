@@ -173,6 +173,14 @@ workflows:
     name: ForeAi — iOS (TestFlight)
     instance_type: mac_mini_m2
     max_build_duration: 90
+    # Push a git tag like `ios-1.6` to auto-start this iOS build (needs the
+    # Codemagic↔GitHub webhook). Only this workflow watches ios-* tags.
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "ios-*"
+          include: true
     integrations:
       app_store_connect: ForeAi ASC
     environment:

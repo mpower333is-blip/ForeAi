@@ -5,9 +5,18 @@ import { colors, spacing } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { signed } from "../lib/golfEngine";
 import RoundSummaryCard from "../components/RoundSummaryCard";
+import { maybeAskForReview } from "../lib/reviewPrompt";
 
 export default function StatsScreen({ navigation }: any) {
   const { shots, totalStrokesGained, categorySG, resetRound, holeStats, scoreTotals } = useRound();
+
+  // After a real round (at least a full nine on the summary), ask for a store
+  // rating at this positive moment. Gated/rate-limited in reviewPrompt so it
+  // never nags; fires at most once per session.
+  const roundComplete = scoreTotals.holesPlayed >= 9;
+  React.useEffect(() => {
+    if (roundComplete) maybeAskForReview();
+  }, [roundComplete]);
   const cats = categorySG();
   const maxAbs = Math.max(0.5, ...cats.map((c) => Math.abs(c.value)));
 

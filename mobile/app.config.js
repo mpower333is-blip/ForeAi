@@ -42,7 +42,7 @@ export default {
   expo: {
     name: (SURVEY_ONLY ? "ForeAi Survey" : CLUB ? CLUB_APP_NAME : "ForeAi") + NAME_TAG,
     slug: "foreai",
-    version: "1.0.0",
+    version: "1.6",
     orientation: "portrait",
     scheme: "foreai",
     userInterfaceStyle: "dark",
