@@ -50,6 +50,7 @@ import StrategyScreen from "./src/screens/StrategyScreen";
 import StatsScreen from "./src/screens/StatsScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import CourseSelectScreen from "./src/screens/CourseSelectScreen";
+import CourseSurveyScreen from "./src/screens/CourseSurveyScreen";
 import CoursePreviewScreen from "./src/screens/CoursePreviewScreen";
 import GamesScreen from "./src/screens/GamesScreen";
 import UpgradeScreen from "./src/screens/UpgradeScreen";
@@ -163,6 +164,7 @@ function Root() {
         {/* On-course GPS + coordinate survey, reachable from Home in the full app
             (it's also the "Course" tab in the event app). */}
         <Stack.Screen name="Survey" component={OnCourseScreen} />
+        <Stack.Screen name="CourseSurvey" component={CourseSurveyScreen} />
         <Stack.Screen name="CourseSelect" component={CourseSelectScreen} />
         <Stack.Screen name="ProShop" component={ProShopScreen} />
         <Stack.Screen name="PlayerDirectory" component={PlayerDirectoryScreen} />

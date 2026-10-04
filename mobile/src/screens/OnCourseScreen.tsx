@@ -78,6 +78,15 @@ export default function OnCourseScreen({ navigation }: any) {
         onBack={navigation?.canGoBack?.() ? () => navigation.goBack() : undefined}
       />
 
+      <Card accent>
+        <Text style={styles.setupTitle}>🛰 Map this course</Text>
+        <Text style={styles.setupBody}>
+          Setting up your club's course? Walk it once with the guided survey — mark each tee and green
+          and it goes live for everyone instantly.
+        </Text>
+        <Button label="Start guided survey" onPress={() => navigation.navigate("CourseSurvey")} />
+      </Card>
+
       <Card>
         <View style={styles.holeRow}>
           <TouchableOpacity style={styles.navBtn} onPress={() => goHole(-1)}>
@@ -257,4 +266,6 @@ const styles = StyleSheet.create({
 
   note: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: 8 },
   hint: { color: colors.textFaint, fontSize: 12, lineHeight: 17, marginTop: spacing.sm },
+  setupTitle: { color: colors.text, fontSize: 17, fontWeight: "800", marginBottom: 4 },
+  setupBody: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: spacing.sm },
 });
