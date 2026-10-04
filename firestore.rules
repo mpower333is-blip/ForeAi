@@ -173,6 +173,18 @@ service cloud.firestore {
       }
     }
 
+    // ---- course GPS survey (shared live map) -----------------------------
+    // One doc per course holds its surveyed tee/green coordinates. Publicly
+    // readable (the app/board need GPS with no login), but only organisers and
+    // platform owners may write — authoritative course data, so a bad write from
+    // a random anonymous device can't break GPS distances for everyone. A
+    // non-organiser's survey still works locally on their own device.
+    match /courseCoords/{courseId} {
+      allow read: if true;
+      allow create, update: if isOrganiser() || isOwner();
+      allow delete: if isOwner();
+    }
+
     // ---- push devices (read only by the lightningWatch Admin SDK) ---------
     match /pushDevices/{deviceId} {
       allow read: if false;

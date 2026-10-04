@@ -31,6 +31,7 @@ on:
     branches: [main]
     paths:
       - "functions/**"
+      - "firestore.rules"
       - "firebase.json"
       - ".firebaserc"
       - ".github/workflows/firebase-functions.yml"
@@ -94,4 +95,4 @@ jobs:
         if: steps.creds.outputs.present == 'true'
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
-        run: npx --yes firebase-tools@latest deploy --only functions --project foreai-f9cfa --non-interactive --force
+        run: npx --yes firebase-tools@latest deploy --only functions,firestore:rules --project foreai-f9cfa --non-interactive --force
