@@ -1,7 +1,8 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Screen, ScreenHeader, Card, Button, IconChip } from "../components/ui";
-import { colors, spacing } from "../theme";
+import { spacing, type Palette } from "../theme";
+import { useThemedStyles } from "../state/ThemeContext";
 import { useAuth } from "../state/AuthContext";
 
 // In-app Clubhouse hub for signed-in staff/organisers. Collapses the separate
@@ -9,6 +10,7 @@ import { useAuth } from "../state/AuthContext";
 // (course survey today, more later) live right here. Players never see this.
 export default function ClubhouseScreen({ navigation }: any) {
   const { staff, ready, signOut } = useAuth();
+  const styles = useThemedStyles((t) => makeStyles(t.colors));
 
   // Not signed in → send them to sign-in.
   if (ready && !staff) {
@@ -114,15 +116,16 @@ export default function ClubhouseScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
-  lead: { color: colors.textMuted, fontSize: 15, lineHeight: 22, marginBottom: spacing.md },
-  hello: { color: colors.text, fontSize: 20, fontWeight: "800" },
-  sub: { color: colors.textMuted, fontSize: 14, marginTop: 4 },
-  sectionRow: { flexDirection: "row", alignItems: "center", marginBottom: spacing.sm, marginTop: spacing.sm },
-  sectionBar: { width: 4, height: 20, borderRadius: 2, backgroundColor: colors.accent, marginRight: 10 },
-  sectionTitle: { color: colors.text, fontSize: 18, fontWeight: "800" },
-  head: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  headText: { marginLeft: 12, flex: 1 },
-  cardTitle: { color: colors.text, fontSize: 18, fontWeight: "800" },
-  body: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: spacing.sm },
-});
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    lead: { color: c.textMuted, fontSize: 15, lineHeight: 22, marginBottom: spacing.md },
+    hello: { color: c.text, fontSize: 20, fontWeight: "800" },
+    sub: { color: c.textMuted, fontSize: 14, marginTop: 4 },
+    sectionRow: { flexDirection: "row", alignItems: "center", marginBottom: spacing.sm, marginTop: spacing.sm },
+    sectionBar: { width: 4, height: 20, borderRadius: 2, backgroundColor: c.accent, marginRight: 10 },
+    sectionTitle: { color: c.text, fontSize: 18, fontWeight: "800" },
+    head: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+    headText: { marginLeft: 12, flex: 1 },
+    cardTitle: { color: c.text, fontSize: 18, fontWeight: "800" },
+    body: { color: c.textMuted, fontSize: 14, lineHeight: 20, marginBottom: spacing.sm },
+  });

@@ -17,6 +17,8 @@ import { GamesProvider } from "./src/state/GamesContext";
 import { PlanProvider, usePlan } from "./src/state/PlanContext";
 import { ProfileProvider, useProfile } from "./src/state/ProfileContext";
 import { AuthProvider } from "./src/state/AuthContext";
+import { ThemeProvider } from "./src/state/ThemeContext";
+import ThemeBrandingSync from "./src/state/ThemeBrandingSync";
 import { CourseCoordsProvider } from "./src/state/CourseCoordsContext";
 import { MemberProvider } from "./src/state/MemberContext";
 import { UpgradeGate } from "./src/components/Upsell";
@@ -202,6 +204,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" />
+        <ThemeProvider>
         <ProfileProvider>
         <AuthProvider>
         <MemberProvider>
@@ -212,6 +215,7 @@ export default function App() {
                 full app "for the day" (see PlanContext). */}
             <PlanProvider>
               <GamesProvider>
+                <ThemeBrandingSync />
                 <WatchShotSync />
                 <LivePresenceSync />
                 <Root />
@@ -223,6 +227,7 @@ export default function App() {
         </MemberProvider>
         </AuthProvider>
         </ProfileProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

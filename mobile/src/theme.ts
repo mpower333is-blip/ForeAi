@@ -70,6 +70,29 @@ export const colors = THEME.colors;
 // Gradients (consumed by expo-linear-gradient). Each is a colour stop list.
 export const gradients = THEME.gradients;
 
+// ── Runtime (club) theming ───────────────────────────────────────────────────
+// The build-time selection above is the DEFAULT. For the single-app model, a
+// club's brand palette is applied at RUNTIME (when a member/organiser signs in)
+// via ThemeContext — screens migrated to useThemedStyles() recolour live. Export
+// the shapes + builders the theme context and the club-theme loader use.
+export type { Palette, GradientSet };
+export type Theme = { colors: Palette; gradients: GradientSet };
+
+export const FOREAI_THEME: Theme = { colors: FOREAI_COLORS, gradients: FOREAI_GRADIENTS };
+export const KEMPTON_THEME: Theme = { colors: KEMPTON_COLORS, gradients: KEMPTON_GRADIENTS };
+// What a fresh (non-club) app shows — the build-time selection.
+export const DEFAULT_THEME: Theme = THEME;
+
+// Build a full Theme from a club's brand colours. A club only needs to supply
+// the handful of brand colours (bg, surface, accent, text…); everything else
+// falls back to the ForeAi base so the result is always a coherent dark theme.
+export function buildTheme(colorOverrides: Partial<Palette>, gradOverrides?: Partial<GradientSet>): Theme {
+  return {
+    colors: { ...FOREAI_COLORS, ...colorOverrides },
+    gradients: { ...FOREAI_GRADIENTS, ...(gradOverrides ?? {}) },
+  };
+}
+
 export const spacing = {
   xs: 6,
   sm: 12,
