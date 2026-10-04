@@ -55,6 +55,15 @@ workflows:
     name: ForeAi — Android AAB (Play)
     instance_type: linux_x2
     max_build_duration: 60
+    # Push a git tag like `android-1.6` to auto-start this Play AAB build
+    # (needs the Codemagic↔GitHub webhook). Only this workflow watches
+    # android-* tags.
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "android-*"
+          include: true
     environment:
       node: 20
       java: 17
