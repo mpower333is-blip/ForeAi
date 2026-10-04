@@ -27,9 +27,11 @@ golf-app search terms you don't yet rank for.)
 
 **Keywords (≤100, comma-separated, NO spaces, no words already in name/subtitle):**
 ```
-score,stats,handicap,shot,tracker,yardage,distance,putting,strokes,slope,course,tee,green,fairway
+swing,score,stats,handicap,shot,tracker,yardage,strokes,putting,stableford,tournament,slope,course
 ```
-(97 chars.)
+(98 chars. Assumes the Subtitle carries gps/rangefinder/scorecard. If the
+subtitle can't be set, use this instead so those terms aren't lost:
+`gps,rangefinder,swing,score,stats,handicap,shot,tracker,yardage,strokes,putting,stableford,slope`)
 
 **Promotional text (≤170, editable anytime, not indexed — shown at top):**
 ```
