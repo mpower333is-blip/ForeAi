@@ -22,7 +22,7 @@ const APP_PACKAGE = CLUB ? `com.foreai.${CLUB}` : "com.foreai.mobile";
 export const IAP_ENABLED = Platform.OS !== "ios" || process.env.EXPO_PUBLIC_IOS_IAP === "1";
 
 // TODO: replace with the real listings once published.
-export const APP_STORE_URL = "https://apps.apple.com/app/foreai/id0000000000";
+export const APP_STORE_URL = "https://apps.apple.com/app/foreai/id6802079528";
 export const PLAY_STORE_URL =
   `https://play.google.com/store/apps/details?id=${APP_PACKAGE}`;
 // A single shareable link that sends people to the right store + event sign-up.
