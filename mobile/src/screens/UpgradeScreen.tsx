@@ -70,7 +70,7 @@ export default function UpgradeScreen({ navigation }: any) {
         <View style={styles.head}>
           <IconChip emoji="⛳" tone="gold" />
           <Text style={styles.title}>All features included</Text>
-          <Text style={styles.subtitle}>Every feature is unlocked and free — enjoy your round.</Text>
+          <Text style={styles.subtitle}>Every feature is unlocked — enjoy your round.</Text>
         </View>
         <Button variant="ghost" label="Back" onPress={() => navigation.goBack()} />
       </Screen>
@@ -153,7 +153,7 @@ export default function UpgradeScreen({ navigation }: any) {
       )}
 
       <Card>
-        <Text style={styles.groupTitle}>✓ Free — always</Text>
+        <Text style={styles.groupTitle}>✓ Try for free</Text>
         {FREE_FEATURES.map((f) => (
           <FeatureRow key={f} label={f} tone="free" />
         ))}

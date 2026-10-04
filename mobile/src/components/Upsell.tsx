@@ -80,7 +80,7 @@ export function DemoBanner({ onUpgrade }: { onUpgrade: () => void }) {
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onUpgrade} style={styles.ribbon}>
       <Chip label="DEMO" tone="gold" />
-      <Text style={styles.ribbonText}>You're trying the free demo — tap to unlock the full package.</Text>
+      <Text style={styles.ribbonText}>Previewing ForeAi — tap to start your free trial and unlock everything.</Text>
       <Text style={styles.ribbonArrow}>›</Text>
     </TouchableOpacity>
   );
@@ -95,8 +95,8 @@ export function UpgradeGate({ feature, navigation }: { feature: FeatureKey; navi
         <IconChip emoji="🔒" tone="gold" />
         <Text style={styles.gateTitle}>{label} is part of ForeAi Pro</Text>
         <Text style={styles.gateBody}>
-          This is a free demo. Swing Coach and AI Caddie are open to try, and Golf Days work fully so
-          you can play the day. Unlock {label.toLowerCase()} and everything else with the full package.
+          Swing Coach and AI Caddie are open to try. Start your free trial to unlock{" "}
+          {label.toLowerCase()} and everything else in ForeAi Pro.
         </Text>
         <Button label="See what's included" onPress={() => navigation.navigate("Upgrade")} />
         <Button variant="ghost" label="Back" onPress={() => navigation.goBack()} />

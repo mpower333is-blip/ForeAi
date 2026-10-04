@@ -118,12 +118,12 @@ export default function HomeScreen({ navigation }: any) {
             <IconChip emoji="⛳" tone="gold" />
             <View style={styles.featHeadText}>
               <Text style={styles.cardHeadline}>Unlock {PACKAGE_NAME}</Text>
-              <Chip label="FREE DEMO" tone="gold" />
+              <Chip label="FREE TRIAL" tone="gold" />
             </View>
           </View>
           <Text style={styles.cardBody}>
-            You're on the free demo — Swing Coach, AI Caddie and Golf Days are open. Unlock live
-            rounds, GPS, stats and more.
+            Try the Swing Coach and AI Caddie, then start your free trial to unlock live rounds,
+            GPS, stats and everything else in ForeAi Pro.
           </Text>
           <Button label="See what's included" icon="🔓" onPress={toUpgrade} />
         </Card>
