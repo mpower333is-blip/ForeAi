@@ -92,6 +92,16 @@ export default function ProfileScreen({ navigation }: any) {
       </Card>
 
       <Card>
+        <Text style={styles.sectionTitle}>Club staff</Text>
+        <MoreLink
+          emoji="🏠"
+          label="Clubhouse — sign in & tools"
+          onPress={() => navigation.navigate("Clubhouse")}
+          last
+        />
+      </Card>
+
+      <Card>
         <Text style={styles.sectionTitle}>Handicap</Text>
         <Text style={styles.hint}>
           Drives strokes received per hole and your net / Stableford scores. Course handicap:{" "}

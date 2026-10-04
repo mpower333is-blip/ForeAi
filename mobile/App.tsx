@@ -16,6 +16,7 @@ import { TournamentProvider } from "./src/state/TournamentContext";
 import { GamesProvider } from "./src/state/GamesContext";
 import { PlanProvider, usePlan } from "./src/state/PlanContext";
 import { ProfileProvider, useProfile } from "./src/state/ProfileContext";
+import { AuthProvider } from "./src/state/AuthContext";
 import { CourseCoordsProvider } from "./src/state/CourseCoordsContext";
 import { MemberProvider } from "./src/state/MemberContext";
 import { UpgradeGate } from "./src/components/Upsell";
@@ -51,6 +52,8 @@ import StatsScreen from "./src/screens/StatsScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import CourseSelectScreen from "./src/screens/CourseSelectScreen";
 import CourseSurveyScreen from "./src/screens/CourseSurveyScreen";
+import ClubhouseScreen from "./src/screens/ClubhouseScreen";
+import StaffLoginScreen from "./src/screens/StaffLoginScreen";
 import CoursePreviewScreen from "./src/screens/CoursePreviewScreen";
 import GamesScreen from "./src/screens/GamesScreen";
 import UpgradeScreen from "./src/screens/UpgradeScreen";
@@ -165,6 +168,8 @@ function Root() {
             (it's also the "Course" tab in the event app). */}
         <Stack.Screen name="Survey" component={OnCourseScreen} />
         <Stack.Screen name="CourseSurvey" component={CourseSurveyScreen} />
+        <Stack.Screen name="Clubhouse" component={ClubhouseScreen} />
+        <Stack.Screen name="StaffLogin" component={StaffLoginScreen} />
         <Stack.Screen name="CourseSelect" component={CourseSelectScreen} />
         <Stack.Screen name="ProShop" component={ProShopScreen} />
         <Stack.Screen name="PlayerDirectory" component={PlayerDirectoryScreen} />
@@ -198,6 +203,7 @@ export default function App() {
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" />
         <ProfileProvider>
+        <AuthProvider>
         <MemberProvider>
         <CourseCoordsProvider>
         <RoundProvider>
@@ -215,6 +221,7 @@ export default function App() {
         </RoundProvider>
         </CourseCoordsProvider>
         </MemberProvider>
+        </AuthProvider>
         </ProfileProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
