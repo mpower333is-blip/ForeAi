@@ -479,7 +479,10 @@ const styles = StyleSheet.create({
   holeLabel: { ...(type.h1 as any), color: colors.accent },
   holeMeta: { color: colors.textMuted, fontSize: 15, marginTop: 2 },
   navBtns: { flexDirection: "row", gap: 8 },
-  navBtn: { width: 52, marginTop: 0 },
+  // paddingHorizontal:0 overrides the shared Button's 26px side padding — without
+  // it a 52px-wide button leaves negative room and the ‹ / › chevron is clipped to
+  // nothing (the "blank next-hole buttons" bug).
+  navBtn: { width: 52, paddingHorizontal: 0, marginTop: 0 },
 
   recTop: { color: colors.textMuted, fontSize: 13, textTransform: "uppercase", letterSpacing: 1 },
   recRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 4 },
