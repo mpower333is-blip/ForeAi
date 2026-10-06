@@ -3,14 +3,15 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Screen, Card, Button, Segmented, MetreStepper, KmhStepper, StatTile } from "../components/ui";
 import { colors, spacing, type } from "../theme";
 import { useRound } from "../state/RoundContext";
-import { useLocation } from "../hooks/useLocation";
+import { useLocation, LocationState } from "../hooks/useLocation";
 import HoleGps, { HoleMarks } from "../components/HoleGps";
 import ScoreCaptureCard from "../components/ScoreCaptureCard";
 import StatsEntry from "../components/StatsEntry";
 import { useAutoShotTracker } from "../hooks/useAutoShotTracker";
 import { TEES } from "../data/courses";
 import { IS_CLUB_APP } from "../config/appVariant";
-import { Coord, compass8 } from "../lib/geo";
+import { Coord, compass8, distanceMeters } from "../lib/geo";
+import { loadJSON, saveJSON } from "../lib/storage";
 import { ydToM, mphToKmh, fToC } from "../lib/units";
 import { fetchWeather, windForShot } from "../services/weather";
 import {
@@ -76,6 +77,53 @@ export default function PlayScreen({ navigation }: any) {
   const markPin = () => {
     if (loc.coord) setPinMarks((m) => ({ ...m, [gpsKey]: loc.coord as Coord }));
   };
+
+  // ---- Demo GPS -------------------------------------------------------------
+  // Lets you show the rangefinder off-course (sales demos, trying the app at
+  // home). When ON, we pretend you're standing an approach-shot's distance from
+  // this hole's green, so the numbers look like a real on-course moment instead
+  // of "6.8 km away". Persisted so it survives app restarts; default OFF.
+  const DEMO_KEY = "foreai.demoGps.v1";
+  const [demoGps, setDemoGps] = useState(false);
+  useEffect(() => {
+    loadJSON<boolean>(DEMO_KEY).then((v) => { if (v) setDemoGps(true); });
+  }, []);
+  const toggleDemo = () => {
+    setDemoGps((on) => { const next = !on; saveJSON(DEMO_KEY, next); return next; });
+  };
+
+  // A believable "in the fairway" position for the current hole: a point on the
+  // tee→green line about an approach-shot distance (≤160 m) from the green.
+  const demoCoord = useMemo<Coord | null>(() => {
+    const green = hole.green;
+    if (!green) return null;
+    const fullM = hole.tee ? distanceMeters(hole.tee, green) : ydToM(hole.yards);
+    const approachM = Math.max(40, Math.min(160, fullM * 0.5));
+    if (hole.tee && fullM > 1) {
+      const f = approachM / fullM; // fraction from the green back toward the tee
+      return {
+        lat: green.lat + (hole.tee.lat - green.lat) * f,
+        lng: green.lng + (hole.tee.lng - green.lng) * f,
+      };
+    }
+    // No tee coord — offset the green ~north by the approach distance.
+    return { lat: green.lat + approachM / 111320, lng: green.lng };
+  }, [hole]);
+
+  // What the rangefinder actually uses: the faked position in demo mode, else the
+  // real device GPS.
+  const effectiveLoc: LocationState =
+    demoGps && demoCoord
+      ? { coord: demoCoord, accuracy: 4, heading: loc.heading, status: "granted", request: loc.request }
+      : loc;
+
+  // Only surface the Demo GPS toggle when you're clearly NOT on the course (no fix
+  // yet, or >2 km from this green) — so on-course members never see it, but it's
+  // there when previewing at home or demoing. (Always show it while it's ON so you
+  // can switch back off.)
+  const offCourse =
+    !loc.coord || !hole.green || distanceMeters(loc.coord, hole.green) > 2000;
+  const showDemoToggle = demoGps || offCourse;
 
   const holeShots = shotsForHole(currentHole);
 
@@ -232,7 +280,7 @@ export default function PlayScreen({ navigation }: any) {
         greenCoord={hole.green}
         greenFront={hole.greenFront}
         greenBack={hole.greenBack}
-        loc={loc}
+        loc={effectiveLoc}
         marks={marks}
         onMarkTee={markTee}
         onMarkPin={markPin}
@@ -241,6 +289,22 @@ export default function PlayScreen({ navigation }: any) {
           setSurface("fairway");
         }}
       />
+
+      {/* Demo GPS — show the rangefinder off-course. Simulates standing in the
+          fairway for this hole so distances look real when you're not on site.
+          Hidden once you're actually on the course. */}
+      {showDemoToggle && (
+        <TouchableOpacity onPress={toggleDemo} activeOpacity={0.8} style={styles.demoRow}>
+          <Text style={styles.demoText}>
+            🎭 Demo GPS{demoGps ? " · simulating on-course" : ""}
+          </Text>
+          <View style={[styles.demoPill, demoGps && styles.demoPillOn]}>
+            <Text style={[styles.demoPillText, demoGps && styles.demoPillTextOn]}>
+              {demoGps ? "On" : "Off"}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       <Card>
         <View style={styles.autoRow}>
@@ -478,6 +542,24 @@ const styles = StyleSheet.create({
   },
   holeLabel: { ...(type.h1 as any), color: colors.accent },
   holeMeta: { color: colors.textMuted, fontSize: 15, marginTop: 2 },
+  demoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: spacing.sm,
+    paddingHorizontal: 6,
+  },
+  demoText: { color: colors.textFaint, fontSize: 13, fontWeight: "600" },
+  demoPill: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  demoPillOn: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
+  demoPillText: { color: colors.textFaint, fontSize: 12, fontWeight: "800" },
+  demoPillTextOn: { color: colors.accent },
   navBtns: { flexDirection: "row", gap: 8 },
   // paddingHorizontal:0 overrides the shared Button's 26px side padding — without
   // it a 52px-wide button leaves negative room and the ‹ / › chevron is clipped to
