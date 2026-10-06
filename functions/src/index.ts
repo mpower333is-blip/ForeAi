@@ -83,12 +83,26 @@ async function cachedOutlook(lat: number, lng: number, hours: number): Promise<a
 // CLUB_ADMIN_EMAILS mapping — the authoritative, server-only source of clubKey,
 // so no one can grant themselves a club by writing their own doc (rules deny
 // client writes to adminUsers). Returns the account so the web can gate the UI.
+// A club this email administers via the "Add a club" tool — the club doc lists
+// the admin emails (clubs/{key}.adminEmails). Lets owners grant a club admin
+// self-service (no env edit); the CLUB_ADMIN_EMAILS env mapping still wins.
+async function clubKeyFromClubs(email: string): Promise<string | null> {
+  if (!email) return null;
+  try {
+    const snap = await db.collection("clubs").where("adminEmails", "array-contains", email).limit(1).get();
+    if (!snap.empty) return snap.docs[0].id;
+  } catch {
+    /* ignore — fall back to no club */
+  }
+  return null;
+}
+
 export const provisionOrganiser = onCall(async (req) => {
   const auth = req.auth;
   if (!auth) throw new HttpsError("unauthenticated", "Sign in first.");
   const uid = auth.uid;
   const email = String(auth.token.email || "").trim().toLowerCase();
-  const mappedClub = clubKeyForEmail(email);
+  const mappedClub = clubKeyForEmail(email) || (await clubKeyFromClubs(email));
 
   const ref = db.collection("adminUsers").doc(uid);
   const snap = await ref.get();

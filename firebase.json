@@ -17,6 +17,7 @@
     "trailingSlash": false,
     "redirects": [
       { "source": "/office.html", "destination": "/manage/office.html", "type": 302 },
+      { "source": "/clubs.html", "destination": "/manage/clubs.html", "type": 302 },
       { "source": "/survey.html", "destination": "/manage/survey.html", "type": 302 },
       { "source": "/live.html", "destination": "/manage/live.html", "type": 302 },
       { "source": "/admin.html", "destination": "/manage/admin.html", "type": 302 },
