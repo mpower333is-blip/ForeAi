@@ -150,6 +150,11 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.courseChipCta}>Change ›</Text>
         </TouchableOpacity>
         <Button label="START A ROUND" onPress={startRound} />
+        <Button
+          variant="ghost"
+          label="👥 Score a fourball (one phone)"
+          onPress={() => navigation.navigate("GroupScorecard")}
+        />
       </Card>
 
       {/* Join a golf day / competition */}

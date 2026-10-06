@@ -87,6 +87,7 @@ export default function EventsScreen() {
 // ---------------------------------------------------------------------------
 
 function EventList({ onOpen }: { onOpen: (id: string) => void }) {
+  const nav = useNavigation<any>();
   const { events, createEvent, createSharedEvent, joinByCode, leaveEvent } = useTournament();
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -198,10 +199,20 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
       <ScreenHeader title="Events" subtitle="Run a tournament or a golf day — players, tee times, live scoring." />
 
       {!creating && !joining && (
-        <View style={styles.formRow}>
-          <Button label="+ New event" onPress={() => setCreating(true)} style={{ flex: 1 }} />
-          <Button label="Join by code" variant="ghost" onPress={() => setJoining(true)} style={{ flex: 1 }} />
-        </View>
+        <>
+          <View style={styles.formRow}>
+            <Button label="+ New event" onPress={() => setCreating(true)} style={{ flex: 1 }} />
+            <Button label="Join by code" variant="ghost" onPress={() => setJoining(true)} style={{ flex: 1 }} />
+          </View>
+          <Card>
+            <Text style={styles.formTitle}>Just scoring your fourball?</Text>
+            <Text style={styles.hint}>
+              No event, no tee sheet — add your group and score everyone on one phone, with handicaps,
+              Stableford points and GPS.
+            </Text>
+            <Button label="👥 Score a fourball" variant="ghost" onPress={() => nav.navigate("GroupScorecard")} />
+          </Card>
+        </>
       )}
 
       {error !== "" && (

@@ -54,6 +54,7 @@ import StatsScreen from "./src/screens/StatsScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import CourseSelectScreen from "./src/screens/CourseSelectScreen";
 import CourseSurveyScreen from "./src/screens/CourseSurveyScreen";
+import GroupScorecardScreen from "./src/screens/GroupScorecardScreen";
 import ClubhouseScreen from "./src/screens/ClubhouseScreen";
 import StaffLoginScreen from "./src/screens/StaffLoginScreen";
 import CoursePreviewScreen from "./src/screens/CoursePreviewScreen";
@@ -170,6 +171,7 @@ function Root() {
             (it's also the "Course" tab in the event app). */}
         <Stack.Screen name="Survey" component={OnCourseScreen} />
         <Stack.Screen name="CourseSurvey" component={CourseSurveyScreen} />
+        <Stack.Screen name="GroupScorecard" component={GroupScorecardScreen} />
         <Stack.Screen name="Clubhouse" component={ClubhouseScreen} />
         <Stack.Screen name="StaffLogin" component={StaffLoginScreen} />
         <Stack.Screen name="CourseSelect" component={CourseSelectScreen} />
