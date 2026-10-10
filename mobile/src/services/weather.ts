@@ -73,7 +73,9 @@ export async function fetchWeatherReport(c: Coord): Promise<WeatherReport | null
   try {
     const url =
       `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lng}` +
-      `&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m` +
+      `&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation` +
+      // 15-minute nowcast for the next ~2h — the finest free lead time on a storm.
+      `&minutely_15=weather_code,precipitation,cape&forecast_minutely_15=8` +
       `&hourly=weather_code,precipitation_probability,cape&forecast_hours=6` +
       `&wind_speed_unit=mph&temperature_unit=fahrenheit&timezone=auto`;
     const res = await fetch(url);
@@ -83,33 +85,6 @@ export async function fetchWeatherReport(c: Coord): Promise<WeatherReport | null
     if (!cur) return null;
     const code = Number(cur.weather_code) || 0;
 
-    // Assess lightning risk from the current code and the next few hours.
-    const hCodes: number[] = j?.hourly?.weather_code ?? [];
-    const hProb: number[] = j?.hourly?.precipitation_probability ?? [];
-    const hCape: number[] = j?.hourly?.cape ?? [];
-    let lightning: WeatherReport["lightning"] = { level: "none", message: "No storms nearby." };
-
-    if (code >= 95) {
-      lightning = { level: "warning", message: "Thunderstorm overhead — seek shelter now.", etaHours: 0 };
-    } else {
-      // First upcoming hour flagged as a thunderstorm.
-      const idx = hCodes.findIndex((wc) => Number(wc) >= 95);
-      if (idx >= 0) {
-        lightning = {
-          level: idx <= 1 ? "warning" : "watch",
-          message: idx <= 1 ? "Thunderstorms imminent — plan to get off the course." : `Thunderstorms expected in ~${idx}h.`,
-          etaHours: idx,
-        };
-      } else {
-        // No coded storm yet, but high instability + rain chance = building risk.
-        const maxCape = Math.max(0, ...hCape.map((v) => Number(v) || 0));
-        const maxProb = Math.max(0, ...hProb.map((v) => Number(v) || 0));
-        if (maxCape >= 2000 && maxProb >= 40) {
-          lightning = { level: "watch", message: "Storm potential building this afternoon — keep an eye on the sky." };
-        }
-      }
-    }
-
     return {
       tempF: Math.round(cur.temperature_2m),
       windMph: Math.round(cur.wind_speed_10m),
@@ -117,11 +92,66 @@ export async function fetchWeatherReport(c: Coord): Promise<WeatherReport | null
       windFromDeg: Number(cur.wind_direction_10m) || 0,
       code,
       condition: describeWeatherCode(code),
-      lightning,
+      lightning: forecastRisk(j),
     };
   } catch {
     return null;
   }
+}
+
+// Lightning risk from a free Open-Meteo forecast — kept in lock-step with the
+// server's weatherCore.forecastRisk so the app warns identically whether or not
+// the weather function is reachable. The golfer's safety can't depend on a coded
+// thunderstorm: WMO code 95 lags the real sky by many minutes, so we also treat
+// high convective energy with rain falling right now as a storm overhead. A
+// false "seek shelter" is far cheaper than a missed strike — we err to safety.
+function forecastRisk(j: any): WeatherReport["lightning"] {
+  const code = Number(j?.current?.weather_code) || 0;
+  if (code >= 95) {
+    return { level: "warning", message: "Thunderstorm overhead — seek shelter now.", etaHours: 0 };
+  }
+
+  // CAPE "now" — Open-Meteo doesn't put CAPE in `current`, so use the first
+  // 15-min nowcast bucket as the present value (storm energy in J/kg).
+  const nowCape = Number(j?.minutely_15?.cape?.[0]) || 0;
+  const nowPrecip = Number(j?.current?.precipitation) || 0;
+  const nowShowers = code >= 80 || (code >= 61 && code <= 67); // rain showers / heavy rain now
+
+  // Active-storm proxy: the model may not code a thunderstorm even while one is
+  // on top of you. High convective energy + rain falling right now is the best
+  // free signal that it's an electrical storm — treat it as a warning.
+  if (nowCape >= 1500 && (nowPrecip >= 0.3 || nowShowers)) {
+    return { level: "warning", message: "Storm conditions overhead — treat as lightning risk, seek shelter.", etaHours: 0 };
+  }
+
+  // 1) 15-minute nowcast — the finest lead time (next ~2 hours).
+  const mCodes: number[] = j?.minutely_15?.weather_code ?? [];
+  const mi = mCodes.findIndex((wc) => Number(wc) >= 95);
+  if (mi >= 0) {
+    const mins = mi * 15;
+    if (mins <= 30) return { level: "warning", message: `Thunderstorm within ~${mins || 15} min — get off the course now.`, etaHours: 0 };
+    return { level: "watch", message: `Thunderstorm likely in ~${mins} min.`, etaHours: Math.round(mins / 60) };
+  }
+
+  // 2) Hourly outlook (roughly 2–6 hours out).
+  const hCodes: number[] = j?.hourly?.weather_code ?? [];
+  const hi = hCodes.findIndex((wc) => Number(wc) >= 95);
+  if (hi >= 0) {
+    return hi <= 1
+      ? { level: "watch", message: "Thunderstorms likely within the hour.", etaHours: hi }
+      : { level: "watch", message: `Thunderstorms expected in ~${hi}h.`, etaHours: hi };
+  }
+
+  // 3) No coded storm yet, but high instability now + rain chance = building
+  //    risk. Thresholds match the server (1200 J/kg / 30%) so a developing cell
+  //    nudges the panel to "watch" early.
+  const capeVals = (j?.minutely_15?.cape ?? j?.hourly?.cape ?? []) as any[];
+  const maxCape = Math.max(nowCape, ...capeVals.map((v) => Number(v) || 0));
+  const maxProb = Math.max(0, ...(j?.hourly?.precipitation_probability ?? []).map((v: any) => Number(v) || 0));
+  if (maxCape >= 1200 && maxProb >= 30) {
+    return { level: "watch", message: "Storm potential building — keep an eye on the sky." };
+  }
+  return { level: "none", message: "No storms nearby." };
 }
 
 // ── Planning outlook ─────────────────────────────────────────────────────────
