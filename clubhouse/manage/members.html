@@ -35,6 +35,11 @@
   .tile .v{font-size:26px;font-weight:800;margin-top:4px}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
   table{width:100%;border-collapse:collapse;font-size:14px}
+  /* Scroll the roster sideways when the full column set doesn't fit (narrow
+     windows/tablets). Below 560px the hide-sm columns drop out and it fits, so
+     the min-width only applies above that breakpoint — no needless scroll on phones. */
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  @media(min-width:561px){ .tablewrap table{min-width:640px} }
   th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--border)}
   th{color:var(--faint);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
   tr:hover td{background:rgba(243,195,59,0.04)}
@@ -120,10 +125,12 @@
     </div>
 
     <div class="card">
+      <div class="tablewrap">
       <table>
         <thead><tr><th>No.</th><th>Name</th><th class="hide-sm">Category</th><th>Status</th><th>HCP</th><th class="hide-sm">Contact</th><th></th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
+      </div>
       <div id="empty" class="empty" style="display:none">No members yet. Add one, or import your roster.</div>
     </div>
   </div>

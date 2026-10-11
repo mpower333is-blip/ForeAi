@@ -39,6 +39,10 @@
   .s-results{background:rgba(255,211,106,0.16);color:var(--gold)}
   .s-draft{background:rgba(107,213,255,0.16);color:var(--sky)}
   table{width:100%;border-collapse:collapse;font-size:14px}
+  /* Scroll the results board sideways on narrow screens so all columns
+     (PH/Thru/Gross/Net/Pts + actions) stay reachable instead of crushing. */
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tablewrap table{min-width:640px}
   th,td{text-align:left;padding:8px;border-bottom:1px solid var(--border)}
   th{color:var(--faint);font-size:12px;text-transform:uppercase}
   .num{text-align:right}
@@ -125,10 +129,12 @@
       <div class="bar"><b>Field &amp; results</b><span class="spacer"></span>
         <button class="btn ghost sm" onclick="openGuest()">＋ Add guest</button>
         <button class="btn ghost sm" onclick="loadDetail(CUR)">↻</button></div>
+      <div class="tablewrap">
       <table style="margin-top:10px">
         <thead><tr><th>#</th><th>Player</th><th class="num">PH</th><th class="num">Thru</th><th class="num">Gross</th><th class="num">Net</th><th class="num">Pts</th><th></th></tr></thead>
         <tbody id="board"></tbody>
       </table>
+      </div>
       <div id="boardEmpty" class="empty" style="display:none">No entries yet.</div>
     </div>
   </div>
