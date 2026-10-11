@@ -24,7 +24,7 @@ export default function ProfileScreen({ navigation }: any) {
     setPlayerHandicap,
     courseHcp,
   } = useRound();
-  const { name, setName, homeClub, setHomeClub } = useProfile();
+  const { name, setName, homeClub, setHomeClub, saId, setSaId } = useProfile();
   const [editing, setEditing] = useState<number | null>(null);
 
   const [prefs, setPrefs] = useState<NotifPrefs>(getNotifPrefs());
@@ -108,6 +108,19 @@ export default function ProfileScreen({ navigation }: any) {
           <Text style={{ color: colors.accent, fontWeight: "700" }}>{courseHcp}</Text>
         </Text>
         <Stepper label="Handicap index" value={playerHandicap} onChange={setPlayerHandicap} step={1} min={0} max={54} unit="" />
+        <View style={{ marginTop: spacing.md }}>
+          <TextField
+            label="SA Player ID (HNA)"
+            value={saId}
+            onChangeText={setSaId}
+            placeholder="e.g. 1234567"
+            keyboardType="number-pad"
+          />
+          <Text style={styles.hint}>
+            Your Handicaps Network Africa / Golf RSA player number. Add it once and, where your club
+            has official sync switched on, your handicap index updates automatically for competitions.
+          </Text>
+        </View>
       </Card>
 
       <Card>

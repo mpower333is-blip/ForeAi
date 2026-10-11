@@ -11,16 +11,18 @@ type Persisted = {
   name: string;
   handicap: number;
   homeClub: string;
+  saId: string; // SA Player ID / HNA membership number (for official handicap sync)
   onboarded: boolean;
 };
 
-const DEFAULTS: Persisted = { name: "", handicap: 18, homeClub: "", onboarded: false };
+const DEFAULTS: Persisted = { name: "", handicap: 18, homeClub: "", saId: "", onboarded: false };
 
 type ProfileState = Persisted & {
   ready: boolean; // storage has been read (avoid flashing onboarding)
   setName: (v: string) => void;
   setHandicap: (v: number) => void;
   setHomeClub: (v: string) => void;
+  setSaId: (v: string) => void;
   completeOnboarding: (patch?: Partial<Persisted>) => void;
   reset: () => void;
 };
@@ -56,6 +58,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       setName: (name) => setState((s) => ({ ...s, name })),
       setHandicap: (handicap) => setState((s) => ({ ...s, handicap })),
       setHomeClub: (homeClub) => setState((s) => ({ ...s, homeClub })),
+      setSaId: (saId) => setState((s) => ({ ...s, saId })),
       completeOnboarding: (patch) => setState((s) => ({ ...s, ...patch, onboarded: true })),
       reset: () => setState(DEFAULTS),
     }),
