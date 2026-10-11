@@ -210,9 +210,23 @@
     });
     return chain.then(function () { return { ok: true, created: created, updated: updated, skipped: skipped, total: rows.length }; });
   }
-  // Manual handicap entries only (a live HNA pull needs a server).
+  // Live official sync (b.live) runs server-side via the syncClubHna Cloud
+  // Function, so the club's DotGolf credentials never touch the browser. Needs
+  // firebase-functions-compat on the page and a signed-in club admin (auth-guard
+  // provides it). Manual entries (b.entries) still apply directly to Firestore.
   function syncHna(ck, b) {
-    if (b && b.live) return Promise.resolve({ ok: false, notConfigured: true, updated: 0, candidates: 0 });
+    if (b && b.live) {
+      if (!firebase.functions) return Promise.resolve({ ok: false, notConfigured: true, updated: 0, candidates: 0 });
+      return ensureSignedIn().then(function () {
+        return firebase.app().functions("europe-west1").httpsCallable("syncClubHna")({ clubKey: ck });
+      }).then(function (res) {
+        var d = (res && res.data) || {};
+        if (d.configured === false) return { ok: false, notConfigured: true, updated: 0, candidates: d.candidates || 0 };
+        return { ok: true, updated: d.updated || 0, candidates: d.candidates || 0 };
+      }).catch(function (err) {
+        return Promise.reject({ status: 502, body: { error: (err && err.message) || "HNA sync failed" } });
+      });
+    }
     var entries = Array.isArray(b && b.entries) ? b.entries : [];
     var updated = 0;
     var chain = ensureSignedIn();

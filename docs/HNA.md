@@ -65,7 +65,9 @@ defensive member parser, and a 1-hour member-list cache for lookups.
   server-trusted `adminUsers/{uid}`, pulls HNA Club Members, and updates every
   roster member whose `hnaId` matches an HNA `saId` with the current index
   (writes `handicapIndex` + `handicapSyncedAt`). Returns `{ configured,
-  candidates, updated }` — the contract `members.html syncHna()` already expects.
+  candidates, updated }`. **Wired:** the clubhouse members page "Sync HNA" button
+  calls it via `club-fs.js` (the members page now runs on Firestore), so a sync
+  updates the same roster the page shows.
 - **`hnaLookup`** (onCall, signed-in player): `{ saId } → { configured,
   handicapIndex }` for the app's "Update from HNA" button. Works when the player
   is in the configured club's roster.

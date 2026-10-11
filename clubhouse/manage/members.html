@@ -72,6 +72,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<!-- Callables (syncClubHna for the live official HNA sync). -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-functions-compat.js"></script>
 <script src="../club-fs.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -212,6 +214,20 @@ async function api(path, { method="GET", body }={}){
 
 // ---- connect ----
 function boot(){
+  // Firestore mode (default): the page is gated by the Firebase sign-in
+  // (auth-guard) and reads/writes Firestore via club-fs — no backend URL or PIN.
+  // Skip the legacy connect screen and go straight to the roster.
+  if (window.ClubFS && window.ClubFS.enabled){
+    API = ""; PIN = "";
+    $("connect").style.display = "none"; $("main").style.display = ""; $("topbar").style.display = "";
+    // PIN + Disconnect are Render-era concepts — the user bar handles sign-out.
+    const pinBtn = document.querySelector('#topbar button[onclick="openPin()"]');
+    const discBtn = document.querySelector('#topbar button[onclick="disconnect()"]');
+    if (pinBtn) pinBtn.style.display = "none";
+    if (discBtn) discBtn.style.display = "none";
+    loadMembers();
+    return;
+  }
   const saved = JSON.parse(localStorage.getItem(LS) || "null");
   $("cApi").value = (saved && saved.api) || KEMPTON_API || D.api || "";
   if (saved && saved.api){ API = saved.api; PIN = saved.pin || ""; $("cPin").value = PIN; connect(true); }
@@ -349,8 +365,8 @@ async function syncHna(){
   if (!confirm("Pull handicap indexes from HNA for members that have an HNA id?")) return;
   try {
     const res = await api(`/members/${CLUB_KEY}/sync-hna`, { method:"POST", body:{ live:true } });
-    if (res.notConfigured) alert(`HNA live sync isn't configured on the backend yet (${res.candidates} members have an HNA id).\n\nUntil then, enter indexes on each member, or import a handicap column.`);
-    else alert(`HNA sync done — ${res.updated} of ${res.candidates} updated.`);
+    if (res.notConfigured) alert(`Official HNA sync isn't switched on yet — it needs your club's DotGolf credentials set on the server (${res.candidates} member(s) have an HNA id).\n\nUntil then, enter indexes on each member, or import a handicap column.`);
+    else alert(`HNA sync done — ${res.updated} of ${res.candidates} member(s) updated.`);
     loadMembers();
   } catch(e){ alert(e.message); }
 }
