@@ -75,14 +75,22 @@ export async function openMeteo(lat: number, lng: number) {
 
 export type Point = { lat: number; lng: number };
 
-// Real detected strikes near the point in the last 15 minutes (Xweather/Aeris).
+// Real detected strikes near the point in the last ~5 minutes (Xweather/Aeris).
 // Returns null when no key is configured, [] when configured but no strikes.
+//
+// No `from`/`to`: the base lightning tier returns the last ~5 minutes by
+// default, which is exactly the window we want for "is a storm striking near me
+// right now". Asking for a longer window (e.g. from=-15minutes) needs the
+// Lightning Enterprise add-on — on the base plan it trips `warn_invalid_param`
+// and the request silently falls back to 5 minutes anyway, so we just use the
+// default and keep the query clean. radius 40km (well inside base limits) gives
+// enough range to flag an approaching storm, not only one overhead.
 export async function fetchStrikes(lat: number, lng: number): Promise<Point[] | null> {
   const id = process.env.XWEATHER_ID, secret = process.env.XWEATHER_SECRET;
   if (!id || !secret) return null;
   const url =
     `https://data.api.xweather.com/lightning/${lat},${lng}` +
-    `?format=json&radius=40km&from=-15minutes&limit=200&client_id=${id}&client_secret=${secret}`;
+    `?format=json&radius=40km&limit=200&client_id=${id}&client_secret=${secret}`;
   const j = await withTimeout(url);
   const rows: any[] = j?.response ?? [];
   if (!Array.isArray(rows)) return [];
@@ -172,11 +180,12 @@ export async function diagnoseProviders(lat: number, lng: number): Promise<any> 
   if (xId && xSec) {
     try {
       const r = await fetch(
-        `https://data.api.xweather.com/lightning/${lat},${lng}?format=json&radius=40km&from=-15minutes&limit=200&client_id=${xId}&client_secret=${xSec}`
+        `https://data.api.xweather.com/lightning/${lat},${lng}?format=json&radius=40km&limit=200&client_id=${xId}&client_secret=${xSec}`
       );
       out.xweather.httpStatus = r.status;
       const j: any = await r.json().catch(() => null);
       out.xweather.apiError = j?.error?.code ?? null;
+      out.xweather.apiErrorDesc = j?.error?.description ?? null; // exact param when a warning fires
       out.xweather.strikeCount = Array.isArray(j?.response) ? j.response.length : 0;
     } catch (e) {
       out.xweather.fetchError = String(e);
