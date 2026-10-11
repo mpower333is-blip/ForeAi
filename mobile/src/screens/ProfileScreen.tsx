@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Switch } from "react-native";
-import { Screen, ScreenHeader, Card, Stepper, MetreStepper, TextField } from "../components/ui";
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert } from "react-native";
+import { Screen, ScreenHeader, Card, Stepper, MetreStepper, TextField, Button } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { ydToM } from "../lib/units";
 import { useRound } from "../state/RoundContext";
@@ -51,6 +51,38 @@ export default function ProfileScreen({ navigation }: any) {
   const updateCarry = (index: number, carry: number) => {
     const next = bag.map((c, i) => (i === index ? { ...c, carry } : c));
     setBag(next);
+  };
+
+  // Pull the player's current official index from HNA (via the hnaLookup Cloud
+  // Function) and apply it. Fails soft to manual entry when the club hasn't got
+  // official sync switched on, or the ID isn't in their HNA records.
+  const [hnaBusy, setHnaBusy] = useState(false);
+  const updateFromHna = async () => {
+    if (!saId.trim()) {
+      Alert.alert("Add your SA Player ID", "Enter your HNA / SA Player ID above first.");
+      return;
+    }
+    if (process.env.EXPO_PUBLIC_USE_FIRESTORE !== "1") {
+      Alert.alert("Not available", "Official handicap sync isn't enabled in this build.");
+      return;
+    }
+    setHnaBusy(true);
+    try {
+      const mod = require("../services/hna") as typeof import("../services/hna");
+      const res = await mod.lookupHandicapFromHna(saId.trim());
+      if (!res.configured) {
+        Alert.alert("Not connected yet", "Official HNA sync isn't switched on for your club yet — enter your index manually for now.");
+      } else if (res.handicapIndex == null) {
+        Alert.alert("Not found", "That SA Player ID isn't in your club's HNA records. Check the number, or enter your index manually.");
+      } else {
+        setPlayerHandicap(res.handicapIndex);
+        Alert.alert("Updated", `Your handicap index is now ${res.handicapIndex}, from HNA.`);
+      }
+    } catch {
+      Alert.alert("Couldn't reach HNA", "Try again shortly, or enter your index manually.");
+    } finally {
+      setHnaBusy(false);
+    }
   };
 
   return (
@@ -120,6 +152,12 @@ export default function ProfileScreen({ navigation }: any) {
             Your Handicaps Network Africa / Golf RSA player number. Add it once and, where your club
             has official sync switched on, your handicap index updates automatically for competitions.
           </Text>
+          <Button
+            variant="ghost"
+            label={hnaBusy ? "Updating…" : "Update from HNA"}
+            onPress={hnaBusy ? () => {} : updateFromHna}
+            style={{ marginTop: spacing.sm }}
+          />
         </View>
       </Card>
 
