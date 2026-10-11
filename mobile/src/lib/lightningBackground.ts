@@ -161,10 +161,24 @@ export async function startRoundLightningWatch(): Promise<void> {
     const fg = await Location.requestForegroundPermissionsAsync();
     if (fg.status !== "granted") return;
     // "Always"/background is what lets the watch keep running when the app is
-    // closed. If it's denied we still start updates (they run while the app is
-    // foregrounded), and the periodic background task covers the rest.
+    // closed. On Android 11+ this choice lives in the app's location settings, so
+    // guide the player to pick "Allow all the time" with a one-line prompt (this
+    // also makes the Google Play background-location review video self-
+    // explanatory). If it's denied we still start updates (they run while the app
+    // is foregrounded), and the periodic background task covers the rest.
     try {
-      await Location.requestBackgroundPermissionsAsync();
+      const bg = await Location.getBackgroundPermissionsAsync();
+      if (bg.status !== "granted") {
+        await new Promise<void>((resolve) => {
+          Alert.alert(
+            "Keep warnings on when the app is closed",
+            'Choose "Allow all the time" on the next screen so ForeAi can warn you of nearby lightning even when the app is closed or in your pocket.',
+            [{ text: "Continue", onPress: () => resolve() }],
+            { cancelable: false },
+          );
+        });
+        await Location.requestBackgroundPermissionsAsync();
+      }
     } catch {}
 
     const already = await Location.hasStartedLocationUpdatesAsync(LOC_TASK).catch(() => false);
