@@ -5,7 +5,7 @@ import * as admin from "firebase-admin";
 import { buildReport, buildOutlook, diagnoseProviders } from "./weatherCore";
 import { sendExpoPush, ExpoPushMessage } from "./expoPush";
 import { clubKeyForEmail } from "./clubAdmins";
-import { hnaCredsFromEnv, fetchClubMembers, lookupHandicap } from "./hna";
+import { hnaCredsFromEnv, fetchClubMembers, lookupHandicap, buildMemberLookup } from "./hna";
 
 // ForeAi Cloud Functions — the server-only jobs that can't run in the app or a
 // browser, migrated off Render. Provider keys (XWEATHER_*, TWC_*) are read from
@@ -161,12 +161,12 @@ export const syncClubHna = onCall(async (req) => {
     console.error("syncClubHna fetch failed", e);
     throw new HttpsError("unavailable", "Could not reach HNA — try again shortly.");
   }
-  const byId = new Map(members.map((m) => [m.saId, m]));
+  const lookup = buildMemberLookup(members);
 
   const batch = db.batch();
   let updated = 0;
   for (const m of roster) {
-    const hit = byId.get(String(m.hnaId).trim());
+    const hit = lookup(String(m.hnaId));
     if (hit && hit.handicapIndex != null && hit.handicapIndex !== m.handicapIndex) {
       batch.update(db.collection("clubs").doc(clubKey).collection("members").doc(m.id), {
         handicapIndex: hit.handicapIndex,

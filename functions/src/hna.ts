@@ -27,10 +27,15 @@ const DEFAULT_VERSION = "v1"; // path version; the Swagger is labelled V3, so se
 
 export type HnaCreds = { username: string; secretKey: string };
 
-// A member as the sync cares about it: who they are on HNA + their current index.
+// A member as the sync cares about it: every identity value we can match a
+// roster `hnaId` against + their current index. A club admin or player may have
+// stored any of the membership number, central (SAGA) code, SA ID number, or the
+// DotGolf UID as the "HNA id", so we match on all of them.
 export type HnaMember = {
-  saId: string; // SA Player ID / national/membership number (the key we match on)
-  handicapIndex: number | null;
+  ids: string[]; // membershipNumber, centralMemberCode, nationalIdentityNumber, memberUID
+  memberUID: string;
+  handicapIndex: number | null; // WHS signed (plus handicaps negative)
+  displayIndex?: string;
   firstName?: string;
   lastName?: string;
 };
@@ -146,26 +151,49 @@ async function getJson(path: string, creds: HnaCreds): Promise<any> {
 // endpoint path if your account's differs from the default.
 const num = (v: any): number | null => (v == null || v === "" || isNaN(Number(v)) ? null : Number(v));
 const str = (v: any): string => (v == null ? "" : String(v)).trim();
+// Normalise an id for matching: drop spaces, lower-case (UIDs/codes vary in case).
+export const normId = (v: any): string => str(v).replace(/\s+/g, "").toLowerCase();
 
-function pick(o: any, keys: string[]): any {
-  for (const k of keys) if (o && o[k] != null && o[k] !== "") return o[k];
-  return undefined;
+// Parse one DotGolf ISV member row. The index is nested under member.handicap,
+// and a plus handicap (better than scratch) shows a leading "+" in displayIndex
+// and plays as a NEGATIVE index, so we sign it from the display string.
+export function parseMember(r: any): HnaMember | null {
+  const m = r?.member ?? {};
+  const ids = [
+    str(r?.membershipNumber),
+    str(m?.centralMemberCode),
+    str(r?.nationalIdentityNumber),
+    str(r?.memberUID),
+    str(m?.uid),
+  ].filter(Boolean);
+  if (!ids.length) return null;
+
+  const idxNum = num(m?.handicap?.index);
+  const displayIndex = str(m?.handicap?.displayIndex);
+  const handicapIndex = idxNum == null ? null : displayIndex.startsWith("+") ? -Math.abs(idxNum) : idxNum;
+
+  return {
+    ids,
+    memberUID: str(r?.memberUID) || str(m?.uid),
+    handicapIndex,
+    displayIndex: displayIndex || undefined,
+    firstName: str(r?.firstName) || undefined,
+    lastName: str(r?.lastName) || undefined,
+  };
 }
 
-export function parseMember(r: any): HnaMember | null {
-  const saId = str(
-    pick(r, ["saId", "saPlayerId", "playerId", "nationalId", "idNumber", "membershipNumber", "memberId", "sagaNumber"])
-  );
-  if (!saId) return null;
-  const handicapIndex = num(
-    pick(r, ["handicapIndex", "exactHandicap", "handicap", "index", "hi", "currentHandicapIndex"])
-  );
-  return {
-    saId,
-    handicapIndex,
-    firstName: str(pick(r, ["firstName", "firstname", "givenName", "name"])) || undefined,
-    lastName: str(pick(r, ["lastName", "lastname", "surname", "familyName"])) || undefined,
-  };
+// Build a lookup from every identity value → member, so a roster `hnaId`
+// matching any of a member's ids resolves. Later ids don't overwrite an earlier
+// member on collision (membershipNumber wins over the UID).
+export function buildMemberLookup(members: HnaMember[]): (id: string) => HnaMember | undefined {
+  const map = new Map<string, HnaMember>();
+  for (const mem of members) {
+    for (const id of mem.ids) {
+      const k = normId(id);
+      if (k && !map.has(k)) map.set(k, mem);
+    }
+  }
+  return (id: string) => map.get(normId(id));
 }
 
 // All members for the configured club, with their current handicap index.
@@ -194,12 +222,12 @@ async function fetchClubMembersCached(creds: HnaCreds): Promise<HnaMember[]> {
   return members;
 }
 
-// Single player's current index by SA Player ID (for the app's "update from HNA"
-// button). The ISV API is club-scoped, so we pull the club roster and match.
+// Single player's current index by any of their HNA ids (for the app's "update
+// from HNA" button). The ISV API is club-scoped, so we pull the club roster and
+// match against every identity field.
 export async function lookupHandicap(creds: HnaCreds, saId: string): Promise<number | null> {
-  const target = str(saId);
-  if (!target) return null;
+  if (!normId(saId)) return null;
   const members = await fetchClubMembersCached(creds);
-  const hit = members.find((m) => m.saId === target);
+  const hit = buildMemberLookup(members)(saId);
   return hit ? hit.handicapIndex : null;
 }

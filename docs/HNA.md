@@ -41,12 +41,23 @@ defensive member parser, and a 1-hour member-list cache for lookups.
    Secret Key for the club.
 2. **Set env** in `functions/.env` (git-ignored): `HNA_USERNAME`,
    `HNA_SECRET_KEY` (optional: `HNA_API_BASE`, `HNA_COUNTRY`, `HNA_MEMBERS_PATH`).
-3. **Confirm the Club Members response** in the Swagger UI
-   (`http://isvapi.wa.dotgolf.co.uk`, country `wal`): check the exact field names
-   for the **SA Player ID** and **handicap index**. `parseMember()` already tries
-   the common spellings; add the real ones if they differ, and set
-   `HNA_MEMBERS_PATH` if the path isn't `/members`.
+3. **Confirm the version + Club Members path** in the Swagger UI
+   (`http://isvapi.wa.dotgolf.co.uk`, labelled **V3**): set `HNA_API_VERSION`
+   (v1 or v3) to match the endpoint paths, and `HNA_MEMBERS_PATH` if the Club
+   Members path isn't `/members`.
 4. **Deploy** (`firebase deploy --only functions`) and run a sync.
+
+### Confirmed member schema (DotGolf ISV)
+
+`parseMember()` is matched to the real response:
+- **Identity** (we match a roster `hnaId` against *all* of these, normalised):
+  `membershipNumber`, `member.centralMemberCode` (SAGA/central code),
+  `nationalIdentityNumber`, `memberUID`.
+- **Handicap index:** nested at `member.handicap.index` (number). A plus handicap
+  shows a leading `+` in `member.handicap.displayIndex`, so we sign it negative
+  for WHS scoring. Status flags (`isWithdrawn`/`isProvisional`/`isFrozen`/
+  `isPending`) are available if we later want to exclude non-active handicaps.
+- **Name:** `firstName`, `lastName`.
 
 ## The functions (built, gen2, `europe-west1`)
 
