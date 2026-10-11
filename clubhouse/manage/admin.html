@@ -18,8 +18,15 @@
   .tile .v.gold{color:var(--gold)} .tile .v.green{color:var(--green)}
   section{margin-bottom:26px}
   h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);margin:0 0 10px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  /* Scroll wide tables horizontally inside the rounded card instead of clipping
+     them — the far-right actions (Office/Board/Delete) stay reachable on phones
+     and narrow windows. overflow-y stays hidden so the corners keep their radius. */
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
   table{width:100%;border-collapse:collapse}
+  /* Keep the many-column tables usable: don't let columns crush below this, so
+     the card scrolls sideways on small screens rather than squashing content. */
+  #events table{min-width:760px}
+  #organisers table{min-width:560px}
   th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:middle}
   th{color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.06em;background:var(--panel2)}
   tr:last-child td{border-bottom:none}
