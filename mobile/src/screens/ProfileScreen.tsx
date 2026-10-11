@@ -112,6 +112,7 @@ export default function ProfileScreen({ navigation }: any) {
 
       <Card>
         <Text style={styles.sectionTitle}>More</Text>
+        <MoreLink emoji="📈" label="My Golf — handicap & history" onPress={() => navigation.navigate("MyGolf")} />
         <MoreLink emoji="🎒" label="AI Caddie" onPress={() => navigation.navigate("Caddie")} />
         <MoreLink emoji="📊" label="Strokes-gained stats" onPress={() => navigation.navigate("Stats")} />
         <MoreLink emoji="🧭" label="Course strategy" onPress={() => navigation.navigate("Strategy")} />

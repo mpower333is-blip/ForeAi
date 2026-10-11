@@ -1,14 +1,53 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Alert } from "react-native";
 import { Screen, ScreenHeader, Card, StatTile, SGBar, Button, EmptyState } from "../components/ui";
 import { colors, spacing } from "../theme";
 import { useRound } from "../state/RoundContext";
+import { useRoundHistory } from "../state/RoundHistoryContext";
+import { scoreDifferential } from "../lib/handicap";
 import { signed } from "../lib/golfEngine";
 import RoundSummaryCard from "../components/RoundSummaryCard";
 import { maybeAskForReview } from "../lib/reviewPrompt";
 
 export default function StatsScreen({ navigation }: any) {
-  const { shots, totalStrokesGained, categorySG, resetRound, holeStats, scoreTotals } = useRound();
+  const { shots, totalStrokesGained, categorySG, resetRound, holeStats, scoreTotals, selectedCourse, teeId, playerHandicap } = useRound();
+  const { addRound } = useRoundHistory();
+  const [saved, setSaved] = React.useState(false);
+
+  // Snapshot the finished round into the on-device history that powers My Golf —
+  // handicap trend, bests and an estimated index. Explicit (a button) so practice
+  // or abandoned cards don't pollute the record. Differential needs 18 holes and
+  // the course's rating/slope; otherwise it's stored without one.
+  const saveToMyGolf = () => {
+    const st = scoreTotals;
+    if (!st || st.holesPlayed === 0) {
+      Alert.alert("Nothing to save", "Log some hole scores first.");
+      return;
+    }
+    let cr: number | undefined, slope: number | undefined;
+    const tees = (selectedCourse as any)?.scorecard?.tees as Array<any> | undefined;
+    if (tees && tees.length) {
+      const t =
+        tees.find((x) => String(x.name || "").toLowerCase() === String(teeId).toLowerCase()) ||
+        tees.find((x) => typeof x.cr === "number" && typeof x.slope === "number");
+      if (t) { cr = t.cr; slope = t.slope; }
+    }
+    const differential = st.holesPlayed >= 18 && cr && slope ? scoreDifferential(st.total, cr, slope) : null;
+    addRound({
+      courseId: (selectedCourse as any)?.id || "",
+      courseName: (selectedCourse as any)?.name || "Course",
+      holesPlayed: st.holesPlayed,
+      gross: st.total,
+      net: st.net,
+      stableford: st.points,
+      toPar: st.toPar,
+      sgTotal: shots.length ? totalStrokesGained : null,
+      differential,
+      handicapIndex: playerHandicap ?? null,
+    });
+    setSaved(true);
+    Alert.alert("Saved to My Golf", "This round is in your history and handicap trend.");
+  };
 
   // After a real round (at least a full nine on the summary), ask for a store
   // rating at this positive moment. Gated/rate-limited in reviewPrompt so it
@@ -60,6 +99,14 @@ export default function StatsScreen({ navigation }: any) {
       <ScreenHeader title="Strokes Gained" subtitle="How your round breaks down by part of the game." onBack={() => navigation.goBack()} />
 
       <RoundSummaryCard />
+
+      {scoreTotals.holesPlayed > 0 && (
+        <Button
+          variant={saved ? "ghost" : "primary"}
+          label={saved ? "✓ Saved to My Golf" : "Save round to My Golf"}
+          onPress={saved ? () => navigation.navigate("MyGolf") : saveToMyGolf}
+        />
+      )}
 
       {rs.count > 0 && (
         <Card>

@@ -12,6 +12,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { RoundProvider } from "./src/state/RoundContext";
+import { RoundHistoryProvider } from "./src/state/RoundHistoryContext";
 import { TournamentProvider } from "./src/state/TournamentContext";
 import { GamesProvider } from "./src/state/GamesContext";
 import { PlanProvider, usePlan } from "./src/state/PlanContext";
@@ -51,6 +52,7 @@ import SwingScreen from "./src/screens/SwingScreen";
 import EventsScreen from "./src/screens/EventsScreen";
 import StrategyScreen from "./src/screens/StrategyScreen";
 import StatsScreen from "./src/screens/StatsScreen";
+import MyGolfScreen from "./src/screens/MyGolfScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import CourseSelectScreen from "./src/screens/CourseSelectScreen";
 import CourseSurveyScreen from "./src/screens/CourseSurveyScreen";
@@ -165,6 +167,7 @@ function Root() {
             unlocked, so the Round screen's links to these all work on the day. */}
         <Stack.Screen name="Caddie" component={CaddieScreen} />
         <Stack.Screen name="Stats" component={locked(StatsScreen, "stats")} />
+        <Stack.Screen name="MyGolf" component={MyGolfScreen} options={{ title: "My Golf" }} />
         <Stack.Screen name="Strategy" component={locked(StrategyScreen, "strategy")} />
         <Stack.Screen name="Games" component={locked(GamesScreen, "games")} />
         {/* On-course GPS + coordinate survey, reachable from Home in the full app
@@ -211,6 +214,7 @@ export default function App() {
         <AuthProvider>
         <MemberProvider>
         <CourseCoordsProvider>
+        <RoundHistoryProvider>
         <RoundProvider>
           <TournamentProvider>
             {/* Plan sits inside Tournament so a live golf day can unlock the
@@ -225,6 +229,7 @@ export default function App() {
             </PlanProvider>
           </TournamentProvider>
         </RoundProvider>
+        </RoundHistoryProvider>
         </CourseCoordsProvider>
         </MemberProvider>
         </AuthProvider>
