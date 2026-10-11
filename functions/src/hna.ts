@@ -21,7 +21,9 @@
 import * as crypto from "crypto";
 
 const DEFAULT_BASE = "http://isvapi.wa.dotgolf.co.uk";
-const DEFAULT_COUNTRY = "wal"; // country code in the path (/api/<country>/v1/...)
+const DEFAULT_COUNTRY = "wal"; // country code in the path (/api/<country>/<version>/...)
+const DEFAULT_VERSION = "v1"; // path version; the Swagger is labelled V3, so set
+// HNA_API_VERSION=v3 if the endpoints live under /v3.
 
 export type HnaCreds = { username: string; secretKey: string };
 
@@ -39,8 +41,11 @@ function base() {
 function country() {
   return process.env.HNA_COUNTRY || DEFAULT_COUNTRY;
 }
+function version() {
+  return process.env.HNA_API_VERSION || DEFAULT_VERSION;
+}
 function apiUrl(path: string) {
-  return `${base()}/api/${country()}/v1${path}`;
+  return `${base()}/api/${country()}/${version()}${path}`;
 }
 
 // Read the single configured club's credentials from env. Returns null when not
