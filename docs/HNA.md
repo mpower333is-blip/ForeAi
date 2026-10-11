@@ -9,53 +9,62 @@ closing the one feature gap vs ScoreCapture.
 | Piece | State |
 |---|---|
 | Player enters **SA Player ID (HNA)** + handicap index in the app | ✅ done (`ProfileContext.saId`, Profile screen) |
-| Club roster carries `hnaId` + `handicapIndex` per member | ✅ already in `members.html` (old backend) |
+| Club roster carries `hnaId` + `handicapIndex` per member | ✅ `clubs/{clubKey}/members` |
 | Competition scoring uses the index (course/playing handicap, strokes received) | ✅ `compScoring.ts` |
-| **Live pull of the current index from HNA** | ⛔ blocked on API access (see below) |
+| **DotGolf ISV client + sync functions** | ✅ built (`functions/src/hna.ts`, `syncClubHna`/`hnaLookup`) |
+| **Live sync switched on** | ⏳ needs per-club DotGolf credentials + a Swagger field-name check |
 
-So everything we control is built; the only missing piece is the live data feed,
-which only HNA/DotGolf can grant.
+The integration is **implemented and gated** — it activates the moment the
+club's DotGolf credentials are set, exactly like the Xweather weather feed.
 
-## The blocker: there is no public HNA API
+## The API: DotGolf ISV
 
-HNA moved its platform to **DotGolf** (the HNA Handicaps app is
-`za.co.dotgolf.mygolf`). Players authenticate with an **SA Player ID (Golf RSA
-ID) + PIN**; indexes recompute nightly (~22:00). There is **no documented public
-API** — third-party integrations go through HNA/DotGolf directly.
+HNA's platform is **DotGolf**. The ISV API (`http://isvapi.wa.dotgolf.co.uk`) is
+JWT-based (HS256) and issues a **Username + Secret Key per club**:
 
-**Action to unblock:** email **info@handicaps.co.za** (and ask about DotGolf's
-partner/developer programme). Request: a server-to-server endpoint to read a
-player's current Handicap Index by SA Player ID, plus an API key. This is the
-same situation we had with Xweather — once credentials exist, the code below
-activates.
+1. Build a client-token JWT (claims `aud:"isv-api"`, `iss:<username>`, `iat`),
+   signed with the Secret Key.
+2. `POST /api/wal/v1/account/token { clientToken }` → `{ accessToken,
+   refreshToken, expiresAtUTC }`.
+3. Send `Authorization: Bearer <accessToken>` on all requests; renew via
+   `/account/renew`.
+4. Rate limit: **300 req/min** per username. Endpoints: Club Members, Courses,
+   Scores, Visitors. Country code `wal`.
 
-## Design (ready to switch on)
+`functions/src/hna.ts` implements all of this with Node's built-in `crypto` (no
+dependency): client-token signing, token caching + renew per warm instance, a
+defensive member parser, and a 1-hour member-list cache for lookups.
 
-Mirror the weather pattern: a credential-gated Cloud Function, free/manual
-fallback until configured, secret stays server-side.
+## To switch it on
 
-1. **Env** (`functions/.env`, git-ignored — placeholders in `.env.example`):
-   `HNA_API_URL`, `HNA_API_KEY`, optional `HNA_CLUB_ID`.
+1. **Get credentials** from DotGolf/HNA (info@handicaps.co.za) — a Username +
+   Secret Key for the club.
+2. **Set env** in `functions/.env` (git-ignored): `HNA_USERNAME`,
+   `HNA_SECRET_KEY` (optional: `HNA_API_BASE`, `HNA_COUNTRY`, `HNA_MEMBERS_PATH`).
+3. **Confirm the Club Members response** in the Swagger UI
+   (`http://isvapi.wa.dotgolf.co.uk`, country `wal`): check the exact field names
+   for the **SA Player ID** and **handicap index**. `parseMember()` already tries
+   the common spellings; add the real ones if they differ, and set
+   `HNA_MEMBERS_PATH` if the path isn't `/members`.
+4. **Deploy** (`firebase deploy --only functions`) and run a sync.
 
-2. **`functions/src/hna.ts`** — `fetchHnaIndex(saId): Promise<number | null>`
-   - returns `null` when `HNA_API_URL`/`HNA_API_KEY` are unset (→ caller falls
-     back to the manually-entered index);
-   - when set, GETs the player's record from the HNA/DotGolf endpoint and parses
-     the current index. (Exact path/field names come from DotGolf's spec.)
+## The functions (built, gen2, `europe-west1`)
 
-3. **`functions/src/index.ts`** — two gen2 endpoints (region `europe-west1`):
-   - `hnaLookup` (onRequest/onCall): `{ saId } → { configured, handicapIndex? }`.
-     The app's Profile "Update from HNA" button calls this and, on success, sets
-     `handicapIndex` locally (fail-soft to manual entry).
-   - `syncClubHna` (onCall, club-admin only): iterates the club roster's members
-     that have an `hnaId`, calls `fetchHnaIndex`, writes `handicapIndex` back to
-     each `members/{id}` doc. Returns `{ configured, candidates, updated }` —
-     matching the contract `members.html syncHna()` already expects
-     (`{ notConfigured, candidates }` today).
+- **`syncClubHna`** (onCall, club admin): reads the caller's club from the
+  server-trusted `adminUsers/{uid}`, pulls HNA Club Members, and updates every
+  roster member whose `hnaId` matches an HNA `saId` with the current index
+  (writes `handicapIndex` + `handicapSyncedAt`). Returns `{ configured,
+  candidates, updated }` — the contract `members.html syncHna()` already expects.
+- **`hnaLookup`** (onCall, signed-in player): `{ saId } → { configured,
+  handicapIndex }` for the app's "Update from HNA" button. Works when the player
+  is in the configured club's roster.
 
-4. **Caching / budget:** indexes change at most once/day, so cache a player's
-   lookup for ~12–24h (Firestore, keyed by `saId`) to keep partner-API calls
-   minimal. A club batch sync is a once-a-day job (or on-demand before a comp).
+**Budget:** indexes recompute nightly, so `hnaLookup` serves from a 1-hour cache;
+`syncClubHna` always pulls fresh (admin-triggered). Both stay far inside 300/min.
+
+**Multi-club:** creds are read from env (one club today). To serve several clubs,
+resolve `{username, secretKey}` per `clubKey` (Secret Manager or a protected
+config doc) and pass them to the same `hna.ts` functions — no other change.
 
 ## Wiring notes
 

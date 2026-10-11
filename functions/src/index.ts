@@ -5,6 +5,7 @@ import * as admin from "firebase-admin";
 import { buildReport, buildOutlook, diagnoseProviders } from "./weatherCore";
 import { sendExpoPush, ExpoPushMessage } from "./expoPush";
 import { clubKeyForEmail } from "./clubAdmins";
+import { hnaCredsFromEnv, fetchClubMembers, lookupHandicap } from "./hna";
 
 // ForeAi Cloud Functions — the server-only jobs that can't run in the app or a
 // browser, migrated off Render. Provider keys (XWEATHER_*, TWC_*) are read from
@@ -120,6 +121,81 @@ export const provisionOrganiser = onCall(async (req) => {
   await ref.set(data, { merge: true });
 
   return { uid, email: data.email, name: data.name, clubKey: data.clubKey, role: data.role };
+});
+
+// ── Official handicap sync (HNA / DotGolf) ───────────────────────────────────
+// Pull current official Handicap Indexes from Handicaps Network Africa (via the
+// DotGolf ISV API) into the club roster, so a club can run its competitions on
+// ForeAi alone. The provider secret stays server-side (functions/.env); without
+// it both functions report notConfigured and the app/roster keep using
+// manually-entered indexes. See docs/HNA.md.
+
+// syncClubHna (club admin): refresh every roster member that has an hnaId with
+// their current official index. Matches roster member.hnaId to HNA member.saId.
+export const syncClubHna = onCall(async (req) => {
+  const auth = req.auth;
+  if (!auth) throw new HttpsError("unauthenticated", "Sign in first.");
+
+  // Resolve the caller's club from the server-trusted admin record.
+  const adminSnap = await db.collection("adminUsers").doc(auth.uid).get();
+  const me = (adminSnap.exists ? adminSnap.data() : {}) as any;
+  const clubKey = String(req.data?.clubKey || me.clubKey || "").trim();
+  if (!clubKey || (me.clubKey !== clubKey && me.role !== "owner")) {
+    throw new HttpsError("permission-denied", "Not an admin for this club.");
+  }
+
+  // Roster members that carry an HNA / SA Player ID.
+  const rosterSnap = await db.collection("clubs").doc(clubKey).collection("members").get();
+  const roster = rosterSnap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as any) }))
+    .filter((m) => String(m.hnaId || "").trim());
+  const candidates = roster.length;
+
+  const creds = hnaCredsFromEnv();
+  if (!creds) return { configured: false, notConfigured: true, candidates, updated: 0 };
+
+  let members;
+  try {
+    members = await fetchClubMembers(creds);
+  } catch (e) {
+    console.error("syncClubHna fetch failed", e);
+    throw new HttpsError("unavailable", "Could not reach HNA — try again shortly.");
+  }
+  const byId = new Map(members.map((m) => [m.saId, m]));
+
+  const batch = db.batch();
+  let updated = 0;
+  for (const m of roster) {
+    const hit = byId.get(String(m.hnaId).trim());
+    if (hit && hit.handicapIndex != null && hit.handicapIndex !== m.handicapIndex) {
+      batch.update(db.collection("clubs").doc(clubKey).collection("members").doc(m.id), {
+        handicapIndex: hit.handicapIndex,
+        handicapSyncedAt: Date.now(),
+      });
+      updated++;
+    }
+  }
+  if (updated) await batch.commit();
+  return { configured: true, candidates, updated };
+});
+
+// hnaLookup (signed-in player): current index for one SA Player ID, for the
+// app's "Update from HNA" button. Works when the player is in the configured
+// club's roster; returns { configured:false } until creds are set.
+export const hnaLookup = onCall(async (req) => {
+  if (!req.auth) throw new HttpsError("unauthenticated", "Sign in first.");
+  const saId = String(req.data?.saId || "").trim();
+  if (!saId) throw new HttpsError("invalid-argument", "saId is required.");
+
+  const creds = hnaCredsFromEnv();
+  if (!creds) return { configured: false };
+  try {
+    const handicapIndex = await lookupHandicap(creds, saId);
+    return { configured: true, saId, handicapIndex };
+  } catch (e) {
+    console.error("hnaLookup failed", e);
+    throw new HttpsError("unavailable", "Could not reach HNA — try again shortly.");
+  }
 });
 
 // ── Weather + live lightning ────────────────────────────────────────────────
