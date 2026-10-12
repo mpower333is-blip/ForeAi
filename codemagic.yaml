@@ -148,10 +148,10 @@ workflows:
       - name: Generate native Android project (expo prebuild)
         script: |
           cd mobile
-          export ANDROID_VERSION_CODE=$((2000 + ${BUILD_NUMBER:-1}))
+          export ANDROID_VERSION_CODE=$((20000 + ${BUILD_NUMBER:-1}))
           echo "=================================================="
           echo "  Kempton versionCode for this build: $ANDROID_VERSION_CODE"
-          echo "  (package com.foreai.kempton — its own 2000+ lane)"
+          echo "  (package com.foreai.kempton — its own 20000+ lane (above the already-used 3009))"
           echo "=================================================="
           npx expo prebuild --platform android --no-install
       - name: Decode the upload keystore
@@ -165,7 +165,7 @@ workflows:
             -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
-          V=$((2000 + ${BUILD_NUMBER:-1}))
+          V=$((20000 + ${BUILD_NUMBER:-1}))
           mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/ForeAi-Kempton-$V.aab"
     artifacts:
       - mobile/android/app/build/outputs/**/ForeAi-Kempton-*.aab
