@@ -161,6 +161,28 @@
       <div class="hint">Two ways to load entries — mix &amp; match: <b>(1)</b> the individual team / hole / prize <b>forms</b> people emailed, or <b>(2)</b> one <b>team-list spreadsheet</b> — a sheet with a <i>Company/Team</i> column and either <i>Player 1…4</i> columns (one team per row) or a <i>Player Name</i> column (one player per row, grouped by company). Handicap columns are picked up if present. It reads everything here (nothing uploaded), shows a preview, then adds them — duplicates are skipped.</div>
       <div id="importPreview"></div>
     </div>
+
+    <!-- Add a complimentary team: the organiser / main sponsor can add their own
+         players to the golf day at no charge (they still play, score in the app
+         and appear on the tee sheet; they add R0 to the totals). -->
+    <div class="card" style="display:flex;flex-direction:column;gap:8px">
+      <div class="row" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="company">➕ Add a team (no charge)</span>
+        <button class="btn" type="button" onclick="toggleAddTeam()">＋ Add team</button>
+      </div>
+      <div class="hint">For your own or your main sponsor's teams — add them straight to the day without a fee. They appear in the field, score live in the app, and show on the tee sheet, billed at <b>R0 (complimentary)</b>.</div>
+      <div id="addTeamForm" style="display:none;margin-top:4px">
+        <label class="elab">Team / company name<input id="atName" placeholder="e.g. ECS Engine Control Systems" /></label>
+        <div id="atPlayers" style="margin-top:8px"></div>
+        <button class="btn ghost sm" type="button" onclick="addPlayerRow()" style="margin-top:4px">＋ Add player</button>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn" type="button" onclick="submitAddTeam()">Add team (complimentary)</button>
+          <button class="btn ghost sm" type="button" onclick="toggleAddTeam(false)">Cancel</button>
+          <span id="atMsg" class="hint" style="margin-left:4px"></span>
+        </div>
+      </div>
+    </div>
+
     <details class="card" id="setupBox">
       <summary style="cursor:pointer;font-weight:700;color:var(--lime)">⚙️ Event setup — already done · tap to edit name, course, tee times, logo, banking or fees</summary>
       <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
@@ -277,6 +299,10 @@
   // Actual players in a registration (falls back to 4 per team if none listed).
   function playerCount(r){ var p=r.payload||{}; var teams=Array.isArray(p.teams)?p.teams:[]; var n=teams.reduce(function(s,t){return s+((t.players||[]).length);},0); return n||teamCount(r)*4; }
   function amountFor(r){
+    // Complimentary entries (the organiser's / main sponsor's own teams, added
+    // from the office) are never charged — they still play and count as players,
+    // but add R0 to Expected / Outstanding.
+    if(r.comp || (r.payload && r.payload.comp)) return 0;
     var pf=(EVENT&&EVENT.playerFee), tf=(EVENT&&EVENT.teamFee)||TEAM_FEE, hf=(EVENT&&EVENT.holeFee)||HOLE_FEE;
     // Per-player pricing (e.g. school leagues R60/child) when a player fee is set;
     // otherwise the classic per-team fee.
@@ -284,6 +310,58 @@
     if(r.type==='hole') return hf;
     if(r.type==='prize') return (r.payload&&r.payload.prizeType==='cash')?parseAmount(r.payload.cashAmount):0;
     return 0;
+  }
+
+  // ---- Add a complimentary team (organiser / main sponsor) ------------------
+  // Uses the SAME register/team path the import uses, with comp:true so it's
+  // billed at R0. It still creates the event's groups + players, so the team
+  // plays, scores live in the app and appears on the tee sheet.
+  function toggleAddTeam(show){
+    var f=document.getElementById('addTeamForm'); if(!f) return;
+    var on = (show===undefined) ? (f.style.display==='none') : !!show;
+    f.style.display = on ? 'block' : 'none';
+    var box=document.getElementById('atPlayers');
+    if(on && box && !box.children.length){ for(var i=0;i<4;i++) addPlayerRow(); }
+    var msg=document.getElementById('atMsg'); if(msg) msg.textContent='';
+  }
+  function addPlayerRow(name, hcp){
+    var box=document.getElementById('atPlayers'); if(!box) return;
+    var n=box.children.length+1;
+    var div=document.createElement('div');
+    div.className='eplayer';
+    div.innerHTML='<input class="at-pname" placeholder="Player '+n+' name" value="'+escH(name||'')+'" />'
+      +'<input class="at-phcp" type="number" step="0.1" placeholder="HCP" style="max-width:84px;flex:0 0 auto" value="'+(hcp==null?'':escH(hcp))+'" />';
+    box.appendChild(div);
+  }
+  async function submitAddTeam(){
+    var msg=document.getElementById('atMsg');
+    var name=(document.getElementById('atName').value||'').trim();
+    if(!name){ msg.textContent='Enter a team / company name.'; return; }
+    var pnames=[].slice.call(document.querySelectorAll('#atPlayers .at-pname'));
+    var phcps=[].slice.call(document.querySelectorAll('#atPlayers .at-phcp'));
+    var players=[];
+    pnames.forEach(function(inp,i){
+      var nm=(inp.value||'').trim(); if(!nm) return;
+      var h=parseFloat((phcps[i]&&phcps[i].value)||'');
+      players.push(h===h ? {name:nm, handicap:h} : {name:nm});
+    });
+    if(!players.length){ msg.textContent='Add at least one player.'; return; }
+    msg.textContent='Adding…';
+    try{
+      var body={ company:name, comp:true, teamCount:1, teams:[{players:players}] };
+      var r=await fetch(CFG.api+'/tournaments/code/'+encodeURIComponent(CFG.code)+'/register/team',
+        {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(r.ok){
+        msg.textContent='Added — complimentary, no charge.';
+        document.getElementById('atName').value='';
+        document.getElementById('atPlayers').innerHTML='';
+        for(var i=0;i<4;i++) addPlayerRow();
+        refresh();
+      } else {
+        var e=await r.json().catch(function(){return{};});
+        msg.textContent=(e&&e.error)||('Could not add ('+r.status+').');
+      }
+    }catch(e){ msg.textContent=e.message||'Could not add.'; }
   }
 
   async function connect(){
@@ -594,12 +672,15 @@
     var contact='<div class="meta"><b>'+esc(r.contactPerson||'')+'</b> · '+esc(r.cell||'')+' · '+esc(r.email||'')
       +'<br>'+[r.regNumber?('Reg '+esc(r.regNumber)):'', r.vatNumber?('VAT '+esc(r.vatNumber)):'', esc([r.address,r.city,r.postalCode].filter(Boolean).join(', '))].filter(Boolean).join(' · ')+'</div>';
     var amt=amountFor(r);
+    var isComp=!!(r.comp || (r.payload && r.payload.comp));
+    var amtLabel = isComp ? 'Complimentary' : (amt?money(amt):'in-kind');
     var st=r.status||'new';
     function sb(v,label){ return '<button class="sbtn '+(st===v?'on-'+v:'')+'" onclick="setStatus(\''+r.id+'\',\''+v+'\')">'+label+'</button>'; }
     return '<div class="card">'
       +'<div class="rowtop"><div><span class="company">'+esc(r.company)+'</span>'
-        +'<span class="badge b-'+r.type+'">'+typeLabel+'</span></div>'
-        +'<div class="amt"><div class="big">'+ (amt?money(amt):'in-kind') +'</div><div class="ref">Ref: '+esc(((EVENT&&EVENT.name)||'Golf day')+' - '+r.company)+'</div></div></div>'
+        +'<span class="badge b-'+r.type+'">'+typeLabel+'</span>'
+        +(isComp?' <span class="badge b-team">no charge</span>':'')+'</div>'
+        +'<div class="amt"><div class="big">'+ amtLabel +'</div><div class="ref">Ref: '+esc(((EVENT&&EVENT.name)||'Golf day')+' - '+r.company)+'</div></div></div>'
       + contact + detail
       +'<div class="status"><span class="lbl">Status</span>'+sb('new','New')+sb('paid','Paid')+sb('confirmed','Confirmed')
         +'<button class="sbtn" style="margin-left:auto" onclick="editReg(\''+r.id+'\')">✎ Edit</button>'
