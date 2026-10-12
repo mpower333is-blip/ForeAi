@@ -692,6 +692,22 @@
   function fld(id,label,val,ph){
     return '<label class="elab">'+esc(label)+'<input id="'+id+'" value="'+esc(val||'')+'"'+(ph?(' placeholder="'+esc(ph)+'"'):'')+'></label>';
   }
+  // One player row in the team editor. Reused when adding a player to a team.
+  function editPlayerRow(ti,pi,name,hcp){
+    return '<div class="eplayer">'
+      +'<input id="e_t'+ti+'_p'+pi+'_name" value="'+escH(name||'')+'" placeholder="Player '+(pi+1)+' name">'
+      +'<input id="e_t'+ti+'_p'+pi+'_hcp" value="'+escH(hcp!=null&&hcp!==''?hcp:'')+'" placeholder="H/cap" style="max-width:80px">'
+      +'</div>';
+  }
+  // Append a player to an existing team in the editor. Saving reconciles the
+  // team's four-ball on the event roster, so the new player shows in the app.
+  function addEditPlayer(ti){
+    var cnt=document.getElementById('e_t'+ti+'_np'); if(!cnt) return;
+    var np=parseInt(cnt.value,10)||0;
+    var box=document.getElementById('eplayers_'+ti); if(!box) return;
+    box.insertAdjacentHTML('beforeend', editPlayerRow(ti,np,'',''));
+    cnt.value = np+1;
+  }
   function editCardHTML(r){
     var p=r.payload||{};
     var typeLabel=r.type==='team'?'TEAM':r.type==='hole'?'HOLE SPONSOR':'PRIZE SPONSOR';
@@ -732,12 +748,11 @@
         var players=(t.players||[]).slice();
         while(players.length<4) players.push({name:'',handicap:''});
         extra+='<div class="eteam"><div class="ehead">Team '+(ti+1)+'</div>';
-        players.forEach(function(pl,pi){
-          extra+='<div class="eplayer">'
-            +'<input id="e_t'+ti+'_p'+pi+'_name" value="'+esc(pl.name||'')+'" placeholder="Player '+(pi+1)+' name">'
-            +'<input id="e_t'+ti+'_p'+pi+'_hcp" value="'+esc(pl.handicap!=null?pl.handicap:'')+'" placeholder="H/cap" style="max-width:80px">'
-            +'</div>';
-        });
+        extra+='<div id="eplayers_'+ti+'">';
+        players.forEach(function(pl,pi){ extra+=editPlayerRow(ti,pi,pl.name,pl.handicap); });
+        extra+='</div>';
+        extra+='<input type="hidden" id="e_t'+ti+'_np" value="'+players.length+'">';
+        extra+='<button class="btn ghost sm" type="button" onclick="addEditPlayer('+ti+')" style="margin-top:6px">＋ Add player</button>';
         extra+='</div>';
       });
       extra+='<input type="hidden" id="e_nteams" value="'+teams.length+'">';
@@ -783,8 +798,9 @@
     if(r.type==='team'){
       var nt=parseInt(ev('e_nteams'),10)||1, teams=[];
       for(var ti=0;ti<nt;ti++){
+        var np=parseInt(ev('e_t'+ti+'_np'),10)||4; // rows for this team (grows with "Add player")
         var players=[];
-        for(var pi=0;pi<4;pi++){
+        for(var pi=0;pi<np;pi++){
           var nm=ev('e_t'+ti+'_p'+pi+'_name'); if(!nm) continue;
           var hc=ev('e_t'+ti+'_p'+pi+'_hcp');
           players.push({name:nm, handicap:hc!==''?(parseFloat(hc)||0):0});
