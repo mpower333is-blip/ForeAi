@@ -8,7 +8,7 @@ import { useProfile } from "../state/ProfileContext";
 import { API_BASE } from "../services/api";
 import { getNotifPrefs, loadNotifPrefs, setNotifPref, NotifPrefs } from "../lib/notifPrefs";
 import { unregisterForPush } from "../lib/pushRegister";
-import { registerLightningBackground, unregisterLightningBackground } from "../lib/lightningBackground";
+import { registerLightningBackground, unregisterLightningBackground } from "../lib/lightningSafe";
 import { IAP_ENABLED } from "../config/appConfig";
 
 export default function ProfileScreen({ navigation }: any) {

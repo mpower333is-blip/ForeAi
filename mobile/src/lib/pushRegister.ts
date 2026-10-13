@@ -1,8 +1,11 @@
 import { Platform } from "react-native";
 import Constants from "expo-constants";
-import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getNotifPrefs } from "./notifPrefs";
+// expo-notifications is loaded lazily (never statically imported) so its
+// module-scope native emitter construction stays out of the startup import graph
+// — see notificationsSafe.ts / React Native #54859.
+import { loadNotifications } from "./notificationsSafe";
 
 // Registers this phone with the backend so it receives LIGHTNING push alerts
 // even when the app is closed. The backend watcher (backend/src/lib/
@@ -39,6 +42,9 @@ export async function registerForPush(coord: { lat: number; lng: number }, apiBa
   if (!pid) return; // Expo project not configured yet — foreground alarm still works
 
   if (lastSent && sameCoord(lastSent, coord)) return;
+
+  const Notifications = loadNotifications();
+  if (!Notifications) return; // native module unavailable — foreground alarm still works
 
   try {
     let { status } = await Notifications.getPermissionsAsync();

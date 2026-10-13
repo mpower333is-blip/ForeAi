@@ -2,8 +2,15 @@ import React from "react";
 import { Coord } from "../lib/geo";
 import { fetchLiveWeather, PanelWeather } from "../services/weather";
 import { API_BASE, WEATHER_URL } from "../services/api";
-import { initLightningAlarm, maybeLightningAlarm } from "../lib/lightningAlarm";
-import { registerLightningBackground, saveLastCoord } from "../lib/lightningBackground";
+// Lightning plumbing goes through lightningSafe, which loads the native-touching
+// modules (expo-task-manager / expo-notifications) lazily and fail-soft — keeping
+// them out of the static startup import graph (see lightningSafe.ts / RN #54859).
+import {
+  initLightningAlarm,
+  maybeLightningAlarm,
+  registerLightningBackground,
+  saveLastCoord,
+} from "../lib/lightningSafe";
 import { registerForPush } from "../lib/pushRegister";
 
 export type LightningState = "idle" | "loading" | "ok" | "failed";

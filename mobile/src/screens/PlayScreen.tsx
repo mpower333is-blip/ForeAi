@@ -12,7 +12,7 @@ import { TEES } from "../data/courses";
 import { Coord, compass8 } from "../lib/geo";
 import { ydToM, mphToKmh, fToC } from "../lib/units";
 import { fetchWeather, windForShot } from "../services/weather";
-import { startRoundLightningWatch, stopRoundLightningWatch } from "../lib/lightningBackground";
+import { startRoundLightningWatch, stopRoundLightningWatch } from "../lib/lightningSafe";
 import {
   recommendClub,
   Surface,

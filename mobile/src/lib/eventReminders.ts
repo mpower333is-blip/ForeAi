@@ -1,5 +1,10 @@
 import { Platform } from "react-native";
-import * as Notifications from "expo-notifications";
+// Runtime access to expo-notifications is lazy (loadNotifications) so its
+// module-scope native emitter construction stays out of the startup import graph
+// — see notificationsSafe.ts / React Native #54859. The type-only import below is
+// erased at compile time, so it adds nothing to the runtime graph.
+import type * as NotificationsNS from "expo-notifications";
+import { loadNotifications } from "./notificationsSafe";
 import { TEvent } from "./tournament";
 import { getNotifPrefs, loadNotifPrefs } from "./notifPrefs";
 
@@ -25,6 +30,8 @@ function eventStart(ev: TEvent): Date | null {
 let permitted: boolean | null = null;
 async function ensurePermission(): Promise<boolean> {
   if (permitted !== null) return permitted;
+  const Notifications = loadNotifications();
+  if (!Notifications) return (permitted = false);
   try {
     let { status } = await Notifications.getPermissionsAsync();
     if (status !== "granted") status = (await Notifications.requestPermissionsAsync()).status;
@@ -55,6 +62,9 @@ export async function scheduleEventReminders(ev: TEvent, venue: string): Promise
     return;
   }
   if (!(await ensurePermission())) return;
+
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
 
   const tee = fmtTime(typeof ev.firstTeeMin === "number" ? ev.firstTeeMin : 8 * 60);
   const name = ev.name || "Golf day";
@@ -97,7 +107,7 @@ export async function scheduleEventReminders(ev: TEvent, venue: string): Promise
           type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: s.when,
           channelId: "reminders",
-        } as Notifications.DateTriggerInput,
+        } as NotificationsNS.DateTriggerInput,
       });
     } catch {}
   }
@@ -105,6 +115,8 @@ export async function scheduleEventReminders(ev: TEvent, venue: string): Promise
 
 // Cancel all reminders for an event (e.g. if the player leaves it).
 export async function cancelEventReminders(eventId: string): Promise<void> {
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
   const keys = ["eve", "2h", "1h", "start"];
   for (let i = 0; i < 10; i++) keys.push(`custom_${i}`);
   for (const key of keys) {
