@@ -1,9 +1,32 @@
 import "react-native-gesture-handler";
-// Side-effect import: defines the background lightning task at the global scope
-// so it's registered even on a headless background launch (before any screen
-// mounts). See src/lib/lightningBackground.ts.
-import "./src/lib/lightningBackground";
 import React from "react";
+
+// Register the background lightning task, but ONE macrotask after the initial
+// bundle evaluation instead of as a synchronous top-level import.
+//
+// Why: importing src/lib/lightningBackground pulls in expo-task-manager and
+// expo-notifications, and BOTH register a NATIVE event listener at module scope
+// (expo-task-manager/build/TaskManager.js does `new LegacyEventEmitter(...)` +
+// `addListener(...)` on import; expo-notifications does likewise). On iOS 26/27
+// under the New Architecture, if ANY native (void) method throws an NSException
+// during the fragile app-launch window, the whole process aborts immediately —
+// `ObjCTurboModule::performVoidMethodInvocation` → `objc_exception_rethrow` →
+// SIGABRT, ~150 ms after launch, before any UI (React Native issue #54859;
+// confirmed in the iPad/iPadOS 27 crash logs for 1.7 build 29).
+//
+// Deferring this side-effect by a single macrotask moves those native
+// listener-registration calls OUT of that launch window. defineTask still runs
+// during JS initialisation — well before the OS invokes a background task
+// executor — so both normal and headless (background) launches keep the
+// lightning safety watch registered. Fail-soft: a registration error can never
+// take the app down.
+setTimeout(() => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require("./src/lib/lightningBackground");
+  } catch {}
+}, 0);
+
 import { Text, View, StatusBar, ActivityIndicator, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
