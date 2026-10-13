@@ -1,5 +1,12 @@
+// FIRST import: install the startup crash guard before any other module
+// evaluates, so a fatal JS error during launch is captured and shown on-screen
+// (CrashScreen) instead of silently aborting the process on iOS/Android.
+import "./src/lib/installErrorGuard";
 import "react-native-gesture-handler";
 import React from "react";
+import { getStartupError, onStartupError } from "./src/lib/installErrorGuard";
+import AppErrorBoundary from "./src/components/AppErrorBoundary";
+import CrashScreen from "./src/components/CrashScreen";
 
 // Register the background lightning task, but ONE macrotask after the initial
 // bundle evaluation instead of as a synchronous top-level import.
@@ -218,17 +225,28 @@ function Root() {
 }
 
 export default function App() {
+  // If a fatal JS error was captured during launch, show it on-screen instead of
+  // the (already-aborted) app, so the real message can be read/screenshotted.
+  const [startupErr, setStartupErr] = React.useState<Error | null>(() => getStartupError());
+  React.useEffect(() => {
+    onStartupError(setStartupErr);
+  }, []);
+  if (startupErr) return <CrashScreen error={startupErr} />;
+
   if (SURVEY_ONLY) {
     return (
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaProvider>
-          <StatusBar barStyle="light-content" />
-          <SurveyApp />
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
+      <AppErrorBoundary>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <SafeAreaProvider>
+            <StatusBar barStyle="light-content" />
+            <SurveyApp />
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
+      </AppErrorBoundary>
     );
   }
   return (
+    <AppErrorBoundary>
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" />
@@ -260,6 +278,7 @@ export default function App() {
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+    </AppErrorBoundary>
   );
 }
 
