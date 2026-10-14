@@ -65,7 +65,7 @@ workflows:
         - pattern: "android-*"
           include: true
     environment:
-      node: 20
+      node: 22
       java: 17
       groups:
         - google_play
@@ -122,7 +122,7 @@ workflows:
     instance_type: linux_x2
     max_build_duration: 60
     environment:
-      node: 20
+      node: 22
       java: 17
       groups:
         - google_play
@@ -193,7 +193,7 @@ workflows:
     integrations:
       app_store_connect: ForeAi ASC
     environment:
-      node: 20
+      node: 22
       xcode: latest
       cocoapods: default
       groups:
@@ -365,7 +365,7 @@ workflows:
     integrations:
       app_store_connect: ForeAi ASC
     environment:
-      node: 20
+      node: 22
       xcode: latest
       cocoapods: default
       groups:
@@ -531,7 +531,7 @@ workflows:
     instance_type: linux_x2
     max_build_duration: 60
     environment:
-      node: 20
+      node: 22
       java: 17
       groups:
         - google_play   # reuses the shared upload keystore to sign the APK
@@ -603,7 +603,7 @@ workflows:
         - pattern: "apk-*"
           include: true
     environment:
-      node: 20
+      node: 22
       java: 17
       groups:
         - google_play   # reuses the shared upload keystore to sign the APK
@@ -659,7 +659,7 @@ workflows:
     instance_type: linux_x2
     max_build_duration: 60
     environment:
-      node: 20
+      node: 22
       java: 17
       groups:
         - google_play
