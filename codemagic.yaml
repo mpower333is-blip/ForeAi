@@ -647,6 +647,67 @@ workflows:
           success: true
           failure: true
 
+  # ═══════════════ 6b) ForeAi — FOLD TEST APK (sideload, side-by-side) ═══════════════
+  # A sideloadable .apk under a SEPARATE package id (com.foreai.mobile.fold, via
+  # EXPO_PUBLIC_PKG_SUFFIX=fold) so Google Play does NOT redirect it to the Store.
+  # The "To continue using ForeAi, get it on Google Play" screen only appears when
+  # a sideloaded package matches a published Play app — a different package id
+  # dodges it. Installs SIDE-BY-SIDE with the real app (name "ForeAi (FS)") and
+  # runs directly, so a build can be verified on a device immediately — e.g. the
+  # Samsung Galaxy Z Fold, which needs the SDK 57 16 KB-aligned native libs. Same
+  # Firestore backend (USE_FIRESTORE=1) and the shared upload keystore. Start it
+  # manually from the Codemagic dashboard. versionCode lane 8000+ (its own package,
+  # so it never collides with the store/sideload lanes).
+  foreai-fold-apk:
+    name: ForeAi — Fold test APK (sideload)
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      node: 22
+      java: 17
+      groups:
+        - google_play   # reuses the shared upload keystore to sign the APK
+      vars:
+        EXPO_PUBLIC_USE_FIRESTORE: "1"
+        EXPO_PUBLIC_PKG_SUFFIX: "fold"
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Install JS dependencies
+        script: |
+          cd mobile
+          npm install
+      - name: Generate native Android project (expo prebuild)
+        script: |
+          cd mobile
+          export ANDROID_VERSION_CODE=$((8000 + ${BUILD_NUMBER:-1}))
+          echo "ForeAi FOLD TEST APK versionCode: $ANDROID_VERSION_CODE (package com.foreai.mobile.fold — side-by-side sideload, no Play redirect)"
+          npx expo prebuild --platform android --no-install
+      - name: Decode the upload keystore
+        script: |
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/mobile/android/app/upload.keystore"
+      - name: Build the signed APK
+        script: |
+          cd mobile/android
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$PWD/app/upload.keystore" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+          V=$((8000 + ${BUILD_NUMBER:-1}))
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/ForeAi-Fold-$V.apk"
+    artifacts:
+      - mobile/android/app/build/outputs/**/ForeAi-Fold-*.apk
+    publishing:
+      email:
+        recipients:
+          - mpower333is@gmail.com
+        notify:
+          success: true
+          failure: true
+
   # ═══════════════ 7) Kempton — Firestore TEST APK (sideload) ═══════════════
   # Sideloadable .apk of the Kempton flavour with EXPO_PUBLIC_USE_FIRESTORE=1, so
   # BOTH events and club data (members, tee sheet, competitions, news) run on
