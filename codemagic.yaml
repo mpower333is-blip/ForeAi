@@ -84,7 +84,9 @@ workflows:
       - name: Generate native Android project (expo prebuild)
         script: |
           cd mobile
-          export ANDROID_VERSION_CODE=$((1000 + ${BUILD_NUMBER:-1}))
+          # Base 30000 so the versionCode clears the live Play upload (3009) and the
+          # 9000+ sideload-APK range — Play rejects any upload <= the highest used.
+          export ANDROID_VERSION_CODE=$((30000 + ${BUILD_NUMBER:-1}))
           echo "=================================================="
           echo "  ForeAi phone versionCode for this build: $ANDROID_VERSION_CODE"
           echo "  (must be higher than the last com.foreai.mobile upload)"
@@ -101,7 +103,7 @@ workflows:
             -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
-          V=$((1000 + ${BUILD_NUMBER:-1}))
+          V=$((30000 + ${BUILD_NUMBER:-1}))
           mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/ForeAi-Phone-$V.aab"
     artifacts:
       - mobile/android/app/build/outputs/**/ForeAi-Phone-*.aab
