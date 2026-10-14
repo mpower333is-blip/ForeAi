@@ -138,7 +138,9 @@ export default {
         },
       ],
       [
-        "expo-av",
+        // expo-av was removed after SDK 54 — the shot-strike microphone listener
+        // now uses expo-audio (see src/hooks/useShotAudio.ts).
+        "expo-audio",
         {
           microphonePermission:
             "ForeAi listens for the sound of your ball strike to log shots automatically.",
@@ -171,6 +173,12 @@ export default {
         // Google Play requires apps to target Android 16 (API 36) from Aug 2026.
         "expo-build-properties",
         {
+          // iOS 27 / Xcode 27 made the UIScene lifecycle mandatory — apps that
+          // don't adopt it crash at launch. enableSceneSupport generates the
+          // scene manifest + delegate so the app launches on iOS 26/27.
+          ios: {
+            enableSceneSupport: true,
+          },
           android: {
             compileSdkVersion: 36,
             targetSdkVersion: 36,

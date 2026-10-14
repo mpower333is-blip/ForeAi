@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   camPlaceholder: { alignItems: "center", justifyContent: "center" },
   camPlaceholderText: { color: colors.textFaint, fontSize: 14 },
 
-  guide: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  guide: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
   guideVert: {
     position: "absolute",
     width: 2,
