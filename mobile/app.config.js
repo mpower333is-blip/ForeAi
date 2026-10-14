@@ -144,6 +144,13 @@ export default {
         {
           microphonePermission:
             "ForeAi listens for the sound of your ball strike to log shots automatically.",
+          // ForeAi only records the mic in the FOREGROUND (ball-strike detection on
+          // the Swing screen) and never plays or records audio in the background,
+          // so disable expo-audio's background services. This drops the
+          // FOREGROUND_SERVICE_MEDIA_PLAYBACK permission (and its Google Play
+          // declaration + demo-video requirement) that expo-audio adds by default.
+          enableBackgroundPlayback: false,
+          enableBackgroundRecording: false,
         },
       ],
       // Mark camera/microphone/GPS/sensors as NOT required so Google Play doesn't
