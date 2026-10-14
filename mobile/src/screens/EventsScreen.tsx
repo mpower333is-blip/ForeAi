@@ -624,6 +624,9 @@ function IdentityCard({ event }: { event: TEvent }) {
   const { myPlayerId, claimPlayer, clearMyPlayer } = useTournament();
   const meId = myPlayerId(event.id);
   const me = event.players.find((p) => p.id === meId);
+  // Search box so a player can find themselves fast in a big field instead of
+  // scrolling the whole registration list.
+  const [query, setQuery] = useState("");
 
   const teamOf = (pid: string) => {
     const gi = event.groups.findIndex((g) => g.playerIds.includes(pid));
@@ -648,6 +651,14 @@ function IdentityCard({ event }: { event: TEvent }) {
     );
   }
 
+  // Filter by name (case-insensitive). The search box only appears once the
+  // field is big enough to be worth it, so small events stay clutter-free.
+  const q = query.trim().toLowerCase();
+  const matches = q
+    ? event.players.filter((p) => p.name.toLowerCase().includes(q))
+    : event.players;
+  const showSearch = event.players.length > 6;
+
   return (
     <Card accent>
       <Text style={styles.formTitle}>Who are you?</Text>
@@ -657,27 +668,40 @@ function IdentityCard({ event }: { event: TEvent }) {
           No players registered yet. Teams are added on the website or by the organiser.
         </Text>
       ) : (
-        event.players.map((p) => {
-          const linkedElsewhere = !!p.deviceId;
-          return (
-            <TouchableOpacity
-              key={p.id}
-              activeOpacity={0.85}
-              onPress={() => claimPlayer(event.id, p.id)}
-              style={styles.pickRow}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.pickName}>{p.name}</Text>
-                <Text style={styles.pickMeta}>
-                  HCP {p.handicap}
-                  {teamOf(p.id) ? ` · ${teamOf(p.id)}` : ""}
-                  {linkedElsewhere ? " · linked" : ""}
-                </Text>
-              </View>
-              <Text style={styles.pickPick}>{linkedElsewhere ? "This is me ›" : "I'm here ›"}</Text>
-            </TouchableOpacity>
-          );
-        })
+        <>
+          {showSearch && (
+            <TextField
+              value={query}
+              onChangeText={setQuery}
+              placeholder="🔍 Search your name…"
+            />
+          )}
+          {matches.length === 0 ? (
+            <Text style={styles.empty}>No players match “{query.trim()}”.</Text>
+          ) : (
+            matches.map((p) => {
+              const linkedElsewhere = !!p.deviceId;
+              return (
+                <TouchableOpacity
+                  key={p.id}
+                  activeOpacity={0.85}
+                  onPress={() => claimPlayer(event.id, p.id)}
+                  style={styles.pickRow}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.pickName}>{p.name}</Text>
+                    <Text style={styles.pickMeta}>
+                      HCP {p.handicap}
+                      {teamOf(p.id) ? ` · ${teamOf(p.id)}` : ""}
+                      {linkedElsewhere ? " · linked" : ""}
+                    </Text>
+                  </View>
+                  <Text style={styles.pickPick}>{linkedElsewhere ? "This is me ›" : "I'm here ›"}</Text>
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </>
       )}
     </Card>
   );
@@ -688,6 +712,7 @@ function PlayersTab({ event }: { event: TEvent }) {
   const nav = useNavigation<any>();
   const [name, setName] = useState("");
   const [hcp, setHcp] = useState(18);
+  const [search, setSearch] = useState(""); // find a player fast in a big field
 
   const meId = myPlayerId(event.id);
   const canEdit = isOrganiser(event.id); // only the organiser edits setup
@@ -730,22 +755,37 @@ function PlayersTab({ event }: { event: TEvent }) {
       <Card>
         <Text style={styles.formTitle}>{event.players.length} registered</Text>
         {event.players.length === 0 && <Text style={styles.empty}>No players yet.</Text>}
-        {event.players.map((p) => (
-          <View key={p.id} style={styles.playerRow}>
-            <Text style={styles.playerName}>
-              {p.name}
-              {p.id === meId ? <Text style={styles.youTag}>  you</Text> : null}
-            </Text>
-            <View style={styles.playerRight}>
-              <Text style={styles.playerHcp}>HCP {p.handicap}</Text>
-              {canEdit && (
-                <TouchableOpacity onPress={() => removePlayer(event.id, p.id)}>
-                  <Text style={styles.remove}>Remove</Text>
-                </TouchableOpacity>
-              )}
+        {event.players.length > 6 && (
+          <TextField
+            value={search}
+            onChangeText={setSearch}
+            placeholder="🔍 Search players…"
+          />
+        )}
+        {(() => {
+          const q = search.trim().toLowerCase();
+          const rows = q
+            ? event.players.filter((p) => p.name.toLowerCase().includes(q))
+            : event.players;
+          if (rows.length === 0 && q)
+            return <Text style={styles.empty}>No players match “{search.trim()}”.</Text>;
+          return rows.map((p) => (
+            <View key={p.id} style={styles.playerRow}>
+              <Text style={styles.playerName}>
+                {p.name}
+                {p.id === meId ? <Text style={styles.youTag}>  you</Text> : null}
+              </Text>
+              <View style={styles.playerRight}>
+                <Text style={styles.playerHcp}>HCP {p.handicap}</Text>
+                {canEdit && (
+                  <TouchableOpacity onPress={() => removePlayer(event.id, p.id)}>
+                    <Text style={styles.remove}>Remove</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
-          </View>
-        ))}
+          ));
+        })()}
       </Card>
     </>
   );
