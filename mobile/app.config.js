@@ -146,6 +146,10 @@ export default {
             "ForeAi listens for the sound of your ball strike to log shots automatically.",
         },
       ],
+      // Mark camera/microphone/GPS/sensors as NOT required so Google Play doesn't
+      // filter the app off devices (e.g. the Samsung Galaxy Z Fold) based on
+      // features implied by our permissions. ForeAi runs without any of them.
+      "./plugins/withAndroidOptionalFeatures",
       // Strip the aps-environment entitlement expo-notifications injects — we
       // only use LOCAL notifications, so requiring the Push Notifications
       // capability on the App Store profile just breaks signing. Expo composes
