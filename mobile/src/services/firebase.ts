@@ -9,7 +9,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { initializeFirestore, type Firestore } from "firebase/firestore";
 import * as firebaseAuth from "firebase/auth";
-import { initializeAuth, signInAnonymously, type Auth, type Persistence } from "firebase/auth";
+import { initializeAuth, getAuth, signInAnonymously, type Auth, type Persistence } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FIREBASE_CONFIG } from "../config/firebaseConfig";
 
@@ -42,7 +42,19 @@ export function firestore(): Firestore {
 
 export function auth(): Auth {
   if (_auth) return _auth;
-  _auth = initializeAuth(app(), { persistence: getReactNativePersistence(AsyncStorage) });
+  // getReactNativePersistence only exists in Firebase's React Native build. If a
+  // bundler resolves firebase/auth to its browser build (see metro.config.js) it
+  // would be undefined — guard it and fall back to default persistence rather
+  // than throwing `undefined(AsyncStorage)` and aborting the app at launch.
+  try {
+    const persistence =
+      typeof getReactNativePersistence === "function"
+        ? getReactNativePersistence(AsyncStorage)
+        : undefined;
+    _auth = persistence ? initializeAuth(app(), { persistence }) : getAuth(app());
+  } catch {
+    _auth = getAuth(app());
+  }
   return _auth;
 }
 

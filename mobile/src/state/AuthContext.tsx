@@ -42,11 +42,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setReady(true);
       return;
     }
-    const unsub = m.watchStaff((p) => {
-      setStaff(p);
+    // Fail-soft: a Firebase load/resolution problem must never abort the app at
+    // launch — degrade to "no staff session" instead of throwing from this mount.
+    try {
+      const unsub = m.watchStaff((p) => {
+        setStaff(p);
+        setReady(true);
+      });
+      return unsub;
+    } catch {
       setReady(true);
-    });
-    return unsub;
+      return;
+    }
   }, []);
 
   const value = useMemo<AuthState>(

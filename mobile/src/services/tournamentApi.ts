@@ -111,8 +111,17 @@ const tournamentRestApi = {
 // the existing ForeAi / Kempton / Surveyor builds keep using the REST backend
 // exactly as before. The Firestore adapter mirrors this surface (extra optional
 // args like the organiser PIN are simply ignored), so callers need no changes.
-export const tournamentApi: typeof tournamentRestApi =
-  process.env.EXPO_PUBLIC_USE_FIRESTORE === "1"
-    ? // eslint-disable-next-line @typescript-eslint/no-var-requires
-      (require("./tournamentFirestore").tournamentFsApi as unknown as typeof tournamentRestApi)
-    : tournamentRestApi;
+// Resolve the Firestore adapter eagerly but FAIL-SOFT: this require pulls the
+// whole Firebase SDK into the startup graph, so if it ever throws (e.g. a bad
+// bundler resolution of firebase/*), fall back to the REST adapter instead of
+// letting the exception abort the app before any UI mounts.
+let _fsApi: typeof tournamentRestApi | null = null;
+if (process.env.EXPO_PUBLIC_USE_FIRESTORE === "1") {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    _fsApi = require("./tournamentFirestore").tournamentFsApi as unknown as typeof tournamentRestApi;
+  } catch {
+    _fsApi = null;
+  }
+}
+export const tournamentApi: typeof tournamentRestApi = _fsApi ?? tournamentRestApi;
