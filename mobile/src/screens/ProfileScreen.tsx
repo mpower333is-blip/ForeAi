@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, Platform } from "react-native";
+import Constants from "expo-constants";
 import { Screen, ScreenHeader, Card, Stepper, MetreStepper, TextField, Button } from "../components/ui";
 import { colors, spacing, radius } from "../theme";
 import { ydToM } from "../lib/units";
@@ -10,6 +11,17 @@ import { getNotifPrefs, loadNotifPrefs, setNotifPref, NotifPrefs } from "../lib/
 import { unregisterForPush } from "../lib/pushRegister";
 import { registerLightningBackground, unregisterLightningBackground } from "../lib/lightningSafe";
 import { IAP_ENABLED } from "../config/appConfig";
+
+// App version + build, shown at the bottom of Profile so any device/tester can
+// confirm at a glance which build they're on (the version string distinguishes a
+// fixed build from an old one). nativeBuildVersion reads the real binary's build
+// number; falls back to the config values.
+const APP_VERSION = Constants.expoConfig?.version ?? "?";
+const BUILD_NUMBER =
+  (Constants as any).nativeBuildVersion ||
+  Constants.expoConfig?.ios?.buildNumber ||
+  Constants.expoConfig?.android?.versionCode ||
+  "";
 
 export default function ProfileScreen({ navigation }: any) {
   const {
@@ -244,6 +256,10 @@ export default function ProfileScreen({ navigation }: any) {
           The app runs fully on-device. When a backend is configured, rounds sync automatically.
         </Text>
         <Text style={styles.apiText}>API: {API_BASE}</Text>
+        <Text style={styles.versionText}>
+          ForeAi {APP_VERSION}
+          {BUILD_NUMBER ? ` (${BUILD_NUMBER})` : ""} · {Platform.OS} {String(Platform.Version)}
+        </Text>
       </Card>
     </Screen>
   );
@@ -318,4 +334,5 @@ const styles = StyleSheet.create({
   carryText: { color: colors.accent, fontWeight: "700" },
   editBox: { paddingVertical: spacing.sm },
   apiText: { color: colors.textFaint, fontSize: 13, marginTop: 4 },
+  versionText: { color: colors.textFaint, fontSize: 12, marginTop: 10, fontWeight: "700", letterSpacing: 0.3 },
 });
