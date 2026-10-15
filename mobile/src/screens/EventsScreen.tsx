@@ -903,8 +903,10 @@ function LiveTab({ event }: { event: TEvent }) {
   const course = getCourse(event.courseId);
   const [scoringGroup, setScoringGroup] = useState<string | null>(null);
   // The hole currently being scored in the open group. Defaults to the group's
-  // live hole when you open it, but Prev/Next let you score (or fix) ANY hole.
+  // live hole when you open it, but Prev/Next (or the hole grid) let you score
+  // (or fix) ANY hole.
   const [scoringHole, setScoringHole] = useState<number>(1);
+  const [holePicker, setHolePicker] = useState(false); // tap the hole label → grid
   const isScramble = event.format === "scramble";
   const meId = myPlayerId(event.id);
   const canEdit = isOrganiser(event.id);
@@ -981,6 +983,7 @@ function LiveTab({ event }: { event: TEvent }) {
               key={g.id}
               activeOpacity={0.85}
               onPress={() => {
+                setHolePicker(false);
                 if (scoringGroup === g.id) {
                   setScoringGroup(null);
                 } else {
@@ -1030,7 +1033,9 @@ function LiveTab({ event }: { event: TEvent }) {
                       >
                         <Text style={styles.holeNavText}>‹ Prev</Text>
                       </TouchableOpacity>
-                      <Text style={styles.holeNavLabel}>Hole {activeHole} / {holeCount}</Text>
+                      <TouchableOpacity onPress={() => setHolePicker((v) => !v)}>
+                        <Text style={styles.holeNavLabel}>Hole {activeHole} / {holeCount} ▾</Text>
+                      </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.holeNavBtn, activeHole >= holeCount && styles.holeNavBtnOff]}
                         disabled={activeHole >= holeCount}
@@ -1039,6 +1044,22 @@ function LiveTab({ event }: { event: TEvent }) {
                         <Text style={styles.holeNavText}>Next ›</Text>
                       </TouchableOpacity>
                     </View>
+                    {holePicker && (
+                      <View style={styles.holeGrid}>
+                        {Array.from({ length: holeCount }, (_, idx) => idx + 1).map((h) => (
+                          <TouchableOpacity
+                            key={h}
+                            style={[styles.holeChip, h === activeHole && styles.holeChipOn]}
+                            onPress={() => {
+                              setScoringHole(h);
+                              setHolePicker(false);
+                            }}
+                          >
+                            <Text style={[styles.holeChipText, h === activeHole && styles.holeChipTextOn]}>{h}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
                     {isScramble ? (
                       <TeamScoreEntry
                         event={event}
@@ -1686,6 +1707,11 @@ const styles = StyleSheet.create({
   holeNavBtnOff: { opacity: 0.4 },
   holeNavText: { color: colors.accent, fontSize: 15, fontWeight: "800" },
   holeNavLabel: { color: colors.text, fontSize: 15, fontWeight: "800" },
+  holeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: spacing.sm },
+  holeChip: { width: 40, height: 40, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
+  holeChipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  holeChipText: { color: colors.text, fontSize: 15, fontWeight: "800" },
+  holeChipTextOn: { color: colors.bg },
 
   lbHead: { flexDirection: "row", paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   lbRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
