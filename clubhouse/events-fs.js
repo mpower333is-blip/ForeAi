@@ -148,6 +148,8 @@
           teamFee: evSnap.teamFee == null ? null : evSnap.teamFee, holeFee: evSnap.holeFee == null ? null : evSnap.holeFee,
           playerFee: evSnap.playerFee == null ? null : evSnap.playerFee,
           reminders: Array.isArray(evSnap.reminders) ? evSnap.reminders : [],
+          // Attendance register (office check-in): map of playerKey -> timestamp.
+          attendance: evSnap.attendance && typeof evSnap.attendance === "object" ? evSnap.attendance : {},
           sponsors: sponsors, players: players, groups: groups, scores: scores,
           contests: contests, contestResults: contestResults,
         };

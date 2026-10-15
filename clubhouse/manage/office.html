@@ -57,6 +57,11 @@
   .meta b{color:var(--text)}
   .players{margin-top:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px}
   .pl{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px}
+  .attRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 2px;border-bottom:1px solid var(--border)}
+  .attWho{min-width:0;flex:1}
+  .attName{font-weight:800;font-size:15px}
+  .attBtn{flex:0 0 auto;padding:8px 16px;border-radius:999px;border:1px solid var(--border);background:var(--panel2);color:var(--muted);cursor:pointer;font-weight:800;font-size:13px}
+  .attBtn.on{background:var(--lime);border-color:var(--lime);color:#20160a}
   .amt{text-align:right}
   .amt .big{font-size:20px;font-weight:800;color:var(--gold)}
   .amt .ref{color:var(--faint);font-size:12px}
@@ -250,6 +255,7 @@
     <div class="tabs" id="tabs">
       <div class="tab on" data-f="all">All</div>
       <div class="tab" data-f="team">Teams</div>
+      <div class="tab" data-f="attend">✅ Attendance</div>
       <div class="tab" data-f="bytee">By tee</div>
       <div class="tab" data-f="hole">Hole sponsors</div>
       <div class="tab" data-f="prize">Prize sponsors</div>
@@ -528,6 +534,67 @@
     }).join('');
   }
 
+  // ---- Attendance register (office check-in) --------------------------------
+  // Flatten registered players into { key, name, team, teamNo }. The key is
+  // stable per player slot so check-ins persist across reloads and across every
+  // organiser who has the office open (stored on the event in Firestore).
+  function flattenPlayers(teams){
+    var out=[];
+    (teams||[]).forEach(function(r){
+      var p=r.payload||{}; var tms=Array.isArray(p.teams)?p.teams:[];
+      tms.forEach(function(t,ti){
+        (t.players||[]).forEach(function(pl,pi){
+          if(pl && pl.name) out.push({ key:r.id+':'+ti+':'+pi, name:pl.name, team:r.company||'', teamNo:ti+1 });
+        });
+      });
+    });
+    return out;
+  }
+  function renderAttendance(){
+    var teams=REGS.filter(function(r){return r.type==='team';}).filter(regMatchesSearch);
+    var rows=flattenPlayers(teams);
+    var att=(EVENT&&EVENT.attendance)||{};
+    var inCount=rows.filter(function(x){return !!att[x.key];}).length;
+    var html='<div class="card">'
+      +'<div class="rowtop"><span class="company">Attendance — '+inCount+' of '+rows.length+' here</span>'
+      +'<div style="display:flex;gap:8px"><button class="sbtn" onclick="checkInAll()">Check in all</button>'
+      +'<button class="sbtn" onclick="resetAttendance()">Clear</button></div></div>'
+      +'<div class="hint">Tap each player as they arrive. Check-ins are saved to the golf day and shared with the other organisers — tap ↻ Refresh to pull in theirs.</div>';
+    if(!rows.length){ html+='<div class="empty">'+(SEARCH?('No players match “'+esc(SEARCH)+'”.'):'No players registered yet.')+'</div>'; }
+    rows.forEach(function(x){
+      var on=!!att[x.key];
+      html+='<div class="attRow'+(on?' on':'')+'">'
+        +'<div class="attWho"><span class="attName">'+esc(x.name)+'</span>'
+        +'<span class="hint"> · '+esc(x.team)+' · T'+x.teamNo+'</span></div>'
+        +'<button class="attBtn'+(on?' on':'')+'" onclick="toggleAttendance(\''+x.key+'\')">'+(on?'✓ Here':'Check in')+'</button>'
+        +'</div>';
+    });
+    html+='</div>';
+    return html;
+  }
+  function patchAttendance(att){
+    if(!EVENT) return;
+    EVENT.attendance=att;   // optimistic — the view updates immediately
+    render();
+    authFetch(CFG.api+'/tournaments/'+EVENT.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({attendance:att})})
+      .catch(function(){ /* keep the optimistic state; the next load() reconciles */ });
+  }
+  function toggleAttendance(key){
+    var att=Object.assign({},(EVENT&&EVENT.attendance)||{});
+    if(att[key]) delete att[key]; else att[key]=Date.now();
+    patchAttendance(att);
+  }
+  function checkInAll(){
+    var rows=flattenPlayers(REGS.filter(function(r){return r.type==='team';}));
+    var att=Object.assign({},(EVENT&&EVENT.attendance)||{});
+    rows.forEach(function(x){ if(!att[x.key]) att[x.key]=Date.now(); });
+    patchAttendance(att);
+  }
+  function resetAttendance(){
+    if(!confirm('Clear all check-ins for this golf day?')) return;
+    patchAttendance({});
+  }
+
   function render(){
     // Show the connected event's own logo in the header (falls back to the
     // ForeAi mark). Keeps the office generic — no hard-coded company branding.
@@ -539,12 +606,14 @@
     // tiles
     var teams=REGS.filter(r=>r.type==='team'), holes=REGS.filter(r=>r.type==='hole'), prizes=REGS.filter(r=>r.type==='prize');
     var players=teams.reduce((s,r)=>s+playerCount(r),0);
+    var allPl=flattenPlayers(teams), att=(EVENT&&EVENT.attendance)||{}, checkedIn=allPl.filter(function(x){return !!att[x.key];}).length;
     var expected=REGS.reduce((s,r)=>s+amountFor(r),0);
     var received=REGS.filter(r=>r.status==='paid'||r.status==='confirmed').reduce((s,r)=>s+amountFor(r),0);
     var ph=phoneTally();
     var tiles=[
       ['Team entries', teams.length, ''],
       ['Players', players, ''],
+      ['✅ Checked in', checkedIn+' / '+allPl.length, 'lime'],
       ['🍎 Apple (TestFlight)', ph.apple, 'sky'],
       ['🤖 Android (APK)', ph.android, 'lime'],
       ['Phone not set', ph.unknown, ''],
@@ -566,6 +635,7 @@
       return r.type===FILTER;
     }).filter(regMatchesSearch);
     var host=document.getElementById('list');
+    if(FILTER==='attend'){ host.innerHTML = renderAttendance(); renderSponsors(); return; }
     if(FILTER==='bytee'){ host.innerHTML = renderByTee(); renderSponsors(); return; }
     if(!rows.length){ host.innerHTML='<div class="empty">'+(SEARCH?'No matches for “'+esc(SEARCH)+'”.':('No submissions'+(FILTER!=='all'?' in this view':' yet')+'.'))+'</div>'; }
     else { host.innerHTML = rows.map(cardHTML).join(''); }
