@@ -341,13 +341,47 @@ workflows:
             echo "Check that IOS_DIST_KEY is an Apple Distribution key and use-profiles applied the App Store profile."
             exit 1
           fi
+      - name: Upload to App Store Connect (retry on Apple's transient errors)
+        script: |
+          # Apple's content-delivery service intermittently returns HTTP 500 on the
+          # final "CHANGE UPLOAD STATE TO COMPLETE" step AFTER the binary has already
+          # transferred (altool prints "UPLOAD SUCCEEDED" + a Delivery UUID, then the
+          # publish wrapper fails anyway). The old declarative publishing had no retry,
+          # so one flaky 500 wasted the whole ~20-min archive. This retries, and on a
+          # retry treats Apple's "redundant binary" response as success (it proves the
+          # earlier upload actually landed). Upload only — the build lands in App Store
+          # Connect for App Store review + internal TestFlight; it no longer auto-submits
+          # to TestFlight external beta review (which needed the Beta Contract).
+          cd mobile/ios
+          IPA=$(find build/ios/ipa -name "*.ipa" | head -1)
+          echo "Publishing $IPA (version $(agvtool what-marketing-version -terse1 2>/dev/null), build ${BUILD_NUMBER})"
+          for ATTEMPT in 1 2 3; do
+            echo "===== App Store Connect upload attempt $ATTEMPT ====="
+            set +e
+            OUT=$(app-store-connect publish \
+              --path "$IPA" \
+              --max-build-processing-wait 0 \
+              --api-server-error-retries 10 2>&1)
+            RC=$?
+            set -e
+            echo "$OUT"
+            if [ $RC -eq 0 ]; then
+              echo "Upload succeeded on attempt $ATTEMPT."
+              exit 0
+            fi
+            if echo "$OUT" | grep -qiE "redundant binary|ITMS-4238|already exists|bundle version must be higher|was already|previously been uploaded"; then
+              echo "Binary is already in App Store Connect (redundant upload) — the transient error happened after the asset landed. Treating as success."
+              exit 0
+            fi
+            echo "Transient failure (exit $RC) on attempt $ATTEMPT; waiting 60s before retry…"
+            sleep 60
+          done
+          echo "ERROR: all App Store Connect upload attempts failed."
+          exit 1
     artifacts:
       - mobile/ios/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
     publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
       email:
         recipients:
           - mpower333is@gmail.com
