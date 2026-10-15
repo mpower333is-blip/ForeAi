@@ -902,6 +902,9 @@ function LiveTab({ event }: { event: TEvent }) {
   const { setScore, myPlayerId, isOrganiser } = useTournament();
   const course = getCourse(event.courseId);
   const [scoringGroup, setScoringGroup] = useState<string | null>(null);
+  // The hole currently being scored in the open group. Defaults to the group's
+  // live hole when you open it, but Prev/Next let you score (or fix) ANY hole.
+  const [scoringHole, setScoringHole] = useState<number>(1);
   const isScramble = event.format === "scramble";
   const meId = myPlayerId(event.id);
   const canEdit = isOrganiser(event.id);
@@ -977,7 +980,14 @@ function LiveTab({ event }: { event: TEvent }) {
             <TouchableOpacity
               key={g.id}
               activeOpacity={0.85}
-              onPress={() => setScoringGroup(scoringGroup === g.id ? null : g.id)}
+              onPress={() => {
+                if (scoringGroup === g.id) {
+                  setScoringGroup(null);
+                } else {
+                  setScoringGroup(g.id);
+                  setScoringHole(hole ?? holeCount); // open on the live hole
+                }
+              }}
             >
               <View style={styles.liveGroup}>
                 <View style={{ flex: 1 }}>
@@ -1006,28 +1016,52 @@ function LiveTab({ event }: { event: TEvent }) {
                   )}
                 </View>
               </View>
-              {scoringGroup === g.id && hole !== null && (
-                isScramble ? (
-                  <TeamScoreEntry
-                    event={event}
-                    group={g}
-                    hole={hole}
-                    course={course}
-                    onScore={(strokes) => {
-                      const cap = teamCaptain(g);
-                      if (cap) setScore(event.id, cap, hole, strokes);
-                    }}
-                  />
-                ) : (
-                  <ScoreEntry
-                    event={event}
-                    groupId={g.id}
-                    hole={hole}
-                    course={course}
-                    onScore={(pid, strokes) => setScore(event.id, pid, hole, strokes)}
-                  />
-                )
-              )}
+              {scoringGroup === g.id && (() => {
+                const activeHole = Math.min(holeCount, Math.max(1, scoringHole));
+                return (
+                  <View>
+                    {/* Hole picker: score (or fix) all players on ANY hole, not
+                        just the auto-advancing live hole. */}
+                    <View style={styles.holeNav}>
+                      <TouchableOpacity
+                        style={[styles.holeNavBtn, activeHole <= 1 && styles.holeNavBtnOff]}
+                        disabled={activeHole <= 1}
+                        onPress={() => setScoringHole(Math.max(1, activeHole - 1))}
+                      >
+                        <Text style={styles.holeNavText}>‹ Prev</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.holeNavLabel}>Hole {activeHole} / {holeCount}</Text>
+                      <TouchableOpacity
+                        style={[styles.holeNavBtn, activeHole >= holeCount && styles.holeNavBtnOff]}
+                        disabled={activeHole >= holeCount}
+                        onPress={() => setScoringHole(Math.min(holeCount, activeHole + 1))}
+                      >
+                        <Text style={styles.holeNavText}>Next ›</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {isScramble ? (
+                      <TeamScoreEntry
+                        event={event}
+                        group={g}
+                        hole={activeHole}
+                        course={course}
+                        onScore={(strokes) => {
+                          const cap = teamCaptain(g);
+                          if (cap) setScore(event.id, cap, activeHole, strokes);
+                        }}
+                      />
+                    ) : (
+                      <ScoreEntry
+                        event={event}
+                        groupId={g.id}
+                        hole={activeHole}
+                        course={course}
+                        onScore={(pid, strokes) => setScore(event.id, pid, activeHole, strokes)}
+                      />
+                    )}
+                  </View>
+                );
+              })()}
             </TouchableOpacity>
           );
         })}
@@ -1647,6 +1681,11 @@ const styles = StyleSheet.create({
   scoreBtnText: { color: colors.accent, fontSize: 24, fontWeight: "700" },
   scoreVal: { color: colors.text, fontSize: 22, fontWeight: "800", minWidth: 34, textAlign: "center" },
   scoreHint: { color: colors.textFaint, fontSize: 12, marginTop: spacing.sm },
+  holeNav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.sm, gap: 10 },
+  holeNavBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
+  holeNavBtnOff: { opacity: 0.4 },
+  holeNavText: { color: colors.accent, fontSize: 15, fontWeight: "800" },
+  holeNavLabel: { color: colors.text, fontSize: 15, fontWeight: "800" },
 
   lbHead: { flexDirection: "row", paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   lbRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
