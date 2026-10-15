@@ -87,7 +87,7 @@
     <script>
       var $ = function (id) { return document.getElementById(id); };
       var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
-      var isUuid = function (s) { return /[-_]/.test(s) && s.length > 16; };
+      var isUuid = function (s) { return (/[-_]/.test(s) && s.length > 16) || /^[A-Za-z0-9]{20}$/.test(s); };
 
       var cfg = JSON.parse(localStorage.getItem("foreai.clubhouse") || "{}");
       var _q = new URLSearchParams(location.search);

@@ -52,9 +52,11 @@
     },
     "serengeti-masai": {
       name: "Serengeti — Masai Mara",
-      // No official SI on the app card → ranked by difficulty (par, then yards).
-      holes: [[4,8],[4,16],[5,1],[4,9],[3,15],[4,7],[4,6],[5,3],[3,13],
-              [4,11],[5,2],[3,12],[4,5],[4,17],[3,18],[5,4],[4,14],[4,10]],
+      // No official SI on the app card → the app derives it with assignStrokeIndex
+      // (rank by par*1000+yards desc, stable). This SI MUST equal that output, or
+      // the ceremony silently disagrees with the app/board on per-hole strokes.
+      holes: [[4,8],[4,13],[5,2],[4,10],[3,17],[4,9],[4,7],[5,4],[3,16],
+              [4,11],[5,3],[3,15],[4,6],[4,14],[3,18],[5,1],[4,12],[4,5]],
     },
     "serengeti-serengeti": {
       name: "Serengeti — Whistling Thorn",
@@ -145,6 +147,9 @@
   function metricByHole(c, metric) { return metric === "stableford" ? c.pointsByHole : c.netByHole; }
 
   function compareCards(a, b, metric, higherBetter, starts) {
+    // Finished rounds always rank ahead of unfinished ones — a partial card must
+    // never beat a complete one (matters most for net/gross, lower-is-better).
+    if (a.complete !== b.complete) return a.complete ? -1 : 1;
     var at = metricTotal(a, metric), bt = metricTotal(b, metric);
     if (at !== bt) return higherBetter ? bt - at : at - bt;
     var am = metricByHole(a, metric), bm = metricByHole(b, metric);
@@ -163,7 +168,7 @@
       var place = i + 1, countback = false, tie = false;
       if (i > 0) {
         var prev = sorted[i - 1];
-        var samePrimary = metricTotal(prev, metric) === metricTotal(c, metric);
+        var samePrimary = prev.complete === c.complete && metricTotal(prev, metric) === metricTotal(c, metric);
         var cmp = compareCards(prev, c, metric, higherBetter, starts);
         if (cmp === 0) { place = rows[i - 1].place; tie = samePrimary; }
         else if (samePrimary) { countback = true; }
@@ -231,11 +236,12 @@
     var hb = higherBetter, label;
     var rawRows = event.groups.map(function (group, index) {
       var members = group.playerIds.map(function (id) { return cardsById[id]; }).filter(Boolean);
-      var value = 0, complete = members.length > 0;
+      var value = 0, complete = members.length > 0, played = 0;
       if (resolved === "scramble") {
         var cap = members[0];
         value = cap ? cap.gross : 0;
         complete = !!cap && cap.complete;
+        played = cap ? cap.holesPlayed : 0;
         hb = false;
       } else if (resolved === "best2") {
         hb = true;
@@ -245,19 +251,35 @@
             .filter(function (v) { return v != null; }).sort(function (a, b) { return b - a; });
           value += (pts[0] || 0) + (pts[1] || 0);
         }
-        complete = members.some(function (m) { return m.complete; });
+        complete = members.length > 0 && members.some(function (m) { return m.complete; });
+        played = members.reduce(function (mx, m) { return Math.max(mx, m.holesPlayed); }, 0);
       } else {
         value = members.reduce(function (s, m) { return s + metricTotal(m, metric); }, 0);
         complete = members.length > 0 && members.every(function (m) { return m.complete; });
+        played = members.reduce(function (mx, m) { return Math.max(mx, m.holesPlayed); }, 0);
       }
-      return { group: group, index: index, names: teamNames(event, group), value: value, complete: complete };
+      return { group: group, index: index, names: teamNames(event, group), value: value, complete: complete, played: played };
     });
     label = resolved === "scramble" ? "Team — scramble gross"
       : resolved === "best2" ? "Team — best 2 Stableford"
       : metric === "stableford" ? "Team — combined Stableford" : "Team — combined net";
-    var played = rawRows.filter(function (r) { return r.names; });
-    played.sort(function (a, b) { return hb ? b.value - a.value : a.value - b.value; });
-    var rows = played.map(function (r, i) { r.place = i + 1; return r; });
+    // Only teams that have posted a hole can be ranked — a team with no card must
+    // never win (critical for scramble gross, where 0 would rank first). Finished
+    // teams rank ahead of partial ones.
+    var started = rawRows.filter(function (r) { return r.names && r.played > 0; });
+    started.sort(function (a, b) {
+      if (a.complete !== b.complete) return a.complete ? -1 : 1;
+      return hb ? b.value - a.value : a.value - b.value;
+    });
+    var rows = [];
+    started.forEach(function (r, i) {
+      var place = i + 1, tie = false;
+      if (i > 0) {
+        var prev = started[i - 1];
+        if (prev.complete === r.complete && prev.value === r.value) { place = rows[i - 1].place; tie = true; }
+      }
+      rows.push({ place: place, group: r.group, index: r.index, names: r.names, value: r.value, complete: r.complete, tie: tie });
+    });
     return { format: resolved, label: label, higherBetter: hb, rows: rows };
   }
 

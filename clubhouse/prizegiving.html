@@ -154,10 +154,13 @@
 
       var eventId = null, unsub = null, timer = null, lastEvent = null;
       // UI state
-      var state = { mode: "ceremony", divisions: "none", onlyComplete: false, teamFormat: "best2", slideIdx: 0, revealed: 1 };
+      // teamFormat is auto-set from the event format on load (scramble → scramble,
+      // otherwise → off so the individual winner is the finale) until the operator
+      // picks one explicitly (teamTouched).
+      var state = { mode: "ceremony", divisions: "none", onlyComplete: false, teamFormat: "off", teamTouched: false, slideIdx: 0, revealed: 1 };
 
       var apiBase = (_D.api || "").replace(/\/$/, "") || ".";
-      var isUuid = function (s) { return /[-_]/.test(s) && s.length > 16; };
+      var isUuid = function (s) { return (/[-_]/.test(s) && s.length > 16) || /^[A-Za-z0-9]{20}$/.test(s); };
 
       async function resolveEvent() {
         var code = $("code").value.trim();
@@ -190,6 +193,7 @@
         try {
           $("cfgMsg").textContent = "connecting…";
           var ev = await resolveEvent();
+          if (!ev || !ev.id) throw new Error("Event not found (check the code)");
           eventId = ev.id;
           localStorage.setItem("foreai.clubhouse", JSON.stringify({ apiBase: (cfg.apiBase || ""), code: $("code").value.trim() }));
           $("cfgMsg").textContent = "";
@@ -203,6 +207,10 @@
 
       function onEvent(ev) {
         lastEvent = ev;
+        // Default the team-format to the event's own format until the operator
+        // overrides it: a scramble is a team event (team prize is the finale);
+        // anything else defaults to individual (team off).
+        if (!state.teamTouched) state.teamFormat = ev.format === "scramble" ? "scramble" : "off";
         $("eventName").textContent = ev.name || "";
         $("codeOut").textContent = ev.code || "local";
         $("toolbar").style.display = "flex";
@@ -231,6 +239,7 @@
       // winner as the finale).
       function buildSlides(r) {
         var slides = [];
+        var scramble = r.format === "scramble";
         // side games (scored only)
         r.sideGames.filter(function (g) { return !g.fundraiser; }).forEach(function (g) {
           slides.push({
@@ -240,15 +249,15 @@
             empty: g.winner ? "" : "No entries recorded",
           });
         });
-        // two's club
-        if (r.twos.length) {
+        // two's club (individual — the captain's card isn't an individual card in a scramble)
+        if (!scramble && r.twos.length) {
           slides.push({
             kicker: "Par 3s", title: "Two's Club",
             rows: r.twos.map(function (t) { return { medal: "②", name: t.player.name, detail: t.holes.map(function (h) { return "H" + h; }).join(", ") }; }),
           });
         }
-        // nines
-        if (r.nines.front || r.nines.back) {
+        // nines (individual)
+        if (!scramble && (r.nines.front || r.nines.back)) {
           var rows = [];
           if (r.nines.front) rows.push({ medal: "⛳", name: r.nines.front.player.name, detail: "Front 9 · " + r.nines.front.value + (r.metric === "stableford" ? " pts" : " net") });
           if (r.nines.back) rows.push({ medal: "⛳", name: r.nines.back.player.name, detail: "Back 9 · " + r.nines.back.value + (r.metric === "stableford" ? " pts" : " net") });
@@ -264,14 +273,13 @@
             });
           });
         }
-        // best gross
-        if (r.bestGross) {
+        // best gross (individual)
+        if (!scramble && r.bestGross) {
           slides.push({
             kicker: "Lowest gross", title: "Best Gross",
             rows: [{ medal: "🏌️", name: r.bestGross.player.name, detail: r.bestGross.gross + " gross" + (r.bestGross.complete ? "" : " · partial"), hero: true }],
           });
         }
-        var scramble = r.format === "scramble";
         // On a team day the team prize is the climax; otherwise the individual
         // winner is. Build both, then order so the headline prize is the finale.
         var teamHeadline = state.teamFormat !== "off" && r.team && r.team.rows.length > 0;
@@ -369,7 +377,7 @@
               return '<div class="row"><div class="rk">' + medal(t.place) + '</div><div class="nm">Team ' + (t.index + 1) + "<small>" + escapeHtml(t.names || "") + (t.complete ? "" : " · partial") + "</small></div><div class=\"sc\">" + t.value + "</div></div>";
             }).join("") + "</div>";
         }
-        if (r.bestGross) {
+        if (!scramble && r.bestGross) {
           html += '<div class="panel"><h2>Best gross</h2><div class="row"><div class="rk">🏌️</div><div class="nm">' + escapeHtml(r.bestGross.player.name) + "<small>HCP " + escapeHtml(r.bestGross.player.handicap) + (r.bestGross.complete ? "" : " · partial") + '</small></div><div class="sc">' + r.bestGross.gross + "</div></div></div>";
         }
         if (r.divisions.length) {
@@ -377,7 +385,7 @@
             html += '<div class="panel"><h2>' + escapeHtml(d.label) + ' <span class="muted" style="font-size:13px">· ' + escapeHtml(d.range) + "</span></h2>" + panelRows(d.winners, r, true) + "</div>";
           });
         }
-        if (r.nines.front || r.nines.back) {
+        if (!scramble && (r.nines.front || r.nines.back)) {
           html += '<div class="panel"><h2>Nines</h2>';
           if (r.nines.front) html += '<div class="row"><div class="rk">⛳</div><div class="nm">Best front 9<small>' + escapeHtml(r.nines.front.player.name) + '</small></div><div class="sc">' + r.nines.front.value + "</div></div>";
           if (r.nines.back) html += '<div class="row"><div class="rk">⛳</div><div class="nm">Best back 9<small>' + escapeHtml(r.nines.back.player.name) + '</small></div><div class="sc">' + r.nines.back.value + "</div></div>";
@@ -385,11 +393,11 @@
         }
         if (r.sideGames.length) {
           html += '<div class="panel"><h2>Side games</h2>' + r.sideGames.map(function (g) {
-            var right = g.fundraiser ? '<span class="muted">on the day</span>' : (g.winner ? escapeHtml(g.winner.player.name) + " · " + g.winner.value + (g.unit ? " " + g.unit : "") : "—");
+            var right = g.fundraiser ? '<span class="muted">on the day</span>' : (g.winner ? escapeHtml(g.winner.player.name) + " · " + escapeHtml(g.winner.value) + (g.unit ? " " + escapeHtml(g.unit) : "") : "—");
             return '<div class="row"><div class="nm">' + escapeHtml(g.label) + "<small>" + (g.hole > 0 ? "Hole " + g.hole : "All day") + '</small></div><div class="sc" style="font-size:15px">' + right + "</div></div>";
           }).join("") + "</div>";
         }
-        if (r.twos.length) {
+        if (!scramble && r.twos.length) {
           html += '<div class="panel"><h2>Two\'s club</h2>' + r.twos.map(function (t) {
             return '<div class="row"><div class="rk">②</div><div class="nm">' + escapeHtml(t.player.name) + '</div><div class="sc" style="font-size:15px">' + t.holes.map(function (h) { return "H" + h; }).join(", ") + "</div></div>";
           }).join("") + "</div>";
@@ -431,7 +439,7 @@
         b.onclick = function () { state.onlyComplete = b.dataset.complete === "1"; state.slideIdx = 0; render(); };
       });
       Array.prototype.forEach.call(document.querySelectorAll("#teamSeg button"), function (b) {
-        b.onclick = function () { state.teamFormat = b.dataset.team; state.slideIdx = 0; render(); };
+        b.onclick = function () { state.teamFormat = b.dataset.team; state.teamTouched = true; state.slideIdx = 0; render(); };
       });
       document.addEventListener("keydown", function (e) {
         if (state.mode !== "ceremony" || !lastEvent) return;

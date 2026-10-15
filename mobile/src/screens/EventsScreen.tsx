@@ -1203,7 +1203,7 @@ function PrizesTab({ event, course }: { event: TEvent; course: ReturnType<typeof
   const [onlyComplete, setOnlyComplete] = useState(false);
   // 4-ball team day → feature the team prize. Best-2-to-count is the classic
   // society rule; organiser can switch to combined / scramble / off.
-  const [teamFormat, setTeamFormat] = useState<TeamFormatOpt>(isScramble ? "scramble" : "best2");
+  const [teamFormat, setTeamFormat] = useState<TeamFormatOpt>(isScramble ? "scramble" : "off");
   const showTeam = teamFormat !== "off";
   const r = computePrizes(event, course, {
     divisions,
@@ -1289,6 +1289,7 @@ function PrizesTab({ event, course }: { event: TEvent; course: ReturnType<typeof
                 <Text style={styles.lbHcp}>
                   {t.names || "no players"}
                   {!t.complete ? " · partial" : ""}
+                  {t.tie ? " · tie" : ""}
                 </Text>
               </View>
               <Text style={styles.lbScore}>{t.value}</Text>
@@ -1316,7 +1317,7 @@ function PrizesTab({ event, course }: { event: TEvent; course: ReturnType<typeof
         </Card>
       )}
 
-      {r.bestGross && (
+      {!isScramble && r.bestGross && (
         <Card>
           <Text style={styles.prizeSection}>Best gross</Text>
           <View style={styles.lbRow}>
@@ -1353,7 +1354,7 @@ function PrizesTab({ event, course }: { event: TEvent; course: ReturnType<typeof
         </Card>
       )}
 
-      {(r.nines.front || r.nines.back) && (
+      {!isScramble && (r.nines.front || r.nines.back) && (
         <Card>
           <Text style={styles.prizeSection}>Nines</Text>
           {r.nines.front && (
@@ -1398,7 +1399,7 @@ function PrizesTab({ event, course }: { event: TEvent; course: ReturnType<typeof
         </Card>
       )}
 
-      {r.twos.length > 0 && (
+      {!isScramble && r.twos.length > 0 && (
         <Card>
           <Text style={styles.prizeSection}>Two's club</Text>
           {r.twos.map((tw) => (

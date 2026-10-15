@@ -114,6 +114,10 @@ function compareCards(
   higherBetter: boolean,
   starts: number[]
 ): number {
+  // Finished rounds always rank ahead of unfinished ones — a partial card must
+  // never win a prize over a complete one. This matters most for net / gross
+  // (lower-is-better), where fewer holes means a falsely lower total.
+  if (a.complete !== b.complete) return a.complete ? -1 : 1;
   const at = metricTotal(a, metric);
   const bt = metricTotal(b, metric);
   if (at !== bt) return higherBetter ? bt - at : at - bt;
@@ -157,7 +161,8 @@ export function rankCards(
     let tie = false;
     if (i > 0) {
       const prev = sorted[i - 1];
-      const samePrimary = metricTotal(prev, metric) === metricTotal(c, metric);
+      const samePrimary =
+        prev.complete === c.complete && metricTotal(prev, metric) === metricTotal(c, metric);
       const cmp = compareCards(prev, c, metric, higherBetter, starts);
       if (cmp === 0) {
         place = rows[i - 1].place; // genuine dead-heat: share the place
@@ -266,6 +271,7 @@ export type TeamRow = {
   names: string;
   value: number;
   complete: boolean;
+  tie: boolean; // shares its place with the team above (same score, undecided)
 };
 
 export type TeamPrize = { format: TeamFormat; label: string; higherBetter: boolean; rows: TeamRow[] };
@@ -295,11 +301,13 @@ function computeTeams(
     const members = group.playerIds.map((id) => cardsById[id]).filter(Boolean) as PlayerCard[];
     let value = 0;
     let complete = members.length > 0;
+    let played = 0; // holes the team has posted
     if (resolved === "scramble") {
       // team score lives on the captain's (first player's) card
       const cap = members[0];
       value = cap ? cap.gross : 0;
       complete = !!cap && cap.complete;
+      played = cap ? cap.holesPlayed : 0;
       hb = false; // lowest gross wins
     } else if (resolved === "best2") {
       // sum, per hole, of the best two players' Stableford points
@@ -311,13 +319,15 @@ function computeTeams(
           .sort((a, b) => b - a);
         value += (pts[0] || 0) + (pts[1] || 0);
       }
-      complete = members.some((m) => m.complete);
+      complete = members.length > 0 && members.some((m) => m.complete);
+      played = members.reduce((mx, m) => Math.max(mx, m.holesPlayed), 0);
     } else {
       // combined: sum of every team member's metric total
       value = members.reduce((s, m) => s + metricTotal(m, metric), 0);
       complete = members.length > 0 && members.every((m) => m.complete);
+      played = members.reduce((mx, m) => Math.max(mx, m.holesPlayed), 0);
     }
-    return { group, index, names: teamNames(event, group), value, complete };
+    return { group, index, names: teamNames(event, group), value, complete, played };
   });
 
   label =
@@ -329,9 +339,35 @@ function computeTeams(
       ? "Team — combined Stableford"
       : "Team — combined net";
 
-  const played = rawRows.filter((r) => r.names);
-  played.sort((a, b) => (hb ? b.value - a.value : a.value - b.value));
-  const rows: TeamRow[] = played.map((r, i) => ({ ...r, place: i + 1 }));
+  // Only teams that have actually posted a hole can be ranked — a team with no
+  // card must never win (critical for scramble gross, where 0 would rank first).
+  // Finished teams rank ahead of partial ones.
+  const started = rawRows.filter((r) => r.names && r.played > 0);
+  started.sort((a, b) => {
+    if (a.complete !== b.complete) return a.complete ? -1 : 1;
+    return hb ? b.value - a.value : a.value - b.value;
+  });
+  const rows: TeamRow[] = [];
+  started.forEach((r, i) => {
+    let place = i + 1;
+    let tie = false;
+    if (i > 0) {
+      const prev = started[i - 1];
+      if (prev.complete === r.complete && prev.value === r.value) {
+        place = rows[i - 1].place;
+        tie = true;
+      }
+    }
+    rows.push({
+      place,
+      group: r.group,
+      index: r.index,
+      names: r.names,
+      value: r.value,
+      complete: r.complete,
+      tie,
+    });
+  });
   return { format: resolved, label, higherBetter: hb, rows };
 }
 
