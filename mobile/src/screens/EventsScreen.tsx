@@ -465,6 +465,10 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
     if (event.teeId && TEES.some((t2) => t2.id === event.teeId)) round.setTee(event.teeId as TeeId);
     const myGroup = meId ? event.groups.find((g) => g.playerIds.includes(meId)) : undefined;
     round.setCurrentHole(myGroup?.startHole ?? 1);
+    // Link this round to the event so each score also posts to the golf-day
+    // leaderboard for this player (needs a claimed identity — the "Play my round"
+    // button only shows once you've picked yourself, so meId is set here).
+    if (meId) round.setLinkedEvent({ eventId: event.id, playerId: meId });
     nav.navigate("Tabs", { screen: "Play" });
   };
 

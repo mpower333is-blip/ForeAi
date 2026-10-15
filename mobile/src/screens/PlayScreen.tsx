@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Screen, Card, Button, Segmented, MetreStepper, KmhStepper, StatTile } from "../components/ui";
 import { colors, spacing, type } from "../theme";
 import { useRound } from "../state/RoundContext";
+import { useTournament } from "../state/TournamentContext";
 import { useLocation } from "../hooks/useLocation";
 import HoleGps, { HoleMarks } from "../components/HoleGps";
 import ScoreCaptureCard from "../components/ScoreCaptureCard";
@@ -51,7 +52,30 @@ export default function PlayScreen({ navigation }: any) {
     bag,
     teeId,
     setTee,
+    linkedEvent,
   } = useRound();
+  const { setScore, getEvent } = useTournament();
+
+  // When this round is being played "for" an event, mirror each score to that
+  // event's leaderboard for this player (so "Play my round" populates the
+  // golf-day board automatically). setHoleScore stays the single source for the
+  // personal round; this just also posts to the event.
+  const scoreHole = (h: number, strokes: number) => {
+    setHoleScore(h, strokes);
+    if (linkedEvent && strokes > 0) {
+      setScore(linkedEvent.eventId, linkedEvent.playerId, h, strokes);
+    }
+  };
+  // Post every score already on this round to the event leaderboard at once —
+  // a safety net / one-tap "submit my card" for a linked round.
+  const pushAllScores = () => {
+    if (!linkedEvent) return;
+    Object.keys(scores).forEach((h) => {
+      const g = scores[Number(h)];
+      if (g > 0) setScore(linkedEvent.eventId, linkedEvent.playerId, Number(h), g);
+    });
+  };
+  const linkedEventName = linkedEvent ? getEvent(linkedEvent.eventId)?.name : undefined;
 
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
 
@@ -371,13 +395,25 @@ export default function PlayScreen({ navigation }: any) {
         </Card>
       )}
 
+      {linkedEvent && (
+        <View style={styles.eventSyncBox}>
+          <Text style={styles.eventSyncText}>
+            ⛳ Your scores post to the golf-day leaderboard
+            {linkedEventName ? ` — ${linkedEventName}` : ""}
+          </Text>
+          <TouchableOpacity onPress={pushAllScores} style={styles.eventSyncBtn}>
+            <Text style={styles.eventSyncBtnText}>Send all my scores now</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <Text style={styles.sectionTitle}>Score — hole {currentHole}</Text>
       <ScoreCaptureCard
         hole={hole}
         courseHcp={courseHcp}
         gross={scores[currentHole]}
         pickup={!!pickups[currentHole]}
-        onChange={(g) => setHoleScore(currentHole, g)}
+        onChange={(g) => scoreHole(currentHole, g)}
         onPickup={(p) => setPickup(currentHole, p)}
         onClear={() => {
           setHoleScore(currentHole, 0);
@@ -507,6 +543,10 @@ const styles = StyleSheet.create({
   logRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   grid: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
   sectionTitle: { ...(type.h2 as any), color: colors.text },
+  eventSyncBox: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.accent, padding: spacing.md, marginBottom: spacing.md, gap: 8 },
+  eventSyncText: { color: colors.text, fontSize: 13, fontWeight: "700" },
+  eventSyncBtn: { alignSelf: "flex-start", paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, backgroundColor: colors.accent },
+  eventSyncBtnText: { color: colors.bg, fontSize: 13, fontWeight: "800" },
   shotHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   undoBtn: { marginTop: 0, paddingVertical: 8, paddingHorizontal: 14 },
   shotLine: {

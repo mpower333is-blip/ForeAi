@@ -68,6 +68,8 @@ type RoundState = {
   courseHcp: number;
   setCourse: (id: string) => void;
   setCurrentHole: (n: number) => void;
+  linkedEvent: { eventId: string; playerId: string } | null;
+  setLinkedEvent: (e: { eventId: string; playerId: string } | null) => void;
   setBag: (bag: Club[]) => void;
   setHoleScore: (hole: number, strokes: number) => void;
   setPickup: (hole: number, picked: boolean) => void;
@@ -111,6 +113,10 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   const [scores, setScores] = useState<Record<number, number>>({});
   const [pickups, setPickups] = useState<Record<number, boolean>>({});
   const [holeStats, setHoleStats] = useState<Record<number, HoleStats>>({});
+  // When the round is played "for" an event (via "Play my round"), each score
+  // also posts to that event's leaderboard for this player. Cleared on a manual
+  // course change so a casual round never posts to a stale event.
+  const [linkedEvent, setLinkedEvent] = useState<{ eventId: string; playerId: string } | null>(null);
   // Handicap is owned by the persisted profile so it's one value everywhere.
   const { handicap: playerHandicap, setHandicap: setPlayerHandicap } = useProfile();
   const courseHcp = courseHandicap(playerHandicap);
@@ -128,6 +134,7 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   const setCourse = (id: string) => {
     setCourseId(id);
     setCurrentHole(1);
+    setLinkedEvent(null); // a manual course change de-links from any event
   };
 
   const setHoleScore = (hole: number, strokes: number) => {
@@ -259,6 +266,8 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     courseHcp,
     setCourse,
     setCurrentHole,
+    linkedEvent,
+    setLinkedEvent,
     setBag,
     setHoleScore,
     setPickup,
