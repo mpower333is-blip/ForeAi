@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ForeAi · Enter Scores</title>
+    <style>
+      :root {
+        --bg: #081226; --surface: #0f2143; --surface2: #132a54; --border: #26407a;
+        --accent: #f3c33b; --text: #ffffff; --muted: #b7c6e6; --faint: #7f92b6;
+        --ok: #58d19b; --warn: #ffcf5c;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body { background: var(--bg); color: var(--text); font-family: -apple-system, Segoe UI, Roboto, system-ui, sans-serif; padding: 56px 18px 56px; }
+      header { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+      .brand { font-size: 24px; font-weight: 800; color: var(--accent); }
+      .brand small { color: var(--muted); font-weight: 600; font-size: 15px; }
+      .status { font-size: 13px; color: var(--faint); }
+      .config { background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+      .config label { font-size: 12px; color: var(--faint); display: block; margin-bottom: 4px; }
+      input, select { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px 12px; font-size: 16px; }
+      button { background: var(--accent); color: #20160a; border: 0; border-radius: 10px; padding: 11px 16px; font-weight: 800; font-size: 15px; cursor: pointer; }
+      button.ghost { background: transparent; color: var(--accent); border: 1px solid #d9a62a; }
+      button:disabled { opacity: .4; cursor: default; }
+      .muted { color: var(--muted); } .err { color: #ff6b6b; }
+      .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; margin-bottom: 14px; }
+      .navRow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+      .navRow select { flex: 1; min-width: 180px; }
+      .entryHead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+      .entryName { font-size: 22px; font-weight: 800; }
+      .entryMates { color: var(--faint); font-size: 14px; }
+      .totals { color: var(--accent); font-weight: 800; font-size: 16px; }
+      .totals span { color: var(--faint); font-weight: 600; font-size: 13px; }
+      .grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 8px; }
+      @media (max-width: 760px) { .grid { grid-template-columns: repeat(6, 1fr); } }
+      @media (max-width: 520px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+      .cell { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 8px 6px 6px; text-align: center; position: relative; }
+      .cell .h { font-size: 12px; color: var(--faint); font-weight: 700; }
+      .cell .p { font-size: 11px; color: var(--faint); }
+      .cell input { width: 100%; text-align: center; font-size: 20px; font-weight: 800; padding: 8px 2px; margin-top: 4px; }
+      .cell input::placeholder { color: #44588a; }
+      .cell.saved { border-color: var(--ok); }
+      .cell.saving { border-color: var(--warn); }
+      .cell .tick { position: absolute; top: 4px; right: 6px; font-size: 11px; color: var(--ok); opacity: 0; }
+      .cell.saved .tick { opacity: 1; }
+      .legend { color: var(--faint); font-size: 13px; margin: 10px 2px 0; }
+      table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+      th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); font-size: 15px; }
+      th { color: var(--faint); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+      td.num { text-align: right; } .done { color: var(--ok); font-weight: 700; }
+      tr.jump { cursor: pointer; } tr.jump:hover { background: var(--surface2); }
+      .pill { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; font-size: 13px; color: var(--muted); }
+    </style>
+    <script src="../config.js"></script>
+    <script src="../firebase-config.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="auth-guard.js"></script>
+    <script src="../events-fs.js"></script>
+    <script src="../prizes-engine.js"></script>
+  </head>
+  <body>
+    <a href="index.html" class="foreai-back" onclick="if(window.history.length>1){window.history.back();return false;}">‹ Back</a>
+    <style>.foreai-back{position:fixed;top:14px;left:14px;z-index:99999;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(6,23,15,0.72);color:#f3c33b;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;text-decoration:none;border:1px solid rgba(243,195,59,0.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,0.3)}.foreai-back:hover{background:rgba(243,195,59,0.16)}</style>
+
+    <div class="config">
+      <div>
+        <label>Join code (or event id)</label>
+        <input id="code" size="12" placeholder="ABC123" />
+      </div>
+      <button id="connect">Connect</button>
+      <button class="ghost" id="refresh" disabled>↻ Refresh</button>
+      <span class="muted" id="cfgMsg"></span>
+    </div>
+
+    <header>
+      <div class="brand">✍️ Enter Scores <small id="eventName"></small></div>
+      <div class="status" id="summary"></div>
+    </header>
+
+    <div id="main">
+      <div class="panel"><span class="muted">Enter the event's join code and connect to start capturing cards.</span></div>
+    </div>
+
+    <script>
+      var $ = function (id) { return document.getElementById(id); };
+      var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+      var isUuid = function (s) { return /[-_]/.test(s) && s.length > 16; };
+
+      var cfg = JSON.parse(localStorage.getItem("foreai.clubhouse") || "{}");
+      var _q = new URLSearchParams(location.search);
+      var _D = window.FOREAI_DEFAULTS || {};
+      if (_q.get("code")) cfg.code = _q.get("code").toUpperCase();
+      if (!cfg.code && _D.code) cfg.code = _D.code;
+      $("code").value = cfg.code || "";
+
+      var db = null, S = { id: null, ev: null, entries: [], cur: 0, course: null, par: {}, holes: [] };
+
+      // auth-guard.js has already initialised the Firebase app and will redirect
+      // to sign-in if nobody is logged in. We just need the signed-in organiser's
+      // session (scores write rule = isSignedIn) before writing.
+      function ensureUser() {
+        return new Promise(function (resolve) {
+          var u = firebase.auth().currentUser;
+          if (u) return resolve(u);
+          var un = firebase.auth().onAuthStateChanged(function (x) { if (x) { un(); resolve(x); } });
+        });
+      }
+
+      async function connect() {
+        $("cfgMsg").textContent = "connecting…";
+        try {
+          db = firebase.firestore();
+          await ensureUser(); // organiser session (writes need a signed-in user)
+          var code = $("code").value.trim();
+          if (!code) throw new Error("Enter a join code");
+          var id = isUuid(code) ? code : await EventsFS.idForCode(code.toUpperCase());
+          if (!id) throw new Error("No event with that code");
+          var ev = await EventsFS.assembleEvent(id);
+          if (!ev) throw new Error("Event not found");
+          S.id = id; S.ev = ev;
+          S.course = window.PrizesEngine ? PrizesEngine.cardFor(ev.courseId, ev.name) : { holes: [] };
+          S.holes = S.course.holes.map(function (h) { return h.number; });
+          S.par = {}; S.course.holes.forEach(function (h) { S.par[h.number] = h.par; });
+          buildEntries();
+          S.cur = 0;
+          localStorage.setItem("foreai.clubhouse", JSON.stringify({ apiBase: cfg.apiBase || "", code: code }));
+          $("cfgMsg").textContent = "";
+          $("refresh").disabled = false;
+          $("eventName").textContent = ev.name || "";
+          render();
+        } catch (e) {
+          $("cfgMsg").innerHTML = '<span class="err">' + esc(e.message || "could not connect") + "</span>";
+        }
+      }
+
+      async function refresh() {
+        if (!S.id) return;
+        var ev = await EventsFS.assembleEvent(S.id);
+        if (ev) { S.ev = ev; render(); }
+      }
+
+      // Build the list of scorecards to capture. Scramble → one card per team,
+      // scored on the captain (first player). Otherwise → one card per player.
+      function buildEntries() {
+        var ev = S.ev;
+        if (ev.format === "scramble") {
+          S.entries = ev.groups.map(function (g, i) {
+            var cap = g.playerIds[0];
+            var names = g.playerIds.map(function (id) { var p = ev.players.find(function (x) { return x.id === id; }); return p ? p.name : null; }).filter(Boolean);
+            return { id: cap, label: "Team " + (i + 1), mates: names.join(", ") };
+          }).filter(function (e) { return !!e.id; });
+        } else {
+          S.entries = ev.players.slice().sort(function (a, b) { return (a.name || "").localeCompare(b.name || ""); })
+            .map(function (p) { return { id: p.id, label: p.name, mates: "HCP " + p.handicap }; });
+        }
+      }
+
+      function scoresFor(id) { return (S.ev.scores && S.ev.scores[id]) || {}; }
+      function thruOf(id) { var s = scoresFor(id); return S.holes.filter(function (h) { return s[h] != null; }).length; }
+      function grossOf(id) { var s = scoresFor(id); return S.holes.reduce(function (a, h) { return a + (s[h] || 0); }, 0); }
+
+      async function save(entryId, hole, strokes) {
+        if (!db) return;
+        var ref = db.collection("events").doc(S.id).collection("scores").doc(entryId + "_" + hole);
+        if (strokes == null) {
+          await ref.delete();
+          if (S.ev.scores[entryId]) delete S.ev.scores[entryId][hole];
+        } else {
+          await ref.set({ playerId: entryId, hole: hole, strokes: strokes, updatedAt: Date.now() });
+          (S.ev.scores[entryId] || (S.ev.scores[entryId] = {}))[hole] = strokes;
+        }
+      }
+
+      function render() {
+        if (!S.ev) return;
+        var total = S.entries.length;
+        var complete = S.entries.filter(function (e) { return thruOf(e.id) >= S.holes.length; }).length;
+        var fmt = S.ev.format === "scramble" ? "4-ball scramble (one card per team)" : (S.ev.format === "stableford" ? "Stableford (one card per player)" : "Stroke (one card per player)");
+        $("summary").innerHTML = esc(fmt) + ' · <b class="done">' + complete + "</b>/" + total + " cards complete"
+          + (S.course.approx ? ' · <span class="err">no scorecard on file — par shown is a default</span>' : "");
+
+        if (!total) { $("main").innerHTML = '<div class="panel"><span class="muted">No teams/players to score yet.</span></div>'; return; }
+        if (S.cur >= total) S.cur = total - 1;
+        if (S.cur < 0) S.cur = 0;
+        var e = S.entries[S.cur];
+        var s = scoresFor(e.id);
+
+        var options = S.entries.map(function (en, i) {
+          var t = thruOf(en.id), done = t >= S.holes.length;
+          return '<option value="' + i + '"' + (i === S.cur ? " selected" : "") + ">" + esc(en.label) + " — " + (done ? "✓ done" : t + "/" + S.holes.length) + "</option>";
+        }).join("");
+
+        var cells = S.course.holes.map(function (h) {
+          var v = s[h.number];
+          return '<div class="cell' + (v != null ? " saved" : "") + '" id="cell-' + h.number + '">'
+            + '<span class="tick">✓</span>'
+            + '<div class="h">H' + h.number + '</div><div class="p">par ' + h.par + "</div>"
+            + '<input type="number" inputmode="numeric" min="1" max="20" data-hole="' + h.number + '" '
+            + 'value="' + (v != null ? v : "") + '" placeholder="' + h.par + '" />'
+            + "</div>";
+        }).join("");
+
+        var gross = grossOf(e.id), thru = thruOf(e.id);
+        var parThru = S.course.holes.filter(function (h) { return s[h.number] != null; }).reduce(function (a, h) { return a + h.par; }, 0);
+        var toPar = gross - parThru;
+        var toParTxt = thru === 0 ? "—" : (toPar === 0 ? "E" : (toPar > 0 ? "+" + toPar : "" + toPar));
+
+        $("main").innerHTML =
+          '<div class="panel">'
+          + '<div class="navRow">'
+          + '<button class="ghost" id="prev">‹ Prev</button>'
+          + '<select id="pick">' + options + "</select>"
+          + '<button class="ghost" id="next">Next ›</button>'
+          + '<button id="nextInc">Next unfinished →</button>'
+          + "</div>"
+          + '<div class="entryHead"><div><div class="entryName">' + esc(e.label) + "</div>"
+          + '<div class="entryMates">' + esc(e.mates || "") + "</div></div>"
+          + '<div class="totals">' + (thru ? gross : "–") + ' <span>gross · ' + toParTxt + " · thru " + thru + "/" + S.holes.length + "</span></div></div>"
+          + '<div class="grid">' + cells + "</div>"
+          + '<div class="legend">Type each hole’s score and press Tab/Enter — it saves to the live board as you go. Clear a box to remove that score. A green border + ✓ means saved.</div>'
+          + "</div>"
+          + '<div class="panel"><div class="pill">All cards</div>'
+          + '<table><tr><th>Card</th><th>Players</th><th class="num">Thru</th><th class="num">Gross</th></tr>'
+          + S.entries.map(function (en, i) {
+              var t = thruOf(en.id), g = grossOf(en.id), done = t >= S.holes.length;
+              return '<tr class="jump" data-i="' + i + '"><td>' + esc(en.label) + "</td>"
+                + '<td class="muted">' + esc(en.mates || "") + "</td>"
+                + '<td class="num ' + (done ? "done" : "") + '">' + (done ? "✓ " : "") + t + "</td>"
+                + '<td class="num">' + (t ? g : "–") + "</td></tr>";
+            }).join("")
+          + "</table></div>";
+
+        $("prev").onclick = function () { S.cur--; render(); };
+        $("next").onclick = function () { S.cur++; render(); };
+        $("pick").onchange = function () { S.cur = Number(this.value); render(); };
+        $("nextInc").onclick = function () {
+          for (var k = 1; k <= S.entries.length; k++) {
+            var idx = (S.cur + k) % S.entries.length;
+            if (thruOf(S.entries[idx].id) < S.holes.length) { S.cur = idx; render(); return; }
+          }
+        };
+        Array.prototype.forEach.call(document.querySelectorAll('.jump'), function (tr) {
+          tr.onclick = function () { S.cur = Number(tr.dataset.i); render(); };
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('.cell input'), function (inp) {
+          inp.onchange = async function () {
+            var hole = Number(inp.dataset.hole);
+            var raw = inp.value.trim();
+            var cell = $("cell-" + hole);
+            cell.classList.remove("saved"); cell.classList.add("saving");
+            try {
+              if (raw === "") { await save(e.id, hole, null); cell.classList.remove("saving"); updateTotals(e.id); return; }
+              var n = Math.max(1, Math.min(20, parseInt(raw, 10) || 0));
+              inp.value = n;
+              await save(e.id, hole, n);
+              cell.classList.remove("saving"); cell.classList.add("saved");
+              updateTotals(e.id);
+            } catch (err) {
+              cell.classList.remove("saving");
+              $("cfgMsg").innerHTML = '<span class="err">Save failed — are you signed in? ' + esc(err.message || "") + "</span>";
+            }
+          };
+        });
+      }
+
+      function updateTotals(id) {
+        var e = S.entries[S.cur]; if (!e || e.id !== id) return;
+        var s = scoresFor(id), gross = grossOf(id), thru = thruOf(id);
+        var parThru = S.course.holes.filter(function (h) { return s[h.number] != null; }).reduce(function (a, h) { return a + h.par; }, 0);
+        var toPar = gross - parThru;
+        var toParTxt = thru === 0 ? "—" : (toPar === 0 ? "E" : (toPar > 0 ? "+" + toPar : "" + toPar));
+        var el = document.querySelector(".totals");
+        if (el) el.innerHTML = (thru ? gross : "–") + ' <span>gross · ' + toParTxt + " · thru " + thru + "/" + S.holes.length + "</span>";
+      }
+
+      $("connect").onclick = connect;
+      $("refresh").onclick = refresh;
+      if (cfg.code) connect();
+    </script>
+  </body>
+</html>
