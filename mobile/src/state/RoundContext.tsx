@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Club,
   DEFAULT_BAG,
@@ -93,6 +94,10 @@ type RoundState = {
 
 const CALIBRATION_TARGET = 18;
 
+// The live personal round is persisted so scores survive the app closing — a
+// backstop next to the leaderboard sync so a day's card is never lost.
+const ROUND_KEY = "foreai.round.v1";
+
 const Ctx = createContext<RoundState | null>(null);
 
 let counter = 0;
@@ -123,6 +128,50 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   // Career-long shot log the caddie learns from — survives round resets.
   const [learningShots, setLearningShots] = useState<LoggedShot[]>([]);
   const [calibrationHoles, setCalibrationHoles] = useState(0);
+  // Gate saving until the first on-disk load finishes, so an empty initial
+  // state never overwrites a persisted round before it's read back.
+  const [hydrated, setHydrated] = useState(false);
+
+  // Load any persisted round once, on mount.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(ROUND_KEY);
+        if (alive && raw) {
+          const saved = JSON.parse(raw);
+          if (saved && typeof saved === "object") {
+            if (typeof saved.courseId === "string" && hasCourse(saved.courseId))
+              setCourseId(saved.courseId);
+            if (typeof saved.teeId === "string") setTee(saved.teeId as TeeId);
+            if (typeof saved.currentHole === "number") setCurrentHole(saved.currentHole);
+            if (saved.scores && typeof saved.scores === "object") setScores(saved.scores);
+            if (saved.pickups && typeof saved.pickups === "object") setPickups(saved.pickups);
+            if (saved.holeStats && typeof saved.holeStats === "object") setHoleStats(saved.holeStats);
+            if (Array.isArray(saved.shots)) setShots(saved.shots);
+            if (saved.linkedEvent && typeof saved.linkedEvent === "object")
+              setLinkedEvent(saved.linkedEvent);
+          }
+        }
+      } catch {
+        // Corrupt/unreadable store — start fresh rather than crash.
+      } finally {
+        if (alive) setHydrated(true);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Persist the round whenever it changes (after the initial load).
+  useEffect(() => {
+    if (!hydrated) return;
+    AsyncStorage.setItem(
+      ROUND_KEY,
+      JSON.stringify({ courseId, teeId, currentHole, scores, pickups, holeStats, shots, linkedEvent })
+    ).catch(() => {});
+  }, [hydrated, courseId, teeId, currentHole, scores, pickups, holeStats, shots, linkedEvent]);
 
   const selectedCourse = useMemo(() => getCourse(courseId), [courseId]);
   // Hole yardages scaled to the selected tee (par / SI / GPS unchanged).
@@ -183,6 +232,7 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     setPickups({});
     setHoleStats({});
     setCurrentHole(1);
+    setLinkedEvent(null);
   };
 
   const resetCaddieLearning = () => {
