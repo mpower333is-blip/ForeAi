@@ -137,6 +137,12 @@
         <p>Big-screen leaderboard — who's on which hole and the running standings.</p>
         <span class="go">Open board →</span>
       </a>
+      <a class="tile" id="t-prizegiving" href="prizegiving.html">
+        <div class="ic">🏆</div>
+        <h3>Prize-giving <span class="pill admin">CLUBHOUSE</span></h3>
+        <p>Run the ceremony — overall winners, best gross, divisions, nines and side-game prizes, revealed one at a time.</p>
+        <span class="go">Open prize-giving →</span>
+      </a>
     </div>
     <div class="foot" id="foot">Use the “Copy” buttons to share the Register and Get-the-app links — players and sponsors never type a code.</div>
   </div>
@@ -165,7 +171,7 @@
 
   function refreshLinks(){
     var s=qs();
-    ['register','get','board'].forEach(function(k){
+    ['register','get','board','prizegiving'].forEach(function(k){
       var a=$('t-'+k); if(!a) return; var base=k+'.html';
       a.href = base + s;
       a.classList.toggle('disabled', !CFG.api || !CFG.code);

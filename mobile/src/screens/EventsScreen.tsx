@@ -41,6 +41,7 @@ import {
   isPlayerLive,
   groupLiveCount,
 } from "../lib/tournament";
+import { computePrizes, PrizeRow, DivisionMode } from "../lib/prizes";
 
 function hhmm(min: number): string {
   const h = Math.floor(min / 60) % 24;
@@ -445,7 +446,7 @@ function EventList({ onOpen }: { onOpen: (id: string) => void }) {
 // Event detail (Players / Tee times / Live)
 // ---------------------------------------------------------------------------
 
-type Tab = "players" | "tees" | "live" | "games" | "sponsors";
+type Tab = "players" | "tees" | "live" | "prizes" | "games" | "sponsors";
 
 function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void }) {
   const t = useTournament();
@@ -598,14 +599,24 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
         style={styles.tabs}
         contentContainerStyle={{ gap: 8 }}
       >
-        {(["players", "tees", "live", "games", "sponsors"] as Tab[]).map((k) => (
+        {(["players", "tees", "live", "prizes", "games", "sponsors"] as Tab[]).map((k) => (
           <TouchableOpacity
             key={k}
             onPress={() => setTab(k)}
             style={[styles.tab, tab === k && styles.tabActive]}
           >
             <Text style={[styles.tabText, tab === k && styles.tabTextActive]}>
-              {k === "players" ? "Players" : k === "tees" ? "Tees" : k === "live" ? "Live" : k === "games" ? "Games" : "Sponsors"}
+              {k === "players"
+                ? "Players"
+                : k === "tees"
+                ? "Tees"
+                : k === "live"
+                ? "Live"
+                : k === "prizes"
+                ? "🏆 Prizes"
+                : k === "games"
+                ? "Games"
+                : "Sponsors"}
             </Text>
           </TouchableOpacity>
         ))}
@@ -614,6 +625,7 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
       {tab === "players" && <PlayersTab event={event} />}
       {tab === "tees" && <TeesTab event={event} />}
       {tab === "live" && <LiveTab event={event} />}
+      {tab === "prizes" && <PrizesTab event={event} course={course} />}
       {tab === "games" && <GamesTab event={event} />}
       {tab === "sponsors" && <SponsorsTab event={event} />}
     </Screen>
@@ -1150,6 +1162,265 @@ function TeamBoard({ event }: { event: TEvent }) {
         </View>
       ))}
     </Card>
+  );
+}
+
+function medal(place: number): string {
+  return place === 1 ? "🥇" : place === 2 ? "🥈" : place === 3 ? "🥉" : `${place}`;
+}
+
+// A single ranked prize line — place, name, handicap, score, countback/tie note.
+function PrizeLine({ row, stableford }: { row: PrizeRow; stableford: boolean }) {
+  return (
+    <View style={styles.lbRow}>
+      <Text style={styles.prizeMedal}>{medal(row.place)}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.lbName}>{row.player.name}</Text>
+        <Text style={styles.lbHcp}>
+          HCP {row.player.handicap}
+          {!row.complete ? ` · thru ${row.thru}` : ""}
+          {row.countback ? " · c/b" : row.tie ? " · tie" : ""}
+        </Text>
+      </View>
+      <View style={{ alignItems: "flex-end" }}>
+        <Text style={styles.lbScore}>
+          {stableford ? `${row.stableford}` : `${row.net}`}
+        </Text>
+        <Text style={styles.prizeSubValue}>
+          {stableford ? "pts" : `net · gross ${row.gross}`}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+type TeamFormatOpt = "best2" | "combined" | "scramble" | "off";
+
+function PrizesTab({ event, course }: { event: TEvent; course: ReturnType<typeof getCourse> }) {
+  const isScramble = event.format === "scramble";
+  const hasTeams = event.groups.length > 0;
+  const [divisions, setDivisions] = useState<DivisionMode>("none");
+  const [onlyComplete, setOnlyComplete] = useState(false);
+  // 4-ball team day → feature the team prize. Best-2-to-count is the classic
+  // society rule; organiser can switch to combined / scramble / off.
+  const [teamFormat, setTeamFormat] = useState<TeamFormatOpt>(isScramble ? "scramble" : "best2");
+  const showTeam = teamFormat !== "off";
+  const r = computePrizes(event, course, {
+    divisions,
+    teamFormat: teamFormat === "off" ? "auto" : teamFormat,
+    onlyComplete,
+  });
+  const stableford = r.metric === "stableford";
+
+  if (r.playedCount === 0) {
+    return (
+      <Card>
+        <Text style={styles.formTitle}>🏆 Prize giving</Text>
+        <Text style={styles.empty}>
+          No scores are in yet. Prizes appear here the moment cards come in — and update live as the
+          field finishes.
+        </Text>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      <Card>
+        <Text style={styles.formTitle}>🏆 Prize giving</Text>
+        <Text style={styles.hint}>
+          {formatLabel(event.format)} · {r.metricLabel} · {r.eligibleCount} player
+          {r.eligibleCount === 1 ? "" : "s"}
+          {!r.allComplete ? " · provisional — not every card is in" : " · final"}
+        </Text>
+        <View style={styles.chipWrap}>
+          {!isScramble &&
+            (["none", "thirds"] as DivisionMode[]).map((m) => (
+              <TouchableOpacity
+                key={m}
+                onPress={() => setDivisions(m)}
+                style={[styles.chip, divisions === m && styles.chipActive]}
+              >
+                <Text style={[styles.chipText, divisions === m && styles.chipTextActive]}>
+                  {m === "none" ? "One field" : "Divisions A/B/C"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          <TouchableOpacity
+            onPress={() => setOnlyComplete((x) => !x)}
+            style={[styles.chip, onlyComplete && styles.chipActive]}
+          >
+            <Text style={[styles.chipText, onlyComplete && styles.chipTextActive]}>
+              Finished rounds only
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {hasTeams && (
+          <View style={styles.chipWrap}>
+            {(["best2", "combined", "scramble", "off"] as TeamFormatOpt[]).map((m) => (
+              <TouchableOpacity
+                key={m}
+                onPress={() => setTeamFormat(m)}
+                style={[styles.chip, teamFormat === m && styles.chipActive]}
+              >
+                <Text style={[styles.chipText, teamFormat === m && styles.chipTextActive]}>
+                  {m === "best2"
+                    ? "Team: Best 2"
+                    : m === "combined"
+                    ? "Team: Combined"
+                    : m === "scramble"
+                    ? "Team: Scramble"
+                    : "Team: Off"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </Card>
+
+      {showTeam && r.team && r.team.rows.length > 0 && (
+        <Card accent>
+          <Text style={styles.prizeSection}>🏆 {r.team.label}</Text>
+          {r.team.rows.slice(0, 6).map((t) => (
+            <View key={t.group.id} style={styles.lbRow}>
+              <Text style={styles.prizeMedal}>{medal(t.place)}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.lbName}>Team {t.index + 1}</Text>
+                <Text style={styles.lbHcp}>
+                  {t.names || "no players"}
+                  {!t.complete ? " · partial" : ""}
+                </Text>
+              </View>
+              <Text style={styles.lbScore}>{t.value}</Text>
+            </View>
+          ))}
+        </Card>
+      )}
+
+      {!isScramble && (
+        <Card>
+          <Text style={styles.prizeSection}>Overall (individual)</Text>
+          {r.overall.length === 0 ? (
+            <Text style={styles.empty}>No qualifying rounds yet.</Text>
+          ) : (
+            r.overall
+              .slice(0, 5)
+              .map((row) => (
+                <PrizeLine
+                  key={row.player.id}
+                  row={row}
+                  stableford={stableford}
+                />
+              ))
+          )}
+        </Card>
+      )}
+
+      {r.bestGross && (
+        <Card>
+          <Text style={styles.prizeSection}>Best gross</Text>
+          <View style={styles.lbRow}>
+            <Text style={styles.prizeMedal}>🏌️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.lbName}>{r.bestGross.player.name}</Text>
+              <Text style={styles.lbHcp}>
+                HCP {r.bestGross.player.handicap}
+                {!r.bestGross.complete ? " · partial" : ""}
+              </Text>
+            </View>
+            <Text style={styles.lbScore}>{r.bestGross.gross}</Text>
+          </View>
+        </Card>
+      )}
+
+      {r.divisions.length > 0 && (
+        <Card>
+          <Text style={styles.prizeSection}>Divisions</Text>
+          {r.divisions.map((d) => (
+            <View key={d.label} style={{ marginBottom: spacing.md }}>
+              <Text style={styles.prizeDivHead}>
+                {d.label} <Text style={styles.lbHcp}>· {d.range}</Text>
+              </Text>
+              {d.winners.map((row) => (
+                <PrizeLine
+                  key={row.player.id}
+                  row={row}
+                  stableford={stableford}
+                />
+              ))}
+            </View>
+          ))}
+        </Card>
+      )}
+
+      {(r.nines.front || r.nines.back) && (
+        <Card>
+          <Text style={styles.prizeSection}>Nines</Text>
+          {r.nines.front && (
+            <View style={styles.lbRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.lbName}>Best front 9</Text>
+                <Text style={styles.lbHcp}>{r.nines.front.player.name}</Text>
+              </View>
+              <Text style={styles.lbScore}>{r.nines.front.value}</Text>
+            </View>
+          )}
+          {r.nines.back && (
+            <View style={styles.lbRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.lbName}>Best back 9</Text>
+                <Text style={styles.lbHcp}>{r.nines.back.player.name}</Text>
+              </View>
+              <Text style={styles.lbScore}>{r.nines.back.value}</Text>
+            </View>
+          )}
+        </Card>
+      )}
+
+      {r.sideGames.length > 0 && (
+        <Card>
+          <Text style={styles.prizeSection}>Side games</Text>
+          {r.sideGames.map((g) => (
+            <View key={g.contest.id} style={styles.lbRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.lbName}>{g.label}</Text>
+                <Text style={styles.lbHcp}>{g.hole > 0 ? `Hole ${g.hole}` : "All day"}</Text>
+              </View>
+              <Text style={styles.lbScore}>
+                {g.fundraiser
+                  ? "on the day"
+                  : g.winner
+                  ? `${g.winner.player.name} · ${g.winner.value}${g.unit ? " " + g.unit : ""}`
+                  : "—"}
+              </Text>
+            </View>
+          ))}
+        </Card>
+      )}
+
+      {r.twos.length > 0 && (
+        <Card>
+          <Text style={styles.prizeSection}>Two's club</Text>
+          {r.twos.map((tw) => (
+            <View key={tw.player.id} style={styles.lbRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.lbName}>{tw.player.name}</Text>
+              </View>
+              <Text style={styles.lbHcp}>
+                {tw.holes.map((h) => `H${h}`).join(", ")}
+              </Text>
+            </View>
+          ))}
+        </Card>
+      )}
+
+      {!r.allComplete && (
+        <Text style={styles.hint}>
+          Provisional until every card is in. Ties are split by countback (last 9, 6, 3, 1); “c/b”
+          marks a countback win, “tie” an unbroken dead-heat.
+        </Text>
+      )}
+    </>
   );
 }
 
@@ -1726,6 +1997,11 @@ const styles = StyleSheet.create({
   lbHcp: { color: colors.textFaint, fontSize: 12 },
   lbMuted: { color: colors.textFaint },
   lbScore: { color: colors.accent, fontWeight: "800", fontSize: 16 },
+
+  prizeSection: { color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: spacing.sm },
+  prizeMedal: { width: 30, fontSize: 20, textAlign: "center" },
+  prizeSubValue: { color: colors.textFaint, fontSize: 11, marginTop: 1 },
+  prizeDivHead: { color: colors.accent, fontSize: 15, fontWeight: "800", marginBottom: 2 },
 
   cardTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
   codeBadge: {

@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ForeAi Prize-Giving</title>
+    <style>
+      :root {
+        --bg: #081226; --surface: #0f2143; --surface2: #132a54; --border: #26407a;
+        --accent: #f3c33b; --text: #ffffff; --muted: #b7c6e6; --faint: #7f92b6;
+        --gold: #f3c33b; --silver: #cdd7ea; --bronze: #e6a86b;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        background: radial-gradient(1200px 700px at 50% -10%, #11244a 0%, var(--bg) 60%);
+        color: var(--text);
+        font-family: -apple-system, Segoe UI, Roboto, system-ui, sans-serif;
+        padding: 58px 24px 28px;
+      }
+      header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+      .brand { font-size: 28px; font-weight: 800; color: var(--accent); }
+      .brand small { color: var(--muted); font-weight: 600; font-size: 16px; }
+      .status { font-size: 14px; color: var(--faint); text-align: right; }
+      .code { color: var(--accent); font-weight: 800; letter-spacing: 3px; }
+      .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ffcf5c; margin-right: 6px; }
+      .dot.live { background: #58d19b; }
+
+      .config { background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+      .config label { font-size: 12px; color: var(--faint); display: block; margin-bottom: 4px; }
+      .config input { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px 12px; font-size: 16px; }
+      button { background: var(--accent); color: #20160a; border: 0; border-radius: 10px; padding: 11px 18px; font-weight: 800; font-size: 15px; cursor: pointer; }
+      button.ghost { background: transparent; color: var(--accent); border: 1px solid #d9a62a; }
+      button:disabled { opacity: .4; cursor: default; }
+      .muted { color: var(--muted); }
+      .err { color: #ff6b6b; }
+
+      .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+      .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+      .seg button { background: transparent; color: var(--muted); border: 0; border-radius: 0; padding: 9px 16px; font-size: 14px; }
+      .seg button.on { background: var(--accent); color: #20160a; }
+      .spacer { flex: 1; }
+      .warn { background: rgba(255,207,92,.14); border: 1px solid #FFCF5C; color: #FFCF5C; border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; font-weight: 600; font-size: 14px; }
+
+      /* ---- ceremony stage ---- */
+      .stage { min-height: 56vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; }
+      .stageKicker { color: var(--faint); text-transform: uppercase; letter-spacing: 3px; font-size: 15px; font-weight: 700; }
+      .stageTitle { color: var(--accent); font-size: clamp(30px, 5vw, 58px); font-weight: 800; margin: 8px 0 4px; }
+      .stageNote { color: var(--muted); font-size: 16px; margin-bottom: 22px; }
+      .winCard { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 22px 30px; margin: 8px auto; min-width: min(560px, 92vw); }
+      .winCard.hero { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(243,195,59,.25), 0 10px 40px rgba(0,0,0,.4); }
+      .winCard.hero.flash { animation: pop .5s ease-out; }
+      @keyframes pop { 0% { transform: scale(.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+      .winMedal { font-size: clamp(40px, 7vw, 80px); line-height: 1; }
+      .winName { font-size: clamp(26px, 4.4vw, 50px); font-weight: 800; margin-top: 6px; }
+      .winDetail { color: var(--muted); font-size: clamp(16px, 2vw, 22px); margin-top: 6px; }
+      .winScore { color: var(--accent); font-weight: 800; }
+      .runners { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+      .runner { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; font-size: 16px; }
+      .runner b { color: var(--text); } .runner .s { color: var(--accent); font-weight: 800; }
+      .stageNav { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 26px; }
+      .progress { color: var(--faint); font-size: 14px; }
+      .hint { color: var(--faint); font-size: 13px; text-align: center; margin-top: 10px; }
+
+      /* ---- full board ---- */
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+      .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px 18px; }
+      .panel.full { grid-column: 1 / -1; }
+      .panel h2 { margin: 0 0 10px; font-size: 19px; }
+      .row { display: flex; align-items: center; gap: 12px; padding: 9px 2px; border-bottom: 1px solid var(--border); }
+      .row:last-child { border-bottom: 0; }
+      .rk { width: 34px; text-align: center; font-size: 20px; color: var(--faint); font-weight: 800; }
+      .nm { flex: 1; font-size: 18px; font-weight: 600; }
+      .nm small { display: block; color: var(--faint); font-size: 12px; font-weight: 500; }
+      .sc { color: var(--accent); font-weight: 800; font-size: 18px; text-align: right; }
+      .sc small { display: block; color: var(--faint); font-size: 11px; font-weight: 500; }
+      .empty { color: var(--faint); padding: 8px 0; }
+    </style>
+    <script src="config.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="events-fs.js"></script>
+    <script src="prizes-engine.js"></script>
+  </head>
+  <body>
+    <a href="index.html" class="foreai-back" onclick="if(window.history.length>1){window.history.back();return false;}">‹ Back</a>
+    <style>.foreai-back{position:fixed;top:14px;left:14px;z-index:99999;display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(6,23,15,0.72);color:#f3c33b;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;text-decoration:none;border:1px solid rgba(243,195,59,0.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,0.3)}.foreai-back:hover{background:rgba(243,195,59,0.16)}</style>
+
+    <div class="config" id="config">
+      <div>
+        <label>Join code (or event id)</label>
+        <input id="code" size="14" placeholder="ABC123" />
+      </div>
+      <button id="connect">Connect</button>
+      <button class="ghost" id="fullscreen">Fullscreen</button>
+      <span class="muted" id="cfgMsg"></span>
+    </div>
+
+    <header>
+      <div class="brand">🏆 ForeAi Prize-Giving <small id="eventName"></small></div>
+      <div class="status">
+        <div><span class="dot" id="dot"></span><span id="conn">not connected</span></div>
+        <div>Join code: <span class="code" id="codeOut">—</span></div>
+      </div>
+    </header>
+
+    <div class="warn" id="approxWarn" style="display:none"></div>
+
+    <div class="toolbar" id="toolbar" style="display:none">
+      <div class="seg" id="modeSeg">
+        <button data-mode="ceremony" class="on">🎤 Ceremony</button>
+        <button data-mode="full">📋 Full results</button>
+      </div>
+      <div class="seg" id="divSeg">
+        <button data-div="none" class="on">One field</button>
+        <button data-div="thirds">Divisions A/B/C</button>
+      </div>
+      <div class="seg" id="completeSeg">
+        <button data-complete="0" class="on">All cards</button>
+        <button data-complete="1">Finished only</button>
+      </div>
+      <div class="seg" id="teamSeg">
+        <button data-team="best2" class="on">Team: Best 2</button>
+        <button data-team="combined">Combined</button>
+        <button data-team="scramble">Scramble</button>
+        <button data-team="off">Off</button>
+      </div>
+      <div class="spacer"></div>
+      <span class="muted" id="summary"></span>
+    </div>
+
+    <div id="main">
+      <div class="stage"><div class="empty">Enter the event's join code and connect to run the prize-giving.</div></div>
+    </div>
+
+    <script>
+      var $ = function (id) { return document.getElementById(id); };
+      var escapeHtml = function (s) {
+        return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+        });
+      };
+
+      // ---- config / connect (mirrors board.html) ----
+      var cfg = JSON.parse(localStorage.getItem("foreai.clubhouse") || "{}");
+      var _q = new URLSearchParams(location.search);
+      var _D = window.FOREAI_DEFAULTS || {};
+      if (_q.get("code")) cfg.code = _q.get("code").toUpperCase();
+      if (!cfg.code && _D.code) cfg.code = _D.code;
+      $("code").value = cfg.code || "";
+
+      var eventId = null, unsub = null, timer = null, lastEvent = null;
+      // UI state
+      var state = { mode: "ceremony", divisions: "none", onlyComplete: false, teamFormat: "best2", slideIdx: 0, revealed: 1 };
+
+      var apiBase = (_D.api || "").replace(/\/$/, "") || ".";
+      var isUuid = function (s) { return /[-_]/.test(s) && s.length > 16; };
+
+      async function resolveEvent() {
+        var code = $("code").value.trim();
+        if (!code) throw new Error("Enter a join code");
+        var path = isUuid(code) ? "/tournaments/" + code : "/tournaments/code/" + code.toUpperCase();
+        var res = await fetch(apiBase + path);
+        if (!res.ok) throw new Error("Event not found (check the code)");
+        return res.json();
+      }
+      function setConn(live, realtime) {
+        $("dot").className = "dot" + (live ? " live" : "");
+        $("conn").textContent = live ? (realtime ? "live · realtime" : "live · auto-refresh") : "reconnecting…";
+      }
+      function stopPolling() { if (timer) { clearInterval(timer); timer = null; } }
+      async function poll() {
+        if (!eventId) return;
+        try { var res = await fetch(apiBase + "/tournaments/" + eventId); if (!res.ok) throw 0; onEvent(await res.json()); setConn(true, false); }
+        catch (e) { setConn(false); }
+      }
+      function startPolling() { stopPolling(); poll(); timer = setInterval(poll, 8000); }
+      function startRealtime() {
+        if (!eventId) return;
+        if (unsub) { unsub(); unsub = null; }
+        if (window.EventsFS && EventsFS.enabled) {
+          stopPolling();
+          unsub = EventsFS.subscribeEvent(eventId, function (ev) { onEvent(ev); setConn(true, true); });
+        }
+      }
+      async function connect() {
+        try {
+          $("cfgMsg").textContent = "connecting…";
+          var ev = await resolveEvent();
+          eventId = ev.id;
+          localStorage.setItem("foreai.clubhouse", JSON.stringify({ apiBase: (cfg.apiBase || ""), code: $("code").value.trim() }));
+          $("cfgMsg").textContent = "";
+          onEvent(ev); setConn(true, false);
+          startPolling(); startRealtime();
+        } catch (e) {
+          $("cfgMsg").innerHTML = '<span class="err">' + escapeHtml(e.message || "could not connect") + "</span>";
+          setConn(false);
+        }
+      }
+
+      function onEvent(ev) {
+        lastEvent = ev;
+        $("eventName").textContent = ev.name || "";
+        $("codeOut").textContent = ev.code || "local";
+        $("toolbar").style.display = "flex";
+        render();
+      }
+
+      // ---- compute + render ----
+      function compute() {
+        if (!lastEvent || !window.PrizesEngine) return null;
+        var course = PrizesEngine.cardFor(lastEvent.courseId, lastEvent.courseName);
+        var r = PrizesEngine.computePrizes(lastEvent, course, {
+          divisions: state.divisions,
+          teamFormat: state.teamFormat === "off" ? "auto" : state.teamFormat,
+          onlyComplete: state.onlyComplete,
+        });
+        if (state.teamFormat === "off") r.team = null;
+        r._course = course;
+        return r;
+      }
+
+      function medal(place) { return place === 1 ? "🥇" : place === 2 ? "🥈" : place === 3 ? "🥉" : String(place); }
+      function scoreOf(row, r) { return r.metric === "stableford" ? row.stableford + " pts" : row.net + " net"; }
+      function noteOf(row) { return row.countback ? "c/b" : row.tie ? "tie" : (row.complete ? "" : "thru " + row.thru); }
+
+      // Build the ordered ceremony slides (announce minor prizes first, overall
+      // winner as the finale).
+      function buildSlides(r) {
+        var slides = [];
+        // side games (scored only)
+        r.sideGames.filter(function (g) { return !g.fundraiser; }).forEach(function (g) {
+          slides.push({
+            kicker: g.hole > 0 ? "Hole " + g.hole : "On the day",
+            title: g.label,
+            rows: g.winner ? [{ medal: "🎯", name: g.winner.player.name, detail: g.winner.value + (g.unit ? " " + g.unit : ""), hero: true }] : [],
+            empty: g.winner ? "" : "No entries recorded",
+          });
+        });
+        // two's club
+        if (r.twos.length) {
+          slides.push({
+            kicker: "Par 3s", title: "Two's Club",
+            rows: r.twos.map(function (t) { return { medal: "②", name: t.player.name, detail: t.holes.map(function (h) { return "H" + h; }).join(", ") }; }),
+          });
+        }
+        // nines
+        if (r.nines.front || r.nines.back) {
+          var rows = [];
+          if (r.nines.front) rows.push({ medal: "⛳", name: r.nines.front.player.name, detail: "Front 9 · " + r.nines.front.value + (r.metric === "stableford" ? " pts" : " net") });
+          if (r.nines.back) rows.push({ medal: "⛳", name: r.nines.back.player.name, detail: "Back 9 · " + r.nines.back.value + (r.metric === "stableford" ? " pts" : " net") });
+          slides.push({ kicker: "Best nine", title: "The Nines", rows: rows });
+        }
+        // divisions (announce C → A)
+        if (r.divisions.length) {
+          r.divisions.slice().reverse().forEach(function (d) {
+            slides.push({
+              kicker: d.range, title: d.label,
+              rows: d.winners.map(function (row) { return { medal: medal(row.place), name: row.player.name, detail: scoreOf(row, r) + (noteOf(row) ? " · " + noteOf(row) : ""), hero: row.place === 1 }; }),
+              empty: d.winners.length ? "" : "No qualifying rounds",
+            });
+          });
+        }
+        // best gross
+        if (r.bestGross) {
+          slides.push({
+            kicker: "Lowest gross", title: "Best Gross",
+            rows: [{ medal: "🏌️", name: r.bestGross.player.name, detail: r.bestGross.gross + " gross" + (r.bestGross.complete ? "" : " · partial"), hero: true }],
+          });
+        }
+        var scramble = r.format === "scramble";
+        // On a team day the team prize is the climax; otherwise the individual
+        // winner is. Build both, then order so the headline prize is the finale.
+        var teamHeadline = state.teamFormat !== "off" && r.team && r.team.rows.length > 0;
+        var teamSlide = null;
+        if (r.team && r.team.rows.length && state.teamFormat !== "off") {
+          teamSlide = {
+            kicker: r.team.label.replace("Team — ", ""), title: "Team Prize",
+            rows: r.team.rows.slice(0, 3).map(function (t, i) { return { medal: medal(i + 1), name: "Team " + (t.index + 1), detail: (t.names || "") + " · " + t.value + (t.complete ? "" : " · partial"), hero: i === 0 }; }),
+            finale: teamHeadline,
+          };
+        }
+        var overallSlides = [];
+        if (!scramble && r.overall.length) {
+          var top = r.overall.filter(function (x) { return x.place <= 3; });
+          [3, 2, 1].forEach(function (place) {
+            var winners = top.filter(function (x) { return x.place === place; });
+            if (!winners.length) return;
+            overallSlides.push({
+              kicker: place === 1 ? "Champion (individual)" : place === 2 ? "Runner-up" : "Third place",
+              title: place === 1 ? "Overall Winner (Individual)" : (place === 2 ? "2nd Individual" : "3rd Individual"),
+              rows: winners.map(function (row) { return { medal: medal(place), name: row.player.name, detail: scoreOf(row, r) + " · HCP " + row.player.handicap + (noteOf(row) ? " · " + noteOf(row) : ""), hero: true }; }),
+              finale: !teamHeadline && place === 1,
+            });
+          });
+        }
+        if (teamHeadline) {
+          overallSlides.forEach(function (s) { slides.push(s); });
+          if (teamSlide) slides.push(teamSlide);
+        } else {
+          if (teamSlide) slides.push(teamSlide);
+          overallSlides.forEach(function (s) { slides.push(s); });
+        }
+        return slides;
+      }
+
+      function renderStage(r) {
+        var slides = buildSlides(r);
+        if (!slides.length) {
+          $("main").innerHTML = '<div class="stage"><div class="empty">No prizes to show yet — scores will appear here as cards come in.</div></div>';
+          return;
+        }
+        if (state.slideIdx >= slides.length) state.slideIdx = slides.length - 1;
+        if (state.slideIdx < 0) state.slideIdx = 0;
+        var s = slides[state.slideIdx];
+        var heroRow = s.rows.find(function (x) { return x.hero; }) || s.rows[0];
+        var runners = s.rows.filter(function (x) { return x !== heroRow; });
+        var html = '<div class="stage">';
+        html += '<div class="stageKicker">' + escapeHtml(s.kicker || "") + "</div>";
+        html += '<div class="stageTitle">' + escapeHtml(s.title) + "</div>";
+        if (!s.rows.length) {
+          html += '<div class="stageNote">' + escapeHtml(s.empty || "—") + "</div>";
+        } else {
+          html += '<div class="winCard hero' + (s.finale ? " flash" : "") + '">';
+          html += '<div class="winMedal">' + escapeHtml(heroRow.medal) + "</div>";
+          html += '<div class="winName">' + escapeHtml(heroRow.name) + "</div>";
+          html += '<div class="winDetail winScore">' + escapeHtml(heroRow.detail) + "</div>";
+          html += "</div>";
+          if (runners.length) {
+            html += '<div class="runners">' + runners.map(function (x) {
+              return '<div class="runner">' + escapeHtml(x.medal) + " <b>" + escapeHtml(x.name) + '</b> <span class="s">' + escapeHtml(x.detail) + "</span></div>";
+            }).join("") + "</div>";
+          }
+        }
+        html += '<div class="stageNav">';
+        html += '<button class="ghost" id="prevBtn"' + (state.slideIdx === 0 ? " disabled" : "") + ">‹ Back</button>";
+        html += '<span class="progress">' + (state.slideIdx + 1) + " / " + slides.length + "</span>";
+        html += '<button id="nextBtn"' + (state.slideIdx === slides.length - 1 ? " disabled" : "") + ">Reveal next ›</button>";
+        html += "</div>";
+        html += '<div class="hint">Space / → reveal next · ← go back</div>';
+        html += "</div>";
+        $("main").innerHTML = html;
+        if ($("prevBtn")) $("prevBtn").onclick = function () { state.slideIdx--; render(); };
+        if ($("nextBtn")) $("nextBtn").onclick = function () { state.slideIdx++; render(); };
+      }
+
+      function panelRows(rows, r, showHcp) {
+        if (!rows.length) return '<div class="empty">No qualifying rounds yet.</div>';
+        return rows.map(function (row) {
+          var note = noteOf(row);
+          return '<div class="row"><div class="rk">' + medal(row.place) + "</div>" +
+            '<div class="nm">' + escapeHtml(row.player.name) + (showHcp ? "<small>HCP " + escapeHtml(row.player.handicap) + (note ? " · " + note : "") + "</small>" : (note ? "<small>" + note + "</small>" : "")) + "</div>" +
+            '<div class="sc">' + (r.metric === "stableford" ? row.stableford : row.net) + '<small>' + (r.metric === "stableford" ? "pts · gross " + row.gross : "net · gross " + row.gross) + "</small></div></div>";
+        }).join("");
+      }
+
+      function renderFull(r) {
+        var scramble = r.format === "scramble";
+        var html = '<div class="grid">';
+        if (!scramble) {
+          html += '<div class="panel full"><h2>Overall</h2>' + panelRows(r.overall.slice(0, 10), r, true) + "</div>";
+        }
+        if (r.team && r.team.rows.length) {
+          html += '<div class="panel' + (scramble ? " full" : "") + '"><h2>' + escapeHtml(r.team.label) + "</h2>" +
+            r.team.rows.slice(0, 10).map(function (t) {
+              return '<div class="row"><div class="rk">' + medal(t.place) + '</div><div class="nm">Team ' + (t.index + 1) + "<small>" + escapeHtml(t.names || "") + (t.complete ? "" : " · partial") + "</small></div><div class=\"sc\">" + t.value + "</div></div>";
+            }).join("") + "</div>";
+        }
+        if (r.bestGross) {
+          html += '<div class="panel"><h2>Best gross</h2><div class="row"><div class="rk">🏌️</div><div class="nm">' + escapeHtml(r.bestGross.player.name) + "<small>HCP " + escapeHtml(r.bestGross.player.handicap) + (r.bestGross.complete ? "" : " · partial") + '</small></div><div class="sc">' + r.bestGross.gross + "</div></div></div>";
+        }
+        if (r.divisions.length) {
+          r.divisions.forEach(function (d) {
+            html += '<div class="panel"><h2>' + escapeHtml(d.label) + ' <span class="muted" style="font-size:13px">· ' + escapeHtml(d.range) + "</span></h2>" + panelRows(d.winners, r, true) + "</div>";
+          });
+        }
+        if (r.nines.front || r.nines.back) {
+          html += '<div class="panel"><h2>Nines</h2>';
+          if (r.nines.front) html += '<div class="row"><div class="rk">⛳</div><div class="nm">Best front 9<small>' + escapeHtml(r.nines.front.player.name) + '</small></div><div class="sc">' + r.nines.front.value + "</div></div>";
+          if (r.nines.back) html += '<div class="row"><div class="rk">⛳</div><div class="nm">Best back 9<small>' + escapeHtml(r.nines.back.player.name) + '</small></div><div class="sc">' + r.nines.back.value + "</div></div>";
+          html += "</div>";
+        }
+        if (r.sideGames.length) {
+          html += '<div class="panel"><h2>Side games</h2>' + r.sideGames.map(function (g) {
+            var right = g.fundraiser ? '<span class="muted">on the day</span>' : (g.winner ? escapeHtml(g.winner.player.name) + " · " + g.winner.value + (g.unit ? " " + g.unit : "") : "—");
+            return '<div class="row"><div class="nm">' + escapeHtml(g.label) + "<small>" + (g.hole > 0 ? "Hole " + g.hole : "All day") + '</small></div><div class="sc" style="font-size:15px">' + right + "</div></div>";
+          }).join("") + "</div>";
+        }
+        if (r.twos.length) {
+          html += '<div class="panel"><h2>Two\'s club</h2>' + r.twos.map(function (t) {
+            return '<div class="row"><div class="rk">②</div><div class="nm">' + escapeHtml(t.player.name) + '</div><div class="sc" style="font-size:15px">' + t.holes.map(function (h) { return "H" + h; }).join(", ") + "</div></div>";
+          }).join("") + "</div>";
+        }
+        html += "</div>";
+        $("main").innerHTML = html;
+      }
+
+      function render() {
+        var r = compute();
+        if (!r) return;
+        // summary + approx-course warning
+        $("summary").textContent = r.eligibleCount + " player" + (r.eligibleCount === 1 ? "" : "s") +
+          " · " + r.metricLabel + " · " + (r.allComplete ? "final" : "provisional");
+        if (r.courseApprox) {
+          $("approxWarn").style.display = "";
+          $("approxWarn").textContent = "⚠ No scorecard on file for this course — net/Stableford use a standard par-72 card, so handicap strokes may differ from the app. Add the course card for exact results.";
+        } else { $("approxWarn").style.display = "none"; }
+        // reflect toggles
+        Array.prototype.forEach.call(document.querySelectorAll("#modeSeg button"), function (b) { b.className = b.dataset.mode === state.mode ? "on" : ""; });
+        Array.prototype.forEach.call(document.querySelectorAll("#divSeg button"), function (b) { b.className = b.dataset.div === state.divisions ? "on" : ""; });
+        Array.prototype.forEach.call(document.querySelectorAll("#completeSeg button"), function (b) { b.className = (b.dataset.complete === "1") === state.onlyComplete ? "on" : ""; });
+        Array.prototype.forEach.call(document.querySelectorAll("#teamSeg button"), function (b) { b.className = b.dataset.team === state.teamFormat ? "on" : ""; });
+        $("divSeg").style.display = r.format === "scramble" ? "none" : "";
+        $("teamSeg").style.display = (lastEvent.groups && lastEvent.groups.length) ? "" : "none";
+        if (state.mode === "ceremony") renderStage(r); else renderFull(r);
+      }
+
+      // ---- wiring ----
+      $("connect").onclick = connect;
+      $("fullscreen").onclick = function () { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); };
+      Array.prototype.forEach.call(document.querySelectorAll("#modeSeg button"), function (b) {
+        b.onclick = function () { state.mode = b.dataset.mode; render(); };
+      });
+      Array.prototype.forEach.call(document.querySelectorAll("#divSeg button"), function (b) {
+        b.onclick = function () { state.divisions = b.dataset.div; state.slideIdx = 0; render(); };
+      });
+      Array.prototype.forEach.call(document.querySelectorAll("#completeSeg button"), function (b) {
+        b.onclick = function () { state.onlyComplete = b.dataset.complete === "1"; state.slideIdx = 0; render(); };
+      });
+      Array.prototype.forEach.call(document.querySelectorAll("#teamSeg button"), function (b) {
+        b.onclick = function () { state.teamFormat = b.dataset.team; state.slideIdx = 0; render(); };
+      });
+      document.addEventListener("keydown", function (e) {
+        if (state.mode !== "ceremony" || !lastEvent) return;
+        if (e.key === " " || e.key === "ArrowRight") { e.preventDefault(); state.slideIdx++; render(); }
+        else if (e.key === "ArrowLeft") { e.preventDefault(); state.slideIdx--; render(); }
+      });
+
+      if (cfg.code) connect();
+    </script>
+  </body>
+</html>

@@ -950,16 +950,23 @@
   function renderAdminBar(){
     var bar=document.getElementById('adminBar'); if(!bar||!EVENT) return;
     var unlocked = !!CFG.pin;
+    // Read-only prize-giving board (no PIN needed) — opens the ceremony screen
+    // for this event, ready to project at the prize-giving.
+    var pgCode = EVENT.code || EVENT.id || '';
+    var pgBtn = '<a class="sbtn" style="text-decoration:none" target="_blank" rel="noopener" '
+      + 'href="../prizegiving.html?code='+encodeURIComponent(pgCode)+'">🏆 Prize-giving</a>';
     if(unlocked){
       bar.innerHTML = '<div class="card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
         +'<span>🔓 Admin unlocked on this device</span>'
-        +'<button class="sbtn" onclick="lockAdmin()">Lock</button></div>';
+        +'<button class="sbtn" onclick="lockAdmin()">Lock</button>'
+        +pgBtn+'</div>';
     } else {
       bar.innerHTML = '<div class="card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
         +'<span>🔒 Enter your organiser PIN to make changes</span>'
         +'<input id="pinInput" type="password" inputmode="numeric" maxlength="8" placeholder="PIN" style="width:110px" '
         +'onkeydown="if(event.key===\'Enter\'){event.preventDefault();unlockAdmin();}" />'
-        +'<button class="btn" onclick="unlockAdmin()">Unlock</button></div>';
+        +'<button class="btn" onclick="unlockAdmin()">Unlock</button>'
+        +pgBtn+'</div>';
     }
   }
 
