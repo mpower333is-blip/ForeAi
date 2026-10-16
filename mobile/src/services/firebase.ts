@@ -62,9 +62,12 @@ export function auth(): Auth {
 // security rules. Returns the uid, or null if disabled / it failed (fail-soft).
 export async function ensureSignedIn(): Promise<string | null> {
   if (!USE_FIRESTORE) return null;
-  const a = auth();
-  if (a.currentUser) return a.currentUser.uid;
+  // auth() can throw if the Firebase auth component fails to register in the
+  // bundle — keep it inside the guard so a data op fails soft instead of the
+  // rejection surfacing as a crash.
   try {
+    const a = auth();
+    if (a.currentUser) return a.currentUser.uid;
     const cred = await signInAnonymously(a);
     return cred.user.uid;
   } catch {

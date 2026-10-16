@@ -88,11 +88,17 @@ export function CourseCoordsProvider({ children }: { children: React.ReactNode }
   }, [local, ready]);
 
   // Subscribe to the live shared survey (Firestore builds only).
+  // Fail-soft: a Firebase load/registration problem must never abort the app at
+  // launch — the local survey keeps working without the shared feed.
   useEffect(() => {
     const s = sync();
     if (!s) return;
-    const unsub = s.subscribeCourseCoords((all) => setRemote(all));
-    return unsub;
+    try {
+      const unsub = s.subscribeCourseCoords((all) => setRemote(all));
+      return unsub;
+    } catch {
+      return;
+    }
   }, []);
 
   const all = useMemo(() => mergeCoords(remote, local), [remote, local]);
