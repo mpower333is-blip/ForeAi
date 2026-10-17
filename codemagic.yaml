@@ -114,6 +114,20 @@ workflows:
         notify:
           success: true
           failure: true
+      # Upload the signed AAB straight to Play's INTERNAL testing track — no more
+      # downloading/uploading the bundle by hand (which truncates on a phone and
+      # Play then rejects as "not a well-formed zip archive"). Promote Internal →
+      # Production in the Play Console with one click; no re-upload needed.
+      #
+      # Requires GCLOUD_SERVICE_ACCOUNT_CREDENTIALS in the `google_play` env group:
+      # the JSON key of a Play service account (Play Console → Users & permissions
+      # → invite a service account → grant "Release to testing tracks"), pasted as
+      # a secure variable. Until that's set, the build still succeeds but this
+      # publish step fails — add the key, then re-run.
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: false
 
   # ═══════════════ 2) Kempton Park — Android AAB (Play) ═══════════════
   # Play-signed .aab for com.foreai.kempton, built from the same code with
