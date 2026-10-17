@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { Screen, Card, Button, Segmented, MetreStepper, KmhStepper, StatTile } from "../components/ui";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, ScrollView } from "react-native";
+import { Screen, Card, Button, Segmented, MetreStepper, KmhStepper, StatTile, TextField } from "../components/ui";
 import { colors, spacing, type } from "../theme";
 import { useRound } from "../state/RoundContext";
 import { useTournament } from "../state/TournamentContext";
@@ -53,6 +53,8 @@ export default function PlayScreen({ navigation }: any) {
     teeId,
     setTee,
     linkedEvent,
+    partnerIds,
+    setPartnerIds,
   } = useRound();
   const { setScore, getEvent } = useTournament();
 
@@ -80,19 +82,120 @@ export default function PlayScreen({ navigation }: any) {
 
   // Your playing partners in a linked event — card them here too (each posts to
   // the golf-day leaderboard), so the whole four-ball is scored from one phone.
+  // You pick them from the event's player list; until you do, they default to
+  // your assigned tee-group.
   const myGroup =
     linkedEvt && linkedEvent
       ? linkedEvt.groups.find((g) => g.playerIds.includes(linkedEvent.playerId))
       : null;
-  const partners =
-    myGroup && linkedEvt && linkedEvent
-      ? myGroup.playerIds
-          .filter((pid) => pid !== linkedEvent.playerId)
-          .map((pid) => linkedEvt.players.find((p) => p.id === pid))
-          .filter((p): p is NonNullable<typeof p> => !!p)
-      : [];
+  const groupPartnerIds =
+    myGroup && linkedEvent ? myGroup.playerIds.filter((pid) => pid !== linkedEvent.playerId) : [];
+  const effectivePartnerIds = partnerIds.length ? partnerIds : groupPartnerIds;
+  const partners = linkedEvt
+    ? effectivePartnerIds
+        .map((pid) => linkedEvt.players.find((p) => p.id === pid))
+        .filter((p): p is NonNullable<typeof p> => !!p)
+    : [];
 
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
+  const holeCount = course.length;
+
+  // A hole is "finished" once your score (or a pickup) is in, and every partner
+  // you're scoring has a score too.
+  const holeComplete = (h: number): boolean => {
+    const mine = (scores[h] ?? 0) > 0 || !!pickups[h];
+    if (!mine) return false;
+    if (partners.length === 0) return true;
+    return partners.every((p) => ((linkedEvt?.scores[p.id]?.[h] ?? 0) > 0));
+  };
+  // Changes whenever a partner's score for the current hole changes (effect dep).
+  const partnerScoreKey = partners
+    .map((p) => linkedEvt?.scores[p.id]?.[currentHole] ?? "")
+    .join(",");
+
+  // ---- auto-advance + end-of-round prompts ----
+  const prevHoleRef = useRef(currentHole);
+  const advancedRef = useRef<Set<number>>(new Set());
+  const nineRef = useRef(false);
+  const doneRef = useRef(false);
+  const promptPrimedRef = useRef(false);
+
+  // When the current hole is finished (by scoring, not by navigating onto an
+  // already-finished hole), move to the next hole automatically.
+  useEffect(() => {
+    if (prevHoleRef.current !== currentHole) {
+      prevHoleRef.current = currentHole; // arrived via navigation/auto-advance
+      return;
+    }
+    if (holeComplete(currentHole) && !advancedRef.current.has(currentHole) && currentHole < holeCount) {
+      advancedRef.current.add(currentHole);
+      const t = setTimeout(() => setCurrentHole(currentHole + 1), 450);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scores, pickups, partnerScoreKey, currentHole]);
+
+  const finishRound = () => {
+    pushAllScores(); // make sure every score reached the leaderboard
+    Alert.alert(
+      "Scores saved",
+      linkedEvt
+        ? "Your card is saved and posted to the golf-day leaderboard."
+        : "Your card is saved on this phone."
+    );
+  };
+
+  // Ask to save at the front-nine mark and again when the round is complete.
+  useEffect(() => {
+    const n = scoreTotals.holesPlayed;
+    if (n === 0) {
+      nineRef.current = false;
+      doneRef.current = false;
+      advancedRef.current.clear();
+      promptPrimedRef.current = false;
+      return;
+    }
+    // First non-empty read (e.g. resuming a saved round) — mark thresholds that
+    // were already crossed before this session so we don't re-ask about them.
+    if (!promptPrimedRef.current) {
+      promptPrimedRef.current = true;
+      if (n >= 9) nineRef.current = true;
+      if (n >= holeCount) doneRef.current = true;
+      return;
+    }
+    if (holeCount > 9 && n >= 9 && n < holeCount && !nineRef.current) {
+      nineRef.current = true;
+      Alert.alert("Front nine done", "You've scored 9 holes. Keep going, or save your card now?", [
+        { text: "Play on", style: "cancel" },
+        { text: "Save my scores", onPress: finishRound },
+      ]);
+    }
+    if (n >= holeCount && !doneRef.current) {
+      doneRef.current = true;
+      Alert.alert("Round complete", `All ${holeCount} holes are in. Save your scores?`, [
+        { text: "Not yet", style: "cancel" },
+        { text: "Save my card", onPress: finishRound },
+      ]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scoreTotals.holesPlayed, holeCount]);
+
+  // ---- partner picker (choose who you're scoring, from the event list) ----
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSel, setPickerSel] = useState<string[]>([]);
+  const [pickerQuery, setPickerQuery] = useState("");
+  const openPicker = () => {
+    setPickerSel(effectivePartnerIds);
+    setPickerQuery("");
+    setPickerOpen(true);
+  };
+  const togglePick = (id: string) =>
+    setPickerSel((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const pickList = linkedEvt
+    ? linkedEvt.players
+        .filter((p) => !linkedEvent || p.id !== linkedEvent.playerId)
+        .filter((p) => !pickerQuery.trim() || p.name.toLowerCase().includes(pickerQuery.trim().toLowerCase()))
+    : [];
 
   // On-course lightning safety: while the player is on the Round screen, keep a
   // near-real-time lightning watch running that survives the app being closed
@@ -317,33 +420,47 @@ export default function PlayScreen({ navigation }: any) {
         onTapMap={() => navigation.navigate("CoursePreview", { hole: currentHole })}
       />
 
-      {linkedEvt && partners.length > 0 && (
+      {linkedEvt && (
         <Card>
-          <Text style={styles.sectionTitle}>Your group — hole {currentHole}</Text>
-          <Text style={styles.groupHint}>
-            Score your playing partners too — each posts to the golf-day leaderboard.
-          </Text>
-          {partners.map((p) => {
-            const cur = linkedEvt.scores[p.id]?.[currentHole] ?? hole.par;
-            const set = (v: number) =>
-              setScore(linkedEvt.id, p.id, currentHole, Math.max(1, Math.min(15, v)));
-            return (
-              <View key={p.id} style={styles.partnerRow}>
-                <Text style={styles.partnerName} numberOfLines={1}>
-                  {p.name}
-                </Text>
-                <View style={styles.partnerControls}>
-                  <TouchableOpacity style={styles.partnerBtn} onPress={() => set(cur - 1)}>
-                    <Text style={styles.partnerBtnText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.partnerVal}>{cur}</Text>
-                  <TouchableOpacity style={styles.partnerBtn} onPress={() => set(cur + 1)}>
-                    <Text style={styles.partnerBtnText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          })}
+          <View style={styles.cardTitleRow}>
+            <Text style={styles.sectionTitle}>Your group — hole {currentHole}</Text>
+            <TouchableOpacity onPress={openPicker}>
+              <Text style={styles.courseChange}>Choose players ›</Text>
+            </TouchableOpacity>
+          </View>
+          {partners.length === 0 ? (
+            <Text style={styles.groupHint}>
+              Tap “Choose players” to pick who you’re playing with — you’ll score them here and each
+              score posts to the leaderboard.
+            </Text>
+          ) : (
+            <>
+              <Text style={styles.groupHint}>
+                Score your playing partners too — each posts to the golf-day leaderboard.
+              </Text>
+              {partners.map((p) => {
+                const cur = linkedEvt.scores[p.id]?.[currentHole] ?? hole.par;
+                const set = (v: number) =>
+                  setScore(linkedEvt.id, p.id, currentHole, Math.max(1, Math.min(15, v)));
+                return (
+                  <View key={p.id} style={styles.partnerRow}>
+                    <Text style={styles.partnerName} numberOfLines={1}>
+                      {p.name}
+                    </Text>
+                    <View style={styles.partnerControls}>
+                      <TouchableOpacity style={styles.partnerBtn} onPress={() => set(cur - 1)}>
+                        <Text style={styles.partnerBtnText}>−</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.partnerVal}>{cur}</Text>
+                      <TouchableOpacity style={styles.partnerBtn} onPress={() => set(cur + 1)}>
+                        <Text style={styles.partnerBtnText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
+            </>
+          )}
         </Card>
       )}
 
@@ -499,6 +616,46 @@ export default function PlayScreen({ navigation }: any) {
           Net {scoreTotals.net || 0} • Stableford {scoreTotals.points || 0} pts • CH {courseHcp}
         </Text>
       </Card>
+
+      <Modal visible={pickerOpen} animationType="slide" transparent onRequestClose={() => setPickerOpen(false)}>
+        <View style={styles.pickerBackdrop}>
+          <View style={styles.pickerSheet}>
+            <View style={styles.cardTitleRow}>
+              <Text style={styles.sectionTitle}>Who's playing with you?</Text>
+              <TouchableOpacity onPress={() => setPickerOpen(false)}>
+                <Text style={styles.courseChange}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <TextField placeholder="Search players…" value={pickerQuery} onChangeText={setPickerQuery} />
+            <ScrollView style={styles.pickerList} keyboardShouldPersistTaps="handled">
+              {pickList.length === 0 ? (
+                <Text style={styles.groupHint}>No players match “{pickerQuery}”.</Text>
+              ) : (
+                pickList.map((p) => {
+                  const on = pickerSel.includes(p.id);
+                  return (
+                    <TouchableOpacity key={p.id} style={styles.pickerRow} onPress={() => togglePick(p.id)}>
+                      <View style={[styles.pickBox, on && styles.pickBoxOn]}>
+                        {on && <Text style={styles.pickTick}>✓</Text>}
+                      </View>
+                      <Text style={styles.pickName} numberOfLines={1}>
+                        {p.name} <Text style={styles.pickHcp}>HCP {p.handicap}</Text>
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+            <Button
+              label={`Done${pickerSel.length ? ` · ${pickerSel.length} selected` : ""}`}
+              onPress={() => {
+                setPartnerIds(pickerSel);
+                setPickerOpen(false);
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -618,6 +775,23 @@ const styles = StyleSheet.create({
   },
   partnerBtnText: { color: colors.accent, fontSize: 24, fontWeight: "700" },
   partnerVal: { color: colors.text, fontSize: 22, fontWeight: "800", minWidth: 34, textAlign: "center" },
+
+  pickerBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  pickerSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: spacing.md,
+    maxHeight: "85%",
+    gap: spacing.sm,
+  },
+  pickerList: { maxHeight: 380 },
+  pickerRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border },
+  pickBox: { width: 26, height: 26, borderRadius: 7, borderWidth: 2, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
+  pickBoxOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  pickTick: { color: colors.bg, fontSize: 16, fontWeight: "900" },
+  pickName: { color: colors.text, fontSize: 16, fontWeight: "600", flex: 1 },
+  pickHcp: { color: colors.textFaint, fontSize: 13, fontWeight: "500" },
   shotHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   undoBtn: { marginTop: 0, paddingVertical: 8, paddingHorizontal: 14 },
   shotLine: {

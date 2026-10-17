@@ -71,6 +71,8 @@ type RoundState = {
   setCurrentHole: (n: number) => void;
   linkedEvent: { eventId: string; playerId: string } | null;
   setLinkedEvent: (e: { eventId: string; playerId: string } | null) => void;
+  partnerIds: string[];
+  setPartnerIds: (ids: string[]) => void;
   setBag: (bag: Club[]) => void;
   setHoleScore: (hole: number, strokes: number) => void;
   setPickup: (hole: number, picked: boolean) => void;
@@ -122,6 +124,9 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   // also posts to that event's leaderboard for this player. Cleared on a manual
   // course change so a casual round never posts to a stale event.
   const [linkedEvent, setLinkedEvent] = useState<{ eventId: string; playerId: string } | null>(null);
+  // Who you're scoring alongside yourself on the Round screen (event player ids).
+  // Chosen from the event's player list; persisted with the round.
+  const [partnerIds, setPartnerIds] = useState<string[]>([]);
   // Handicap is owned by the persisted profile so it's one value everywhere.
   const { handicap: playerHandicap, setHandicap: setPlayerHandicap } = useProfile();
   const courseHcp = courseHandicap(playerHandicap);
@@ -151,6 +156,7 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
             if (Array.isArray(saved.shots)) setShots(saved.shots);
             if (saved.linkedEvent && typeof saved.linkedEvent === "object")
               setLinkedEvent(saved.linkedEvent);
+            if (Array.isArray(saved.partnerIds)) setPartnerIds(saved.partnerIds);
           }
         }
       } catch {
@@ -169,9 +175,9 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     if (!hydrated) return;
     AsyncStorage.setItem(
       ROUND_KEY,
-      JSON.stringify({ courseId, teeId, currentHole, scores, pickups, holeStats, shots, linkedEvent })
+      JSON.stringify({ courseId, teeId, currentHole, scores, pickups, holeStats, shots, linkedEvent, partnerIds })
     ).catch(() => {});
-  }, [hydrated, courseId, teeId, currentHole, scores, pickups, holeStats, shots, linkedEvent]);
+  }, [hydrated, courseId, teeId, currentHole, scores, pickups, holeStats, shots, linkedEvent, partnerIds]);
 
   const selectedCourse = useMemo(() => getCourse(courseId), [courseId]);
   // Hole yardages scaled to the selected tee (par / SI / GPS unchanged).
@@ -184,6 +190,7 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     setCourseId(id);
     setCurrentHole(1);
     setLinkedEvent(null); // a manual course change de-links from any event
+    setPartnerIds([]);
   };
 
   const setHoleScore = (hole: number, strokes: number) => {
@@ -233,6 +240,7 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     setHoleStats({});
     setCurrentHole(1);
     setLinkedEvent(null);
+    setPartnerIds([]);
   };
 
   const resetCaddieLearning = () => {
@@ -318,6 +326,8 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     setCurrentHole,
     linkedEvent,
     setLinkedEvent,
+    partnerIds,
+    setPartnerIds,
     setBag,
     setHoleScore,
     setPickup,
