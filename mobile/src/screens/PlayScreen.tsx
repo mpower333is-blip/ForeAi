@@ -273,6 +273,35 @@ export default function PlayScreen({ navigation }: any) {
         }}
       />
 
+      {/* Score the hole here — kept right under the GPS so you can card it
+          without scrolling past the caddie and shot tools. */}
+      {linkedEvent && (
+        <View style={styles.eventSyncBox}>
+          <Text style={styles.eventSyncText}>
+            ⛳ Your scores post to the golf-day leaderboard
+            {linkedEventName ? ` — ${linkedEventName}` : ""}
+          </Text>
+          <TouchableOpacity onPress={pushAllScores} style={styles.eventSyncBtn}>
+            <Text style={styles.eventSyncBtnText}>Send all my scores now</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <Text style={styles.sectionTitle}>Score — hole {currentHole}</Text>
+      <ScoreCaptureCard
+        hole={hole}
+        courseHcp={courseHcp}
+        gross={scores[currentHole]}
+        pickup={!!pickups[currentHole]}
+        onChange={(g) => scoreHole(currentHole, g)}
+        onPickup={(p) => setPickup(currentHole, p)}
+        onClear={() => {
+          setHoleScore(currentHole, 0);
+          setPickup(currentHole, false);
+        }}
+        onTapMap={() => navigation.navigate("CoursePreview", { hole: currentHole })}
+      />
+
       <Card>
         <View style={styles.autoRow}>
           <View style={{ flex: 1 }}>
@@ -394,33 +423,6 @@ export default function PlayScreen({ navigation }: any) {
           ))}
         </Card>
       )}
-
-      {linkedEvent && (
-        <View style={styles.eventSyncBox}>
-          <Text style={styles.eventSyncText}>
-            ⛳ Your scores post to the golf-day leaderboard
-            {linkedEventName ? ` — ${linkedEventName}` : ""}
-          </Text>
-          <TouchableOpacity onPress={pushAllScores} style={styles.eventSyncBtn}>
-            <Text style={styles.eventSyncBtnText}>Send all my scores now</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <Text style={styles.sectionTitle}>Score — hole {currentHole}</Text>
-      <ScoreCaptureCard
-        hole={hole}
-        courseHcp={courseHcp}
-        gross={scores[currentHole]}
-        pickup={!!pickups[currentHole]}
-        onChange={(g) => scoreHole(currentHole, g)}
-        onPickup={(p) => setPickup(currentHole, p)}
-        onClear={() => {
-          setHoleScore(currentHole, 0);
-          setPickup(currentHole, false);
-        }}
-        onTapMap={() => navigation.navigate("CoursePreview", { hole: currentHole })}
-      />
 
       <StatsEntry
         par={hole.par}

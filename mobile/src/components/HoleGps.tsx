@@ -84,17 +84,17 @@ export default function HoleGps({
         <View style={styles.distRow}>
           <View style={styles.distCol}>
             <Text style={styles.distLabel}>Front</Text>
-            <Text style={styles.distValueSm}>{fmb.front ?? "–"}</Text>
+            <Text style={styles.distValueSm} numberOfLines={1} adjustsFontSizeToFit>{fmb.front ?? "–"}</Text>
             <Text style={styles.distUnit}>m</Text>
           </View>
           <View style={[styles.distCol, styles.distColMid]}>
             <Text style={styles.distLabel}>Middle</Text>
-            <Text style={[styles.distValue, { color: colors.accent }]}>{fmb.middle ?? "–"}</Text>
-            <Text style={styles.distUnit}>m · auto GPS</Text>
+            <Text style={[styles.distValue, { color: colors.accent }]} numberOfLines={1} adjustsFontSizeToFit>{fmb.middle ?? "–"}</Text>
+            <Text style={styles.distUnit}>m · GPS</Text>
           </View>
           <View style={styles.distCol}>
             <Text style={styles.distLabel}>Back</Text>
-            <Text style={styles.distValueSm}>{fmb.back ?? "–"}</Text>
+            <Text style={styles.distValueSm} numberOfLines={1} adjustsFontSizeToFit>{fmb.back ?? "–"}</Text>
             <Text style={styles.distUnit}>m</Text>
           </View>
         </View>
@@ -102,17 +102,17 @@ export default function HoleGps({
         <View style={styles.distRow}>
           <View style={styles.distCol}>
             <Text style={styles.distLabel}>Tee → Pin</Text>
-            <Text style={styles.distValue}>{ydToM(teeToPin)}</Text>
+            <Text style={styles.distValue} numberOfLines={1} adjustsFontSizeToFit>{ydToM(teeToPin)}</Text>
             <Text style={styles.distUnit}>m{marks.pin && marks.tee ? " (gps)" : ""}</Text>
           </View>
           <View style={styles.distCol}>
             <Text style={styles.distLabel}>To Pin now</Text>
-            <Text style={[styles.distValue, { color: colors.accent }]}>
+            <Text style={[styles.distValue, { color: colors.accent }]} numberOfLines={1} adjustsFontSizeToFit>
               {toPin != null ? ydToM(toPin) : "–"}
             </Text>
             <Text style={styles.distUnit}>
               {source === "auto"
-                ? "m · auto GPS"
+                ? "m · GPS"
                 : source === "pin"
                 ? "m (gps)"
                 : source === "estimate"
@@ -172,8 +172,8 @@ const styles = StyleSheet.create({
   },
   distColMid: { borderWidth: 1, borderColor: colors.accent },
   distLabel: { color: colors.textMuted, fontSize: 13 },
-  distValue: { color: colors.text, fontSize: 34, fontWeight: "800", marginTop: 2 },
-  distValueSm: { color: colors.text, fontSize: 26, fontWeight: "800", marginTop: 2 },
+  distValue: { color: colors.text, fontSize: 28, fontWeight: "800", marginTop: 2 },
+  distValueSm: { color: colors.text, fontSize: 22, fontWeight: "800", marginTop: 2 },
   distUnit: { color: colors.textFaint, fontSize: 12 },
 
   btnRow: { flexDirection: "row", gap: spacing.sm },
