@@ -75,7 +75,22 @@ export default function PlayScreen({ navigation }: any) {
       if (g > 0) setScore(linkedEvent.eventId, linkedEvent.playerId, Number(h), g);
     });
   };
-  const linkedEventName = linkedEvent ? getEvent(linkedEvent.eventId)?.name : undefined;
+  const linkedEvt = linkedEvent ? getEvent(linkedEvent.eventId) : null;
+  const linkedEventName = linkedEvt?.name;
+
+  // Your playing partners in a linked event — card them here too (each posts to
+  // the golf-day leaderboard), so the whole four-ball is scored from one phone.
+  const myGroup =
+    linkedEvt && linkedEvent
+      ? linkedEvt.groups.find((g) => g.playerIds.includes(linkedEvent.playerId))
+      : null;
+  const partners =
+    myGroup && linkedEvt && linkedEvent
+      ? myGroup.playerIds
+          .filter((pid) => pid !== linkedEvent.playerId)
+          .map((pid) => linkedEvt.players.find((p) => p.id === pid))
+          .filter((p): p is NonNullable<typeof p> => !!p)
+      : [];
 
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
 
@@ -301,6 +316,36 @@ export default function PlayScreen({ navigation }: any) {
         }}
         onTapMap={() => navigation.navigate("CoursePreview", { hole: currentHole })}
       />
+
+      {linkedEvt && partners.length > 0 && (
+        <Card>
+          <Text style={styles.sectionTitle}>Your group — hole {currentHole}</Text>
+          <Text style={styles.groupHint}>
+            Score your playing partners too — each posts to the golf-day leaderboard.
+          </Text>
+          {partners.map((p) => {
+            const cur = linkedEvt.scores[p.id]?.[currentHole] ?? hole.par;
+            const set = (v: number) =>
+              setScore(linkedEvt.id, p.id, currentHole, Math.max(1, Math.min(15, v)));
+            return (
+              <View key={p.id} style={styles.partnerRow}>
+                <Text style={styles.partnerName} numberOfLines={1}>
+                  {p.name}
+                </Text>
+                <View style={styles.partnerControls}>
+                  <TouchableOpacity style={styles.partnerBtn} onPress={() => set(cur - 1)}>
+                    <Text style={styles.partnerBtnText}>−</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.partnerVal}>{cur}</Text>
+                  <TouchableOpacity style={styles.partnerBtn} onPress={() => set(cur + 1)}>
+                    <Text style={styles.partnerBtnText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+        </Card>
+      )}
 
       <Card>
         <View style={styles.autoRow}>
@@ -549,6 +594,30 @@ const styles = StyleSheet.create({
   eventSyncText: { color: colors.text, fontSize: 13, fontWeight: "700" },
   eventSyncBtn: { alignSelf: "flex-start", paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, backgroundColor: colors.accent },
   eventSyncBtnText: { color: colors.bg, fontSize: 13, fontWeight: "800" },
+
+  groupHint: { color: colors.textFaint, fontSize: 13, marginBottom: spacing.sm },
+  partnerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  partnerName: { color: colors.text, fontSize: 16, fontWeight: "600", flex: 1, marginRight: 12 },
+  partnerControls: { flexDirection: "row", alignItems: "center", gap: 14 },
+  partnerBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  partnerBtnText: { color: colors.accent, fontSize: 24, fontWeight: "700" },
+  partnerVal: { color: colors.text, fontSize: 22, fontWeight: "800", minWidth: 34, textAlign: "center" },
   shotHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   undoBtn: { marginTop: 0, paddingVertical: 8, paddingHorizontal: 14 },
   shotLine: {
