@@ -192,6 +192,15 @@ workflows:
         notify:
           success: true
           failure: true
+      # Auto-upload the Kempton AAB to its Play Internal track — same as the main
+      # ForeAi lane. Uses the SAME service account (GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      # in the google_play group), which must also be granted release access to the
+      # com.foreai.kempton app in the Play Console (one service account can manage
+      # several apps). Promote Internal → Production in the Play Console.
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: false
 
   # ═══════════════ 3) ForeAi — iOS (TestFlight) ═══════════════
   foreai-ios:
