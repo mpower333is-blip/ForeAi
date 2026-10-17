@@ -43,10 +43,12 @@ export default {
     name: (SURVEY_ONLY ? "ForeAi Survey" : CLUB ? CLUB_APP_NAME : "ForeAi") + NAME_TAG,
     slug: "foreai",
     version: "1.8",
-    // "default" (no hard lock) so large screens — an unfolded Samsung Z Fold,
-    // tablets — can use the full display and rotate instead of being pillar-boxed
-    // in portrait. iPhone is re-pinned to portrait below (ios.infoPlist), and
-    // Android phones simply follow the user's own auto-rotate setting.
+    // "default" (no hard lock) so FOLDABLES and large screens — an unfolded
+    // Samsung Z Fold, a foldable iPhone, tablets — use the full display and
+    // rotate instead of being pillar-boxed in portrait. iOS orientations are set
+    // in ios.infoPlist (portrait + landscape); Android follows the device /
+    // user's auto-rotate. Applies to both platforms now that foldables exist on
+    // both.
     orientation: "default",
     scheme: "foreai",
     userInterfaceStyle: "dark",
@@ -83,10 +85,16 @@ export default {
         // The app only uses standard HTTPS encryption — declare it exempt so
         // App Store Connect never asks the export-compliance question per build.
         ITSAppUsesNonExemptEncryption: false,
-        // Keep the iPhone portrait-only (the app is iPhone-first, supportsTablet
-        // is false). The orientation: "default" above is purely so ANDROID large
-        // screens can fill the display; this pins iOS back to portrait.
-        UISupportedInterfaceOrientations: ["UIInterfaceOrientationPortrait"],
+        // Allow landscape as well as portrait so a FOLDABLE iPhone (unfolded =
+        // large screen) fills the display and rotates instead of being
+        // pillar-boxed — same goal as orientation: "default" on Android. Regular
+        // iPhones still stay portrait unless the user unlocks rotation. Upside-
+        // down is excluded (Apple convention for handsets).
+        UISupportedInterfaceOrientations: [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight",
+        ],
       },
     },
     android: {
