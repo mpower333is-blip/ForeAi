@@ -78,6 +78,10 @@ export default function Onboarding() {
               onChangeText={setLocalName}
               placeholder="e.g. Jan Smit"
             />
+            <Text style={styles.hint}>
+              Use the name you're registered under for a golf day — when you join an event, the app
+              finds you on the player list automatically.
+            </Text>
             <Stepper
               label="Handicap"
               value={localHcp}

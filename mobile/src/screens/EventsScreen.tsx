@@ -4,6 +4,7 @@ import { Screen, ScreenHeader, Card, Button, Segmented, Stepper, TextField, Empt
 import { colors, spacing, radius } from "../theme";
 import { COURSES, getCourse, searchCourses, hasCourse, TeeId, TEES } from "../data/courses";
 import { useRound } from "../state/RoundContext";
+import { useProfile } from "../state/ProfileContext";
 import { ydToM } from "../lib/units";
 import {
   searchOnline,
@@ -638,11 +639,26 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
 // instead of registering again.
 function IdentityCard({ event }: { event: TEvent }) {
   const { myPlayerId, claimPlayer, clearMyPlayer } = useTournament();
+  const { name: profileName } = useProfile();
   const meId = myPlayerId(event.id);
   const me = event.players.find((p) => p.id === meId);
   // Search box so a player can find themselves fast in a big field instead of
   // scrolling the whole registration list.
   const [query, setQuery] = useState("");
+
+  // Auto-pick-up: you told us your name once (onboarding), so if this phone
+  // isn't linked yet and that name is on the event's list exactly once — and
+  // isn't already linked to another phone — claim it automatically. No manual
+  // "who are you?" step when you're already on the registered list.
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+  useEffect(() => {
+    if (meId) return;
+    const target = norm(profileName);
+    if (!target || target === "golfer") return;
+    const exact = event.players.filter((p) => norm(p.name) === target && !p.deviceId);
+    if (exact.length === 1) Promise.resolve(claimPlayer(event.id, exact[0].id)).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event.id, meId, profileName, event.players.length]);
 
   const teamOf = (pid: string) => {
     const gi = event.groups.findIndex((g) => g.playerIds.includes(pid));
@@ -678,7 +694,11 @@ function IdentityCard({ event }: { event: TEvent }) {
   return (
     <Card accent>
       <Text style={styles.formTitle}>Who are you?</Text>
-      <Text style={styles.hint}>Tap your name to link this phone to your player.</Text>
+      <Text style={styles.hint}>
+        {norm(profileName) && norm(profileName) !== "golfer"
+          ? `We couldn't match “${profileName.trim()}” on the list automatically — tap your name, or add yourself in the Players tab.`
+          : "Tap your name to link this phone to your player."}
+      </Text>
       {event.players.length === 0 ? (
         <Text style={styles.empty}>
           No players registered yet. Teams are added on the website or by the organiser.
