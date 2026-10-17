@@ -55,6 +55,8 @@ export default function PlayScreen({ navigation }: any) {
     linkedEvent,
     partnerIds,
     setPartnerIds,
+    teammateIds,
+    setTeammateIds,
   } = useRound();
   const { setScore, getEvent } = useTournament();
 
@@ -96,6 +98,11 @@ export default function PlayScreen({ navigation }: any) {
         .map((pid) => linkedEvt.players.find((p) => p.id === pid))
         .filter((p): p is NonNullable<typeof p> => !!p)
     : [];
+  // Split the four-ball into two pairs when teams are set: your team (you + your
+  // partner) and the other team.
+  const teamsDefined = teammateIds.length > 0;
+  const teammates = partners.filter((p) => teammateIds.includes(p.id));
+  const opponents = partners.filter((p) => !teammateIds.includes(p.id));
 
   const hole = course.find((h) => h.number === currentHole) ?? course[0];
   const holeCount = course.length;
@@ -182,20 +189,59 @@ export default function PlayScreen({ navigation }: any) {
 
   // ---- partner picker (choose who you're scoring, from the event list) ----
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerSel, setPickerSel] = useState<string[]>([]);
+  const [pickerTeam, setPickerTeam] = useState<Record<string, "mine" | "other">>({});
   const [pickerQuery, setPickerQuery] = useState("");
   const openPicker = () => {
-    setPickerSel(effectivePartnerIds);
+    const seed: Record<string, "mine" | "other"> = {};
+    effectivePartnerIds.forEach((id) => {
+      seed[id] = teammateIds.includes(id) ? "mine" : "other";
+    });
+    setPickerTeam(seed);
     setPickerQuery("");
     setPickerOpen(true);
   };
-  const togglePick = (id: string) =>
-    setPickerSel((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const assign = (id: string, team: "mine" | "other") =>
+    setPickerTeam((prev) => {
+      const next = { ...prev };
+      if (next[id] === team) delete next[id]; // tap the active team again → not playing
+      else next[id] = team;
+      return next;
+    });
+  const applyPicker = () => {
+    const ids = Object.keys(pickerTeam);
+    setPartnerIds(ids);
+    setTeammateIds(ids.filter((id) => pickerTeam[id] === "mine"));
+    setPickerOpen(false);
+  };
+  const pickerCount = Object.keys(pickerTeam).length;
   const pickList = linkedEvt
     ? linkedEvt.players
         .filter((p) => !linkedEvent || p.id !== linkedEvent.playerId)
         .filter((p) => !pickerQuery.trim() || p.name.toLowerCase().includes(pickerQuery.trim().toLowerCase()))
     : [];
+
+  // One scoring row (name + ± stepper) for a partner, posting to the event.
+  const partnerStepper = (p: { id: string; name: string }) => {
+    const cur = linkedEvt?.scores[p.id]?.[currentHole] ?? hole.par;
+    const set = (v: number) =>
+      linkedEvt && setScore(linkedEvt.id, p.id, currentHole, Math.max(1, Math.min(15, v)));
+    return (
+      <View key={p.id} style={styles.partnerRow}>
+        <Text style={styles.partnerName} numberOfLines={1}>
+          {p.name}
+        </Text>
+        <View style={styles.partnerControls}>
+          <TouchableOpacity style={styles.partnerBtn} onPress={() => set(cur - 1)}>
+            <Text style={styles.partnerBtnText}>−</Text>
+          </TouchableOpacity>
+          <Text style={styles.partnerVal}>{cur}</Text>
+          <TouchableOpacity style={styles.partnerBtn} onPress={() => set(cur + 1)}>
+            <Text style={styles.partnerBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
 
   // On-course lightning safety: while the player is on the Round screen, keep a
   // near-real-time lightning watch running that survives the app being closed
@@ -420,7 +466,45 @@ export default function PlayScreen({ navigation }: any) {
         onTapMap={() => navigation.navigate("CoursePreview", { hole: currentHole })}
       />
 
-      {linkedEvt && (
+      {linkedEvt && partners.length === 0 && (
+        <Card>
+          <View style={styles.cardTitleRow}>
+            <Text style={styles.sectionTitle}>Your group</Text>
+            <TouchableOpacity onPress={openPicker}>
+              <Text style={styles.courseChange}>Choose players ›</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.groupHint}>
+            Tap “Choose players” to pick who you’re playing with, and mark who’s on your team — each
+            score posts to the leaderboard.
+          </Text>
+        </Card>
+      )}
+
+      {linkedEvt && partners.length > 0 && teamsDefined && (
+        <>
+          {teammates.length > 0 && (
+            <Card>
+              <View style={styles.cardTitleRow}>
+                <Text style={styles.sectionTitle}>🟢 Your team — hole {currentHole}</Text>
+                <TouchableOpacity onPress={openPicker}>
+                  <Text style={styles.courseChange}>Edit ›</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.groupHint}>You, plus your partner — scored above and here.</Text>
+              {teammates.map(partnerStepper)}
+            </Card>
+          )}
+          {opponents.length > 0 && (
+            <Card>
+              <Text style={styles.sectionTitle}>⚪ Other team — hole {currentHole}</Text>
+              {opponents.map(partnerStepper)}
+            </Card>
+          )}
+        </>
+      )}
+
+      {linkedEvt && partners.length > 0 && !teamsDefined && (
         <Card>
           <View style={styles.cardTitleRow}>
             <Text style={styles.sectionTitle}>Your group — hole {currentHole}</Text>
@@ -428,39 +512,11 @@ export default function PlayScreen({ navigation }: any) {
               <Text style={styles.courseChange}>Choose players ›</Text>
             </TouchableOpacity>
           </View>
-          {partners.length === 0 ? (
-            <Text style={styles.groupHint}>
-              Tap “Choose players” to pick who you’re playing with — you’ll score them here and each
-              score posts to the leaderboard.
-            </Text>
-          ) : (
-            <>
-              <Text style={styles.groupHint}>
-                Score your playing partners too — each posts to the golf-day leaderboard.
-              </Text>
-              {partners.map((p) => {
-                const cur = linkedEvt.scores[p.id]?.[currentHole] ?? hole.par;
-                const set = (v: number) =>
-                  setScore(linkedEvt.id, p.id, currentHole, Math.max(1, Math.min(15, v)));
-                return (
-                  <View key={p.id} style={styles.partnerRow}>
-                    <Text style={styles.partnerName} numberOfLines={1}>
-                      {p.name}
-                    </Text>
-                    <View style={styles.partnerControls}>
-                      <TouchableOpacity style={styles.partnerBtn} onPress={() => set(cur - 1)}>
-                        <Text style={styles.partnerBtnText}>−</Text>
-                      </TouchableOpacity>
-                      <Text style={styles.partnerVal}>{cur}</Text>
-                      <TouchableOpacity style={styles.partnerBtn} onPress={() => set(cur + 1)}>
-                        <Text style={styles.partnerBtnText}>+</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })}
-            </>
-          )}
+          <Text style={styles.groupHint}>
+            Score your playing partners too — each posts to the golf-day leaderboard. Tap “Choose
+            players” to split into teams.
+          </Text>
+          {partners.map(partnerStepper)}
         </Card>
       )}
 
@@ -632,27 +688,39 @@ export default function PlayScreen({ navigation }: any) {
                 <Text style={styles.groupHint}>No players match “{pickerQuery}”.</Text>
               ) : (
                 pickList.map((p) => {
-                  const on = pickerSel.includes(p.id);
+                  const t = pickerTeam[p.id];
                   return (
-                    <TouchableOpacity key={p.id} style={styles.pickerRow} onPress={() => togglePick(p.id)}>
-                      <View style={[styles.pickBox, on && styles.pickBoxOn]}>
-                        {on && <Text style={styles.pickTick}>✓</Text>}
-                      </View>
+                    <View key={p.id} style={styles.pickerRow}>
                       <Text style={styles.pickName} numberOfLines={1}>
                         {p.name} <Text style={styles.pickHcp}>HCP {p.handicap}</Text>
                       </Text>
-                    </TouchableOpacity>
+                      <View style={styles.pickTeamBtns}>
+                        <TouchableOpacity
+                          style={[styles.teamBtn, t === "mine" && styles.teamBtnMine]}
+                          onPress={() => assign(p.id, "mine")}
+                        >
+                          <Text style={[styles.teamBtnText, t === "mine" && styles.teamBtnTextOn]}>
+                            My team
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.teamBtn, t === "other" && styles.teamBtnOther]}
+                          onPress={() => assign(p.id, "other")}
+                        >
+                          <Text style={[styles.teamBtnText, t === "other" && styles.teamBtnTextOn]}>
+                            Other
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                   );
                 })
               )}
             </ScrollView>
-            <Button
-              label={`Done${pickerSel.length ? ` · ${pickerSel.length} selected` : ""}`}
-              onPress={() => {
-                setPartnerIds(pickerSel);
-                setPickerOpen(false);
-              }}
-            />
+            <Text style={styles.groupHint}>
+              Pick who you’re scoring and tap “My team” or “Other”. You’re always on your team.
+            </Text>
+            <Button label={`Done${pickerCount ? ` · ${pickerCount} players` : ""}`} onPress={applyPicker} />
           </View>
         </View>
       </Modal>
@@ -792,6 +860,12 @@ const styles = StyleSheet.create({
   pickTick: { color: colors.bg, fontSize: 16, fontWeight: "900" },
   pickName: { color: colors.text, fontSize: 16, fontWeight: "600", flex: 1 },
   pickHcp: { color: colors.textFaint, fontSize: 13, fontWeight: "500" },
+  pickTeamBtns: { flexDirection: "row", gap: 6 },
+  teamBtn: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: colors.border },
+  teamBtnMine: { backgroundColor: colors.accent, borderColor: colors.accent },
+  teamBtnOther: { backgroundColor: colors.textMuted, borderColor: colors.textMuted },
+  teamBtnText: { color: colors.textMuted, fontSize: 13, fontWeight: "700" },
+  teamBtnTextOn: { color: colors.bg },
   shotHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   undoBtn: { marginTop: 0, paddingVertical: 8, paddingHorizontal: 14 },
   shotLine: {
