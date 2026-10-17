@@ -42,6 +42,19 @@ module.exports = function withAndroidOptionalFeatures(config) {
         list.push({ $: { "android:name": name, "android:required": "false" } });
       }
     }
+
+    // Large-screen / foldable layout: declare the app resizable so it fills the
+    // display (and works in split-screen) when a Z Fold is unfolded, instead of
+    // being pillar-boxed. Paired with orientation: "default" in app.config, the
+    // app stops hard-locking portrait on Android. (iOS stays portrait via
+    // ios.infoPlist.) resizeableActivity defaults true on modern targetSdk, but
+    // we set it explicitly so Play's large-screen check sees it.
+    const application = manifest.application && manifest.application[0];
+    if (application) {
+      application.$ = application.$ || {};
+      application.$["android:resizeableActivity"] = "true";
+    }
+
     return cfg;
   });
 };

@@ -43,7 +43,11 @@ export default {
     name: (SURVEY_ONLY ? "ForeAi Survey" : CLUB ? CLUB_APP_NAME : "ForeAi") + NAME_TAG,
     slug: "foreai",
     version: "1.8",
-    orientation: "portrait",
+    // "default" (no hard lock) so large screens — an unfolded Samsung Z Fold,
+    // tablets — can use the full display and rotate instead of being pillar-boxed
+    // in portrait. iPhone is re-pinned to portrait below (ios.infoPlist), and
+    // Android phones simply follow the user's own auto-rotate setting.
+    orientation: "default",
     scheme: "foreai",
     userInterfaceStyle: "dark",
     icon: ICON,
@@ -79,6 +83,10 @@ export default {
         // The app only uses standard HTTPS encryption — declare it exempt so
         // App Store Connect never asks the export-compliance question per build.
         ITSAppUsesNonExemptEncryption: false,
+        // Keep the iPhone portrait-only (the app is iPhone-first, supportsTablet
+        // is false). The orientation: "default" above is purely so ANDROID large
+        // screens can fill the display; this pins iOS back to portrait.
+        UISupportedInterfaceOrientations: ["UIInterfaceOrientationPortrait"],
       },
     },
     android: {
