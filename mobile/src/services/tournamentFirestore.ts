@@ -25,7 +25,7 @@ import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch, query, where,
 } from "firebase/firestore";
 import { firestore, ensureSignedIn, auth } from "./firebase";
-import { TEvent, TPlayer, TGroup, Contest, Sponsor } from "../lib/tournament";
+import { TEvent, TPlayer, TGroup, Contest, Sponsor, normName } from "../lib/tournament";
 
 const db = () => firestore();
 const evRef = (id: string) => doc(db(), "events", id);
@@ -101,6 +101,7 @@ async function assembleEvent(id: string): Promise<TEvent | null> {
 
   return {
     id, name: d.name, date: d.date ?? new Date().toISOString(), courseId: d.courseId, format: d.format,
+    gameKey: d.gameKey ?? null,
     firstTeeMin: d.firstTeeMin, intervalMin: d.intervalMin, shotgun: !!d.shotgun,
     teeId: d.teeId ?? null,
     players, groups, scores, contests, contestResults,
@@ -123,7 +124,7 @@ async function deleteWhere(id: string, name: string, field: string, value: strin
 export const tournamentFsApi = {
   create: async (input: {
     name: string; courseId: string; format: string; firstTeeMin: number; intervalMin: number;
-    shotgun?: boolean; adminPin?: string | null; playerFee?: number | null;
+    shotgun?: boolean; adminPin?: string | null; playerFee?: number | null; gameKey?: string | null;
   }): Promise<TEvent | null> => {
     await ensureSignedIn();
     const uid = auth().currentUser?.uid ?? null;
@@ -139,6 +140,7 @@ export const tournamentFsApi = {
     const now = Date.now();
     await setDoc(ref, {
       id, name: input.name, date: new Date().toISOString(), courseId: input.courseId, format: input.format,
+      gameKey: input.gameKey ?? null,
       firstTeeMin: input.firstTeeMin ?? 480, intervalMin: input.intervalMin ?? 10, shotgun: !!input.shotgun,
       code, ownerUid: uid, playerFee: input.playerFee ?? null, createdAt: now, updatedAt: now,
     });
@@ -180,6 +182,18 @@ export const tournamentFsApi = {
 
   addPlayer: async (id: string, player: { name: string; handicap: number; deviceId?: string; groupId?: string | null }) => {
     await ensureSignedIn();
+    // Dedup: never create a second record for a name already in the event. If
+    // one exists, update it (fill in a group, keep the better handicap) instead.
+    const key = normName(player.name);
+    const existingSnap = await getDocs(col(id, "players"));
+    const dup = existingSnap.docs.find((s) => normName((s.data() as any).name) === key);
+    if (dup) {
+      const patch: Record<string, unknown> = {};
+      if (player.groupId != null && (dup.data() as any).groupId == null) patch.groupId = player.groupId;
+      if (player.deviceId != null && (dup.data() as any).deviceId == null) patch.deviceId = player.deviceId;
+      if (Object.keys(patch).length) await updateDoc(dup.ref, patch);
+      return assembleEvent(id);
+    }
     const ref = doc(col(id, "players"));
     await setDoc(ref, { name: player.name, handicap: player.handicap ?? 0, deviceId: player.deviceId ?? null, groupId: player.groupId ?? null, createdAt: Date.now() });
     return assembleEvent(id);

@@ -75,6 +75,10 @@
   }
   function num(v) { return v === "" || v == null ? null : Number(v); }
 
+  // Canonical name key for duplicate detection — mirrors normName() in
+  // mobile/src/lib/tournament.ts (trim, lowercase, collapse whitespace).
+  function normName(s) { return String(s == null ? "" : s).trim().toLowerCase().replace(/\s+/g, " "); }
+
   // ---- assemble (matches backend serialize()) -------------------------------
   function assembleEvent(id) {
     var evSnap;
@@ -141,6 +145,7 @@
           id: id, code: evSnap.code,
           hasAdminPin: !!evSnap.ownerUid, // ownership replaces the PIN
           name: evSnap.name, courseId: evSnap.courseId, format: evSnap.format,
+          gameKey: evSnap.gameKey == null ? null : evSnap.gameKey,
           firstTeeMin: evSnap.firstTeeMin, intervalMin: evSnap.intervalMin, shotgun: !!evSnap.shotgun,
           teeId: evSnap.teeId == null ? null : evSnap.teeId,
           cause: evSnap.cause == null ? null : evSnap.cause, causePhoto: evSnap.causePhoto == null ? null : evSnap.causePhoto,
@@ -173,6 +178,7 @@
       var now = Date.now();
       return ref.set({
         id: id, name: b.name, date: new Date().toISOString(), courseId: b.courseId, format: b.format || "stroke",
+        gameKey: b.gameKey == null ? null : b.gameKey,
         firstTeeMin: b.firstTeeMin == null ? 480 : b.firstTeeMin, intervalMin: b.intervalMin == null ? 10 : b.intervalMin,
         shotgun: !!b.shotgun, code: code, ownerUid: uid || null,
         creatorEmail: (auth && auth.currentUser && auth.currentUser.email) || null,
@@ -185,7 +191,21 @@
   }
 
   function addPlayer(id, p) {
+    var key = normName(p.name);
     return ensureSignedIn().then(function () {
+      // Dedup: never create a second record for a name already in the event.
+      return sub(id, "players").get();
+    }).then(function (snap) {
+      var dup = null;
+      snap.forEach(function (d) { if (!dup && normName((d.data() || {}).name) === key) dup = d; });
+      if (dup) {
+        var cur = dup.data() || {};
+        var patch = {};
+        if (p.groupId != null && cur.groupId == null) patch.groupId = p.groupId;
+        if (p.deviceId != null && cur.deviceId == null) patch.deviceId = p.deviceId;
+        if (Object.keys(patch).length) return dup.ref.update(patch);
+        return null;
+      }
       return sub(id, "players").add({
         name: p.name, handicap: p.handicap == null ? 0 : p.handicap,
         deviceId: p.deviceId == null ? null : p.deviceId, groupId: p.groupId == null ? null : p.groupId, createdAt: Date.now(),
@@ -225,6 +245,99 @@
     }).then(function () {
       return sub(id, "players").doc(pid).update({ deviceId: deviceId == null ? null : deviceId });
     }).then(function () { return assembleEvent(id); });
+  }
+
+  // ---- duplicate-player cleanup --------------------------------------------
+  // Pick which record to keep when several share a normalised name: prefer one
+  // linked to a phone, else the one with the most holes scored, else the first.
+  function pickKeeper(group, scores) {
+    var withDevice = group.filter(function (p) { return p.deviceId; });
+    var pool = withDevice.length ? withDevice : group;
+    return pool.slice().sort(function (a, b) {
+      var sa = scores[a.id] ? Object.keys(scores[a.id]).length : 0;
+      var sb = scores[b.id] ? Object.keys(scores[b.id]).length : 0;
+      return sb - sa;
+    })[0];
+  }
+
+  // Group an assembled event's players by normalised name; return only the sets
+  // that have more than one record (the duplicates), each with its keeper.
+  function duplicateGroups(evt) {
+    var byKey = {};
+    (evt.players || []).forEach(function (p) {
+      var k = normName(p.name);
+      (byKey[k] || (byKey[k] = [])).push(p);
+    });
+    var out = [];
+    Object.keys(byKey).forEach(function (k) {
+      if (byKey[k].length > 1) {
+        var keeper = pickKeeper(byKey[k], evt.scores || {});
+        out.push({
+          key: k, name: keeper.name, keeper: keeper, count: byKey[k].length,
+          losers: byKey[k].filter(function (p) { return p.id !== keeper.id; }),
+        });
+      }
+    });
+    return out;
+  }
+
+  // Dry run — preview the duplicates without changing anything.
+  function findDuplicatePlayers(id) {
+    return assembleEvent(id).then(function (evt) {
+      if (!evt) return { groups: [], duplicatePlayers: 0 };
+      var groups = duplicateGroups(evt);
+      return {
+        groups: groups.map(function (g) {
+          return { name: g.name, keep: g.keeper.name, remove: g.losers.length, total: g.count };
+        }),
+        duplicatePlayers: groups.reduce(function (n, g) { return n + g.losers.length; }, 0),
+      };
+    });
+  }
+
+  // Merge duplicate players: move each loser's scores and group onto the keeper
+  // (never overwriting a hole the keeper already has), THEN delete the losers
+  // and their scores/positions — re-pointed before deletion so none are lost.
+  function mergeDuplicatePlayers(id) {
+    return ensureSignedIn().then(function () {
+      return assembleEvent(id);
+    }).then(function (evt) {
+      if (!evt) return { merged: 0, removed: 0 };
+      var groups = duplicateGroups(evt);
+      if (!groups.length) return { merged: 0, removed: 0 };
+      var scores = evt.scores || {};
+      // Chunk writes to stay well under Firestore's 500-op batch limit.
+      var batches = [db.batch()], ops = 0;
+      function B() { if (ops >= 400) { batches.push(db.batch()); ops = 0; } ops++; return batches[batches.length - 1]; }
+      var removed = 0;
+      groups.forEach(function (g) {
+        var keeperId = g.keeper.id;
+        var keeperScores = {};
+        Object.keys(scores[keeperId] || {}).forEach(function (h) { keeperScores[h] = scores[keeperId][h]; });
+        var keeperGroupId = g.keeper.groupId;
+        g.losers.forEach(function (loser) {
+          var ls = scores[loser.id] || {};
+          Object.keys(ls).forEach(function (hole) {
+            if (keeperScores[hole] == null) {
+              B().set(sub(id, "scores").doc(keeperId + "_" + hole), {
+                playerId: keeperId, hole: Number(hole), strokes: ls[hole], updatedAt: Date.now(),
+              });
+              keeperScores[hole] = ls[hole];
+            }
+            B().delete(sub(id, "scores").doc(loser.id + "_" + hole));
+          });
+          if (keeperGroupId == null && loser.groupId != null) {
+            B().update(sub(id, "players").doc(keeperId), { groupId: loser.groupId });
+            keeperGroupId = loser.groupId;
+          }
+          B().delete(sub(id, "positions").doc(loser.id));
+          B().delete(sub(id, "players").doc(loser.id));
+          removed++;
+        });
+      });
+      return Promise.all(batches.map(function (b) { return b.commit(); }))
+        .then(function () { return { merged: groups.length, removed: removed }; });
+    });
   }
 
   function addGroup(id) {
@@ -349,8 +462,13 @@
     return ensureSignedIn().then(function () { return idForCode(code); }).then(function (eid) {
       if (!eid) return Promise.reject({ status: 404, body: { error: "No event with that code" } });
       id = eid;
-      return sub(id, "groups").get();
-    }).then(function (gsnap) {
+      return Promise.all([sub(id, "groups").get(), sub(id, "players").get()]);
+    }).then(function (snaps) {
+      var gsnap = snaps[0], psnap = snaps[1];
+      // Dedup across the whole event (and within this submission): a name that's
+      // already registered is never created again.
+      var seen = {};
+      psnap.forEach(function (d) { seen[normName((d.data() || {}).name)] = true; });
       var order = gsnap.size;
       var meta = teeMeta(b); // starting tee + tee time shared by this entry's groups
       var teams = Array.isArray(b.teams) && b.teams.length ? b.teams : [{ players: [] }];
@@ -368,6 +486,9 @@
             players.forEach(function (p) {
               var name = (typeof p === "string" ? p : (p && p.name) || "").trim();
               if (!name) return;
+              var nk = normName(name);
+              if (seen[nk]) return; // already in the event — don't create a duplicate
+              seen[nk] = true;
               pc = pc.then(function () {
                 playersAdded++;
                 return sub(id, "players").add({
@@ -793,6 +914,8 @@
     subscribeEvent: subscribeEvent,
     ensureSignedIn: ensureSignedIn,
     idForCode: idForCode,
+    findDuplicatePlayers: findDuplicatePlayers,
+    mergeDuplicatePlayers: mergeDuplicatePlayers,
     _dispatch: dispatch, // exposed for debugging
   };
   console.log("[events-fs] Firestore events path ENABLED (writes + realtime).");

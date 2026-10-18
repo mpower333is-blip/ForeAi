@@ -89,6 +89,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="../events-fs.js"></script>
+  <script src="../golf-formats.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -141,11 +142,8 @@
           <option value="kempton-park">Kempton Park Golf Club</option>
           <option value="custom">Other / not listed</option>
         </select>
-        <select id="newFormat" style="width:100%;margin:6px 0">
-          <option value="stableford">Stableford (points)</option>
-          <option value="stroke">Stroke play</option>
-          <option value="scramble">4-ball scramble</option>
-        </select>
+        <select id="newFormat" style="width:100%;margin:6px 0" onchange="renderFormatHelp('newFormat','newFormatHelp')"></select>
+        <div id="newFormatHelp" class="hint" style="margin:0 0 6px"></div>
         <input id="newPlayerFee" type="number" min="0" placeholder="Fee per player (R) — e.g. 60" />
         <button class="btn" style="width:100%;margin-top:6px" onclick="newEvent()">Create event</button>
         <div class="msg" id="createMsg" style="margin-top:8px"></div>
@@ -203,6 +201,11 @@
           </select>
         </div>
         <div>
+          <label class="hint">Format — how the day is scored &amp; played (players see this explanation in the app)</label>
+          <select id="setFormat" style="width:100%;margin-top:4px;background:#0a1730;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px" onchange="renderFormatHelp('setFormat','setFormatHelp')"></select>
+          <div id="setFormatHelp" class="hint" style="margin-top:6px"></div>
+        </div>
+        <div>
           <label class="hint">Tee (colour) everyone plays — sets the default teeing distance in the app</label>
           <select id="setTeeId" style="width:100%;margin-top:4px;background:#0a1730;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px">
             <option value="">Players choose their own</option>
@@ -252,6 +255,7 @@
     </details>
     <div id="gamesBox"></div>
     <div class="tiles" id="tiles"></div>
+    <div id="playersBox"></div>
     <div class="tabs" id="tabs">
       <div class="tab on" data-f="all">All</div>
       <div class="tab" data-f="team">Teams</div>
@@ -422,12 +426,93 @@
   }
   if(window.firebase){ try{ firebase.auth().onAuthStateChanged(function(u){ if(u) loadMyEvents(); }); }catch(e){} }
 
+  // ---- golf format picker ---------------------------------------------------
+  // Canonical name key for duplicate detection (mirror of normName()).
+  function normKey(s){ return String(s==null?'':s).trim().toLowerCase().replace(/\s+/g,' '); }
+
+  // Fill a <select> with the full format catalog, grouped individual / team.
+  function fillFormatSelect(sel, selectedKey){
+    if(!sel || !window.GOLF_FORMATS) return;
+    function opts(list){ return list.map(function(f){
+      return '<option value="'+f.key+'"'+(f.key===selectedKey?' selected':'')+'>'+esc(f.name)+'</option>';
+    }).join(''); }
+    var indiv=window.GOLF_FORMATS.filter(function(f){return !f.team;});
+    var team=window.GOLF_FORMATS.filter(function(f){return f.team;});
+    sel.innerHTML='<optgroup label="Individual">'+opts(indiv)+'</optgroup>'
+                 +'<optgroup label="Team">'+opts(team)+'</optgroup>';
+    if(selectedKey) sel.value=selectedKey;
+  }
+  function populateFormatSelects(){
+    fillFormatSelect(document.getElementById('newFormat'), 'stableford');
+    renderFormatHelp('newFormat','newFormatHelp');
+  }
+  // Show the selected format's how-played / how-scored explanation.
+  function renderFormatHelp(selId, helpId){
+    var sel=document.getElementById(selId), help=document.getElementById(helpId);
+    if(!sel || !help || !window.GolfFormats) return;
+    var f=window.GolfFormats.get(sel.value);
+    if(!f){ help.innerHTML=''; return; }
+    var auto = f.engine ? 'Live leaderboard: scored automatically.' : 'Winner decided off the app per the rules — scores still show live.';
+    help.innerHTML='<div style="background:#0a1730;border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:4px">'
+      +'<div style="color:var(--gold);font-weight:700;margin-bottom:4px">'+esc(f.name)+(f.team?' · Team':' · Individual')+'</div>'
+      +'<div><b>Play:</b> '+esc(f.howPlayed)+'</div>'
+      +'<div style="margin-top:4px"><b>Scoring:</b> '+esc(f.howScored)+'</div>'
+      +'<div style="margin-top:4px;opacity:.85">🎯 '+esc(f.handicapAllowance)+'</div>'
+      +'<div style="margin-top:4px;opacity:.7;font-style:italic">'+esc(auto)+'</div>'
+      +'</div>';
+  }
+  if(document.readyState!=='loading') populateFormatSelects();
+  else document.addEventListener('DOMContentLoaded', populateFormatSelects);
+
+  // ---- all players + duplicate cleanup --------------------------------------
+  // Render every registered player from the authoritative EVENT.players (forms,
+  // imports AND phones) — not only the registration payloads — and flag/merge
+  // any duplicates.
+  function renderPlayersPanel(){
+    var box=document.getElementById('playersBox'); if(!box) return;
+    var players=(EVENT&&Array.isArray(EVENT.players))?EVENT.players.slice():[];
+    if(!players.length){ box.innerHTML=''; return; }
+    players.sort(function(a,b){ return String(a.name||'').localeCompare(String(b.name||'')); });
+    var seen={}; players.forEach(function(p){ var k=normKey(p.name); seen[k]=(seen[k]||0)+1; });
+    var dupCount=Object.keys(seen).reduce(function(n,k){ return n+(seen[k]>1?seen[k]-1:0); },0);
+    var rows=players.map(function(p){
+      var isDup=seen[normKey(p.name)]>1;
+      var meta=[]; if(p.handicap!=null) meta.push('h/cap '+p.handicap); if(p.deviceId) meta.push('📱 on app');
+      return '<div class="status" style="justify-content:space-between">'
+        +'<span class="lbl" style="flex:1">'+esc(p.name||'—')
+        +(meta.length?' <span style="opacity:.6">('+esc(meta.join(' · '))+')</span>':'')
+        +(isDup?' <span style="color:var(--red)">duplicate</span>':'')+'</span></div>';
+    }).join('');
+    var canMerge=!!(window.EventsFS && window.EventsFS.enabled);
+    var mergeBtn=(canMerge && dupCount>0)
+      ? '<button class="btn" style="margin-top:10px" onclick="mergeDuplicates()">🧹 Merge '+dupCount+' duplicate player'+(dupCount===1?'':'s')+'</button>'
+      : '';
+    box.innerHTML='<div class="card"><div class="rowtop"><span class="company">All players ('+players.length+')</span></div>'
+      +'<div class="hint" style="margin:2px 0 8px">Everyone registered for this event — from the forms, imports and players who joined on their phones.'
+      +(dupCount>0?(' <b style="color:var(--red)">'+dupCount+' duplicate record'+(dupCount===1?'':'s')+' detected.</b>'):' No duplicates — looking good.')+'</div>'
+      +rows+mergeBtn+'</div>';
+  }
+  async function mergeDuplicates(){
+    if(!(window.EventsFS && window.EventsFS.enabled)){ alert('Merging duplicates is available in the live events mode.'); return; }
+    try{
+      var prev=await window.EventsFS.findDuplicatePlayers(EVENT.id);
+      if(!prev || !prev.duplicatePlayers){ alert('No duplicate players found.'); return; }
+      var lines=prev.groups.map(function(g){ return '• '+g.name+' — keep 1, remove '+g.remove; }).join('\n');
+      if(!confirm('Merge duplicate players?\n\nFor each name this keeps ONE record (the one on a phone, or with the most scores), moves any scores onto it, then removes the extras. This cannot be undone.\n\n'+prev.duplicatePlayers+' duplicate record(s) will be removed:\n\n'+lines)) return;
+      var res=await window.EventsFS.mergeDuplicatePlayers(EVENT.id);
+      alert('Done — merged '+res.merged+' name(s) and removed '+res.removed+' duplicate record(s).');
+      await load(false);
+    }catch(e){ alert('Merge failed: '+((e&&e.message)||e)); }
+  }
+
   // Create a new event from the web (organiser signed in → the event is owned by
   // them). Returns a join code they can use in the app, share, and import teams to.
   async function newEvent(){
     var name=(document.getElementById('newName').value||'').trim();
     var courseId=(document.getElementById('newCourse').value||'').trim()||'custom';
-    var format=document.getElementById('newFormat').value;
+    var gameKey=document.getElementById('newFormat').value;
+    var gfNew=window.GolfFormats&&window.GolfFormats.get(gameKey);
+    var format=(gfNew&&gfNew.engine)||'stroke'; // scoring engine the format maps to
     var playerFee=(document.getElementById('newPlayerFee').value||'').trim();
     var m=document.getElementById('createMsg'); m.style.color='var(--faint)';
     if(!name){ m.style.color='var(--red)'; m.textContent='Enter an event name.'; return; }
@@ -437,7 +522,7 @@
       // auth-guard.js attaches the organiser token, so the backend sets this
       // account as the event owner.
       var r=await fetch(CFG.api+'/tournaments',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({name:name,courseId:courseId,format:format,playerFee:playerFee||null})});
+        body:JSON.stringify({name:name,courseId:courseId,format:format,gameKey:gameKey,playerFee:playerFee||null})});
       if(!r.ok){ var e=await r.json().catch(function(){return{};}); throw new Error(e.error||('HTTP '+r.status)); }
       var ev=await r.json();
       CFG.code=(ev.code||'').toUpperCase();
@@ -605,7 +690,9 @@
     renderGames();
     // tiles
     var teams=REGS.filter(r=>r.type==='team'), holes=REGS.filter(r=>r.type==='hole'), prizes=REGS.filter(r=>r.type==='prize');
-    var players=teams.reduce((s,r)=>s+playerCount(r),0);
+    // Count from the authoritative player list when we have it (includes players
+    // added on phones), falling back to the registration-derived estimate.
+    var players=(EVENT&&Array.isArray(EVENT.players)&&EVENT.players.length)?EVENT.players.length:teams.reduce((s,r)=>s+playerCount(r),0);
     var allPl=flattenPlayers(teams), att=(EVENT&&EVENT.attendance)||{}, checkedIn=allPl.filter(function(x){return !!att[x.key];}).length;
     var expected=REGS.reduce((s,r)=>s+amountFor(r),0);
     var received=REGS.filter(r=>r.status==='paid'||r.status==='confirmed').reduce((s,r)=>s+amountFor(r),0);
@@ -627,6 +714,8 @@
       var c = t[2]==='gold'?'var(--gold)':t[2]==='lime'?'var(--lime)':t[2]==='red'?'var(--red)':t[2]==='sky'?'var(--sky)':'var(--text)';
       return '<div class="tile"><div class="k">'+t[0]+'</div><div class="v" style="color:'+c+'">'+t[1]+'</div></div>';
     }).join('');
+
+    renderPlayersPanel();
 
     // list
     var rows = REGS.filter(function(r){
@@ -1021,6 +1110,8 @@
     if(!EVENT) return;
     document.getElementById('setName').value = EVENT.name||'';
     if(EVENT.courseId) document.getElementById('setCourseSel').value = EVENT.courseId;
+    fillFormatSelect(document.getElementById('setFormat'), EVENT.gameKey||EVENT.format||'stableford');
+    renderFormatHelp('setFormat','setFormatHelp');
     document.getElementById('setTeeId').value = EVENT.teeId||'';
     var _ft = EVENT.firstTeeMin;
     document.getElementById('setFirstTee').value = (_ft!=null) ? (('0'+Math.floor(_ft/60)).slice(-2)+':'+('0'+(_ft%60)).slice(-2)) : '';
@@ -1054,6 +1145,8 @@
     if(!isNaN(gap) && gap>0) body.intervalMin=gap;
     body.shotgun=document.getElementById('setShotgun').checked;
     body.teeId=document.getElementById('setTeeId').value||null;
+    var gk=(document.getElementById('setFormat')||{}).value;
+    if(gk){ var gfS=window.GolfFormats&&window.GolfFormats.get(gk); body.gameKey=gk; body.format=(gfS&&gfS.engine)||'stroke'; }
     if(NEW_LOGO) body.logo=NEW_LOGO;
     if(NEW_CAUSE_PHOTO) body.causePhoto=NEW_CAUSE_PHOTO;
     var m=document.getElementById('setupMsg'); m.textContent='Saving…';

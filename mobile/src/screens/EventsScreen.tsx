@@ -20,6 +20,7 @@ import { useNavigation } from "@react-navigation/native";
 import WeatherPanel from "../components/WeatherPanel";
 import { scheduleEventReminders } from "../lib/eventReminders";
 import CourseMap from "../components/CourseMap";
+import { formatForEvent } from "../lib/golfFormats";
 import {
   TEvent,
   EventFormat,
@@ -534,10 +535,13 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
       })()}
       <Text style={styles.detailTitle}>{event.name}</Text>
       <Text style={styles.detailMeta}>
-        {course.name} • Par {course.par} • {formatLabel(event.format)}
+        {course.name} • Par {course.par} • {formatForEvent(event).name}
         {event.shotgun ? " • Shotgun" : ""}
         {event.teeId ? ` • ${TEES.find((t2) => t2.id === event.teeId)?.name ?? ""} tee` : ""}
       </Text>
+
+      <HowItsPlayed event={event} />
+
       {meId && (
         <>
           <Button label="⛳ Play my round" onPress={playMyRound} style={{ marginTop: 10 }} />
@@ -1449,6 +1453,43 @@ function formatLabel(f: string): string {
   return f === "stroke" ? "Stroke play" : f === "stableford" ? "Stableford" : "4-Ball Scramble";
 }
 
+// A collapsible "how this day is played + scored" card, driven by the event's
+// chosen golf format. Open by default so players see the rules without a tap.
+function HowItsPlayed({ event }: { event: TEvent }) {
+  const fmt = formatForEvent(event);
+  const [open, setOpen] = useState(true);
+  return (
+    <Card style={{ marginTop: spacing.md }}>
+      <TouchableOpacity activeOpacity={0.7} onPress={() => setOpen((o) => !o)} style={styles.howHeader}>
+        <Text style={styles.howTitle}>📋 How this day is played</Text>
+        <Text style={styles.howChevron}>{open ? "▾" : "▸"}</Text>
+      </TouchableOpacity>
+      <Text style={styles.howFormat}>
+        {fmt.name}
+        {fmt.team ? " · Team" : " · Individual"}
+      </Text>
+      {open && (
+        <View style={{ marginTop: 6 }}>
+          <Text style={styles.howLabel}>How you play it</Text>
+          <Text style={styles.howBody}>{fmt.howPlayed}</Text>
+          <Text style={styles.howLabel}>How it's scored</Text>
+          <Text style={styles.howBody}>{fmt.howScored}</Text>
+          <View style={styles.howMetaRow}>
+            <Text style={styles.howMeta}>🎯 Handicap: {fmt.handicapAllowance}</Text>
+          </View>
+          <Text style={styles.howFact}>💡 {fmt.fastFact}</Text>
+          {fmt.engine == null && (
+            <Text style={styles.howManual}>
+              The winner for this format is decided off the app per the rules above — the
+              leaderboard still shows everyone's scores as they come in.
+            </Text>
+          )}
+        </View>
+      )}
+    </Card>
+  );
+}
+
 // Shows the hole's sponsor (logo + name) on the scoring card, linking each
 // sponsor to their hole on the day.
 function HoleSponsorLine({ event, hole }: { event: TEvent; hole: number }) {
@@ -1864,6 +1905,17 @@ const styles = StyleSheet.create({
   eventLogo: { width: 240, height: 70 },
   detailTitle: { color: colors.text, fontSize: 28, fontWeight: "800" },
   detailMeta: { color: colors.textMuted, fontSize: 14, marginTop: 2, marginBottom: spacing.md },
+
+  howHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  howTitle: { color: colors.text, fontSize: 16, fontWeight: "800" },
+  howChevron: { color: colors.textFaint, fontSize: 18, fontWeight: "800" },
+  howFormat: { color: colors.accent, fontSize: 13, fontWeight: "700", marginTop: 2 },
+  howLabel: { color: colors.textFaint, fontSize: 11, fontWeight: "800", letterSpacing: 0.6, textTransform: "uppercase", marginTop: 10 },
+  howBody: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginTop: 3 },
+  howMetaRow: { marginTop: 10 },
+  howMeta: { color: colors.text, fontSize: 13, fontWeight: "600" },
+  howFact: { color: colors.gold, fontSize: 13, lineHeight: 19, marginTop: 8, fontStyle: "italic" },
+  howManual: { color: colors.textFaint, fontSize: 12, lineHeight: 17, marginTop: 8 },
 
   tabs: { marginBottom: spacing.md },
   tab: {

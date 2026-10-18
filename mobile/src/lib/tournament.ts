@@ -6,6 +6,14 @@
 
 import { Course } from "../data/courses";
 
+// Canonical name key for matching the same person across registration, import,
+// phone join and directory add — trim, lowercase, collapse runs of whitespace.
+// Used everywhere a duplicate player must be detected, so matching stays
+// consistent (the web client mirrors this in clubhouse/events-fs.js).
+export function normName(s: string): string {
+  return String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 export type TPlayer = {
   id: string;
   name: string;
@@ -85,7 +93,12 @@ export type TEvent = {
   name: string;
   date: string;
   courseId: string;
-  format: EventFormat;
+  format: EventFormat; // the scoring ENGINE used for the live leaderboard
+  // The organiser's chosen golf format (a key in GOLF_FORMATS, e.g.
+  // "fourball-betterball", "greensomes", "skins"). Drives the "how it's played"
+  // explanation everywhere; `format` above is the engine it maps to for live
+  // scoring. Absent on older events — fall back to `format`.
+  gameKey?: string | null;
   firstTeeMin: number; // minutes from midnight for the first tee time (or shotgun time)
   intervalMin: number; // gap between groups (ignored for a shotgun start)
   shotgun?: boolean; // all groups tee off at once on different holes
