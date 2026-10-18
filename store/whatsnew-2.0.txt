@@ -1,0 +1,95 @@
+ForeAi 2.0 — Release notes
+==========================
+
+2.0 carries the golf-day scoring + prize-giving work, the new club tracking and
+golf-format guide, and the fix for the Google Play prominent-disclosure policy
+flag (an in-app explanation of how location is used now precedes the permission
+request). versionName applies to both stores; Android versionCode auto-increments
+from the CI build number.
+
+
+────────────────────────────────────────────────────────────────────────
+GOOGLE PLAY — release notes  (max 500 characters)
+────────────────────────────────────────────────────────────────────────
+• Score your whole four-ball from one phone (two teams too) — live to the leaderboard.
+• NEW: See exactly how each golf day is played and scored.
+• NEW: My Bag — save your clubs' make & model and see what a new club changes to your distances.
+• 🏆 Prize-giving on your phone, auto-advance between holes, and the app finds you on the player list.
+• Better on foldables & tablets, with a clearer explanation of how your location is used.
+• Fixes and reliability improvements.
+
+
+────────────────────────────────────────────────────────────────────────
+APPLE APP STORE — "What's New in This Version"  (max 4000 characters)
+────────────────────────────────────────────────────────────────────────
+What's new in 2.0
+
+⛳ Score the whole four-ball from one phone
+Pick who you're playing with, mark your team, and card everyone as you go — your
+scores and your partners' post straight to the live golf-day leaderboard.
+Betterball? Your team shows on top, the other pair underneath.
+
+📋 Know how the day is played
+Every event now shows how it's played and how it's scored — scramble, betterball,
+foursomes, Stableford and more — so nobody's guessing the rules on the first tee.
+
+🎒 My Bag — see what new clubs do for you
+Save the make and model of each club. Swap in a new driver and ForeAi keeps your
+old club's numbers, then shows the difference the new one makes to your real carry
+distance as you log shots.
+
+🏆 Prize-giving
+See the day's winners right on your phone: overall, best gross, handicap divisions,
+front/back nines, the two's club, team prizes and the side games.
+
+✨ Smoother golf days
+• The app finds you automatically on an event's player list — no more picking your
+  name every time.
+• Finish a hole and it moves to the next one for you, with a quick "save your card?"
+  prompt at the turn and at the 18th.
+• Your round saves as you play, so nothing's lost if the app closes.
+
+📱 Built for every screen
+Fills the full display on foldables (unfolded) and tablets, with a cleaner scoring
+layout and easier-to-read GPS distances.
+
+🔧 Reliability & privacy
+A clearer in-app explanation of how ForeAi uses your location (course distances,
+weather and sharing your position with the golf-day leaderboard) now appears before
+we ask for permission, plus a range of under-the-hood fixes.
+
+
+────────────────────────────────────────────────────────────────────────
+GOOGLE PLAY — policy reviewer notes (paste when resubmitting)
+────────────────────────────────────────────────────────────────────────
+This build resolves the "Prominent Disclosure and Consent Requirement:
+Inadequate Prominent Disclosure" flag under the User Data policy.
+
+Before requesting the foreground location runtime permission, the app now shows
+an in-app prominent disclosure that names the data (device location) and how it
+is used: on-course GPS distances and hole maps, local weather, and — during a
+golf day the player has joined — sharing the player's live position with the
+event organiser's clubhouse leaderboard. The OS permission prompt is only
+requested after the player accepts this disclosure. This mirrors the existing
+background-location disclosure already used for the lightning-safety feature.
+
+The Play Data safety form declares Location as collected and shared (for the
+live leaderboard), matching the in-app disclosure text.
+
+
+────────────────────────────────────────────────────────────────────────
+APP STORE — reviewer notes (if submitting iOS too)
+────────────────────────────────────────────────────────────────────────
+No account or login is needed to open the app or use the golf features — it
+launches straight in. Location is used for on-course GPS distances, weather and,
+during a joined golf day, sharing the player's position with the event's live
+leaderboard; the in-app purpose string is shown before the system prompt.
+
+
+Notes
+-----
+- The short Google Play version is for the Play "release notes" field; the longer
+  copy is Apple's "What's New".
+- Android: a fresh `foreai-android-play` build (tag android-2.0, or the Codemagic
+  dashboard) produces versionCode 30000+build (higher than the last upload) with
+  this version and auto-publishes to the internal track; promote/submit from there.
