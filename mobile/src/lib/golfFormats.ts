@@ -68,7 +68,7 @@ export const GOLF_FORMATS: GolfFormat[] = [
     team: false,
     playersPerSide: "1",
     needsHoleScores: true,
-    engine: "stableford",
+    engine: null,
     howPlayed:
       "Played exactly like Stableford — your own ball, points per hole — but the points table is skewed to reward low scoring and penalise high scores. Par is worth zero, so you only gain ground with birdies and eagles.",
     howScored:
@@ -84,7 +84,7 @@ export const GOLF_FORMATS: GolfFormat[] = [
     team: false,
     playersPerSide: "1",
     needsHoleScores: true,
-    engine: "stableford",
+    engine: null,
     howPlayed:
       "You play a match against the course itself. On each hole, compare your net score to par: beat or match it and you 'win' the hole, take more and you 'lose' it. As in Stableford, once you can't halve a hole you pick up and move on.",
     howScored:
@@ -116,7 +116,7 @@ export const GOLF_FORMATS: GolfFormat[] = [
     team: true,
     playersPerSide: "2-4",
     needsHoleScores: true,
-    engine: "scramble",
+    engine: null,
     howPlayed:
       "A hybrid of scramble and fourball. Everyone tees off and the team takes the best drive, but from there each player plays their OWN ball all the way to the hole. You get the safety of the best tee shot plus individual approach play and putting.",
     howScored:
@@ -131,7 +131,7 @@ export const GOLF_FORMATS: GolfFormat[] = [
     team: true,
     playersPerSide: "2",
     needsHoleScores: true,
-    engine: "stableford",
+    engine: null,
     howPlayed:
       "Two players partner up and each plays their own ball throughout the hole, just as in normal play. On every hole the pair uses only the better of their two scores. Your partner is a safety net — if one of you blows up, the other's score carries the hole.",
     howScored:
@@ -147,7 +147,7 @@ export const GOLF_FORMATS: GolfFormat[] = [
     team: true,
     playersPerSide: "4",
     needsHoleScores: true,
-    engine: "stableford",
+    engine: null,
     howPlayed:
       "A team of four all play their own ball on every hole, each keeping an individual Stableford score. On each hole, only the best two of the four scores count towards the team. The other two are discarded for that hole, so a couple of players can have a shaky hole without hurting the team.",
     howScored:
@@ -162,7 +162,7 @@ export const GOLF_FORMATS: GolfFormat[] = [
     team: true,
     playersPerSide: "2",
     needsHoleScores: true,
-    engine: "stroke",
+    engine: null,
     howPlayed:
       "Two partners share a single ball and alternate shots — one plays the tee shot, the partner the second, and so on until holed. They also alternate who drives: one tees off on odd holes, the other on even holes. Only one ball per side is ever in play.",
     howScored:
@@ -177,7 +177,7 @@ export const GOLF_FORMATS: GolfFormat[] = [
     team: true,
     playersPerSide: "2",
     needsHoleScores: true,
-    engine: "stroke",
+    engine: null,
     howPlayed:
       "Both partners tee off on every hole, then the pair chooses which drive to continue with. From that point they play alternate shots with the single chosen ball until holed. It softens strict foursomes because you keep the better of two tee shots.",
     howScored:
@@ -192,7 +192,7 @@ export const GOLF_FORMATS: GolfFormat[] = [
     team: true,
     playersPerSide: "2",
     needsHoleScores: true,
-    engine: "stroke",
+    engine: null,
     howPlayed:
       "Both partners drive, then swap balls and each plays the partner's ball for the second shot. After those two shots the pair picks the better-positioned ball and plays alternate shots with it until holed. It blends fourball early with foursomes to finish.",
     howScored:

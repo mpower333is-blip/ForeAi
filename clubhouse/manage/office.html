@@ -474,33 +474,38 @@
     if(!players.length){ box.innerHTML=''; return; }
     players.sort(function(a,b){ return String(a.name||'').localeCompare(String(b.name||'')); });
     var seen={}; players.forEach(function(p){ var k=normKey(p.name); seen[k]=(seen[k]||0)+1; });
-    var dupCount=Object.keys(seen).reduce(function(n,k){ return n+(seen[k]>1?seen[k]-1:0); },0);
+    var dupNames=Object.keys(seen).filter(function(k){return seen[k]>1;}).length;
     var rows=players.map(function(p){
       var isDup=seen[normKey(p.name)]>1;
       var meta=[]; if(p.handicap!=null) meta.push('h/cap '+p.handicap); if(p.deviceId) meta.push('📱 on app');
       return '<div class="status" style="justify-content:space-between">'
         +'<span class="lbl" style="flex:1">'+esc(p.name||'—')
         +(meta.length?' <span style="opacity:.6">('+esc(meta.join(' · '))+')</span>':'')
-        +(isDup?' <span style="color:var(--red)">duplicate</span>':'')+'</span></div>';
+        +(isDup?' <span style="color:var(--red)">duplicate name</span>':'')+'</span></div>';
     }).join('');
     var canMerge=!!(window.EventsFS && window.EventsFS.enabled);
-    var mergeBtn=(canMerge && dupCount>0)
-      ? '<button class="btn" style="margin-top:10px" onclick="mergeDuplicates()">🧹 Merge '+dupCount+' duplicate player'+(dupCount===1?'':'s')+'</button>'
+    var mergeBtn=(canMerge && dupNames>0)
+      ? '<button class="btn" style="margin-top:10px" onclick="mergeDuplicates()">🧹 Review &amp; merge duplicates</button>'
       : '';
     box.innerHTML='<div class="card"><div class="rowtop"><span class="company">All players ('+players.length+')</span></div>'
       +'<div class="hint" style="margin:2px 0 8px">Everyone registered for this event — from the forms, imports and players who joined on their phones.'
-      +(dupCount>0?(' <b style="color:var(--red)">'+dupCount+' duplicate record'+(dupCount===1?'':'s')+' detected.</b>'):' No duplicates — looking good.')+'</div>'
+      +(dupNames>0?(' <b style="color:var(--red)">'+dupNames+' name'+(dupNames===1?'':'s')+' appear more than once.</b> Tap to review — only empty duplicate records are removed; anyone with scores or on a phone is kept.'):' No duplicate names — looking good.')+'</div>'
       +rows+mergeBtn+'</div>';
   }
   async function mergeDuplicates(){
     if(!(window.EventsFS && window.EventsFS.enabled)){ alert('Merging duplicates is available in the live events mode.'); return; }
     try{
       var prev=await window.EventsFS.findDuplicatePlayers(EVENT.id);
-      if(!prev || !prev.duplicatePlayers){ alert('No duplicate players found.'); return; }
-      var lines=prev.groups.map(function(g){ return '• '+g.name+' — keep 1, remove '+g.remove; }).join('\n');
-      if(!confirm('Merge duplicate players?\n\nFor each name this keeps ONE record (the one on a phone, or with the most scores), moves any scores onto it, then removes the extras. This cannot be undone.\n\n'+prev.duplicatePlayers+' duplicate record(s) will be removed:\n\n'+lines)) return;
+      if(!prev || (!prev.removable && !prev.review)){ alert('No duplicate names found.'); return; }
+      var rm=prev.groups.filter(function(g){return g.remove>0;}).map(function(g){ return '• '+g.name+' — remove '+g.remove+' empty'; });
+      var rv=prev.groups.filter(function(g){return g.review>0;}).map(function(g){ return '• '+g.name+' — '+g.review+' with scores / on a phone (kept)'; });
+      var msg='';
+      if(rm.length) msg+='Safe to remove (empty records — no scores, not on a phone):\n'+rm.join('\n')+'\n';
+      if(rv.length) msg+=(msg?'\n':'')+'Same name but likely DIFFERENT people — KEPT (remove the wrong one by hand if needed):\n'+rv.join('\n')+'\n';
+      if(!prev.removable){ alert('Nothing to merge automatically.\n\n'+msg); return; }
+      if(!confirm('Merge duplicates?\n\n'+msg+'\nThis removes only the empty records above and cannot be undone.')) return;
       var res=await window.EventsFS.mergeDuplicatePlayers(EVENT.id);
-      alert('Done — merged '+res.merged+' name(s) and removed '+res.removed+' duplicate record(s).');
+      alert('Done — removed '+res.removed+' empty duplicate record(s).');
       await load(false);
     }catch(e){ alert('Merge failed: '+((e&&e.message)||e)); }
   }
