@@ -412,6 +412,10 @@ export function clubComparison(
   const g = gear?.[name];
   if (!g || g.previous.length === 0) return null;
   const prev = g.previous[g.previous.length - 1];
+  // No trustworthy baseline to compare against (the retired club never gathered
+  // enough shots) — show nothing rather than a delta-vs-null or a permanent
+  // "coming soon" that can never resolve.
+  if (prev.carry == null || prev.samples < MIN_SAMPLES) return null;
   const cur = learned[name];
   const curSamples = cur?.samples ?? 0;
   const enoughSamples = curSamples >= MIN_SAMPLES;

@@ -109,6 +109,11 @@ type RoundState = {
 
 const CALIBRATION_TARGET = 18;
 
+// Cap the career shot log so its persisted JSON can't grow without bound (an
+// oversized value makes Android's AsyncStorage/SQLite throw on read). The most
+// recent shots are the relevant ones for learned distances anyway.
+const MAX_LEARNING_SHOTS = 2000;
+
 // The live personal round is persisted so scores survive the app closing — a
 // backstop next to the leaderboard sync so a day's card is never lost.
 const ROUND_KEY = "foreai.round.v1";
@@ -204,26 +209,31 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     ).catch(() => {});
   }, [hydrated, courseId, teeId, currentHole, scores, pickups, holeStats, shots, linkedEvent, partnerIds, teammateIds]);
 
-  // Load the career caddie profile once, on mount.
+  // Load the career caddie profile once, on mount. The persistence gate is
+  // flipped true ONLY after a clean read — if the read or parse throws we leave
+  // saving disabled, so a transient/corrupt read is never written back over the
+  // real stored profile with empty defaults (that would be permanent data loss).
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const raw = await AsyncStorage.getItem(CADDIE_KEY);
-        if (alive && raw) {
+        if (!alive) return;
+        if (raw) {
           const saved = JSON.parse(raw);
           if (saved && typeof saved === "object") {
             if (Array.isArray(saved.bag) && saved.bag.length) setBag(saved.bag);
             if (saved.gear && typeof saved.gear === "object") setGear(saved.gear);
-            if (Array.isArray(saved.learningShots)) setLearningShots(saved.learningShots);
+            if (Array.isArray(saved.learningShots)) setLearningShots(saved.learningShots.slice(-MAX_LEARNING_SHOTS));
             if (typeof saved.calibrationHoles === "number")
               setCalibrationHoles(Math.max(0, Math.min(CALIBRATION_TARGET, saved.calibrationHoles)));
           }
         }
+        if (alive) setCaddieHydrated(true); // enable saving only after a clean read
       } catch {
-        // Corrupt/unreadable store — fall back to defaults rather than crash.
-      } finally {
-        if (alive) setCaddieHydrated(true);
+        // Read/parse failed — leave saving DISABLED so we don't overwrite the
+        // (possibly just-unreadable) stored profile. It stays intact for the
+        // next launch; this session simply runs on defaults without persisting.
       }
     })();
     return () => {
@@ -290,7 +300,9 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     // First shot on this hole (this round) counts one hole toward calibration.
     const firstOnHole = shots.every((x) => x.hole !== s.hole);
     setShots((prev) => [...prev, entry]);
-    setLearningShots((prev) => [...prev, entry]); // never cleared by resetRound
+    // Career log the caddie learns from — never cleared by resetRound, but
+    // capped so the persisted blob stays small enough to always read back.
+    setLearningShots((prev) => [...prev, entry].slice(-MAX_LEARNING_SHOTS));
     if (firstOnHole) setCalibrationHoles((h) => Math.min(CALIBRATION_TARGET, h + 1));
   };
 
