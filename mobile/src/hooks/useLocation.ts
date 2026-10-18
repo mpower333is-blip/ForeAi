@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as Location from "expo-location";
 import { Coord } from "../lib/geo";
+import { ensureForegroundLocationConsent } from "../lib/locationConsent";
 
 export type LocationState = {
   coord: Coord | null;
@@ -29,6 +30,13 @@ export function useLocation(enabled: boolean = true): LocationState {
     (async () => {
       setStatus("requesting");
       try {
+        // Google Play: show the in-app prominent disclosure BEFORE the OS prompt.
+        const consented = await ensureForegroundLocationConsent();
+        if (cancelled) return;
+        if (!consented) {
+          setStatus("denied");
+          return;
+        }
         const services = await Location.hasServicesEnabledAsync().catch(() => true);
         const { status: perm } = await Location.requestForegroundPermissionsAsync();
         if (cancelled) return;
