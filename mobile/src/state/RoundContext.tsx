@@ -10,6 +10,7 @@ import {
   learnDistances,
   effectiveBag as buildEffectiveBag,
   LearnedClub,
+  ClubGear,
   courseHandicap,
   strokesReceivedOnHole,
   stablefordPoints,
@@ -31,6 +32,7 @@ export type LoggedShot = {
   lie: Lie;
   holed: boolean;
   strokesGained: number;
+  at?: number; // epoch ms the shot was logged (for per-club distance learning)
 };
 
 export type HoleStats = {
@@ -76,6 +78,15 @@ type RoundState = {
   teammateIds: string[];
   setTeammateIds: (ids: string[]) => void;
   setBag: (bag: Club[]) => void;
+  // Make/model of the physical club in each bag slot (keyed by club name), with
+  // the history of what was there before — the basis for the club-change
+  // distance comparison.
+  gear: Record<string, ClubGear>;
+  // Edit a slot's make/model label without touching its learned distances.
+  setClubDetails: (name: string, make: string, model: string) => void;
+  // Record a club swap: snapshot the current club's learned carry for later
+  // comparison, then start the new club's distances fresh.
+  replaceClub: (name: string, make: string, model: string) => void;
   setHoleScore: (hole: number, strokes: number) => void;
   setPickup: (hole: number, picked: boolean) => void;
   setPlayerHandicap: (h: number) => void;
@@ -102,6 +113,11 @@ const CALIBRATION_TARGET = 18;
 // backstop next to the leaderboard sync so a day's card is never lost.
 const ROUND_KEY = "foreai.round.v1";
 
+// The career caddie profile — the player's bag (with make/model), the whole
+// shot log the caddie learns from, and calibration progress. Kept under its own
+// key because it outlives any single round (resetRound never clears it).
+const CADDIE_KEY = "foreai.caddie.v1";
+
 const Ctx = createContext<RoundState | null>(null);
 
 let counter = 0;
@@ -118,6 +134,7 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   const [currentHole, setCurrentHole] = useState(1);
   const [teeId, setTee] = useState<TeeId>(DEFAULT_TEE);
   const [bag, setBag] = useState<Club[]>(DEFAULT_BAG);
+  const [gear, setGear] = useState<Record<string, ClubGear>>({});
   const [shots, setShots] = useState<LoggedShot[]>([]);
   const [scores, setScores] = useState<Record<number, number>>({});
   const [pickups, setPickups] = useState<Record<number, boolean>>({});
@@ -141,6 +158,8 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
   // Gate saving until the first on-disk load finishes, so an empty initial
   // state never overwrites a persisted round before it's read back.
   const [hydrated, setHydrated] = useState(false);
+  // Separate hydration gate for the career caddie profile (bag/gear/learning).
+  const [caddieHydrated, setCaddieHydrated] = useState(false);
 
   // Load any persisted round once, on mount.
   useEffect(() => {
@@ -184,6 +203,42 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
       JSON.stringify({ courseId, teeId, currentHole, scores, pickups, holeStats, shots, linkedEvent, partnerIds, teammateIds })
     ).catch(() => {});
   }, [hydrated, courseId, teeId, currentHole, scores, pickups, holeStats, shots, linkedEvent, partnerIds, teammateIds]);
+
+  // Load the career caddie profile once, on mount.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(CADDIE_KEY);
+        if (alive && raw) {
+          const saved = JSON.parse(raw);
+          if (saved && typeof saved === "object") {
+            if (Array.isArray(saved.bag) && saved.bag.length) setBag(saved.bag);
+            if (saved.gear && typeof saved.gear === "object") setGear(saved.gear);
+            if (Array.isArray(saved.learningShots)) setLearningShots(saved.learningShots);
+            if (typeof saved.calibrationHoles === "number")
+              setCalibrationHoles(Math.max(0, Math.min(CALIBRATION_TARGET, saved.calibrationHoles)));
+          }
+        }
+      } catch {
+        // Corrupt/unreadable store — fall back to defaults rather than crash.
+      } finally {
+        if (alive) setCaddieHydrated(true);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Persist the career caddie profile whenever it changes (after the load).
+  useEffect(() => {
+    if (!caddieHydrated) return;
+    AsyncStorage.setItem(
+      CADDIE_KEY,
+      JSON.stringify({ bag, gear, learningShots, calibrationHoles })
+    ).catch(() => {});
+  }, [caddieHydrated, bag, gear, learningShots, calibrationHoles]);
 
   const selectedCourse = useMemo(() => getCourse(courseId), [courseId]);
   // Hole yardages scaled to the selected tee (par / SI / GPS unchanged).
@@ -231,7 +286,7 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
       endSurface: s.endSurface,
       holed: s.holed,
     });
-    const entry = { ...s, id: makeId(), strokesGained };
+    const entry = { ...s, id: makeId(), strokesGained, at: Date.now() };
     // First shot on this hole (this round) counts one hole toward calibration.
     const firstOnHole = shots.every((x) => x.hole !== s.hole);
     setShots((prev) => [...prev, entry]);
@@ -263,14 +318,65 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
 
   const shotsForHole = (hole: number) => shots.filter((s) => s.hole === hole);
 
+  // Per-slot cutoff: a club that's been swapped only learns from shots logged
+  // after the swap, so the new club's numbers aren't diluted by the old one's.
+  const sinceByClub = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const [name, g] of Object.entries(gear)) if (g.since > 0) m[name] = g.since;
+    return m;
+  }, [gear]);
   // The caddie learns from the whole career log, not just the current round.
-  const learned = useMemo(() => learnDistances(learningShots), [learningShots]);
+  const learned = useMemo(
+    () => learnDistances(learningShots, sinceByClub),
+    [learningShots, sinceByClub]
+  );
   const isCalibrated = calibrationHoles >= CALIBRATION_TARGET;
   // Only personalize club numbers once the first 18 holes are in the books.
   const effectiveBag = useMemo(
     () => (isCalibrated ? buildEffectiveBag(bag, learned) : bag),
     [bag, learned, isCalibrated]
   );
+
+  // Edit the make/model on a slot without disturbing its learned distances — for
+  // first-time entry or fixing a typo on the club already in the bag.
+  const setClubDetails: RoundState["setClubDetails"] = (name, make, model) => {
+    setGear((prev) => {
+      const existing = prev[name];
+      return {
+        ...prev,
+        [name]: {
+          make,
+          model,
+          since: existing?.since ?? 0,
+          previous: existing?.previous ?? [],
+        },
+      };
+    });
+  };
+
+  // Record a club swap. The outgoing club's learned carry is snapshotted into
+  // the slot's history (for the before/after comparison), then `since` is set to
+  // now so the incoming club's distances are learned fresh from here on.
+  const replaceClub: RoundState["replaceClub"] = (name, make, model) => {
+    const now = Date.now();
+    const outgoing = gear[name];
+    const current = learned[name];
+    setGear((prev) => {
+      const old = prev[name];
+      const history = [...(old?.previous ?? [])];
+      // Only snapshot if there was a real club recorded here to compare against.
+      if (outgoing && (outgoing.make.trim() || outgoing.model.trim())) {
+        history.push({
+          make: outgoing.make,
+          model: outgoing.model,
+          carry: current ? current.carry : null,
+          samples: current ? current.samples : 0,
+          retiredAt: now,
+        });
+      }
+      return { ...prev, [name]: { make, model, since: now, previous: history } };
+    });
+  };
 
   const scoreTotals = useMemo<ScoreTotals>(() => {
     const holes = selectedCourse.holes;
@@ -339,6 +445,9 @@ export function RoundProvider({ children }: { children: React.ReactNode }) {
     teammateIds,
     setTeammateIds,
     setBag,
+    gear,
+    setClubDetails,
+    replaceClub,
     setHoleScore,
     setPickup,
     setPlayerHandicap,

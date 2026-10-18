@@ -5,6 +5,7 @@ import { Screen, ScreenHeader, Card, Stepper, MetreStepper, TextField, Button } 
 import { colors, spacing, radius } from "../theme";
 import { ydToM } from "../lib/units";
 import { useRound } from "../state/RoundContext";
+import { clubComparison, gearLabel, MIN_SAMPLES, ClubGear, ClubComparison } from "../lib/golfEngine";
 import { useProfile } from "../state/ProfileContext";
 import { API_BASE } from "../services/api";
 import { getNotifPrefs, loadNotifPrefs, setNotifPref, NotifPrefs } from "../lib/notifPrefs";
@@ -27,6 +28,10 @@ export default function ProfileScreen({ navigation }: any) {
   const {
     bag,
     setBag,
+    gear,
+    setClubDetails,
+    replaceClub,
+    learned,
     shots,
     totalStrokesGained,
     calibrationHoles,
@@ -193,32 +198,28 @@ export default function ProfileScreen({ navigation }: any) {
 
       <Card>
         <Text style={styles.sectionTitle}>My bag</Text>
-        <Text style={styles.hint}>Tap a club to tune its carry distance.</Text>
+        <Text style={styles.hint}>
+          Tap a club to add its make &amp; model and tune its carry. When you get a new club, mark it
+          as new — we'll save the old one's numbers so you can see the difference it makes.
+        </Text>
         {bag.map((club, i) => (
-          <View key={club.name}>
-            <TouchableOpacity
-              style={styles.clubRow}
-              onPress={() => setEditing(editing === i ? null : i)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.clubName}>{club.name}</Text>
-              <View style={styles.carryPill}>
-                <Text style={styles.carryText}>{ydToM(club.carry)} m</Text>
-              </View>
-            </TouchableOpacity>
-            {editing === i && (
-              <View style={styles.editBox}>
-                <MetreStepper
-                  label={`${club.name} carry`}
-                  value={club.carry}
-                  onChange={(v) => updateCarry(i, v)}
-                  stepM={2}
-                  min={30}
-                  max={340}
-                />
-              </View>
-            )}
-          </View>
+          <BagClubRow
+            key={club.name}
+            club={club}
+            gear={gear[club.name]}
+            comparison={clubComparison(club.name, gear, learned)}
+            expanded={editing === i}
+            onToggle={() => setEditing(editing === i ? null : i)}
+            onCarryChange={(v) => updateCarry(i, v)}
+            onSaveDetails={(make, model) => {
+              setClubDetails(club.name, make, model);
+              setEditing(null);
+            }}
+            onReplace={(make, model) => {
+              replaceClub(club.name, make, model);
+              setEditing(null);
+            }}
+          />
         ))}
       </Card>
 
@@ -262,6 +263,157 @@ export default function ProfileScreen({ navigation }: any) {
         </Text>
       </Card>
     </Screen>
+  );
+}
+
+// One row in "My bag": the club, its make/model, the carry pill, and — once a
+// club's been replaced — how far the new one carries versus the old one.
+function BagClubRow({
+  club,
+  gear,
+  comparison,
+  expanded,
+  onToggle,
+  onCarryChange,
+  onSaveDetails,
+  onReplace,
+}: {
+  club: { name: string; carry: number };
+  gear?: ClubGear;
+  comparison: ClubComparison | null;
+  expanded: boolean;
+  onToggle: () => void;
+  onCarryChange: (yards: number) => void;
+  onSaveDetails: (make: string, model: string) => void;
+  onReplace: (make: string, model: string) => void;
+}) {
+  const label = gearLabel(gear);
+  return (
+    <View>
+      <TouchableOpacity style={styles.clubRow} onPress={onToggle} activeOpacity={0.7}>
+        <View style={{ flex: 1, paddingRight: 10 }}>
+          <Text style={styles.clubName}>{club.name}</Text>
+          {label ? (
+            <Text style={styles.clubGear}>{label}</Text>
+          ) : (
+            <Text style={styles.clubGearEmpty}>Add make &amp; model</Text>
+          )}
+          <ClubDelta comparison={comparison} />
+        </View>
+        <View style={styles.carryPill}>
+          <Text style={styles.carryText}>{ydToM(club.carry)} m</Text>
+        </View>
+      </TouchableOpacity>
+      {expanded && (
+        <BagClubEditor
+          club={club}
+          gear={gear}
+          onCarryChange={onCarryChange}
+          onSaveDetails={onSaveDetails}
+          onReplace={onReplace}
+        />
+      )}
+    </View>
+  );
+}
+
+// The "+8 m vs your old TaylorMade Qi9" line (or a "coming soon" note while the
+// new club is still gathering shots).
+function ClubDelta({ comparison }: { comparison: ClubComparison | null }) {
+  if (!comparison) return null;
+  const prevLabel =
+    gearLabel({ make: comparison.prevMake, model: comparison.prevModel }) || "your old club";
+  if (comparison.curCarry != null && comparison.prevCarry != null) {
+    const deltaM = ydToM(comparison.curCarry) - ydToM(comparison.prevCarry);
+    const longer = deltaM > 0;
+    const same = deltaM === 0;
+    const tone = same ? colors.textMuted : longer ? colors.accent : colors.negative;
+    const arrow = same ? "=" : longer ? "▲" : "▼";
+    const sign = deltaM > 0 ? "+" : "";
+    return (
+      <Text style={[styles.clubDelta, { color: tone }]}>
+        {arrow} {sign}
+        {deltaM} m vs {prevLabel}
+      </Text>
+    );
+  }
+  return (
+    <Text style={styles.clubDeltaPending}>
+      {comparison.curSamples}/{MIN_SAMPLES} shots on the new club — carry vs {prevLabel} coming soon
+    </Text>
+  );
+}
+
+// The expanded editor for a bag slot: make/model, carry, and the "new club"
+// switch that triggers a fresh-distances swap.
+function BagClubEditor({
+  club,
+  gear,
+  onCarryChange,
+  onSaveDetails,
+  onReplace,
+}: {
+  club: { name: string; carry: number };
+  gear?: ClubGear;
+  onCarryChange: (yards: number) => void;
+  onSaveDetails: (make: string, model: string) => void;
+  onReplace: (make: string, model: string) => void;
+}) {
+  const [make, setMake] = useState(gear?.make ?? "");
+  const [model, setModel] = useState(gear?.model ?? "");
+  const [isNew, setIsNew] = useState(false);
+  const hasExisting = !!gearLabel(gear);
+
+  const save = () => {
+    const m = make.trim();
+    const md = model.trim();
+    if (isNew && hasExisting) {
+      Alert.alert(
+        "New club",
+        `Start fresh distances for your ${club.name}? We'll save your current ${gearLabel(
+          gear
+        )} numbers so the new club can be compared against them.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Start fresh", onPress: () => onReplace(m, md) },
+        ]
+      );
+    } else {
+      onSaveDetails(m, md);
+    }
+  };
+
+  return (
+    <View style={styles.editBox}>
+      <TextField label="Make" value={make} onChangeText={setMake} placeholder="e.g. TaylorMade" />
+      <TextField label="Model" value={model} onChangeText={setModel} placeholder="e.g. Qi10" />
+      <MetreStepper
+        label={`${club.name} carry`}
+        value={club.carry}
+        onChange={onCarryChange}
+        stepM={2}
+        min={30}
+        max={340}
+      />
+      {hasExisting && (
+        <View style={styles.newRow}>
+          <View style={styles.prefText}>
+            <Text style={styles.newLabel}>New / different club</Text>
+            <Text style={styles.hint}>
+              Switch on if you've changed this club — its distances start fresh and we keep the old
+              numbers to compare against.
+            </Text>
+          </View>
+          <Switch
+            value={isNew}
+            onValueChange={setIsNew}
+            trackColor={{ true: colors.accentDeep, false: colors.border }}
+            thumbColor={isNew ? colors.accent : "#8aa"}
+          />
+        </View>
+      )}
+      <Button label={isNew && hasExisting ? "Save new club" : "Save club"} onPress={save} />
+    </View>
   );
 }
 
@@ -325,6 +477,10 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   clubName: { color: colors.text, fontSize: 16, fontWeight: "600" },
+  clubGear: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  clubGearEmpty: { color: colors.textFaint, fontSize: 13, marginTop: 2, fontStyle: "italic" },
+  clubDelta: { fontSize: 13, fontWeight: "700", marginTop: 3 },
+  clubDeltaPending: { color: colors.textFaint, fontSize: 12, marginTop: 3 },
   carryPill: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.sm,
@@ -333,6 +489,8 @@ const styles = StyleSheet.create({
   },
   carryText: { color: colors.accent, fontWeight: "700" },
   editBox: { paddingVertical: spacing.sm },
+  newRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm },
+  newLabel: { color: colors.text, fontSize: 15, fontWeight: "700" },
   apiText: { color: colors.textFaint, fontSize: 13, marginTop: 4 },
   versionText: { color: colors.textFaint, fontSize: 12, marginTop: 10, fontWeight: "700", letterSpacing: 0.3 },
 });

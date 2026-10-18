@@ -298,6 +298,7 @@ export type ShotRecord = {
   startYards: number;
   endYards: number;
   holed?: boolean;
+  at?: number; // epoch ms the shot was logged (optional on older saved shots)
 };
 
 export type LearnedClub = {
@@ -307,11 +308,19 @@ export type LearnedClub = {
   samples: number;
 };
 
-const MIN_SAMPLES = 3; // below this we don't trust the learned number
+export const MIN_SAMPLES = 3; // below this we don't trust the learned number
 
-export function learnDistances(shots: ShotRecord[]): Record<string, LearnedClub> {
+export function learnDistances(
+  shots: ShotRecord[],
+  // When a bag slot has been swapped to a new make/model, only shots logged
+  // at/after that swap time count for the slot — so the new club's numbers are
+  // learned cleanly instead of being diluted by the old club's shots.
+  sinceByClub?: Record<string, number>
+): Record<string, LearnedClub> {
   const byClub: Record<string, number[]> = {};
   for (const s of shots) {
+    const cut = sinceByClub?.[s.club];
+    if (cut && (s.at ?? 0) < cut) continue;
     const carry = (s.holed ? s.startYards : s.startYards - s.endYards);
     if (carry <= 0) continue; // ignore putts / mishits that don't advance
     (byClub[s.club] ||= []).push(carry);
@@ -360,6 +369,71 @@ export function dispersionWindow(
   const l = learned[club];
   if (l && l.samples >= MIN_SAMPLES && l.dispersion > 0) return l.dispersion;
   return 12; // conservative default when we have no data yet
+}
+
+// ---------------------------------------------------------------------------
+// Club gear — the make/model of the physical club in each bag slot, with a
+// history of what was there before. This lets the app show what getting a new
+// club actually changed about your real carry distance.
+// ---------------------------------------------------------------------------
+
+export type RetiredClub = {
+  make: string;
+  model: string;
+  carry: number | null; // learned avg carry (yards) when retired; null if never learned
+  samples: number; // how many logged shots that carry was based on
+  retiredAt: number; // epoch ms
+};
+
+export type ClubGear = {
+  make: string;
+  model: string;
+  since: number; // epoch ms — only shots at/after this count toward this slot's distance
+  previous: RetiredClub[]; // clubs that used to fill this slot, oldest → newest
+};
+
+export type ClubComparison = {
+  prevMake: string;
+  prevModel: string;
+  prevCarry: number | null; // yards
+  curCarry: number | null; // yards; null until the new club has enough shots
+  deltaYards: number | null; // curCarry - prevCarry; null if either is unknown
+  curSamples: number;
+  enoughSamples: boolean; // curSamples >= MIN_SAMPLES
+};
+
+// Before/after for a bag slot: the club it holds now vs the one it most recently
+// replaced. Returns null when nothing has been replaced in this slot.
+export function clubComparison(
+  name: string,
+  gear: Record<string, ClubGear> | undefined,
+  learned: Record<string, LearnedClub>
+): ClubComparison | null {
+  const g = gear?.[name];
+  if (!g || g.previous.length === 0) return null;
+  const prev = g.previous[g.previous.length - 1];
+  const cur = learned[name];
+  const curSamples = cur?.samples ?? 0;
+  const enoughSamples = curSamples >= MIN_SAMPLES;
+  const curCarry = enoughSamples ? cur!.carry : null;
+  const deltaYards =
+    curCarry != null && prev.carry != null ? curCarry - prev.carry : null;
+  return {
+    prevMake: prev.make,
+    prevModel: prev.model,
+    prevCarry: prev.carry,
+    curCarry,
+    deltaYards,
+    curSamples,
+    enoughSamples,
+  };
+}
+
+// A short "TaylorMade Qi10" style label from a gear entry (either piece may be
+// blank). Returns "" when nothing is recorded.
+export function gearLabel(g?: { make?: string; model?: string } | null): string {
+  if (!g) return "";
+  return [g.make?.trim(), g.model?.trim()].filter(Boolean).join(" ");
 }
 
 // ---------------------------------------------------------------------------

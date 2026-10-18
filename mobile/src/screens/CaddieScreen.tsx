@@ -14,6 +14,8 @@ import {
   isLearned,
   dispersionWindow,
   DEFAULT_BAG,
+  clubComparison,
+  gearLabel,
 } from "../lib/golfEngine";
 
 const LIES: { key: Lie; label: string }[] = [
@@ -25,7 +27,7 @@ const LIES: { key: Lie; label: string }[] = [
 ];
 
 export default function CaddieScreen({ navigation }: any) {
-  const { effectiveBag, learned, calibrationHoles, isCalibrated } = useRound();
+  const { effectiveBag, learned, gear, calibrationHoles, isCalibrated } = useRound();
   const loc = useLocation();
   const [yardage, setYardage] = useState(155);
   const [wind, setWind] = useState(0);
@@ -180,20 +182,49 @@ export default function CaddieScreen({ navigation }: any) {
             ? "Learned from your logged shots — dispersion shows your consistency."
             : "Log shots in a round and your real carry distances appear here automatically."}
         </Text>
-        {smartRows.map((r) => (
-          <View key={r.name} style={styles.distRow}>
-            <Text style={styles.distName}>{r.name}</Text>
-            <View style={styles.distRight}>
-              {r.samples > 0 && (
-                <Text style={styles.distDisp}>±{ydToM(r.dispersion!)}</Text>
-              )}
-              <Text style={[styles.distCarry, r.samples > 0 && { color: colors.accent }]}>
-                {ydToM(r.carry)} m
-              </Text>
-              <Text style={styles.distTag}>{r.samples > 0 ? `${r.samples} shots` : "default"}</Text>
+        {smartRows.map((r) => {
+          const label = gearLabel(gear[r.name]);
+          const cmp = clubComparison(r.name, gear, learned);
+          let deltaNode: React.ReactNode = null;
+          if (cmp) {
+            const prevLabel =
+              gearLabel({ make: cmp.prevMake, model: cmp.prevModel }) || "old club";
+            if (cmp.curCarry != null && cmp.prevCarry != null) {
+              const deltaM = ydToM(cmp.curCarry) - ydToM(cmp.prevCarry);
+              const tone =
+                deltaM === 0 ? colors.textMuted : deltaM > 0 ? colors.accent : colors.negative;
+              const arrow = deltaM === 0 ? "=" : deltaM > 0 ? "▲" : "▼";
+              deltaNode = (
+                <Text style={[styles.distDelta, { color: tone }]}>
+                  {arrow} {deltaM > 0 ? "+" : ""}
+                  {deltaM} m vs {prevLabel}
+                </Text>
+              );
+            } else {
+              deltaNode = (
+                <Text style={styles.distDeltaPending}>new club — carry vs {prevLabel} coming soon</Text>
+              );
+            }
+          }
+          return (
+            <View key={r.name} style={styles.distRow}>
+              <View style={styles.distLeft}>
+                <Text style={styles.distName}>{r.name}</Text>
+                {label ? <Text style={styles.distGear}>{label}</Text> : null}
+                {deltaNode}
+              </View>
+              <View style={styles.distRight}>
+                {r.samples > 0 && (
+                  <Text style={styles.distDisp}>±{ydToM(r.dispersion!)}</Text>
+                )}
+                <Text style={[styles.distCarry, r.samples > 0 && { color: colors.accent }]}>
+                  {ydToM(r.carry)} m
+                </Text>
+                <Text style={styles.distTag}>{r.samples > 0 ? `${r.samples} shots` : "default"}</Text>
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </Card>
     </Screen>
   );
@@ -254,7 +285,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  distLeft: { flex: 1, paddingRight: 10 },
   distName: { color: colors.text, fontSize: 16, fontWeight: "600" },
+  distGear: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+  distDelta: { fontSize: 12, fontWeight: "700", marginTop: 2 },
+  distDeltaPending: { color: colors.textFaint, fontSize: 11, marginTop: 2 },
   distRight: { flexDirection: "row", alignItems: "center", gap: 10 },
   distDisp: { color: colors.textFaint, fontSize: 13 },
   distCarry: { color: colors.textMuted, fontSize: 16, fontWeight: "700", minWidth: 64, textAlign: "right" },
