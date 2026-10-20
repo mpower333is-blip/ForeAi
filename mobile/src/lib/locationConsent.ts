@@ -34,9 +34,10 @@ export async function ensureForegroundLocationConsent(): Promise<boolean> {
       "ForeAi uses your location",
       "ForeAi collects and uses your device location to:\n\n" +
         "• show GPS distances to the front, middle and back of each green and map the hole you're playing;\n" +
-        "• give you local weather; and\n" +
-        "• during a golf day you've joined, share your live position with the organiser's clubhouse leaderboard so the event can follow play.\n\n" +
-        "Location is used only for these features — never for advertising. You can change this any time in your device settings.",
+        "• give you local weather;\n" +
+        "• during a golf day you've joined, share your live position with the organiser's clubhouse leaderboard so the event can follow play; and\n" +
+        "• watch for nearby lightning and warn you to take shelter. During a round this safety watch keeps checking your location in the BACKGROUND — even when the app is closed or your phone is in your pocket — and stops when the round ends.\n\n" +
+        "Location is used only for these features — never for advertising. You can turn it off any time in your device settings.",
       [
         { text: "Not now", style: "cancel", onPress: () => { declinedThisSession = true; resolve(false); } },
         {

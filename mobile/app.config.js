@@ -42,7 +42,7 @@ export default {
   expo: {
     name: (SURVEY_ONLY ? "ForeAi Survey" : CLUB ? CLUB_APP_NAME : "ForeAi") + NAME_TAG,
     slug: "foreai",
-    version: "2.0",
+    version: "2.1",
     // "default" (no hard lock) so FOLDABLES and large screens — an unfolded
     // Samsung Z Fold, a foldable iPhone, tablets — use the full display and
     // rotate instead of being pillar-boxed in portrait. iOS orientations are set
