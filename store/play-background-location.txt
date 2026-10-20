@@ -1,0 +1,121 @@
+ForeAi — Google Play background-location declaration & demo video
+=================================================================
+
+Why this file exists
+--------------------
+Google rejected the 2.0 upload for "Inadequate Prominent Disclosure" (Location).
+The app code now shows an in-app prominent disclosure that covers background
+location (fixed in v2.1). To KEEP the lightning-safety feature that runs when the
+app is closed, Google ALSO requires you to (a) declare background location in the
+Play Console and (b) attach a short demo video. This file has the exact wording
+and a step-by-step shot list so you can film it in one take.
+
+Package: com.foreai.mobile   ·   App: ForeAi: Golf GPS Rangefinder
+Feature needing background location: lightning-strike safety warnings during a round.
+
+
+────────────────────────────────────────────────────────────────────────
+1. BACKGROUND LOCATION DECLARATION  (Play Console)
+   App content → Sensitive app permissions → Location  (or the
+   "Permissions declaration form" shown with the policy notice)
+────────────────────────────────────────────────────────────────────────
+
+• Does your app use background location? → YES
+
+• Which feature uses it? (paste)
+  Lightning-strike safety warnings. During a round ForeAi checks the player's
+  location against live lightning data and sends a loud warning to take shelter
+  when a strike is detected nearby.
+
+• Why does the feature need location in the BACKGROUND / when the app is closed?
+  (paste)
+  Golfers keep their phone in a pocket or bag with the screen off and the app not
+  in the foreground for most of a 4–5 hour round. A lightning warning is only
+  useful if it still fires while the app is closed — a safety alert the player
+  cannot see is no protection. The watch runs ONLY during an active round and
+  stops automatically when the round ends; it is not used at any other time.
+
+• Is background access limited to what the feature needs? → YES
+  It runs only during an active round, uses balanced accuracy, and stops at the
+  end of the round.
+
+• Video link: <paste the unlisted YouTube link from section 2>
+
+
+────────────────────────────────────────────────────────────────────────
+2. DEMO VIDEO  (screen recording of the phone; upload to YouTube as UNLISTED,
+   then paste the link into the declaration above)
+────────────────────────────────────────────────────────────────────────
+
+Keep it ~60–90 seconds. Narrate or add captions so the reviewer follows along.
+Film on the v2.1 build (the one with the updated disclosure).
+
+Shot list — record in this order, without cutting:
+
+  1. Fresh start: open ForeAi (ideally a fresh install so the disclosure shows).
+     Tap through the short intro to the Home screen.
+
+  2. PROMINENT DISCLOSURE — the dialog titled "ForeAi uses your location" appears.
+     Pause ~3 seconds on it so the reviewer can read it (it names GPS distances,
+     weather, sharing your position with the golf-day leaderboard, AND the
+     lightning safety watch that keeps checking location in the background even
+     when the app is closed). Then tap ALLOW.
+
+  3. System location prompt appears → choose "While using the app".
+
+  4. Turn the lightning safety feature on (if not already): Profile →
+     Notifications → "⚡ Lightning alerts" ON. (Or start/join a round so the
+     round lightning watch starts.)
+
+  5. BACKGROUND DISCLOSURE + permission — when the background watch starts, the
+     app shows its "Lightning safety uses your location" dialog (it says location
+     is used in the background and when the app is closed, only during a round).
+     Tap Allow → on the next system screen choose "Allow all the time".
+
+  6. Show the lightning status on Home (e.g. "Skies clear — no lightning within
+     10 km") so the feature is visibly working.
+
+  7. Press the phone's Home button to background/close the app, wait a couple of
+     seconds, to show the watch is designed to keep running while the app is not
+     open. (You don't need a real strike — just show the app backgrounded.)
+
+Tip: Android has a built-in screen recorder (swipe down → Screen record). Record,
+then upload to YouTube set to "Unlisted" and copy the share link.
+
+
+────────────────────────────────────────────────────────────────────────
+3. DATA SAFETY FORM  (App content → Data safety) — must match the disclosure
+────────────────────────────────────────────────────────────────────────
+
+• Location → Approximate location AND Precise location: COLLECTED.
+• Collected in the background: YES.
+• Shared: YES — the player's position is shared with the golf-day organiser's
+  clubhouse leaderboard during an event.
+• Purposes: App functionality (on-course distances, hole maps), and the live
+  golf-day leaderboard. NOT used for advertising or marketing.
+
+
+────────────────────────────────────────────────────────────────────────
+4. RESUBMIT
+────────────────────────────────────────────────────────────────────────
+
+1. Trigger a fresh Codemagic build: foreai-android-play → branch main. It builds
+   v2.1 with a new versionCode and auto-publishes to the internal track.
+2. Put v2.1 into the track you're submitting (Add from library → the newest
+   3006x bundle).
+3. Complete sections 1–3 above.
+4. Publishing overview → "Send changes for review".
+5. Leave the old 30058 (1.7) in Closed testing alone — don't roll it out.
+
+
+────────────────────────────────────────────────────────────────────────
+If it's rejected AGAIN
+────────────────────────────────────────────────────────────────────────
+Google holds background location to a "core feature" bar, and a lightning add-on
+can still be refused even with a perfect disclosure + video. If that happens, the
+two clean fixes are:
+  • remove background location — lightning then works only while the app is open
+    (no declaration/video needed, fastest approval); or
+  • move lightning to push notifications — server sends the warning, no on-device
+    background location (needs backend work).
+Ask and either can be done quickly.
