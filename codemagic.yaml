@@ -61,8 +61,15 @@ workflows:
     triggering:
       events:
         - tag
+        - push
       tag_patterns:
         - pattern: "android-*"
+          include: true
+      # Branch trigger: pushing the `ci-android-play` branch (a mirror of main)
+      # starts this build without needing a tag. Used to kick builds from a
+      # session that can push branches but not tags. Main itself never matches.
+      branch_patterns:
+        - pattern: "ci-android-play"
           include: true
     environment:
       node: 22
@@ -218,8 +225,14 @@ workflows:
     triggering:
       events:
         - tag
+        - push
       tag_patterns:
         - pattern: "ios-*"
+          include: true
+      # Branch trigger: push `ci-ios` (a mirror of main) to start this build
+      # without a tag. Main itself never matches.
+      branch_patterns:
+        - pattern: "ci-ios"
           include: true
     integrations:
       app_store_connect: ForeAi ASC
@@ -664,8 +677,14 @@ workflows:
     triggering:
       events:
         - tag
+        - push
       tag_patterns:
         - pattern: "apk-*"
+          include: true
+      # Branch trigger: push `ci-android-apk` (a mirror of main) to start this
+      # installable-APK build without a tag. Main itself never matches.
+      branch_patterns:
+        - pattern: "ci-android-apk"
           include: true
     environment:
       node: 22
