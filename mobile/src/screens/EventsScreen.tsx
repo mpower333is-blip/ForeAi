@@ -21,6 +21,11 @@ import WeatherPanel from "../components/WeatherPanel";
 import { scheduleEventReminders } from "../lib/eventReminders";
 import CourseMap from "../components/CourseMap";
 import { formatForEvent } from "../lib/golfFormats";
+import QRCode from "react-native-qrcode-svg";
+import * as Clipboard from "expo-clipboard";
+
+// The clubhouse (custom domain) that serves the projectable live board.
+const CLUBHOUSE_URL = "https://foreai.co.za";
 import {
   TEvent,
   EventFormat,
@@ -572,6 +577,8 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
           <Text style={styles.hint}>Share this code — players join from their own phones.</Text>
         </Card>
       )}
+
+      {event.remote && event.code ? <ShowOnScreenCard code={event.code} /> : null}
 
       <WeatherPanel coord={course.center ?? loc.coord ?? null} compact />
 
@@ -1453,6 +1460,49 @@ function formatLabel(f: string): string {
   return f === "stroke" ? "Stroke play" : f === "stableford" ? "Stableford" : "4-Ball Scramble";
 }
 
+// Put the live leaderboard on a big screen (TV / laptop / tablet) — open the
+// clubhouse board for this event's code in any browser. Great for indoor play:
+// scores entered on phones show up on the screen in real time.
+function ShowOnScreenCard({ code }: { code: string }) {
+  const url = `${CLUBHOUSE_URL}/board.html?code=${code}`;
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await Clipboard.setStringAsync(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {}
+  };
+  return (
+    <Card>
+      <Text style={styles.screenTitle}>📺 Show on a screen</Text>
+      <Text style={styles.hint}>
+        Put the live leaderboard on a TV, laptop or tablet — ideal for indoor play. Open this web
+        address on the screen; it updates as scores come in.
+      </Text>
+      <View style={styles.screenRow}>
+        <View style={styles.qrWrap}>
+          <QRCode value={url} size={104} backgroundColor="#ffffff" color="#000000" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.screenUrl}>foreai.co.za/board.html</Text>
+          <Text style={styles.screenCodeLabel}>with code</Text>
+          <Text style={styles.screenCode}>{code}</Text>
+        </View>
+      </View>
+      <Button
+        variant="ghost"
+        label={copied ? "Link copied ✓" : "📋 Copy the screen link"}
+        onPress={copy}
+      />
+      <Text style={styles.screenTip}>
+        On the screen: open a browser and go to the address above, or scan the code with a phone and
+        send the link to the TV. A laptop plugged into the TV (HDMI) or a smart-TV browser both work.
+      </Text>
+    </Card>
+  );
+}
+
 // A collapsible "how this day is played + scored" card, driven by the event's
 // chosen golf format. Open by default so players see the rules without a tap.
 function HowItsPlayed({ event }: { event: TEvent }) {
@@ -2097,6 +2147,14 @@ const styles = StyleSheet.create({
   codeRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   codeLabel: { color: colors.textFaint, fontSize: 12, letterSpacing: 2 },
   codeBig: { color: colors.accent, fontSize: 34, fontWeight: "800", letterSpacing: 4 },
+
+  screenTitle: { color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 4 },
+  screenRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginVertical: spacing.sm },
+  qrWrap: { backgroundColor: "#ffffff", padding: 8, borderRadius: radius.sm },
+  screenUrl: { color: colors.accent, fontSize: 17, fontWeight: "800" },
+  screenCodeLabel: { color: colors.textFaint, fontSize: 12, letterSpacing: 1, marginTop: 8 },
+  screenCode: { color: colors.gold, fontSize: 28, fontWeight: "800", letterSpacing: 3 },
+  screenTip: { color: colors.textFaint, fontSize: 12, lineHeight: 17, marginTop: 8 },
   liveRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.positive },
   liveLabel: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
