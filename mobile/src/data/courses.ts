@@ -173,6 +173,13 @@ const RAW_COURSES: Raw[] = [
   { id: "serengeti-masai", name: "Serengeti — Masai Mara (Signature)", town: "Kempton Park", province: "Gauteng", par: 72, lat: -26.0432, lng: 28.2925 },
   { id: "modderfontein", name: "Modderfontein Golf Club", town: "Modderfontein", province: "Gauteng", par: 72, lat: -26.093, lng: 28.164 },
   { id: "avion-park", name: "Avion Park Golf Club", town: "Kempton Park", province: "Gauteng", par: 36, lat: -26.0982, lng: 28.2478 },
+  // Gary Player Country Club (Sun City) — the Nedbank Golf Challenge course.
+  // Real coords + a representative men's total so the indoor simulator plays
+  // believable hole lengths; layout is still generated (approximate) until the
+  // official per-hole card is confirmed (par 72, championship ~7831 yds; known
+  // holes: 1 par4 441 SI7, 4 par3 213 SI9, 8 par4 492 SI1, 9 par5 596 SI5).
+  // This id matches the curated saCourses entry, which it overrides.
+  { id: "gary-player-country-club-sun-city", name: "Gary Player Country Club (Sun City)", town: "Sun City", province: "North West", par: 72, yards: 6900, lat: -25.3366, lng: 27.0960 },
   // Curated national list of well-known SA courses (names + province/city + par
   // only). No coords/contacts/exact layout — those come from the live Golf Course
   // API when opened online, or a scorecard. Flagged approximate until then.
