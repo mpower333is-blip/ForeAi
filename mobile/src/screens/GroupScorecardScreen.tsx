@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from "react-native";
 import { Screen, ScreenHeader, Card, Button } from "../components/ui";
 import { colors, spacing, radius, type } from "../theme";
@@ -47,6 +47,14 @@ export default function GroupScorecardScreen({ navigation }: any) {
   const [newName, setNewName] = useState("");
   const [newHcp, setNewHcp] = useState("");
 
+  // "Change course" opens the shared CourseSelect screen, which sets the GLOBAL
+  // round course and goes back. Pick that change up into our local course when
+  // we return from the picker (pickedRef avoids clobbering the saved course on
+  // first mount). roundCourseRef always holds the latest global course id.
+  const pickedRef = useRef(false);
+  const roundCourseRef = useRef(round.courseId);
+  roundCourseRef.current = round.courseId;
+
   // Load any saved round.
   useEffect(() => {
     loadJSON<Saved>(KEY).then((s) => {
@@ -66,6 +74,17 @@ export default function GroupScorecardScreen({ navigation }: any) {
     if (!ready) return;
     saveJSON(KEY, { courseId, players, scores, pickups, hole });
   }, [ready, courseId, players, scores, pickups, hole]);
+
+  // When we come back from the course picker, adopt the course it set.
+  useEffect(() => {
+    const unsub = navigation.addListener("focus", () => {
+      if (pickedRef.current) {
+        pickedRef.current = false;
+        setCourseId(roundCourseRef.current);
+      }
+    });
+    return unsub;
+  }, [navigation]);
 
   const course = useMemo(() => getCourse(courseId), [courseId]);
   const holes = course.holes;
@@ -152,7 +171,7 @@ export default function GroupScorecardScreen({ navigation }: any) {
         />
         <Card accent>
           <Text style={styles.courseLine}>⛳ {course.name}</Text>
-          <Button variant="ghost" label="Change course" onPress={() => navigation.navigate("CourseSelect")} />
+          <Button variant="ghost" label="Change course" onPress={() => { pickedRef.current = true; navigation.navigate("CourseSelect"); }} />
         </Card>
 
         <Card>
