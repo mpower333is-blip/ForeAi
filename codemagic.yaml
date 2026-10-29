@@ -135,11 +135,10 @@ workflows:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: internal
         submit_as_draft: false
-        # Play's API refuses to auto-send an edit for review in some states
-        # ("Changes cannot be sent for review automatically"). Commit the edit
-        # without triggering review — internal testing doesn't need review, and
-        # anything that does can be submitted from the Play Console UI.
-        changes_not_sent_for_review: true
+        # Play now auto-sends internal-track edits for review, so we must NOT
+        # pass changesNotSentForReview — the API rejects it ("Changes are sent
+        # for review automatically. The query parameter changesNotSentForReview
+        # must not be set."). Leaving it off lets the upload create the release.
 
   # ═══════════════ 2) Kempton Park — Android AAB (Play) ═══════════════
   # Play-signed .aab for com.foreai.kempton, built from the same code with
@@ -213,7 +212,8 @@ workflows:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: internal
         submit_as_draft: false
-        changes_not_sent_for_review: true
+        # See the note on the main ForeAi lane: Play auto-sends internal edits
+        # for review now, so changesNotSentForReview must not be set.
 
   # ═══════════════ 3) ForeAi — iOS (TestFlight) ═══════════════
   foreai-ios:
